@@ -1,3 +1,5 @@
-.stack-work/
+*~
 tmp.*
+.stack-work/
 old.catalog-server/
+data/catalog-servant
