@@ -41,4 +41,4 @@ set -x
 git commit -a -m "version bump to $version"
 git tag "catalog-$version-$dat"
 
-stack install
+stack build
