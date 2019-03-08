@@ -8,14 +8,30 @@ where
 import Data.Prim.Prelude
 import Data.Void
 
-import Text.Megaparsec                ( Parsec, parseMaybe
+import Text.Megaparsec                ( Parsec
+                                      , parseMaybe
                                       , count
                                       , eof
                                       , option
                                       , try
+                                      , satisfy
+                                      , single
+                                      , anySingle
+                                      , chunk
                                       )
-import           Text.Megaparsec.Char hiding (oneOf, noneOf)
-import qualified Text.Megaparsec.Char as P
+-- Data.Prim.Prelude reexports lenses,
+-- somewhere in lenses oneOf and noeOf are defined
+-- hiding these in import for Prelude
+-- gives a silly warning: Prelude does not export oneOf nor noneOf
+--
+-- so noneOf and oneOf parsers are imported qualified
+-- and renamed to oneOf' and noeOf'
+--
+import qualified Text.Megaparsec as P (oneOf, noneOf)
+
+-- not used locally but convenient for users
+--
+import Text.Megaparsec.Char
 
 -- --------------------
 --
@@ -38,7 +54,7 @@ anyStringThen' p =
            return ("", ps)
       )
   <|>
-  do c        <- anyChar
+  do c        <- anySingle
      (cs, ps) <- anyStringThen' p
      return (c : cs, ps)
 
@@ -59,7 +75,7 @@ withSuffix :: SP String -> SP String
 withSuffix p = uncurry (++) <$> splitSuffix p
 
 anyString :: SP String
-anyString = many anyChar
+anyString = many anySingle
 
 -- rename noneOf, it's defined somewhere in lens
 noneOf' :: String -> SP Char
@@ -69,10 +85,16 @@ oneOf' :: String -> SP Char
 oneOf' = P.oneOf
 
 ssp :: SP String
-ssp = some (char ' ')
+ssp = some (single ' ')
 
 msp :: SP String
-msp = many (char ' ')
+msp = many (single ' ')
+
+manyChars :: SP String
+manyChars = many anySingle
+
+someChars :: SP String
+someChars = some anySingle
 
 -- --------------------
 
@@ -81,7 +103,7 @@ sedParser edit p = go
   where
     go = try ((edit <$> p) <++> go)
          <|>
-         ((:) <$> anyChar <*> go)
+         ((:) <$> anySingle <*> go)
          <|>
          return ""
 

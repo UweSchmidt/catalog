@@ -194,7 +194,7 @@ ymdParser = do
 -- "/archive/collections/photos" -> "photos"
 baseNameParser :: SP String
 baseNameParser =
-  char '/' *> many (try $ anyStringThen' (char '/')) *> some anyChar
+  char '/' *> many (try $ anyStringThen' (char '/')) *> someChars
 
 -- ----------------------------------------
 

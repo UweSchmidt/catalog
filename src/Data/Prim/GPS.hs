@@ -112,7 +112,7 @@ googleMapsGPSdec = prism' pos2mapsUrl
     parserMapsUrl :: SP GPSposDec
     parserMapsUrl =
       try ( anyStringThen "/@" *> parserPosDec <*
-            char ',' <* some digitChar <* char 'z' <* many anyChar
+            char ',' <* some digitChar <* char 'z' <* manyChars
           )
       <|>
       try parserPosDec
