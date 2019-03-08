@@ -120,14 +120,16 @@ isPanoramaV :: Geo -> Bool
 isPanoramaV (Geo w h) =
   h >= 2 * w    -- h / w >= 2.0
 
-isPano :: Geo -> Geo -> Maybe Geo
+isPano :: Geo        -- ^ screen  geo
+       -> Geo        -- ^ img     geo
+       -> Maybe Geo  -- ^ resized geo
 isPano (Geo w' h') img@(Geo w h)
-  -- vertival panorama: landscape
+  -- horizontal panorama: landscape
   | h >= h'
     &&
     isPanoramaH img = Just gh
 
-  -- horizontal panorama: trees
+  -- vertical panorama: trees
   | w >= w'
     &&
     isPanoramaV img = Just gv
@@ -135,12 +137,13 @@ isPano (Geo w' h') img@(Geo w h)
   | otherwise       = Nothing
   where
     gh = Geo w2 h'
-    w1 = (h' * w + h' - 1) `div` h
-    w2 = (w1 + h' - 1) `div` h' * h'
+    w2 = (w * h' + (h - 1)) `div` h
 
     gv = Geo w' h2
-    h1 = (w' * h + w' - 1) `div` w
-    h2 = (h1 + w' -1) `div` w' * w'
+    h2 = (h * w' + (w - 1)) `div` w
+
+--  w2 = w * (h' / h)  -- with real arithmetic
+--  h2 = h * (w' / w)
 
 -- ----------------------------------------
 
