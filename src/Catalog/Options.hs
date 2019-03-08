@@ -12,10 +12,10 @@ import Options.Applicative
 -- version number is updated automatically
 
 version :: String
-version = "0.2.2.1"
+version = "0.2.3.0"
 
 date :: String
-date = "2019-03-07"
+date = "2019-03-08"
 
 mainWithArgs :: String -> (Env -> IO ()) -> IO ()
 mainWithArgs theAppName theAppMain = do

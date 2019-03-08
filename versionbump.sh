@@ -2,7 +2,7 @@
 
 # set -x
 
-version="0.2.2.1"
+version="0.2.3.0"
 dat=$(date "+%Y-%m-%d")
 
 bump () {
