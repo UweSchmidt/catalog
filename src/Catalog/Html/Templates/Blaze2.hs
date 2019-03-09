@@ -390,13 +390,25 @@ colPage theBaseRef theHeadTitle theDate theImgGeo
 
 -- ----------------------------------------
 
+-- don't change format of vers and dats
+-- these are updated automatically by versionbump.sh
+
+vers :: Text
+vers = "0.2.3.1"
+
+dats :: Text
+dats = "2019-03-09"
+
 headPage :: Text -> Text -> Text -> Html -> Html
 headPage theBaseRef theHeadTitle theDate theJS
   = H.head $ do
   title $ toHtml theHeadTitle
-  meta ! name "description" ! content "Web Photo Album (Version 0.2.2.0)"
+  meta ! name "description" ! content "Web Photo Album"
   meta ! name "author"      ! content "Uwe Schmidt"
-  meta ! name "generator"   ! content "catalog-servant"
+  meta ! name "generator"   ! content ( toValue $
+                                        "catalog-servant version " <>
+                                        vers <> "from" <> dats
+                                      )
   meta ! name "date"        ! content (toValue theDate)
   base ! href (toValue theBaseRef)
   link

@@ -2,8 +2,11 @@
 
 # set -x
 
-version="0.2.3.0"
+version="0.2.3.1"
 dat=$(date "+%Y-%m-%d")
+
+LANG="en_US.UTF-8"
+LC_ALL="en_US.UTF-8"
 
 bump () {
     f="$1"
@@ -28,11 +31,10 @@ bump () {
     fi
 }
 
-# bump tmp.xxx
-
 bump catalog.cabal
 bump catalog-servant/catalog-servant.cabal
 bump src/Catalog/Options.hs
+bump src/Catalog/Html/Templates/Blaze2.hs
 bump data/assets/html/edit.html
 bump data/assets/javascript/rpc-servant.js
 
