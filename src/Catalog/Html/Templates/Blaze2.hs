@@ -407,7 +407,7 @@ headPage theBaseRef theHeadTitle theDate theJS
   meta ! name "author"      ! content "Uwe Schmidt"
   meta ! name "generator"   ! content ( toValue $
                                         "catalog-servant version " <>
-                                        vers <> "from" <> dats
+                                        vers <> " from " <> dats
                                       )
   meta ! name "date"        ! content (toValue theDate)
   base ! href (toValue theBaseRef)
