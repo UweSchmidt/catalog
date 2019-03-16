@@ -544,7 +544,7 @@ addDirEntry r (DE rs) = DE rs'
 
 delDirEntry :: (Eq ref) => ref -> DirEntries' ref -> DirEntries' ref
 delDirEntry r (DE rs) =
-  DE (length rs' `seq` rs')  -- eval whole list
+  DE (length rs' `seq` rs')  -- avoid laziness, eval whole list
   where
     rs'  = filter (/= r) rs
 {-# INLINE delDirEntry #-}

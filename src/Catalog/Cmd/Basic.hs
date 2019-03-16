@@ -238,11 +238,14 @@ mapImgStore2ObjId = mapImgStore mkObjId
 --
 -- smart constructors
 
-mkImg' :: (ObjId -> Name -> Journal) ->
-          (ImgNode -> Bool) ->
-          ImgNode ->
-          ObjId ->
-          Name -> Cmd ObjId
+-- make an image catalog node
+
+mkImg' :: (ObjId -> Name -> Journal)  -- ^ journal action
+       -> (ImgNode -> Bool)           -- ^ parent editable
+       -> ImgNode                     -- ^ the catalog node value
+       -> ObjId                       -- ^ parent node
+       -> Name                        -- ^ the name of the node
+       -> Cmd ObjId                   -- ^ the new ref
 mkImg' mkj isN v i n = dt >>= go
   where
     go t = do
@@ -251,18 +254,22 @@ mkImg' mkj isN v i n = dt >>= go
       journalChange $ mkj i n
       return d
 
+-- create a new empty DIR node
 mkImgDir :: ObjId -> Name -> Cmd ObjId
 mkImgDir = mkImg' MkDIR isDIR emptyImgDir
 {-# INLINE mkImgDir #-}
 
+-- create a new empty COL node
 mkImgCol :: ObjId -> Name -> Cmd ObjId
 mkImgCol = mkImg' MkCOL isCOL emptyImgCol
 {-# INLINE mkImgCol #-}
 
+-- create a new empty IMG node
 mkImg :: ObjId -> Name -> Cmd ObjId
 mkImg = mkImg' MkIMG isDIR emptyImg
 {-# INLINE mkImg #-}
 
+-- remove an entry from catalog tree
 rmImgNode :: ObjId -> Cmd ()
 rmImgNode i = do
   ex <- existsObjId i
@@ -289,11 +296,13 @@ mkCollection = mkCollection' (\ c cs -> cs ++ [c])
 mkCollectionC :: Path -> Cmd ObjId
 mkCollectionC = mkCollection' (:)
 
-mkCollection' :: (ColEntry -> [ColEntry] -> [ColEntry]) ->
-                 Path -> Cmd ObjId
+mkCollection' :: (ColEntry -> [ColEntry] -> [ColEntry])
+              -> Path
+              -> Cmd ObjId
 mkCollection' merge target'path = do
   -- parent exists
-  (parent'id, parent'node) <- getIdNode "mkCollection: parent doesn't exist" parent'path
+  (parent'id, parent'node) <-
+    getIdNode "mkCollection: parent doesn't exist" parent'path
 
   -- parent is a collection
   -- TODO exists check
@@ -340,46 +349,60 @@ setSyncTime i = do
   t <- now
   adjustNodeVal SetSyncTime theSyncTime (const t) i
 
-adjustNodeVal :: Show a =>
-                 (ObjId -> a -> Journal) ->
-                 Traversal' ImgNode a -> (a -> a) -> ObjId -> Cmd ()
+adjustNodeVal :: Show a
+              => (ObjId -> a -> Journal)
+              -> Traversal' ImgNode a
+              -> (a -> a)
+              -> ObjId
+              -> Cmd ()
 adjustNodeVal mkj theComp f i = do
   theImgTree . theNodeVal i . theComp %= f
   -- journal the changed result
   dt >>= journalAdjust
-  where
-    journalAdjust t =
-      case t ^.. theNodeVal i . theComp of
-        -- the expected case
-        [new'v] ->
-          journalChange $ mkj i new'v
+    where
+      journalAdjust t =
+        case t ^.. theNodeVal i . theComp of
+          -- the expected case
+          [new'v] ->
+            journalChange $ mkj i new'v
 
-        -- the error cases
-        [] ->
-          warn $ "adjustNodeVal: nothing changed, component to be modified does not exist in " ++ name'i
+          -- the error cases
+          [] ->
+            warn $ "adjustNodeVal: nothing changed, "
+                   ++ "component to be modified does not exist in "
+                   ++ name'i
 
-        -- the critical case
-        vs ->
-          warn $ "adjustNodeVal: mulitple components have been changed in " ++ name'i ++ ": " ++ show vs
-      where
-        name'i = show $ i ^. isoString
+          -- the critical case
+          vs ->
+            warn $ "adjustNodeVal: mulitple components have been changed in "
+                   ++ name'i
+                   ++ ": "
+                   ++ show vs
+        where
+          name'i = show $ i ^. isoString
 
 -- ----------------------------------------
 --
 -- search, sort and merge ops for collections
 
-findAllColEntries :: (ColEntry -> Cmd Bool) -> ObjId -> Cmd [(Int, ColEntry)]
+findAllColEntries :: (ColEntry -> Cmd Bool)   -- ^ the filter predicate
+                  -> ObjId                    -- ^ the collection
+                  -> Cmd [(Int, ColEntry)]    -- ^ the list of entries with pos
 findAllColEntries p i = do
   es <- getImgVals i theColEntries
   filterM (p . snd) $ zip [0..] es
 
-findFstColEntry  :: (ColEntry -> Cmd Bool) -> ObjId -> Cmd (Maybe (Int, ColEntry))
+
+findFstColEntry  :: (ColEntry -> Cmd Bool)
+                 -> ObjId
+                 -> Cmd (Maybe (Int, ColEntry))
 findFstColEntry p i = listToMaybe <$> findAllColEntries p i
 
 
-sortColEntries :: (ColEntry -> Cmd a) ->
-                  (a -> a -> Ordering) ->
-                  [ColEntry] -> Cmd [ColEntry]
+sortColEntries :: (ColEntry -> Cmd a)
+               -> (a -> a -> Ordering)
+               -> [ColEntry]
+               -> Cmd [ColEntry]
 sortColEntries getVal cmpVal es =
   map fst . sortBy (cmpVal `on` snd) <$> mapM mkC es
   where
@@ -397,8 +420,10 @@ mergeColEntries :: [ColEntry] -> [ColEntry] -> [ColEntry]
 mergeColEntries es1 es2 =
   es1 ++ filter (`notElem` es1) es2
 
+
 -- get the collection entry at an index pos
 -- if it's not there an error is thrown
+
 colEntryAt :: Int -> ImgNode -> Cmd ColEntry
 colEntryAt pos n =
   maybe
@@ -406,22 +431,27 @@ colEntryAt pos n =
   return
   (n ^? theColEntries . ix pos)
 
+
 -- process a collection entry at an index pos
 -- if the entry isn't there, an error is thrown
-processColEntryAt :: (ImgRef -> Cmd a) ->
-                     (ObjId  -> Cmd a) ->
-                     Int ->
-                     ImgNode -> Cmd a
+
+processColEntryAt :: (ImgRef -> Cmd a)
+                  -> (ObjId  -> Cmd a)
+                  -> Int
+                  -> ImgNode
+                  -> Cmd a
 processColEntryAt imgRef colRef pos n =
   colEntryAt pos n >>=
   colEntry' imgRef colRef
 
+
 -- process a collection image entry at an index pos
 -- if the entry isn't there, an error is thrown
-processColImgEntryAt :: Monoid a =>
-                        (ImgRef -> Cmd a) ->
-                        Int ->
-                        ImgNode -> Cmd a
+
+processColImgEntryAt :: Monoid a
+                     => (ImgRef -> Cmd a)
+                     -> Int
+                     -> ImgNode -> Cmd a
 processColImgEntryAt imgRef =
   processColEntryAt imgRef (const $ return mempty)
 
@@ -506,7 +536,7 @@ path2SysPath p =
 --
 -- "/archive/photos/2016/emil"
 -- -->
--- "<mountpath>/cache/exif-meta/photos/2016/emil.json"
+-- "<mountpath>/docs/exif-meta/photos/2016/emil.json"
 
 path2ExifSysPath :: Path -> Cmd SysPath
 path2ExifSysPath ip =

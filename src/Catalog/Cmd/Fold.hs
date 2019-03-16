@@ -43,14 +43,10 @@ foldMT' undefId imgA dirA' rootA' colA' i0 = do
           undefId i
         Just n ->
           case n ^. nodeVal of
-            IMG pts md ->
-              imgA i pts md
-            DIR es ts ->
-              dirA i es ts
-            ROOT dir col ->
-              rootA i dir col
-            COL md im be es ->
-              colA i md im be es
+            IMG  pts md       -> imgA  i pts md
+            DIR  es  ts       -> dirA  i es  ts
+            ROOT dir col      -> rootA i dir col
+            COL  md  im be es -> colA  i md  im be es
 
 
 -- same as foldMT', but with defaut error handling
