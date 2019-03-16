@@ -26,8 +26,11 @@ type ImgTreeP   = DirTree ImgNode' Path
 
 -- the tree for the image hierachy
 
-mkEmptyImgRoot :: (MonadError String m) =>
-                  Name -> Name -> Name -> m ImgTree
+mkEmptyImgRoot :: (MonadError String m)
+               => Name          -- ^ name of root node
+               -> Name          -- ^ name of topmost image dir
+               -> Name          -- ^ name of topmost collection
+               -> m ImgTree     -- ^ an empty catalog, no images, no collections
 mkEmptyImgRoot rootName imgName colName =
   do (_r1,t1) <- mkDirNode mkObjId isROOT addImgArchive imgName r emptyImgDir t0
      (_r2,t2) <- mkDirNode mkObjId isROOT addImgCol     colName r emptyImgCol t1
@@ -43,34 +46,40 @@ mkImgRoot :: Name -> ImgNode -> ImgTree
 mkImgRoot = mkDirRoot mkObjId
 {-# INLINE mkImgRoot #-}
 
-mkNode ::  (MonadError String m) =>
-           (ImgNode -> Bool) ->
-           Name ->                       -- name of the node
-           ObjId ->                      -- parent node
-           ImgNode ->                    -- node value
-           ImgTree -> m (ObjId, ImgTree) -- new ref and modified tree
-mkNode isN = mkDirNode mkObjId isN addChildRef
+mkNode :: (MonadError String m)
+       => (ImgNode -> Bool)
+       -> Name                  -- ^ name of the node
+       -> ObjId                 -- ^ parent node of the tree
+       -> ImgNode               -- ^ node value
+       -> ImgTree               -- ^ the tree into which the node is added
+       -> m (ObjId, ImgTree)    -- ^ new ref of node and extended tree
+mkNode isN =
+  mkDirNode mkObjId isN addChildRef
 {-# INLINE mkNode #-}
 
 lookupImgPath :: Path -> ImgTree -> Maybe (ObjId, ImgNode)
-lookupImgPath = lookupDirPath mkObjId
+lookupImgPath =
+  lookupDirPath mkObjId
 {-# INLINE lookupImgPath #-}
 
 -- | remove an image node or a dir node without entries
-removeImgNode :: (MonadError String m) =>
-                 ObjId ->
-                 ImgTree -> m ImgTree
-removeImgNode = remDirNode isempty removeChildRef
+removeImgNode :: (MonadError String m)
+              => ObjId
+              -> ImgTree -> m ImgTree
+removeImgNode =
+  remDirNode isempty removeChildRef
 {-# INLINE removeImgNode #-}
 
 addChildRef :: ObjId -> ImgNode -> ImgNode
-addChildRef r n = n & theDirEntries %~ addDirEntry r
+addChildRef r n =
+  n & theDirEntries %~ addDirEntry r
 {-# INLINE addChildRef #-}
 
 -- | remove a child from an image dir or collection node
 removeChildRef :: ObjId -> ImgNode -> ImgNode
-removeChildRef r n = n & theDirEntries %~ delDirEntry r
-                       & theColEntries %~ delColEntry r
+removeChildRef r n =
+  n & theDirEntries %~ delDirEntry r
+    & theColEntries %~ delColEntry r
 {-# INLINE removeChildRef #-}
 
 -- ----------------------------------------
