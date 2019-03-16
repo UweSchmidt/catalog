@@ -102,7 +102,7 @@ foldCollections :: Monoid r
 foldCollections colA =
   foldMT imgA dirA rootA colA
   where
-    rootA go _i dir _col  = go dir
+    rootA go _i _dir col  = go col
     dirA  _  _  _es _ts   = return mempty
     imgA  _  _pts   _md   = return mempty
 

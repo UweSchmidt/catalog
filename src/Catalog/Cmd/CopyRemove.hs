@@ -261,8 +261,10 @@ cleanupRefs rs i0
         cleanupIm p = maybe (return ())
           (\ (ImgRef j n) -> do
               when (removedImg j n) $ do
-                warn $ "cleanupRefs: col img removed: " ++
-                       quotePath p ++ ", " ++ show (i, j, n)
+                warn $ "cleanupRefs: col img removed: "
+                       ++ quotePath p
+                       ++ ", "
+                       ++ show (i, j, n)
                 adjustColImg (const Nothing) i
           ) im
 
@@ -270,8 +272,10 @@ cleanupRefs rs i0
         cleanupBe p = maybe (return ())
           (\ (ImgRef j n) -> do
               when (removedImg j n) $ do
-                warn $ "cleanupRefs: col blog removed: " ++
-                       quotePath p ++ ", " ++ show (i, j, n)
+                warn $ "cleanupRefs: col blog removed: "
+                       ++ quotePath p
+                       ++ ", "
+                       ++ show (i, j, n)
                 adjustColBlog (const Nothing) i
           ) be
 
@@ -306,16 +310,36 @@ cleanupRefs rs i0
           where
             checkESC :: [ObjId] -> ColEntry -> Cmd [ObjId]
             checkESC res =
-              colEntry' (\ _  -> return res)
-                        (\ ci -> do cn <- getImgVal ci
-                                    return $
-                                      if isCOL cn
-                                         &&
-                                         null (cn ^. theColEntries)
-                                         &&
-                                         isRemovable (cn ^. theMetaData)
-                                      then ci : res
-                                      else      res
-                        )
+              colEntry'
+              (\ _  -> return res)
+              (\ ci -> do cn <- getImgVal ci
+                          return $
+                            if isCOL cn
+                               &&
+                               null (cn ^. theColEntries)
+                               &&
+                               isRemovable (cn ^. theMetaData)
+                            then ci : res
+                            else      res
+              )
+
+-- ----------------------------------------
+--
+-- filter the collection hierarchy by a predicate
+
+filterCollections :: (ObjId -> Cmd Bool) -> ObjId -> Cmd ()
+filterCollections cond =
+  foldCollections colA
+  where
+    colA go i _md _im _be cs = do
+      p <- quotePath <$> objid2path i
+      b <- cond i
+      if b
+        then do
+          trc $ "filterCollections: keep collection: " ++ p
+          mapM_ go (cs ^.. traverse . theColColRef)
+        else do
+          trc $ "filterCollections: remove collection: " ++ p
+          rmRec i
 
 -- ----------------------------------------
