@@ -107,3 +107,111 @@ foldCollections colA =
     imgA  _  _pts   _md   = return mempty
 
 -- ----------------------------------------
+--
+-- compute all ObjIds reachable from a starting ObjId, e.g. the root
+
+allObjIds :: ObjId -> Cmd ObjIds
+allObjIds =
+  foldMT' undefId imgA dirA rootA colA
+  where
+    undefId _i =
+      return mempty
+
+    imgA i _pts _md =
+      return $ singleObjId i
+
+    dirA go i es _ts = do
+      s1 <- fold <$> traverse go (es ^. isoDirEntries)
+      return (s0 <> s1)
+        where
+          s0 = singleObjId i
+
+    colA go i _md im be es = do
+      s1 <- fold <$> traverse (go . _iref) im
+      s2 <- fold <$> traverse (go . _iref) be
+      s3 <- fold <$> traverse (go . (^. theColObjId)) es
+      return (mconcat [s0, s1, s2, s3])
+        where
+          s0 = singleObjId i
+
+    rootA go i dir col = do
+      s1 <- go dir
+      s2 <- go col
+      return (mconcat [s0, s1, s2])
+        where
+          s0 = singleObjId i
+
+-- ----------------------------------------
+--
+-- compute all image ObjIds reachable from an ObjId, e.g. a collection
+
+allImgObjIds :: ObjId -> Cmd ObjIds
+allImgObjIds =
+  foldMT' (const $ return mempty) imgA dirA rootA colA
+  where
+    imgA i _pts _md =
+      return $ singleObjId i
+
+    dirA go _i es _ts =
+      mconcat <$> traverse go (es ^. isoDirEntries)
+
+    rootA go _i dir col =
+      (<>) <$> go dir <*> go col
+
+    colA go _i _md im be es = do
+      s1 <- fold <$> traverse (go . _iref) im
+      s2 <- fold <$> traverse (go . _iref) be
+      s3 <- fold <$> traverse (go . (^. theColObjId)) es
+      return (mconcat [s1, s2, s3])
+
+
+-- ----------------------------------------
+--
+-- compute all subcollection ObjIds reachable from an ObjId, e.g. a collection
+
+allColObjIds :: ObjId -> Cmd ObjIds
+allColObjIds =
+  foldMT' (const $ return mempty) imgA dirA rootA colA
+  where
+    imgA _i _pts _md =
+      return mempty
+
+    dirA _go _i _es _ts =
+      return mempty
+
+    rootA go _i _dir col =
+      go col
+
+    colA go i _md _im _be es = do
+      s1 <- fold <$> traverse (go . (^. theColObjId)) es
+      return $ singleObjId i <> s1
+
+
+-- ----------------------------------------
+--
+-- compute all dead ObjIds
+-- for consistency check of ImgTree
+
+allUndefObjIds :: ObjId -> Cmd ObjIds
+allUndefObjIds =
+  foldMT' undefId imgA dirA rootA colA
+  where
+    undefId i =
+      return $ singleObjId i
+
+    imgA _i _pts _md =
+      return mempty
+
+    dirA go _i es _ts =
+      mconcat <$> traverse go (es ^. isoDirEntries)
+
+    colA go _i _md im be es = do
+      s1 <- fold <$> traverse (go . _iref) im
+      s2 <- fold <$> traverse (go . _iref) be
+      s3 <- fold <$> traverse (go . (^. theColObjId)) es
+      return (mconcat [s1, s2, s3])
+
+    rootA go _i dir col = do
+      (<>) <$> go dir <*> go col
+
+-- ----------------------------------------

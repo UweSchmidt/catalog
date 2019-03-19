@@ -5,8 +5,10 @@ import           Catalog.Cmd.Basic
 import           Catalog.Cmd.Fold
 import           Catalog.Cmd.Types
 import           Data.ImgTree
+import           Data.ImageStore
 import           Data.MetaData
 import           Data.Prim
+import qualified Data.Set as S
 
 -- ----------------------------------------
 
@@ -327,19 +329,41 @@ cleanupRefs rs i0
 --
 -- filter the collection hierarchy by a predicate
 
-filterCollections :: (ObjId -> Cmd Bool) -> ObjId -> Cmd ()
+data ColOrd = ThisCol | ParentCol | OtherCol
+
+filterCollections :: (ObjId -> Cmd ColOrd) -> ObjId -> Cmd ()
 filterCollections cond =
   foldCollections colA
   where
     colA go i _md _im _be cs = do
-      p <- quotePath <$> objid2path i
       b <- cond i
-      if b
-        then do
-          trc $ "filterCollections: keep collection: " ++ p
-          mapM_ go (cs ^.. traverse . theColColRef)
-        else do
-          trc $ "filterCollections: remove collection: " ++ p
-          rmRec i
+      case b of
+        ThisCol   -> return ()                                 -- keep collection
+        ParentCol -> mapM_ go (cs ^.. traverse . theColColRef) -- filter subcols
+        OtherCol  -> rmRec i                                   -- remove collection
+
+-- given a set of collections
+-- remove all stuff except these collections
+-- and all DIR parts containing images
+-- referenced in the collections
+
+exportImgStore :: ObjIds -> Cmd ImgStore
+exportImgStore os = do
+  savedState <- get
+  filterObjIds isCOL os >>= selectEntries
+  exportState <- get
+  put savedState
+  return exportState
+
+selectEntries :: ObjIds -> Cmd ()
+selectEntries cols = do
+  _subcols <- (`S.difference` cols) <$> allSubCols cols
+
+  -- TODO: _ <- undefined subcolls
+
+  return ()
+  where
+    allSubCols = foldObjIds allColObjIds
+    _allImgIds  = foldObjIds allImgObjIds
 
 -- ----------------------------------------

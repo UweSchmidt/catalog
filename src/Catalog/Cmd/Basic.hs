@@ -65,6 +65,9 @@ module Catalog.Cmd.Basic
   , toSysPath
   , path2SysPath
   , path2ExifSysPath
+  -- ObjIds
+  , filterObjIds
+  , foldObjIds
   )
 where
 
@@ -75,6 +78,7 @@ import           Data.ImageStore
 import           Data.ImgTree
 import           Data.MetaData
 import           Data.Prim
+import qualified Data.Set as S
 
 -- ----------------------------------------
 
@@ -541,5 +545,22 @@ path2SysPath p =
 path2ExifSysPath :: Path -> Cmd SysPath
 path2ExifSysPath ip =
   toSysPath $ ps'exifcache ++ tailPath ip ^. isoString ++ ".json"
+
+-- --------------------
+
+foldObjIds :: (Monoid m) => (ObjId -> Cmd m) -> ObjIds -> Cmd m
+foldObjIds cmd os = mconcat <$> traverse cmd (toList os)
+{-# INLINE foldObjIds #-}
+
+filterObjIds :: (ImgNode -> Bool) -> ObjIds -> Cmd ObjIds
+filterObjIds p =
+  foldObjIds sel
+  where
+    sel i = do
+      v <- getImgVal i
+      return $
+        if p v
+        then S.singleton i
+        else S.empty
 
 -- --------------------

@@ -305,11 +305,11 @@ syncImg ip pp xs = do
 
   -- trcObj i $ "syncImg: " ++ show (pp, xs)
 
-  -- is there at least a jpg or raw image,
+  -- is there at least a jpg image
   -- a txt (something, that can be shown)
   -- or a movie,
-  -- then update entry, else ignore it
-  if has (traverse . _2 . _2 . isA isShowablePartOrRaw) xs
+  -- then update entry, else (e.g. raw only) ignore it
+  if has (traverse . _2 . _2 . isA isShowablePart {- OrRaw -}) xs
     then do
       adjustImg (<> mkImgParts ps) i
       syncParts i pp

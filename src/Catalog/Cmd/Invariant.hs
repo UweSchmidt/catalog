@@ -20,12 +20,14 @@ import           Control.Monad.Trans.Maybe
 
 -- ----------------------------------------
 
-checkImgStore :: Cmd ()
-checkImgStore = do
+checkImgStore' :: Cmd ()
+checkImgStore' = do
   verbose "checkImgStore: check integrity of the archive"
   allCleanupImgRefs
-  cleanupDeadRefs
+  checkDeadObjIds
+  -- cleanupDeadRefs
   _us <- allUndefRefs
+  checkUndefObjIds
   _ps <- allCheckUpLink
   return ()
 
@@ -68,7 +70,7 @@ cleanupImgRefs i0 = do
     -- and all img refs in the entries list
     -- and recurse into subcollections
 
-    colA :: (ObjId -> Cmd())
+    colA :: (ObjId -> Cmd ())
          -> ObjId
          -> MetaData -> Maybe ImgRef -> Maybe ImgRef -> [ColEntry]
          -> Cmd ()
@@ -154,10 +156,10 @@ cleanupImgRefs i0 = do
 
 -- ----------------------------------------
 
-allUndefRefs :: Cmd (Set ObjId)
+allUndefRefs :: Cmd ObjIds
 allUndefRefs = getRootId >>= undefRefs
 
-undefRefs :: ObjId -> Cmd (Set ObjId)
+undefRefs :: ObjId -> Cmd ObjIds
 undefRefs i0 = do
   p <- objid2path i0
   verbose $ "undefRefs: search undefined refs for: " ++ show (i0, p)
@@ -199,10 +201,10 @@ undefRefs i0 = do
 
 -- ----------------------------------------
 
-allDefinedRefs :: Cmd (Set ObjId)
+allDefinedRefs :: Cmd ObjIds
 allDefinedRefs = getRootId >>= definedRefs
 
-definedRefs :: ObjId -> Cmd (Set ObjId)
+definedRefs :: ObjId -> Cmd ObjIds
 definedRefs i0 = do
   p <- objid2path i0
   verbose $ "definedRefs: compute defined refs for: " ++ show (i0, p)
@@ -215,24 +217,34 @@ definedRefs i0 = do
       return S.empty
 
     imgA i _pts _md =
-      return $ S.singleton i
+      return s0
+        where
+          s0 = S.singleton i
 
     dirA go i es _ = do
-      (S.insert i . S.unions) <$> mapM go (es ^. isoDirEntries)
+      s1 <- fold <$> traverse go (es ^. isoDirEntries)
+      return (s0 <> s1)
+        where
+          s0 = S.singleton i
 
     colA go i _md im be es = do
-      s1 <- maybe (return S.empty) (go . _iref) im
-      s2 <- maybe (return S.empty) (go . _iref) be
-      s3 <- mapM (go . (^. theColObjId)) (filter isColColRef es)
-      return $ S.insert i $ S.unions (s1 : s2 : s3)
+      s1 <- fold <$> traverse (go . _iref) im
+      s2 <- fold <$> traverse (go . _iref) be
+      s3 <- fold <$> traverse (go . (^. theColObjId)) (filter isColColRef es)
+      return (mconcat [s0, s1, s2, s3])
+        where
+          s0 = S.singleton i
 
     rootA go i dir col = do
-      s <- S.union <$> go dir <*> go col
-      return $ S.insert i s
+      s1 <- go dir
+      s2 <- go col
+      return (mconcat [s0, s1, s2])
+        where
+          s0 = S.singleton i
 
 -- ----------------------------------------
 
-allDeadRefs :: Cmd (Set ObjId)
+allDeadRefs :: Cmd ObjIds
 allDeadRefs = do
   us <- allDefinedRefs
   as <- (S.fromList . M.keys) <$> getTree entries
@@ -249,10 +261,10 @@ cleanupDeadRefs = do
 
 -- ----------------------------------------
 
-allCheckUpLink :: Cmd (Set ObjId)
+allCheckUpLink :: Cmd ObjIds
 allCheckUpLink = getRootId >>= checkUpLink
 
-checkUpLink :: ObjId -> Cmd (Set ObjId)
+checkUpLink :: ObjId -> Cmd ObjIds
 checkUpLink i0 = do
   p <- objid2path i0
   verbose $ "checkUpLink: check uplinks for: " ++ show (i0, p)
@@ -261,35 +273,205 @@ checkUpLink i0 = do
     warn $ "checkUpLink: wrong uplinks found: " ++ show (S.toList s)
   return s
   where
-    undefId i
-      = do warn $ "checkUpLink: undefined obj id found: " ++ show i
-           return S.empty
+    undefId i = do
+      warn $ "checkUpLink: undefined obj id found: " ++ show i
+      return S.empty
 
     imgA _i _pts _md =
       return S.empty
 
     dirA go i es _ = do
-      ps <- filter (/= i) <$> mapM getImgParent (es ^. isoDirEntries)
-      unless (null ps) $ do
+      s0 <- S.fromList . filter (/= i)
+            <$>
+            traverse getImgParent (es ^. isoDirEntries)
+
+      unless (S.null s0) $ do
         p <- objid2path i
-        warn $ "checkUpLink: uplink(s) wrong in DIR node: " ++ show (p, ps)
-      s1 <- mapM go (es ^. isoDirEntries)
-      return $ S.fromList ps `S.union` S.unions s1
+        warn $ "checkUpLink: uplink(s) wrong in DIR node: " ++ show (p, s0)
+
+      s1 <- fold <$> traverse go (es ^. isoDirEntries)
+      return $ s0 `S.union` s1
 
     colA go i _md _im _be es = do
-      ps <- filter (/= i) <$> mapM getImgParent (es ^.. traverse . theColColRef)
-      unless (null ps) $ do
+      s0 <- S.fromList . filter (/= i)
+            <$>
+            traverse getImgParent esc
+
+      unless (S.null s0) $ do
         p <- objid2path i
-        warn $ "checkUpLink: uplink(s) wrong in COL node: " ++ show (p, ps)
-      s1 <- mapM (go . (^. theColObjId)) (filter isColColRef es)
-      return $ S.fromList ps `S.union` S.unions s1
+        warn $ "checkUpLink: uplink(s) wrong in COL node: " ++ show (p, s0)
+
+      s1 <- fold <$> traverse go esc
+      return $ s0 `S.union` s1
+        where
+          esc = es ^.. traverse . theColColRef
 
     rootA go i dir col = do
-      s0 <- (filter (/= i) . (:[])) <$> getImgParent i
-      unless (null s0) $ do
-        warn $ "checkUpLink: uplink for root node wrong: " ++ show i
+      s0 <- S.fromList . filter (/= i)
+            <$>
+            traverse getImgParent [i, dir, col]
+
+      unless (S.null s0) $ do
+        warn $ "checkUpLink: uplink(s) wrong in ROOT node: " ++ show i
+
       s1 <- go dir
       s2 <- go col
-      return $ S.fromList s0 `S.union` (s1 `S.union` s2)
+      return $ s0 `S.union` s1 `S.union` s2
+
+-- ----------------------------------------
+--
+-- new check operations
+--
+-- ----------------------------------------
+
+checkImgStore :: Cmd ()
+checkImgStore = do
+  verbose "checkImgStore: check integrity of the archive"
+  allCleanupImgRefs
+
+  checkDeadObjIds
+  checkUndefObjIds
+  checkUsedImgObjIds
+  checkUpLinkObjIds
+
+  verbose "checkImgStore: all checks done"
+
+-- ----------------------------------------
+
+checkUndefObjIds :: Cmd ()
+checkUndefObjIds =
+  getRootId >>= allUndefObjIds >>= showUndefObjIds
+  where
+    showUndefObjIds os
+      | S.null os =
+          trc "checkUndefObjIds: no undefined ObjIds found"
+      | otherwise =
+          warn $  "checkUndefObjIds: inconsistent catalog\n"
+                  ++ show n ++ " undefined ObjIds found\n"
+                  ++ show (toList os)
+      where
+        n = S.size os
+
+-- ----------------------------------------
+
+checkDeadObjIds :: Cmd ()
+checkDeadObjIds = do
+  dos <- getRootId >>= allDeadObjIds
+  showDeadObjIds dos
+  cleanupDeadObjIds dos
+  where
+
+    allDeadObjIds t = do
+      us <- allObjIds t
+      as <- S.fromList . M.keys <$> getTree entries
+      return $ as `S.difference` us
+
+    showDeadObjIds os
+      | S.null os =
+          trc "checkDeadObjIds: no dead ObjIds found"
+      | otherwise =
+          warn $  "checkDeadObjIds: "
+                  ++ show n ++ " undefined ObjIds found\n"
+                  ++ show (toList os)
+      where
+        n = S.size os
+
+    cleanupDeadObjIds ds = do
+      unless (S.null ds) $ do
+        warn $ "checkDeadObjIds: removing dead ObjIds"
+        theImgTree . entries %= rmDeadRefs ds
+      where
+        rmDeadRefs os m = m `M.difference` M.fromSet (const ()) os
+
+-- ----------------------------------------
+
+checkUsedImgObjIds :: Cmd ()
+checkUsedImgObjIds = do
+  ds <- getRootImgDirId >>= allImgObjIds
+  cs <- getRootImgColId >>= allImgObjIds
+  let orphanIds = ds `S.difference` cs
+  let undefIds  = cs `S.difference` ds
+  trc $ "checkUsedImgObjIds: image  ids in dirs: " ++ show (S.size ds)
+  trc $ "checkUsedImgObjIds: image  ids in cols: " ++ show (S.size cs)
+  trc $ "checkUsedImgObjIds: orphan ids in dirs: " ++ show (S.size orphanIds)
+  trc $ "checkUsedImgObjIds: undef  ids in cols: " ++ show (S.size undefIds)
+  showRes orphanIds undefIds
+  where
+    showRes ds cs = do
+      case (nds, ncs) of
+        (True,  True ) ->
+          trc "checkUsedImgObjIds: image refs in collections and dir are the same"
+        (False, True ) ->
+          warn $ "checkUsedImgObjIds: orphan image ids: " ++ show (toList ds)
+        (True,  False) ->
+          warn $ "checkUsedImgObjIds: undefined image ids: " ++ show (toList cs)
+        (False, False) -> do
+          showRes mempty cs
+          showRes ds mempty
+      where
+        nds = S.null ds
+        ncs = S.null cs
+
+-- ----------------------------------------
+
+checkUpLinkObjIds :: Cmd ()
+checkUpLinkObjIds = do
+  getRootId >>= allWrongUpLinks >>= showWrongUpLinks
+  where
+    allWrongUpLinks :: ObjId -> Cmd ObjIds
+    allWrongUpLinks =
+      foldMT' undefId imgA dirA rootA colA
+      where
+        undefId _i =
+          return mempty
+
+        imgA _i _pts _md =
+          return mempty
+
+        dirA go i es _ = do
+          s0 <- S.fromList . filter (/= i)
+                <$>
+                traverse getImgParent (es ^. isoDirEntries)
+          s1 <- fold <$> traverse go  (es ^. isoDirEntries)
+          return $ s0 <> s1
+
+        rootA go i dir col = do
+          s0 <- S.fromList . filter (/= i)
+                <$>
+                traverse getImgParent [i, dir, col]
+          s1 <- go dir
+          s2 <- go col
+          return $ s0 <> s1 <> s2
+
+        colA go i _md _im _be es = do
+          s0 <- S.fromList . filter (/= i)
+                <$>
+                traverse getImgParent esc
+
+          s1 <- fold <$> traverse go esc
+          return $ s0 <> s1
+            where
+              esc = es ^.. traverse . theColColRef
+
+    showWrongUpLinks :: ObjIds -> Cmd ()
+    showWrongUpLinks os
+      | S.null os =
+          trc "checkUpLinkObjIds: all uplinks o.k."
+      | otherwise = do
+          warn $  "checkUpLinkObjIds: inconsistent catalog\n"
+                  ++ show (S.size os) ++ " undefined ObjIds found\n"
+                  ++ show (toList os)
+          foldObjIds showObj os
+            where
+              showObj i =
+                getTree (entryAt i) >>= maybe (return ()) msg
+                where
+                  msg n = do
+                    p <- objid2path i
+                    warn $ "checkUpLinkObjIds:"
+                           ++ "node contains element not pointing back to objid\n"
+                           ++  " objid = " ++ show i
+                           ++ ", path = "  ++ show p
+                           ++ ", node = "  ++ show n
 
 -- ----------------------------------------

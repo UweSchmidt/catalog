@@ -74,7 +74,8 @@ isAnImgPart ty = ty `elem` [ IMGraw, IMGmeta, IMGjson
 -- or a raw image
 
 isShowablePartOrRaw :: ImgType -> Bool
-isShowablePartOrRaw ty = ty `elem` [IMGraw, IMGjpg, IMGimg, IMGtxt, IMGmovie]
+isShowablePartOrRaw ty =
+  isShowablePart ty || ty == IMGraw
 
 -- part can be shown
 isShowablePart :: ImgType -> Bool

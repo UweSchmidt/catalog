@@ -70,6 +70,8 @@ module Data.ImgNode
        , toListColEntrySet
        , diffColEntrySet
        , intersectColEntrySet
+       , ObjIds
+       , singleObjId
        )
 where
 
@@ -392,6 +394,7 @@ theImgCheckSum k (IP n t s c) = (\ new -> IP n t s new) <$> k c
 -- ----------------------------------------
 
 data ImgRef' ref = ImgRef {_iref :: !ref, _iname ::  !Name}
+type ImgRef      = ImgRef' ObjId
 
 deriving instance (Eq   ref) => Eq   (ImgRef' ref)
 deriving instance (Ord  ref) => Ord  (ImgRef' ref)
@@ -400,8 +403,6 @@ deriving instance Functor ImgRef'
 
 instance IsEmpty (ImgRef' ref) where
   isempty = isempty . _iname
-
-type ImgRef      = ImgRef' ObjId
 
 emptyImgRef :: ImgRef
 emptyImgRef = ImgRef mempty mempty
@@ -544,7 +545,7 @@ addDirEntry r (DE rs) = DE rs'
 
 delDirEntry :: (Eq ref) => ref -> DirEntries' ref -> DirEntries' ref
 delDirEntry r (DE rs) =
-  DE (length rs' `seq` rs')  -- avoid laziness, eval whole list
+  DE (length rs' `seq` rs')  -- avoid lazyness, eval whole list
   where
     rs'  = filter (/= r) rs
 {-# INLINE delDirEntry #-}
@@ -561,7 +562,7 @@ delColEntry r cs =
 
 newtype ColEntrySet' ref = CES (Set (ColEntry' ref))
 
-type ColEntrySet = ColEntrySet' ObjId
+type    ColEntrySet      = ColEntrySet' ObjId
 
 deriving instance (Show ref) => Show (ColEntrySet' ref)
 
@@ -590,7 +591,7 @@ memberColEntrySet :: Ord ref
 memberColEntrySet ce (CES s) = ce `S.member` s
 
 diffColEntrySet :: Ord ref
-                =>  ColEntrySet' ref
+                => ColEntrySet' ref
                 -> ColEntrySet' ref
                 -> ColEntrySet' ref
 CES s1 `diffColEntrySet` CES s2 = CES $ s1 `S.difference` s2
@@ -600,5 +601,12 @@ intersectColEntrySet :: Ord ref
                      -> ColEntrySet' ref
                      -> ColEntrySet' ref
 CES s1 `intersectColEntrySet` CES s2 = CES $ s1 `S.intersection` s2
+
+-- ----------------------------------------
+
+type ObjIds = Set ObjId
+
+singleObjId :: ObjId -> ObjIds
+singleObjId = S.singleton
 
 -- ----------------------------------------
