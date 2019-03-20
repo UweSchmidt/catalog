@@ -57,6 +57,8 @@ module Catalog.Cmd.Basic
   , catchAll
   , runDry
   , trcObj
+  , warnObj
+  , verbObj
   , trcCmd
   , journalChange
   , buildImgPath0
@@ -489,11 +491,16 @@ runDry msg cmd = do
 
 -- ----------------------------------------
 --
--- trace commands
+-- log an dtrace commands
 
-trcObj :: ObjId -> String -> Cmd ()
-trcObj r msg = dt >>= \ t ->
-  trc $ msg ++ " " ++ show (r, refPath r t)
+logObj :: (String -> Cmd ()) -> ObjId -> String -> Cmd ()
+logObj lg r msg = dt >>= \ t ->
+  lg $ msg ++ " " ++ show (r, refPath r t)
+
+trcObj, warnObj, verbObj :: ObjId -> String -> Cmd ()
+trcObj  = logObj trc
+warnObj = logObj warn
+verbObj = logObj verbose
 
 trcCmd :: Show a => Cmd a -> Cmd a
 trcCmd cmd

@@ -73,10 +73,7 @@ foldImgDirs :: Monoid r
             -> (Act r -> ObjId -> DirEntries -> TimeStamp -> Cmd r)  -- ^ DIR
             -> Act r
 foldImgDirs imgA dirA =
-  foldMT imgA dirA rootA colA
-  where
-    rootA go _i dir _col        = go dir
-    colA  _  _i _md _im _be _es = return mempty
+  foldMT imgA dirA foldRootDirA ignoreColA
 
 -- ----------------------------------------
 --
@@ -86,9 +83,7 @@ foldImages :: Monoid r
            => (ObjId -> ImgParts -> MetaData -> Cmd r)
            -> Act r
 foldImages imgA =
-  foldImgDirs imgA dirA
-  where
-    dirA  go _i es _ts = mconcat <$> traverse go (es ^. isoDirEntries)
+  foldImgDirs imgA foldDirA
 
 -- ----------------------------------------
 
@@ -100,11 +95,7 @@ foldCollections :: Monoid r
                 -> Act r
 
 foldCollections colA =
-  foldMT imgA dirA rootA colA
-  where
-    rootA go _i _dir col  = go col
-    dirA  _  _  _es _ts   = return mempty
-    imgA  _  _pts   _md   = return mempty
+  foldMT ignoreImgA ignoreDirA foldRootColA colA
 
 -- ----------------------------------------
 --
@@ -112,34 +103,25 @@ foldCollections colA =
 
 allObjIds :: ObjId -> Cmd ObjIds
 allObjIds =
-  foldMT' undefId imgA dirA rootA colA
+  foldMT' ignoreUndefId imgA dirA rootA colA
   where
-    undefId _i =
-      return mempty
-
     imgA i _pts _md =
       return $ singleObjId i
 
-    dirA go i es _ts = do
-      s1 <- fold <$> traverse go (es ^. isoDirEntries)
-      return (s0 <> s1)
-        where
-          s0 = singleObjId i
+    dirA go i es ts = do
+      s1 <- foldDirA go i es ts
+      return $
+        singleObjId i <> s1
 
-    colA go i _md im be es = do
-      s1 <- fold <$> traverse (go . _iref) im
-      s2 <- fold <$> traverse (go . _iref) be
-      s3 <- fold <$> traverse (go . (^. theColObjId)) es
-      return (mconcat [s0, s1, s2, s3])
-        where
-          s0 = singleObjId i
+    colA go i md im be es = do
+      s1 <- foldColA go i md im be es
+      return $
+        singleObjId i <> s1
 
     rootA go i dir col = do
-      s1 <- go dir
-      s2 <- go col
-      return (mconcat [s0, s1, s2])
-        where
-          s0 = singleObjId i
+      s1 <- foldRootA go i dir col
+      return $
+        singleObjId i <> s1
 
 -- ----------------------------------------
 --
@@ -147,23 +129,10 @@ allObjIds =
 
 allImgObjIds :: ObjId -> Cmd ObjIds
 allImgObjIds =
-  foldMT' (const $ return mempty) imgA dirA rootA colA
+  foldMT' ignoreUndefId imgA foldDirA foldRootA foldColA
   where
     imgA i _pts _md =
       return $ singleObjId i
-
-    dirA go _i es _ts =
-      mconcat <$> traverse go (es ^. isoDirEntries)
-
-    rootA go _i dir col =
-      (<>) <$> go dir <*> go col
-
-    colA go _i _md im be es = do
-      s1 <- fold <$> traverse (go . _iref) im
-      s2 <- fold <$> traverse (go . _iref) be
-      s3 <- fold <$> traverse (go . (^. theColObjId)) es
-      return (mconcat [s1, s2, s3])
-
 
 -- ----------------------------------------
 --
@@ -171,21 +140,12 @@ allImgObjIds =
 
 allColObjIds :: ObjId -> Cmd ObjIds
 allColObjIds =
-  foldMT' (const $ return mempty) imgA dirA rootA colA
+  foldMT' ignoreUndefId ignoreImgA ignoreDirA foldRootColA colA
   where
-    imgA _i _pts _md =
-      return mempty
-
-    dirA _go _i _es _ts =
-      return mempty
-
-    rootA go _i _dir col =
-      go col
-
-    colA go i _md _im _be es = do
-      s1 <- fold <$> traverse (go . (^. theColObjId)) es
-      return $ singleObjId i <> s1
-
+    colA go i md im be es = do
+      s1 <- foldSubColA go i md im be es
+      return $
+        singleObjId i <> s1
 
 -- ----------------------------------------
 --
@@ -194,24 +154,75 @@ allColObjIds =
 
 allUndefObjIds :: ObjId -> Cmd ObjIds
 allUndefObjIds =
-  foldMT' undefId imgA dirA rootA colA
+  foldMT' undefId ignoreImgA foldDirA foldRootA foldColA
   where
     undefId i =
       return $ singleObjId i
 
-    imgA _i _pts _md =
-      return mempty
+-- ----------------------------------------
 
-    dirA go _i es _ts =
-      mconcat <$> traverse go (es ^. isoDirEntries)
+ignoreUndefId :: Monoid r => i -> Cmd r
+ignoreUndefId _i = return mempty
+{-# INLINE ignoreUndefId #-}
 
-    colA go _i _md im be es = do
-      s1 <- fold <$> traverse (go . _iref) im
-      s2 <- fold <$> traverse (go . _iref) be
-      s3 <- fold <$> traverse (go . (^. theColObjId)) es
-      return (mconcat [s1, s2, s3])
+ignoreImgA :: Monoid r =>  p1 -> p2 -> p3 -> Cmd r
+ignoreImgA _i _pts _md = return mempty
+{-# INLINE ignoreImgA #-}
 
-    rootA go _i dir col = do
-      (<>) <$> go dir <*> go col
+-- --------------------
+--
+-- root folds
+
+foldRootA :: Monoid r => (ObjId -> Cmd r) -> p1 -> ObjId -> ObjId -> Cmd r
+foldRootA go _i dir col = (<>) <$> go dir <*> go col
+{-# INLINE foldRootA #-}
+
+foldRootDirA :: (ObjId -> Cmd r) -> p1 -> ObjId -> p3 -> Cmd r
+foldRootDirA go _i dir _col = go dir
+{-# INLINE foldRootDirA #-}
+
+foldRootColA :: (ObjId -> Cmd r) -> p1 -> p2 -> ObjId -> Cmd r
+foldRootColA go _i _dir col = go col
+{-# INLINE foldRootColA #-}
+
+-- --------------------
+--
+-- dir folds
+
+ignoreDirA :: Monoid r =>  p0 -> p1 -> p2 -> p3 -> Cmd r
+ignoreDirA _go _i _es _ts = return mempty
+{-# INLINE ignoreDirA #-}
+
+foldDirA :: Monoid r => (ObjId -> Cmd r) -> p1 -> DirEntries -> p3 -> Cmd r
+foldDirA go _i es _ts = mconcat <$> traverse go (es ^. isoDirEntries)
+{-# INLINE foldDirA #-}
+
+-- --------------------
+--
+-- col folds
+
+ignoreColA :: Monoid r =>  p0 -> p1 -> p2 -> p3 -> p4 -> p5 -> Cmd r
+ignoreColA _go _i _md _im _be _es = return mempty
+{-# INLINE ignoreColA #-}
+
+foldColA :: Monoid r
+         => (ObjId -> Cmd r) -> p1 -> p2
+         -> Maybe ImgRef -> Maybe ImgRef -> [ColEntry]
+         -> Cmd r
+foldColA go _i _md im be es = do
+  s1 <- fold <$> traverse (go . _iref) im
+  s2 <- fold <$> traverse (go . _iref) be
+  s3 <- fold <$> traverse (go . (^. theColObjId)) es
+  return $
+    s1 <> s2 <> s3
+{-# INLINE foldColA #-}
+
+foldSubColA :: Monoid r
+         => (ObjId -> Cmd r) -> p1 -> p2
+         -> p3 -> p4 -> [ColEntry]
+         -> Cmd r
+foldSubColA go _i _md _im _be es =
+  fold <$> traverse (go . (^. theColObjId)) es
+{-# INLINE foldSubColA #-}
 
 -- ----------------------------------------
