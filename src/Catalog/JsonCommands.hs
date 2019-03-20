@@ -209,11 +209,11 @@ copyEntryToCol di ce =
 modifyMetaDataRec :: (MetaData -> MetaData) -> Path -> Cmd ()
 modifyMetaDataRec mf path = do
   i <- fst <$> getIdNode "modifyMetaDataRec: entry not found" path
-  foldCollections
-    ( \ go i' _md _im _be cs -> do
-        adjustMetaData mf i'
-        mapM_ go (cs ^.. traverse . theColColRef)
-    ) i
+  foldCollections colA i
+  where
+    colA go i md im be cs = do
+      adjustMetaData mf i
+      foldColColEntries go i md im be cs
 
 checkWriteableCol :: Path -> Cmd ObjId
 checkWriteableCol dPath = do

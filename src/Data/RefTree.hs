@@ -19,6 +19,8 @@ module Data.RefTree
        , theName
        , theNodeVal
        , refPath
+       , refObjIdPath
+       , refInTree
        , mkDirRoot
        , isDirRoot
        , mkDirNode
@@ -173,11 +175,30 @@ refPath r0 t
   where
     path ref acc
       | isRoot    = acc
-      | otherwise = path par (consPath (t ^. theName par) acc)
+      | otherwise = path par ((t ^. theName par) `consPath ` acc)
       where
         par    = t ^. theParent ref
         isRoot = par == ref   -- root node reached?
 {-# INLINE refPath #-}
+
+-- compute all ancestors of a ref
+-- list is never empty,
+-- head is the ref itself, last is the root
+
+refObjIdPath :: (Ord ref, Show ref) => ref -> DirTree node ref -> [ref]
+refObjIdPath r0 t =
+  parentIds r0
+  where
+    parentIds r
+      | isRoot    = r : []
+      | otherwise = r : parentIds p
+      where
+        p      = t ^. theParent r
+        isRoot = p == r
+
+-- test whether a ref @r@ is a part of the tree given by ref @p@
+refInTree :: (Ord ref, Show ref) => ref -> ref -> DirTree node ref -> Bool
+refInTree r p t = r `elem` tail (refObjIdPath p t)
 
 -- | create the root of a DirTree.
 --

@@ -27,12 +27,12 @@ cleanupImgRefs :: ObjId -> Cmd ()
 cleanupImgRefs i0 = do
   verbObj i0 "cleanupImgRefs: remove outdated img refs for "
 
-  foldMT' ignoreUndefId ignoreImgA dirA foldRootA colA i0
+  foldMT' ignoreUndefId ignoreImg dirA foldRoot colA i0
   where
     -- check all img refs in DIR case
     -- and traverse all subcollection
 
-    dirA go i es0 _ = do
+    dirA go i es0 _ts = do
       -- trcObj i "cleanupImgRefs: process img dir: "
 
       let es = es0 ^. isoDirEntries
@@ -71,7 +71,7 @@ cleanupImgRefs i0 = do
         adjustColEntries (const es') i
 
       -- recurse into subcollections
-      foldSubColA go i md im be es
+      foldColEntries go i md im be es
 
     -- the little helpers, a lot of Maybe's in command results
     -- so the MaybeT transformer helps eliminating case expression
@@ -239,20 +239,20 @@ checkUpLinkObjIds =
   where
     allWrongUpLinks :: ObjId -> Cmd ObjIds
     allWrongUpLinks =
-      foldMT' ignoreUndefId ignoreImgA dirA rootA colA
+      foldMT' ignoreUndefId ignoreImg dirA rootA colA
       where
         dirA go i es ts = do
           s0 <- toObjIds i
                 <$>
                 traverse getImgParent (es ^. isoDirEntries)
-          s1 <- foldDirA go i es ts
+          s1 <- foldDir go i es ts
           return $ s0 <> s1
 
         rootA go i dir col = do
           s0 <- toObjIds i
                 <$>
                 traverse getImgParent [i, dir, col]
-          s1 <- foldRootA go i dir col
+          s1 <- foldRoot go i dir col
           return $
             s0 <> s1
 
@@ -261,7 +261,7 @@ checkUpLinkObjIds =
                 <$>
                 traverse getImgParent (es ^.. traverse . theColColRef)
 
-          s1 <- foldSubColA go i md im be es
+          s1 <- foldColEntries go i md im be es
           return $
             s0 <> s1
 

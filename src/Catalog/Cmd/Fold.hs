@@ -73,7 +73,7 @@ foldImgDirs :: Monoid r
             -> (Act r -> ObjId -> DirEntries -> TimeStamp -> Cmd r)  -- ^ DIR
             -> Act r
 foldImgDirs imgA dirA =
-  foldMT imgA dirA foldRootDirA ignoreColA
+  foldMT imgA dirA foldRootDir ignoreCol
 
 -- ----------------------------------------
 --
@@ -83,7 +83,7 @@ foldImages :: Monoid r
            => (ObjId -> ImgParts -> MetaData -> Cmd r)
            -> Act r
 foldImages imgA =
-  foldImgDirs imgA foldDirA
+  foldImgDirs imgA foldDir
 
 -- ----------------------------------------
 
@@ -95,7 +95,7 @@ foldCollections :: Monoid r
                 -> Act r
 
 foldCollections colA =
-  foldMT ignoreImgA ignoreDirA foldRootColA colA
+  foldMT ignoreImg ignoreDir foldRootCol colA
 
 -- ----------------------------------------
 --
@@ -109,17 +109,17 @@ allObjIds =
       return $ singleObjId i
 
     dirA go i es ts = do
-      s1 <- foldDirA go i es ts
+      s1 <- foldDir go i es ts
       return $
         singleObjId i <> s1
 
     colA go i md im be es = do
-      s1 <- foldColA go i md im be es
+      s1 <- foldCol go i md im be es
       return $
         singleObjId i <> s1
 
     rootA go i dir col = do
-      s1 <- foldRootA go i dir col
+      s1 <- foldRoot go i dir col
       return $
         singleObjId i <> s1
 
@@ -129,7 +129,7 @@ allObjIds =
 
 allImgObjIds :: ObjId -> Cmd ObjIds
 allImgObjIds =
-  foldMT' ignoreUndefId imgA foldDirA foldRootA foldColA
+  foldMT' ignoreUndefId imgA foldDir foldRoot foldCol
   where
     imgA i _pts _md =
       return $ singleObjId i
@@ -140,10 +140,10 @@ allImgObjIds =
 
 allColObjIds :: ObjId -> Cmd ObjIds
 allColObjIds =
-  foldMT' ignoreUndefId ignoreImgA ignoreDirA foldRootColA colA
+  foldMT' ignoreUndefId ignoreImg ignoreDir foldRootCol colA
   where
     colA go i md im be es = do
-      s1 <- foldSubColA go i md im be es
+      s1 <- foldColEntries go i md im be es
       return $
         singleObjId i <> s1
 
@@ -154,7 +154,7 @@ allColObjIds =
 
 allUndefObjIds :: ObjId -> Cmd ObjIds
 allUndefObjIds =
-  foldMT' undefId ignoreImgA foldDirA foldRootA foldColA
+  foldMT' undefId ignoreImg foldDir foldRoot foldCol
   where
     undefId i =
       return $ singleObjId i
@@ -165,64 +165,75 @@ ignoreUndefId :: Monoid r => i -> Cmd r
 ignoreUndefId _i = return mempty
 {-# INLINE ignoreUndefId #-}
 
-ignoreImgA :: Monoid r =>  p1 -> p2 -> p3 -> Cmd r
-ignoreImgA _i _pts _md = return mempty
-{-# INLINE ignoreImgA #-}
+ignoreImg :: Monoid r =>  p1 -> p2 -> p3 -> Cmd r
+ignoreImg _i _pts _md = return mempty
+{-# INLINE ignoreImg #-}
 
 -- --------------------
 --
 -- root folds
 
-foldRootA :: Monoid r => (ObjId -> Cmd r) -> p1 -> ObjId -> ObjId -> Cmd r
-foldRootA go _i dir col = (<>) <$> go dir <*> go col
-{-# INLINE foldRootA #-}
+ignoreRoot :: Monoid r => p0 -> p1 -> p2 -> p3 -> Cmd r
+ignoreRoot _go _i _dir _col = return mempty
 
-foldRootDirA :: (ObjId -> Cmd r) -> p1 -> ObjId -> p3 -> Cmd r
-foldRootDirA go _i dir _col = go dir
-{-# INLINE foldRootDirA #-}
+foldRoot :: Monoid r => (ObjId -> Cmd r) -> p1 -> ObjId -> ObjId -> Cmd r
+foldRoot go _i dir col = (<>) <$> go dir <*> go col
+{-# INLINE foldRoot #-}
 
-foldRootColA :: (ObjId -> Cmd r) -> p1 -> p2 -> ObjId -> Cmd r
-foldRootColA go _i _dir col = go col
-{-# INLINE foldRootColA #-}
+foldRootDir :: (ObjId -> Cmd r) -> p1 -> ObjId -> p3 -> Cmd r
+foldRootDir go _i dir _col = go dir
+{-# INLINE foldRootDir #-}
+
+foldRootCol :: (ObjId -> Cmd r) -> p1 -> p2 -> ObjId -> Cmd r
+foldRootCol go _i _dir col = go col
+{-# INLINE foldRootCol #-}
 
 -- --------------------
 --
 -- dir folds
 
-ignoreDirA :: Monoid r =>  p0 -> p1 -> p2 -> p3 -> Cmd r
-ignoreDirA _go _i _es _ts = return mempty
-{-# INLINE ignoreDirA #-}
+ignoreDir :: Monoid r =>  p0 -> p1 -> p2 -> p3 -> Cmd r
+ignoreDir _go _i _es _ts = return mempty
+{-# INLINE ignoreDir #-}
 
-foldDirA :: Monoid r => (ObjId -> Cmd r) -> p1 -> DirEntries -> p3 -> Cmd r
-foldDirA go _i es _ts = mconcat <$> traverse go (es ^. isoDirEntries)
-{-# INLINE foldDirA #-}
+foldDir :: Monoid r => (ObjId -> Cmd r) -> p1 -> DirEntries -> p3 -> Cmd r
+foldDir go _i es _ts = mconcat <$> traverse go (es ^. isoDirEntries)
+{-# INLINE foldDir #-}
 
 -- --------------------
 --
 -- col folds
 
-ignoreColA :: Monoid r =>  p0 -> p1 -> p2 -> p3 -> p4 -> p5 -> Cmd r
-ignoreColA _go _i _md _im _be _es = return mempty
-{-# INLINE ignoreColA #-}
+ignoreCol :: Monoid r =>  p0 -> p1 -> p2 -> p3 -> p4 -> p5 -> Cmd r
+ignoreCol _go _i _md _im _be _es = return mempty
+{-# INLINE ignoreCol #-}
 
-foldColA :: Monoid r
-         => (ObjId -> Cmd r) -> p1 -> p2
-         -> Maybe ImgRef -> Maybe ImgRef -> [ColEntry]
-         -> Cmd r
-foldColA go _i _md im be es = do
+foldCol :: Monoid r
+        => (ObjId -> Cmd r) -> p1 -> p2
+        -> Maybe ImgRef -> Maybe ImgRef -> [ColEntry]
+        -> Cmd r
+foldCol go _i _md im be es = do
   s1 <- fold <$> traverse (go . _iref) im
   s2 <- fold <$> traverse (go . _iref) be
   s3 <- fold <$> traverse (go . (^. theColObjId)) es
   return $
     s1 <> s2 <> s3
-{-# INLINE foldColA #-}
+{-# INLINE foldCol #-}
 
-foldSubColA :: Monoid r
-         => (ObjId -> Cmd r) -> p1 -> p2
-         -> p3 -> p4 -> [ColEntry]
+-- traverse all collection entries
+foldColEntries :: Monoid r
+         => (ObjId -> Cmd r) -> p1 -> p2 -> p3 -> p4 -> [ColEntry]
          -> Cmd r
-foldSubColA go _i _md _im _be es =
+foldColEntries go _i _md _im _be es =
   fold <$> traverse (go . (^. theColObjId)) es
-{-# INLINE foldSubColA #-}
+{-# INLINE foldColEntries #-}
+
+-- traverse only the subcollections
+foldColColEntries :: Monoid r
+                  => (ObjId -> Cmd r) -> p1 -> p2 -> p3 -> p4 -> [ColEntry]
+                  -> Cmd r
+foldColColEntries go _i _md _im _be es =
+  fold <$> traverse go (es ^.. traverse . theColColRef)
+{-# INLINE foldColColEntries #-}
 
 -- ----------------------------------------

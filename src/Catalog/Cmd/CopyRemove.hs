@@ -72,13 +72,9 @@ createColCopy target'path src'id = do
 -- computed by path edit function pf and source path
 copyColEntries :: (Path -> Path) -> ObjId -> Cmd ()
 copyColEntries pf =
-      foldMT imgA dirA rootA colA
+      foldMT ignoreImg ignoreDir ignoreRoot colA
       where
-        imgA      _i _p  _md = return ()  -- NOOP
-        dirA  _go _i _es _ts = return ()  -- NOOP
-        rootA _go _i _d  _c  = return ()  -- NOOP
-
-        colA go i _md im be cs = do
+        colA go i md im be cs = do
           dst'i  <- (mkObjId . pf) <$> objid2path i
           dst'cs <- mapM copy cs
           adjustColEntries (const dst'cs) dst'i
@@ -86,7 +82,7 @@ copyColEntries pf =
           adjustColBlog    (const be    ) dst'i
 
           -- recurse into subcollections
-          mapM_ go (cs ^.. traverse . theColColRef)
+          foldColEntries go i md im be cs
           where
 
             copy :: ColEntry -> Cmd ColEntry
@@ -107,30 +103,29 @@ removeEntry p = do
   rmRec i
 
 rmRec :: ObjId -> Cmd ()
-rmRec = foldMT imgA dirA rootA colA
+rmRec = foldMT imgA dirA foldRoot colA
   where
     imgA i _p _md = rmImgNode i
 
-    dirA go i es _ts = do
+    dirA go i es ts = do
       trc $ "dirA: " ++ show (i, es ^. isoDirEntries)
-      mapM_ go (es ^. isoDirEntries)            -- process subdirs first
-      pe <- getImgParent i >>= getImgVal        -- remove dir node
-      unless (isROOT pe) $                      -- if it's not the top dir
+      void $ foldDir go i es ts                   -- process subdirs first
+
+      pe <- getImgParent i >>= getImgVal   -- remove dir node
+      unless (isROOT pe) $                 -- if it's not the top dir
         rmImgNode i
 
-    rootA go _i dir col =
-      go dir >> go col                          -- recurse into dir and col hirachy
-                                                -- but don't change root
     colA go i _md _im _be cs = do
       trc $ "colA: " ++ show cs
-      let cs' = filter isColColRef cs           -- remove all images
-      adjustColEntries (const cs') i            -- store remaining collections
+      let cs' = filter isColColRef cs      -- remove all images
+      adjustColEntries (const cs') i       -- store remaining collections
 
       trc $ "colA: " ++ show cs'
-      mapM_ go (cs' ^.. traverse . theColColRef) -- remove the remaining collections
+      traverse_ go $
+        cs' ^.. traverse . theColColRef    -- remove the remaining collections
 
       unlessM (isROOT <$> (getImgParent i >>= getImgVal)) $
-        rmImgNode i                             -- remove node unless it's the top collection
+        rmImgNode i                        -- remove node unless it's the top collection
 
 -- ----------------------------------------
 --
@@ -145,9 +140,9 @@ removeEmptyColls p = do
 rmEmptyRec :: ObjId -> Cmd ()
 rmEmptyRec i0 = foldCollections colA i0
   where
-    colA go i _md _im _be cs = do
+    colA go i md im be cs = do
       -- trc $ "rmEmptyRec: recurse into subdirs"
-      mapM_ go (cs ^.. traverse . theColColRef)
+      void $ foldColEntries go i md im be cs
 
       cs' <- getImgVals i theColEntries
       if null cs' && i /= i0
@@ -335,12 +330,12 @@ filterCollections :: (ObjId -> Cmd ColOrd) -> ObjId -> Cmd ()
 filterCollections cond =
   foldCollections colA
   where
-    colA go i _md _im _be cs = do
+    colA go i md im be cs = do
       b <- cond i
       case b of
-        ThisCol   -> return ()                                 -- keep collection
-        ParentCol -> mapM_ go (cs ^.. traverse . theColColRef) -- filter subcols
-        OtherCol  -> rmRec i                                   -- remove collection
+        ThisCol   -> return ()                           -- keep collection
+        ParentCol -> foldColColEntries go i md im be cs  -- traverse subcols
+        OtherCol  -> rmRec i                             -- remove collection
 
 -- given a set of collections
 -- remove all stuff except these collections

@@ -25,7 +25,9 @@ module Catalog.Cmd.Basic
   , getIdNode'
   , objid2path
   , objid2type
+  , objid2list
   , objid2contNames
+  , isPartOfTree
   , mapObjId2Path
   , mapImgStore2Path
   , mapPath2ObjId
@@ -172,9 +174,8 @@ alreadyTherePath msg p = do
 
 -- | ref to path
 objid2path :: ObjId -> Cmd Path
-objid2path i = dt >>= go
-  where
-    go t = return (refPath i t)
+objid2path i =
+  dt >>= return . refPath i
 
 -- | ref to type
 objid2type :: ObjId -> Cmd String
@@ -186,6 +187,14 @@ objid2type i = getImgVal i >>= go
               theImgRoot    . to (const "Root") <>
               theImgCol     . to (const "COL")
             )
+
+objid2list :: ObjId -> Cmd [ObjId]
+objid2list i =
+  dt >>= return . refObjIdPath i
+
+isPartOfTree :: ObjId -> ObjId -> Cmd Bool
+isPartOfTree r p =
+  dt >>= return . refInTree r p
 
 objid2contNames :: ObjId -> Cmd [Name]
 objid2contNames i = getImgVal i >>= go
