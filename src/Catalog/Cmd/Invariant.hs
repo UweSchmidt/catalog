@@ -27,7 +27,7 @@ cleanupImgRefs :: ObjId -> Cmd ()
 cleanupImgRefs i0 = do
   verbObj i0 "cleanupImgRefs: remove outdated img refs for "
 
-  foldMT' ignoreUndefId ignoreImg dirA foldRoot colA i0
+  foldMTU ignoreImg dirA foldRoot colA i0
   where
     -- check all img refs in DIR case
     -- and traverse all subcollection
@@ -239,7 +239,7 @@ checkUpLinkObjIds =
   where
     allWrongUpLinks :: ObjId -> Cmd ObjIds
     allWrongUpLinks =
-      foldMT' ignoreUndefId ignoreImg dirA rootA colA
+      foldMTU ignoreImg dirA rootA colA
       where
         dirA go i es ts = do
           s0 <- toObjIds i

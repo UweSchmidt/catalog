@@ -5,7 +5,6 @@ import           Catalog.Cmd.Basic
 import           Catalog.Cmd.Fold
 import           Catalog.Cmd.Types
 import           Data.ImgTree
-import           Data.ImageStore
 import           Data.MetaData
 import           Data.Prim
 import qualified Data.Set as S
@@ -109,7 +108,7 @@ rmRec = foldMT imgA dirA foldRoot colA
 
     dirA go i es ts = do
       trc $ "dirA: " ++ show (i, es ^. isoDirEntries)
-      void $ foldDir go i es ts                   -- process subdirs first
+      void $ foldDir go i es ts            -- process subdirs first
 
       pe <- getImgParent i >>= getImgVal   -- remove dir node
       unless (isROOT pe) $                 -- if it's not the top dir
@@ -321,44 +320,58 @@ cleanupRefs rs i0
               )
 
 -- ----------------------------------------
---
--- filter the collection hierarchy by a predicate
 
-data ColOrd = ThisCol | ParentCol | OtherCol
+selectCollections :: ObjIds -> Cmd ()
+selectCollections cols = do
+  subcols <- foldObjIds allColObjIds cols
+  filterCols subcols                   -- remove all but these collections
 
-filterCollections :: (ObjId -> Cmd ColOrd) -> ObjId -> Cmd ()
-filterCollections cond =
-  foldCollections colA
+  imgs <- getRootImgColId
+          >>=
+          allImgObjIds                 -- collect all image refs in remaining cols
+  filterDirs imgs                      -- remove all images except these from dir
+
+  return ()                            -- everything not selected is removed
+
+filterDirs :: ObjIds -> Cmd ()
+filterDirs imgs =
+  getRootId >>= foldMTU imgA dirA foldRootDir ignoreCol
   where
-    colA go i md im be cs = do
-      b <- cond i
-      case b of
-        ThisCol   -> return ()                           -- keep collection
-        ParentCol -> foldColColEntries go i md im be cs  -- traverse subcols
-        OtherCol  -> rmRec i                             -- remove collection
+    imgA i _pts _md
+      | i `S.member` imgs =                 -- image referenced
+          return ()                         -- don't touch
+      | otherwise =                         -- else
+          rmImgNode i                       -- remove it
 
--- given a set of collections
--- remove all stuff except these collections
--- and all DIR parts containing images
--- referenced in the collections
+    dirA go i es ts = do
+      void $ foldDir go i es ts             -- remove all images in sudirs
 
-exportImgStore :: ObjIds -> Cmd ImgStore
-exportImgStore os = do
-  savedState <- get
-  filterObjIds isCOL os >>= selectEntries
-  exportState <- get
-  put savedState
-  return exportState
+      e <- isempty <$> getImgVal i          -- dir now empty?
+      when e $ do
+        r <- isROOT                         -- and
+             <$>
+             (getImgParent i >>= getImgVal) -- dir not top level (child of root)?
+        unless r $
+          rmRec i                           -- remove dir
 
-selectEntries :: ObjIds -> Cmd ()
-selectEntries cols = do
-  _subcols <- (`S.difference` cols) <$> allSubCols cols
-
-  -- TODO: _ <- undefined subcolls
-
-  return ()
+filterCols :: ObjIds -> Cmd ()
+filterCols cols =
+  getRootId >>= foldMTU ignoreImg ignoreDir foldRootCol colA
   where
-    allSubCols = foldObjIds allColObjIds
-    _allImgIds  = foldObjIds allImgObjIds
+    colA go i md im be es
+      | i `S.member` cols =                 -- collection selected?
+          return ()                         -- don't touch it
+      | otherwise = do
+          a <- isAncestorCol i              -- ancestor of a selected col?
+          if a
+            then                            -- traverse subcollections
+              foldColEntries go i md im be es
+            else
+              rmRec i                       -- not selected, remove
+
+    isAncestorCol i =
+      getAny <$> foldObjIds isAnc cols
+      where
+        isAnc c = Any <$> isPartOfTree c i
 
 -- ----------------------------------------

@@ -8,17 +8,21 @@ module Catalog.Cmd.ArchiveCollection
        , genCollectionsByDir'
        , updateCollectionsByDate
        , img2colPath
+       , exportImgStore
        )
 where
 
 import           Catalog.Cmd.Basic
 import           Catalog.Cmd.Fold
 import           Catalog.Cmd.Types
-import           Catalog.Cmd.CopyRemove (removeEmptyColls)
-import           Catalog.FilePath (pathToBreadCrump)
+import           Catalog.Cmd.CopyRemove ( removeEmptyColls
+                                        , selectCollections
+                                        )
+import           Catalog.FilePath       ( pathToBreadCrump )
 import           Catalog.System.IO
 import           Data.ImgTree
 -- import           Data.ImgNode
+import           Data.ImageStore
 import           Data.MetaData
 import           Data.Prim
 import qualified Data.IntMap as IM
@@ -33,12 +37,12 @@ genSysCollections = do
   -- just set the meta data
   genCollectionRootMeta
 
-  -- gen clipboard albums and imports, if not already there
-  genClipboardCollection
-  genPhotoCollection
-  genAlbumsCollection
-  genByDateCollection
-  genImportsCollection
+  genClipboardCollection     -- clipboard
+  genPhotoCollection         -- hierachy for pictures imported from filesystem
+  genByDateCollection        -- generated on import, sorted by create date
+  genAlbumsCollection        -- root of user created collections
+
+  -- genImportsCollection    -- used for import of old Album2 data
 
 genCollectionRootMeta :: Cmd ()
 genCollectionRootMeta = do
@@ -423,5 +427,28 @@ dateMap2Collections pc dm =
       where
         ymd = i ^. from isoDateInt
         cs  = toListColEntrySet ces
+
+-- ----------------------------------------
+--
+-- export parts of a catalog archive into a new catalog
+--
+-- given a set of collections
+-- remove all stuff except these collections
+-- and all DIR parts containing images
+-- referenced in the collections
+
+exportImgStore :: ObjIds -> Cmd ImgStore
+exportImgStore os = do
+  savedState <- get         -- take a copy of complete catalog
+  filterObjIds isCOL os     -- assure only collections are selected
+    >>= selectCollections   -- remove all stuff not necessary for os collections
+  genSysCollections         -- add missing system collections used by PhotoEdit
+  exportState <- get        -- get the partial catalog
+  put savedState            -- and restore the the saved catalog
+  return exportState        -- return result ready for serialisation and export
+
+-- TODO
+-- create a .tar archive containing all referenced
+-- image and meta data files
 
 -- ----------------------------------------

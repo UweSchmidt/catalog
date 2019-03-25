@@ -63,6 +63,17 @@ foldMT = foldMT' undefId
       warn  $ "foldMT: undefined obj id found: " ++ show i
       abort $ "foldMT: undefined obj id found: " ++ show i
 
+-- same as foldMT', but with defaut error handling
+
+foldMTU :: Monoid r
+        => (         ObjId -> ImgParts     -> MetaData   -> Cmd r)  -- ^ IMG
+        -> (Act r -> ObjId -> DirEntries   -> TimeStamp  -> Cmd r)  -- ^ DIR
+        -> (Act r -> ObjId -> ObjId        -> ObjId      -> Cmd r)  -- ^ ROOT
+        -> (Act r -> ObjId -> MetaData     -> Maybe ImgRef
+                           -> Maybe ImgRef -> [ColEntry] -> Cmd r)  -- ^ COL
+        -> Act r
+foldMTU = foldMT' ignoreUndefId
+
 -- ----------------------------------------
 --
 -- recurse into DIR and IMG entries
@@ -103,7 +114,7 @@ foldCollections colA =
 
 allObjIds :: ObjId -> Cmd ObjIds
 allObjIds =
-  foldMT' ignoreUndefId imgA dirA rootA colA
+  foldMTU imgA dirA rootA colA
   where
     imgA i _pts _md =
       return $ singleObjId i
@@ -129,7 +140,7 @@ allObjIds =
 
 allImgObjIds :: ObjId -> Cmd ObjIds
 allImgObjIds =
-  foldMT' ignoreUndefId imgA foldDir foldRoot foldCol
+  foldMTU imgA foldDir foldRoot foldCol
   where
     imgA i _pts _md =
       return $ singleObjId i
@@ -140,7 +151,7 @@ allImgObjIds =
 
 allColObjIds :: ObjId -> Cmd ObjIds
 allColObjIds =
-  foldMT' ignoreUndefId ignoreImg ignoreDir foldRootCol colA
+  foldMTU ignoreImg ignoreDir foldRootCol colA
   where
     colA go i md im be es = do
       s1 <- foldColEntries go i md im be es
