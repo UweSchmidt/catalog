@@ -153,7 +153,7 @@ instance PrismString GPSdeg where
 -- helper funtions
 
 parserPosDec :: SP GPSposDec
-parserPosDec = tt <$> signedFloat <* msp <* char ',' <* msp <*> signedFloat
+parserPosDec = tt <$> signedFloat <* msp <* char ',' <*> signedFloat <* msp
   where
     tt x y = GPSpos (read x) (read y)
 
@@ -198,9 +198,11 @@ dec2deg (po, ne) x = GPSdeg d'  m'  s'  c'
 
 signedFloat :: SP String
 signedFloat =
-  (string "-" <|> string "+" <|> return "")
-  <++>
-  floatParser
+  msp *>
+  ( (string "-" <|> string "+" <|> return "")
+    <++>
+    floatParser
+  )
 
 floatParser :: SP String
 floatParser =
@@ -220,9 +222,10 @@ floatParser =
 -- Test data
 
 {-
-s1, s2, s3 :: String
+s1, s11, s2, s3 :: String
 
 s1 = " 53.575644, -9.767767 "
+s11 = "53.575644,-9.767767"
 s2 = "https://www.google.com/maps/place/34%C2%B011'19.1%22N+118%C2%B040'26.5%22W/@34.1886344,-118.6762237,17z/data=!3m1!4b1!4m14!1m7!3m6!1s0x80c2c75ddc27da13:0xe22fdf6f254608f4!2sLos+Angeles,+CA,+USA!3b1!8m2!3d34.0522342!4d-118.2436849!3m5!1s0x0:0x0!7e2!8m2!3d34.1886303!4d-118.6740354"
 s3 = "53 deg 2' 10.3\" N , 10 deg 0' 20.1\" E"
 
