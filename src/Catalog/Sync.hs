@@ -107,7 +107,6 @@ syncDirP p = do
   -- throw away all ImgRef's in associated collection of the synchronized dir
   cp <- ($ p) <$> img2colPath
   cleanupColByPath cp
-  checkImgStore
 
   verbose $ "syncDir: create the collections for the archive dir: " ++ quotePath p
   genCollectionsByDir' p
@@ -132,6 +131,9 @@ syncDirP p = do
   verbose $ "syncDir: images added:   " ++ show new'refs
   updateCollectionsByDate new'refs
 
+  -- final action: check integrity, especially
+  -- whether there dead enties in dir tree
+  checkImgStore
   return ()
 
 syncDir' :: Path -> Cmd ()
