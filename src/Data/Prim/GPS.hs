@@ -104,6 +104,7 @@ googleMapsGPSdec = prism' pos2mapsUrl
                                  (s ^? prismString . isoDegDec)
                          )
   where
+    -- generate a Google maps url with magnification 17z
     pos2mapsUrl :: GPSposDec -> String
     pos2mapsUrl pos =
       "https://maps.google.de/maps/@" <> (prismString # pos) <> ",17z"
@@ -112,7 +113,7 @@ googleMapsGPSdec = prism' pos2mapsUrl
     parserMapsUrl :: SP GPSposDec
     parserMapsUrl =
       try ( anyStringThen "/@" *> parserPosDec <*
-            char ',' <* some digitChar <* char 'z' <* manyChars
+            char ',' <* some digitChar <* manyChars
           )
       <|>
       try parserPosDec
@@ -220,13 +221,18 @@ floatParser =
 -- ----------------------------------------
 --
 -- Test data
+--
+-- parsing Google maps urls is critical, they sometimes change the format
 
 {-
-s1, s11, s2, s3 :: String
+s1, s11, s2, s22, s3 :: String
 
 s1 = " 53.575644, -9.767767 "
 s11 = "53.575644,-9.767767"
-s2 = "https://www.google.com/maps/place/34%C2%B011'19.1%22N+118%C2%B040'26.5%22W/@34.1886344,-118.6762237,17z/data=!3m1!4b1!4m14!1m7!3m6!1s0x80c2c75ddc27da13:0xe22fdf6f254608f4!2sLos+Angeles,+CA,+USA!3b1!8m2!3d34.0522342!4d-118.2436849!3m5!1s0x0:0x0!7e2!8m2!3d34.1886303!4d-118.6740354"
+
+s2  = "https://www.google.com/maps/place/34%C2%B011'19.1%22N+118%C2%B040'26.5%22W/@34.1886344,-118.6762237,17z/data=!3m1!4b1!4m14!1m7!3m6!1s0x80c2c75ddc27da13:0xe22fdf6f254608f4!2sLos+Angeles,+CA,+USA!3b1!8m2!3d34.0522342!4d-118.2436849!3m5!1s0x0:0x0!7e2!8m2!3d34.1886303!4d-118.6740354"
+s22 = "https://www.google.com/maps/place/40%C2%B045'58.8%22N+0%C2%B044'16.0%22E/@40.766342,0.7355993,1230m/data=!3m2!1e3!4b1!4m14!1m7!3m6!1s0x12a107cdc6829017:0x91989cc9d39014fd!2sEbro+Delta,+Spain!3b1!8m2!3d40.6934831!4d0.6962853!3m5!1s0x0:0x0!7e2!8m2!3d40.7663384!4d0.7377877"
+
 s3 = "53 deg 2' 10.3\" N , 10 deg 0' 20.1\" E"
 
 -- -}

@@ -12,7 +12,7 @@ import Options.Applicative
 -- version number is updated automatically
 
 version :: String
-version = "0.2.3.3"
+version = "0.2.3.4"
 
 date :: String
 date = "2019-06-21"

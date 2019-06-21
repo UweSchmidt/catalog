@@ -394,7 +394,7 @@ colPage theBaseRef theHeadTitle theDate theImgGeo
 -- these are updated automatically by versionbump.sh
 
 vers :: Text
-vers = "0.2.3.3"
+vers = "0.2.3.4"
 
 dats :: Text
 dats = "2019-06-21"
