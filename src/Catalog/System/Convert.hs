@@ -192,8 +192,8 @@ buildCmd3 rotate d'g s'geo d' s'
     ".jpg" `isSuffixOf` s = "# nothing to do for " ++ show s
   | otherwise = shellCmd
   where
-    s           = s' ^. isoFilePath
-    d           = d' ^. isoFilePath
+    s           = tiffLayer $ s' ^. isoFilePath
+    d           = d'  ^. isoFilePath
     d'geo       = d'g ^. theGeo
     aspect      = d'g ^. theAR
     (Geo cw ch, Geo xoff yoff)
@@ -223,9 +223,17 @@ buildCmd3 rotate d'g s'geo d' s'
     isThumbnail = d'geo ^. theW <= 300 && d'geo ^. theH <= 300
     geo         = r ^. isoString
 
+    -- for .tiff convert needs the layer # to be taken
+    -- if image contains thumbnail there are 2 layers in the .tiff file
+    tiffLayer x
+      | ".tif"  `isSuffixOf` x
+        ||
+        ".tiff" `isSuffixOf` x = x ++ "[0]"
+      | otherwise              = x
+
     cmdName
-        | isPad         = [ "convert" ] -- ["montage" ]
-        | otherwise     = [ "convert" ]
+        | isPad         = [ "convert", "-quiet" ] -- ["montage" ]
+        | otherwise     = [ "convert", "-quiet" ]
 
     cmdArgs
         | isPad         = resize1
