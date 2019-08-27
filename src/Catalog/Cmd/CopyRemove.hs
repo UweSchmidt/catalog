@@ -7,7 +7,9 @@ import           Catalog.Cmd.Types
 import           Data.ImgTree
 import           Data.MetaData
 import           Data.Prim
-import qualified Data.Set as S
+
+import qualified Data.Set      as S
+import qualified Data.Sequence as Seq
 
 -- ----------------------------------------
 
@@ -116,7 +118,7 @@ rmRec = foldMT imgA dirA foldRoot colA
 
     colA go i _md _im _be cs = do
       trc $ "colA: " ++ show cs
-      let cs' = filter isColColRef cs      -- remove all images
+      let cs' = Seq.filter isColColRef cs      -- remove all images
       adjustColEntries (const cs') i       -- store remaining collections
 
       trc $ "colA: " ++ show cs'
@@ -198,9 +200,9 @@ cleanupCollections i0 = do
         cleanupIm _ Nothing =
           return ()
 
-        cleanupEs :: ObjId -> [ColEntry] -> Cmd ()
+        cleanupEs :: ObjId -> ColEntries -> Cmd ()
         cleanupEs i' es = do
-          es' <- filterM cleanupE es
+          es' <- filterSeqM cleanupE es
           unless (length es' == length es) $
             adjustColEntries (const es') i'
           where
@@ -280,7 +282,7 @@ cleanupRefs rs i0
           | any (`memberColEntrySet` rs) es = do
               -- some refs must be deleted
               -- only rebuild the list es if any refs must be deleted
-              let es' = filter (not . (`memberColEntrySet` rs)) es
+              let es' = Seq.filter (not . (`memberColEntrySet` rs)) es
               warn $ "cleanupRefs: col entries removed: "
                      ++ quotePath p ++ ", " ++ show (i, es, es')
               adjustColEntries (const es') i
@@ -301,7 +303,7 @@ cleanupRefs rs i0
           es2 <- emptySubCols es1
           mapM_ rmRec es2
 
-        emptySubCols :: [ColEntry] -> Cmd [ObjId]
+        emptySubCols :: ColEntries -> Cmd [ObjId]
         emptySubCols = foldM checkESC []
           where
             checkESC :: [ObjId] -> ColEntry -> Cmd [ObjId]

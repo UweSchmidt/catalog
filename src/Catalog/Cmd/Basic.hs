@@ -44,6 +44,7 @@ module Catalog.Cmd.Basic
   , adjustColImg
   , adjustColBlog
   , adjustColEntries
+  , adjustColEntry
   , remColEntry
   , setSyncTime
   , findAllColEntries
@@ -82,7 +83,9 @@ import           Data.ImageStore
 import           Data.ImgTree
 import           Data.MetaData
 import           Data.Prim
-import qualified Data.Set as S
+
+import qualified Data.Set      as S
+import qualified Data.Sequence as Seq
 
 -- ----------------------------------------
 
@@ -305,13 +308,13 @@ rmImgNode i = do
 -- create a new empty subcollection and append it to the colrefs
 
 mkCollection :: Path -> Cmd ObjId
-mkCollection = mkCollection' (\ c cs -> cs ++ [c])
+mkCollection = mkCollection' $ flip (Seq.|>)
 
 -- create a new empty subcollection and cons it to the colrefs
 mkCollectionC :: Path -> Cmd ObjId
-mkCollectionC = mkCollection' (:)
+mkCollectionC = mkCollection' (Seq.<|)
 
-mkCollection' :: (ColEntry -> [ColEntry] -> [ColEntry])
+mkCollection' :: (ColEntry -> ColEntries -> ColEntries)
               -> Path
               -> Cmd ObjId
 mkCollection' merge target'path = do
@@ -353,11 +356,17 @@ adjustColImg = adjustNodeVal AdjColImg theColImg
 adjustColBlog :: (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> Cmd ()
 adjustColBlog = adjustNodeVal AdjColBlog theColBlog
 
-adjustColEntries :: ([ColEntry] -> [ColEntry]) -> ObjId -> Cmd ()
+adjustColEntries :: (ColEntries -> ColEntries) -> ObjId -> Cmd ()
 adjustColEntries = adjustNodeVal AdjColEntries theColEntries
 
+adjustColEntry :: (ColEntry -> ColEntry) -> Int -> ObjId -> Cmd ()
+adjustColEntry f i = adjustColEntries f'
+  where
+    f' :: ColEntries -> ColEntries
+    f' = Seq.adjust f i
+
 remColEntry :: Int -> ObjId -> Cmd ()
-remColEntry pos = adjustColEntries (removeAt pos)
+remColEntry pos = adjustColEntries (Seq.deleteAt pos)
 
 setSyncTime :: ObjId -> Cmd ()
 setSyncTime i = do
@@ -400,13 +409,12 @@ adjustNodeVal mkj theComp f i = do
 --
 -- search, sort and merge ops for collections
 
-findAllColEntries :: (ColEntry -> Cmd Bool)   -- ^ the filter predicate
-                  -> ObjId                    -- ^ the collection
-                  -> Cmd [(Int, ColEntry)]    -- ^ the list of entries with pos
+findAllColEntries :: (ColEntry -> Cmd Bool)    -- ^ the filter predicate
+                  -> ObjId                     -- ^ the collection
+                  -> Cmd [(Int, ColEntry)]     -- ^ the list of entries with pos
 findAllColEntries p i = do
   es <- getImgVals i theColEntries
-  filterM (p . snd) $ zip [0..] es
-
+  filterM (p . snd) $ zip [0..] (es ^. isoSeqList)
 
 findFstColEntry  :: (ColEntry -> Cmd Bool)
                  -> ObjId
@@ -416,10 +424,10 @@ findFstColEntry p i = listToMaybe <$> findAllColEntries p i
 
 sortColEntries :: (ColEntry -> Cmd a)
                -> (a -> a -> Ordering)
-               -> [ColEntry]
-               -> Cmd [ColEntry]
+               -> ColEntries
+               -> Cmd ColEntries
 sortColEntries getVal cmpVal es =
-  map fst . sortBy (cmpVal `on` snd) <$> mapM mkC es
+  fmap fst . Seq.sortBy (cmpVal `on` snd) <$> traverse mkC es
   where
     -- mkC :: ColEntry -> Cmd (ColEntry, a)
     mkC ce = do
@@ -431,9 +439,9 @@ sortColEntries getVal cmpVal es =
 -- old entries are removed from list of new entries
 -- the remaining new entries are appended
 
-mergeColEntries :: [ColEntry] -> [ColEntry] -> [ColEntry]
+mergeColEntries :: ColEntries -> ColEntries -> ColEntries
 mergeColEntries es1 es2 =
-  es1 ++ filter (`notElem` es1) es2
+  es1 <> Seq.filter (`notElem` es1) es2
 
 
 -- get the collection entry at an index pos

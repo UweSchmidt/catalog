@@ -32,17 +32,20 @@ allColEntries =
     -- collect all ImgRef's by recursing into subcollections
     -- union subcollection results and imgrefs together
     colA :: (ObjId -> Cmd ColEntrySet)
-         -> ObjId -> MetaData
-         -> Maybe ImgRef -> Maybe ImgRef -> [ColEntry]
+         -> ObjId
+         -> MetaData
+         -> Maybe ImgRef
+         -> Maybe ImgRef
+         -> ColEntries
          -> Cmd ColEntrySet
     colA  go  i _md im be cs = do
-      p <- objid2path i
-      verbose $ "allColEntries: " ++ quotePath p
-      let imref = im ^.. traverse . to mkColImgRef'
-      let beref = be ^.. traverse . to mkColImgRef'
-      let (crs, irs) = partition isColColRef cs
-      iss <- mapM go (crs ^.. traverse . theColColRef)
-      return $ foldl' (<>) (fromListColEntrySet $ imref ++ beref ++ irs) iss
+      p              <- objid2path i
+      verbose        $  "allColEntries: " ++ quotePath p
+      let imref      =  im ^.. traverse . to mkColImgRef'
+      let beref      =  be ^.. traverse . to mkColImgRef'
+      let (crs, irs) =  partition isColColRef (cs ^. isoSeqList)
+      iss            <- traverse go (crs ^.. traverse . theColColRef)
+      return         $  foldl' (<>) (fromListColEntrySet $ imref ++ beref ++ irs) iss
 
     -- jump from the dir hierachy to the assosiated collection hierarchy
     dirA  go i _es  _ts = do

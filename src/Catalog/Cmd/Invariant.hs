@@ -9,8 +9,9 @@ import           Data.ImageStore
 import           Data.ImgTree
 import           Data.Prim
 
-import qualified Data.Set as S
+import qualified Data.Set        as S
 import qualified Data.Map.Strict as M
+import qualified Data.Sequence   as Seq
 
 import           Control.Monad.Trans.Maybe
 
@@ -64,8 +65,8 @@ cleanupImgRefs i0 = do
           "cleanupImgRefs: col blog ref" ++ show (be, be') ++ " removed in "
         adjustColBlog (const be') i
 
-      es' <- filterM (isOK checkColEntry) es
-      when (length es' < length es) $ do
+      es' <- filterSeqM (isOK checkColEntry) es
+      when (Seq.length es' < Seq.length es) $ do
         warnObj i $
           "cleanupImgRefs: col enties " ++ show (es, es') ++ " removed in "
         adjustColEntries (const es') i

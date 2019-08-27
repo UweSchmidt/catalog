@@ -25,7 +25,9 @@ import           Data.ImgTree
 import           Data.ImageStore
 import           Data.MetaData
 import           Data.Prim
-import qualified Data.IntMap as IM
+
+import qualified Data.IntMap   as IM
+import qualified Data.Sequence as Seq
 
 -- ----------------------------------------
 
@@ -192,24 +194,25 @@ genCollectionsByDir di = do
       where
         bs = p ^. viewBase . _1
 
-    genCol :: (Path -> Path) -> ObjId -> Cmd [ColEntry]
+    genCol :: (Path -> Path) -> ObjId -> Cmd ColEntries
     genCol fp =
       foldImgDirs imgA dirA
       where
         -- collect all processed jpg images for a single img
 
+        imgA :: ObjId -> ImgParts -> MetaData -> Cmd ColEntries
         imgA i pts _md = do
           let res = map (mkColImgRef i) $ sort ns
           trcObj i $ "genCol img: " ++ show res
-          return res
+          return (res ^. from isoSeqList)
           where
             ns = pts ^.. thePartNamesI
 
         -- generate a coresponding collection with all entries
         -- entries are sorted by name
 
-        dirA :: (ObjId -> Cmd [ColEntry]) ->
-                ObjId -> DirEntries -> TimeStamp -> Cmd [ColEntry]
+        dirA :: (ObjId -> Cmd ColEntries) ->
+                ObjId -> DirEntries -> TimeStamp -> Cmd ColEntries
         dirA go i es _ts = do
           p  <- objid2path i
           let cp = fp p
@@ -220,7 +223,7 @@ genCollectionsByDir di = do
           ic <- mkColByPath insertColByName setupDirCol cp
 
           -- get collection entries, and insert them into collection
-          cs  <- concat <$> mapM go (es ^. isoDirEntries)
+          cs  <- mconcat <$> traverse go (es ^. isoDirEntries)
 
           trcObj ic "genCol dir: set dir contents"
           adjustColByName cs ic
@@ -230,13 +233,13 @@ genCollectionsByDir di = do
           setColBlogToFstTxtEntry False ic
           trcObj ic "genCol dir: col blog set"
 
-          return [mkColColRef ic]
+          return $ Seq.singleton $ mkColColRef ic
 
 -- ----------------------------------------
 --
 -- collection sort
 
-sortByName :: [ColEntry] -> Cmd [ColEntry]
+sortByName :: ColEntries -> Cmd ColEntries
 sortByName =
   sortColEntries getVal compare
   where
@@ -250,7 +253,7 @@ sortByName =
       (\ j    ->         Left            <$> getImgName j)
 
 
-sortByDate :: [ColEntry] -> Cmd [ColEntry]
+sortByDate :: ColEntries -> Cmd ColEntries
 sortByDate =
   sortColEntries getVal compare
   where
@@ -274,19 +277,19 @@ sortByDate =
 -- set/modify collection entries
 
 insertColByName :: ObjId -> ObjId -> Cmd ()
-insertColByName i = adjustColByName [mkColColRef i]
+insertColByName i = adjustColByName $ Seq.singleton $ mkColColRef i
 
 -- insertColByDate :: ObjId -> ObjId -> Cmd ()
 -- insertColByDate i = adjustColByDate [mkColColRef i]
 
-adjustColByName :: [ColEntry] -> ObjId -> Cmd ()
+adjustColByName :: ColEntries -> ObjId -> Cmd ()
 adjustColByName = adjustColBy sortByName
 
-adjustColByDate :: [ColEntry] -> ObjId -> Cmd ()
+adjustColByDate :: ColEntries -> ObjId -> Cmd ()
 adjustColByDate = adjustColBy sortByDate
 
-adjustColBy :: ([ColEntry] -> Cmd [ColEntry]) ->
-               [ColEntry] ->
+adjustColBy :: (ColEntries -> Cmd ColEntries) ->
+               ColEntries ->
                ObjId -> Cmd ()
 adjustColBy sortCol cs parent'i = do
   -- trc $ "adjustColBy begin"
@@ -401,7 +404,7 @@ updateCollectionsByDate rs = do
 colEntries2dateMap :: ColEntrySet -> Cmd DateMap
 colEntries2dateMap rs = do
   verbose "colEntries2dateMap: build DateMap"
-  foldlM add1 IM.empty $ toListColEntrySet rs
+  foldlM add1 IM.empty $ toSeqColEntrySet rs
   where
     add1 :: DateMap -> ColEntry -> Cmd DateMap
     add1 acc ce = do
@@ -426,7 +429,7 @@ dateMap2Collections pc dm =
       return ()
       where
         ymd = i ^. from isoDateInt
-        cs  = toListColEntrySet ces
+        cs  = toSeqColEntrySet ces
 
 -- ----------------------------------------
 --

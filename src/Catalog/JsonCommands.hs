@@ -48,10 +48,33 @@ import Catalog.Sync       ( syncDirP
 import Catalog.System.ExifTool
                           ( forceSyncAllMetaData )
 
+import qualified Data.Sequence as Seq
+
 -- ----------------------------------------
 --
 -- commands for modifying the catalog
 
+-- --------------------
+--
+-- a little helper for index calc
+
+toPosList :: [Int] -> [Int]
+toPosList xs =
+  map snd
+  . sortBy (compare `on` fst)
+  . filter ((>= 0) . fst)
+  . zip xs
+  $ [0..]
+
+toPosDescList :: [Int] -> [Int]
+toPosDescList xs =
+  reverse
+  . map snd
+  . filter ((>= 0) . fst)
+  . zip xs
+  $ [0..]
+
+-- --------------------
 
 modify'saveblogsource :: Int -> Text -> ImgNode -> Cmd ()
 modify'saveblogsource pos t n = putBlogCont t pos n
@@ -79,18 +102,18 @@ modify'saveblogsource pos t n = putBlogCont t pos n
 
 modify'changeWriteProtected :: [Int] -> Bool -> ImgNode -> Cmd ()
 modify'changeWriteProtected ixs ro n =
-  zipWithM_ markRO ixs (n ^. theColEntries)
+  traverse_ mark $ toPosList ixs
   where
+    cs = n ^. theColEntries
+
     cf | ro        = addNoWriteAccess
        | otherwise = subNoWriteAccess
-    markRO mark ce
-      | mark < 0 =
-          return ()
-      | otherwise =
-          colEntry'
-          (\ _ -> return ())            -- ignore ImgRef's
-          (adjustMetaData cf)
-          ce
+
+    mark pos = maybe (return ()) adj $ cs ^? ix pos
+      where
+        adj = colEntry'
+              (\ _ -> return ())            -- ignore ImgRef's
+              (adjustMetaData cf)
 
 -- --------------------
 --
@@ -104,12 +127,12 @@ modify'sort ixs i
   | otherwise =
       adjustColEntries (reorderCol ixs) i
 
-reorderCol :: [Int] -> [a] -> [a]
+reorderCol :: [Int] -> Seq a -> Seq a
 reorderCol ixs cs =
-  map snd . sortBy (cmp mx `on` fst) $ zip ixs' cs
+  fmap snd . Seq.sortBy (cmp mx `on` fst) $ Seq.zip ixs' cs
   where
-    ixs' :: [(Int, Int)]
-    ixs' = zip ixs [0..]
+    ixs' :: Seq (Int, Int)
+    ixs' = isoSeqList # zip ixs [0..]
 
     mx :: (Int, Int)
     mx = maximum ixs'
@@ -136,39 +159,35 @@ cmp (mi, mx) (i, x) (j, y)
 -- remove all marked images and sub-collection from a collection
 
 modify'removeFromCollection :: [Int] -> ObjId -> ImgNode -> Cmd ()
-modify'removeFromCollection ixs i n =
-  removeFromCol ixs i n
-
-removeFromCol :: [Int] -> ObjId -> ImgNode -> Cmd ()
-removeFromCol ixs i n = do
-
+modify'removeFromCollection ixs i n = do
   -- check whether collection is readonly
   unless (isWriteable $ n ^. theColMetaData) $ do
     path <- objid2path i
     abort ("removeFrCol: collection is write protected: " ++ show path)
+  removeFromCol ixs i n
 
-  traverse_ (uncurry (removeEntryFromCol i)) toBeRemoved
+removeFromCol :: [Int] -> ObjId -> ImgNode -> Cmd ()
+removeFromCol ixs oid n =
+  traverse_ rmv $ toPosDescList ixs  -- remove list entries from the right
   where
-    -- elements are removed from the end to the front
-    -- else the positions had to be adjusted after each remove
-    toBeRemoved :: [(Int, ColEntry)]
-    toBeRemoved =
-      reverse
-      . map snd
-      . filter ((>= 0) . fst)
-      . zip ixs
-      . zip [0..]
-      $ n ^. theColEntries
+    cs = n ^. theColEntries
 
-removeEntryFromCol :: ObjId -> Int -> ColEntry -> Cmd ()
-removeEntryFromCol i pos =
-  colEntry'
-  (\ _ -> adjustColEntries (removeAt pos) i)
-  rmRec
+    rmv :: Int -> Cmd ()
+    rmv pos = maybe (return ()) rm $ cs ^? ix pos
+      where
+        rm = colEntry'
+             (\ _ -> adjustColEntries (Seq.deleteAt pos) oid)
+             rmRec
 
 -- --------------------
 --
 -- copy marked images and collections to another collection
+--
+-- the int list doesn't contain indexes but
+-- ints which determine the order of copying
+--
+-- a -1 indicates "don't copy this image"
+-- an int i >= 0 indicates "copy this as the i-th image"
 
 modify'copyToCollection :: [Int] -> Path -> ImgNode -> Cmd ()
 modify'copyToCollection ixs dPath n = do
@@ -176,35 +195,28 @@ modify'copyToCollection ixs dPath n = do
   copyToCol ixs di n
 
 copyToCol :: [Int] -> ObjId -> ImgNode -> Cmd ()
-copyToCol ixs di n =
-  traverse_ (copyEntryToCol di) toBeCopied
+copyToCol xs di n =
+  traverse_ cpy $ toPosList xs
   where
-    toBeCopied :: [ColEntry]
-    toBeCopied =
-      map snd
-      . sortBy (compare `on` fst)
-      . filter ((>= 0) . fst)
-      . zip ixs
-      $ n ^. theColEntries
+    cs = n ^. theColEntries
 
-copyEntryToCol :: ObjId -> ColEntry -> Cmd ()
-copyEntryToCol di ce =
-  colEntry'
-  (\ _ -> adjustColEntries (++ [ce]) di)
-  copyColToCol
-  ce
-  where
-    copyColToCol si = do
-      dp <- objid2path di
-      sp <- objid2path si
-      copyCollection sp dp
-
-      -- remove the access restrictions in copied collection,
-      -- in a copied collection there aren't any access restrictions
-      --
-      -- the path of the copied collection
-      let tp = dp `snocPath` (sp ^. viewBase . _2)
-      modifyMetaDataRec clearAccess tp
+    cpy pos = maybe (return ()) cp $ cs ^? ix pos
+      where
+        cp ce = colEntry'
+                (\ _ -> adjustColEntries (Seq.|> ce) di)
+                copyColToCol
+                ce
+          where
+            copyColToCol si = do
+              dp <- objid2path di
+              sp <- objid2path si
+              copyCollection sp dp
+              -- remove the access restrictions in copied collection,
+              -- in a copied collection there aren't any access restrictions
+              --
+              -- the path of the copied collection
+              let tp = dp `snocPath` (sp ^. viewBase . _2)
+              modifyMetaDataRec clearAccess tp
 
 modifyMetaDataRec :: (MetaData -> MetaData) -> Path -> Cmd ()
 modifyMetaDataRec mf path = do
@@ -295,11 +307,13 @@ modify'renamecol newName i = do
   rmRec i
 
   -- move duplicated col from the end of the col entry list to the pos of i
-  adjustColEntries
-    (\ cs -> let i' = last cs
-             in
-               insertAt pos i' $ init cs
-    ) iParent
+  adjustColEntries (adj pos) iParent
+    where
+      adj pos cs = Seq.insertAt pos cn . Seq.deleteAt ixm $ cs
+        where
+          len = Seq.length cs
+          ixm = len - 1
+          cn  = Seq.index cs ixm
 
 -- --------------------
 --
@@ -307,16 +321,15 @@ modify'renamecol newName i = do
 
 modify'setMetaData :: [Int] -> MetaData -> ImgNode -> Cmd ()
 modify'setMetaData ixs md n =
-  sequence_ $ zipWith setMeta' ixs (n ^. theColEntries)
+  traverse_ setm $ toPosList ixs
   where
-    setMeta' mark ce
-      | mark < 0 =
-          return ()
-      | otherwise =
-          colEntry'
-          ( adjustMetaData (md <>) . _iref )
-          ( adjustMetaData (md <>)         )
-          ce
+    cs = n ^. theColEntries
+
+    setm pos = maybe (return ()) sm $ cs ^? ix pos
+      where
+        sm = colEntry'
+             (adjustMetaData (md <>) . _iref)
+             (adjustMetaData (md <>)        )
 
 -- set meta data fields for a single collection entry
 
@@ -464,7 +477,7 @@ read'rating pos n =
 
 read'ratings :: ImgNode -> Cmd [Rating]
 read'ratings n =
-  traverse f (n ^. theColEntries)
+  traverse f (n ^. theColEntries . isoSeqList)
   where
     f = colEntry' (getR . _iref) getR
       where

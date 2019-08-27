@@ -12,6 +12,7 @@ module Data.ImgNode
        , ImgRef'(..)
        , ImgRef
        , ColEntry'(..)
+       , ColEntries'
        , ColEntrySet'
        , ColEntrySet
        , DirEntries'
@@ -67,7 +68,9 @@ module Data.ImgNode
        , memberColEntrySet
        , singletonColEntrySet
        , fromListColEntrySet
+       , fromSeqColEntrySet
        , toListColEntrySet
+       , toSeqColEntrySet
        , diffColEntrySet
        , intersectColEntrySet
        , ObjIds
@@ -82,6 +85,7 @@ import           Data.Prim
 import qualified Data.Aeson      as J
 import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
+import qualified Data.Sequence   as Seq
 
 -- ----------------------------------------
 
@@ -96,7 +100,7 @@ data ImgNode' ref = IMG  !ImgParts
                   | COL  !MetaData               -- collection meta data
                          !(Maybe (ImgRef' ref))  -- optional image
                          !(Maybe (ImgRef' ref))  -- optional blog entry
-                         ![ColEntry' ref]        -- the list of images
+                         !(ColEntries' ref)  -- the list of images
                                                  -- and subcollections
 
 -- ----------------------------------------
@@ -172,7 +176,7 @@ emptyImgRoot = ROOT mempty mempty
 {-# INLINE emptyImgRoot #-}
 
 emptyImgCol :: ImgNode' ref
-emptyImgCol = COL mempty Nothing Nothing []
+emptyImgCol = COL mempty Nothing Nothing mempty
 {-# INLINE emptyImgCol #-}
 
 -- image node optics
@@ -243,7 +247,7 @@ theRootImgCol = theImgRoot . _2
 {-# INLINE theRootImgCol #-}
 
 theImgCol :: Prism' (ImgNode' ref)
-                    (MetaData, Maybe (ImgRef' ref), Maybe (ImgRef' ref), [ColEntry' ref])
+                    (MetaData, Maybe (ImgRef' ref), Maybe (ImgRef' ref), (ColEntries' ref))
 theImgCol =
   prism (\ (x1, x2, x3, x4) -> COL x1 x2 x3 x4)
         (\ x -> case x of
@@ -264,7 +268,7 @@ theColBlog :: Traversal' (ImgNode' ref) (Maybe (ImgRef' ref))
 theColBlog = theImgCol . _3
 {-# INLINE theColBlog #-}
 
-theColEntries :: Traversal' (ImgNode' ref) [ColEntry' ref]
+theColEntries :: Traversal' (ImgNode' ref) (ColEntries' ref)
 theColEntries = theImgCol . _4
 {-# INLINE theColEntries #-}
 
@@ -409,8 +413,10 @@ emptyImgRef = ImgRef mempty mempty
 
 -- --------------------
 
-data ColEntry' ref = ImgEnt ! (ImgRef' ref)
-                   | ColEnt ! ref
+data ColEntry'   ref  = ImgEnt ! (ImgRef' ref)
+                      | ColEnt ! ref
+
+type ColEntries' ref = Seq (ColEntry' ref)
 
 deriving instance (Eq   ref) => Eq   (ColEntry' ref)
 deriving instance (Ord  ref) => Ord  (ColEntry' ref)
@@ -550,11 +556,9 @@ delDirEntry r (DE rs) =
     rs'  = filter (/= r) rs
 {-# INLINE delDirEntry #-}
 
-delColEntry :: (Eq ref) => ref -> [ColEntry' ref] -> [ColEntry' ref]
-delColEntry r cs =
-  length cs' `seq` cs'  -- eval whole list
-  where
-    cs' = filter (\ ce -> ce ^. theColObjId /= r) cs
+delColEntry :: (Eq ref) => ref -> ColEntries' ref -> ColEntries' ref
+delColEntry r =
+    Seq.filter (\ ce -> ce ^. theColObjId /= r)
 {-# INLINE delColEntry #-}
 
 
@@ -582,8 +586,14 @@ singletonColEntrySet = CES . S.singleton
 fromListColEntrySet :: Ord ref => [ColEntry' ref] -> ColEntrySet' ref
 fromListColEntrySet = CES . S.fromList
 
+fromSeqColEntrySet :: Ord ref => ColEntries' ref -> ColEntrySet' ref
+fromSeqColEntrySet cs = CES $ foldMap S.singleton cs
+
 toListColEntrySet :: ColEntrySet' ref -> [ColEntry' ref]
 toListColEntrySet (CES s) = S.toList s
+
+toSeqColEntrySet :: ColEntrySet' ref -> ColEntries' ref
+toSeqColEntrySet (CES s) = foldMap Seq.singleton s
 
 memberColEntrySet :: Ord ref
                   => ColEntry' ref

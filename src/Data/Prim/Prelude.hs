@@ -8,6 +8,7 @@ module Data.Prim.Prelude
        ( ByteString
        , LazyByteString
        , Map
+       , Seq
        , Set
        , Text
        , LazyText
@@ -72,17 +73,16 @@ module Data.Prim.Prelude
        , isoMapElems
        , isoMapList
        , isoSetList
+       , isoSeqList
        , isA
          -- utilities
        , (.||.)
        , partitionBy
        , divideAt
-       , searchPos
-       , removeAt
-       , insertAt
          -- Monad ops
        , whenM
        , unlessM
+       , filterSeqM
        )
 where
 
@@ -108,6 +108,8 @@ import           Data.Maybe
 import           Data.Semigroup hiding (option)
 import           Data.Set (Set)
 import qualified Data.Set as S
+import           Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import           Data.String (IsString(..))
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -150,6 +152,10 @@ instance IsEmpty LazyByteString where
 
 instance IsEmpty (Set a) where
   isempty = S.null
+  {-# INLINE isempty #-}
+
+instance IsEmpty (Seq a) where
+  isempty = Seq.null
   {-# INLINE isempty #-}
 
 instance IsEmpty (Map k v) where
@@ -298,6 +304,10 @@ isoSetList :: Ord a => Iso' (Set a) [a]
 isoSetList = iso S.toList S.fromList
 {-# INLINE isoSetList #-}
 
+isoSeqList :: Iso' (Seq a) [a]
+isoSeqList = iso toList Seq.fromList
+{-# INLINE isoSeqList #-}
+
 isA :: (a -> Bool) -> Prism' a a
 isA p = prism id (\ o -> (if p o then Right else Left) o)
 {-# INLINE isA #-}
@@ -358,28 +368,6 @@ divideAt n
       where
         (ys, xs') = splitAt n xs
 
--- search the position of the first element for which the predicate holds
-
-searchPos :: (a -> Bool) -> [a] -> Maybe Int
-searchPos p =
-  listToMaybe . map fst . filter (p . snd) . zip [0..]
-
-
--- remove an element at a given index
-
-removeAt :: Int -> [a] -> [a]
-removeAt 0 xs = drop 1 xs
-removeAt i xs
-  | i < 0 = xs
-removeAt _ [] = []
-removeAt i (x : xs) = (x :) $! removeAt (i - 1) xs
-
-insertAt :: Int -> a -> [a] -> [a]
-insertAt _ x []        =  x : []
-insertAt i x xs
-  | i <= 0             =  x : xs
-insertAt i x (x1 : xs) = (x1 :) $! insertAt (i - 1) x xs
-
 -- ----------------------------------------
 
 -- put all elemnts of a, which have equal e values
@@ -439,5 +427,21 @@ unlessM b c = do
   b' <- b
   unless b' c
 {-# INLINE unlessM #-}
+
+-- ----------------------------------------
+
+-- a monadic filter for sequneces
+
+filterSeqM :: Monad m => (a -> m Bool) -> Seq a -> m (Seq a)
+filterSeqM p = foldM f mempty
+  where
+    f rs x = do
+      b <- p x
+      return
+        ( if b
+          then rs Seq.|> x
+          else rs
+        )
+{-# INLINE filterSeqM #-}
 
 -- ----------------------------------------

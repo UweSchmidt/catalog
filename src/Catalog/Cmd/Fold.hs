@@ -26,7 +26,7 @@ foldMT' :: (         ObjId                               -> Cmd r)  -- ^ undef i
         -> (Act r -> ObjId -> DirEntries   -> TimeStamp  -> Cmd r)  -- ^ DIR
         -> (Act r -> ObjId -> ObjId        -> ObjId      -> Cmd r)  -- ^ ROOT
         -> (Act r -> ObjId -> MetaData     -> Maybe ImgRef
-                           -> Maybe ImgRef -> [ColEntry] -> Cmd r)  -- ^ COL
+                           -> Maybe ImgRef -> ColEntries -> Cmd r)  -- ^ COL
         -> Act r
 foldMT' undefId imgA dirA' rootA' colA' i0 = do
   go i0
@@ -55,7 +55,7 @@ foldMT :: (         ObjId -> ImgParts     -> MetaData   -> Cmd r)  -- ^ IMG
        -> (Act r -> ObjId -> DirEntries   -> TimeStamp  -> Cmd r)  -- ^ DIR
        -> (Act r -> ObjId -> ObjId        -> ObjId      -> Cmd r)  -- ^ ROOT
        -> (Act r -> ObjId -> MetaData     -> Maybe ImgRef
-                          -> Maybe ImgRef -> [ColEntry] -> Cmd r)  -- ^ COL
+                          -> Maybe ImgRef -> ColEntries -> Cmd r)  -- ^ COL
        -> Act r
 foldMT = foldMT' undefId
   where
@@ -70,7 +70,7 @@ foldMTU :: Monoid r
         -> (Act r -> ObjId -> DirEntries   -> TimeStamp  -> Cmd r)  -- ^ DIR
         -> (Act r -> ObjId -> ObjId        -> ObjId      -> Cmd r)  -- ^ ROOT
         -> (Act r -> ObjId -> MetaData     -> Maybe ImgRef
-                           -> Maybe ImgRef -> [ColEntry] -> Cmd r)  -- ^ COL
+                           -> Maybe ImgRef -> ColEntries -> Cmd r)  -- ^ COL
         -> Act r
 foldMTU = foldMT' ignoreUndefId
 
@@ -102,7 +102,7 @@ foldImages imgA =
 
 foldCollections :: Monoid r
                 => (Act r -> ObjId -> MetaData     -> Maybe ImgRef
-                                   -> Maybe ImgRef -> [ColEntry] -> Cmd r) -- ^ COL
+                                   -> Maybe ImgRef -> ColEntries -> Cmd r) -- ^ COL
                 -> Act r
 
 foldCollections colA =
@@ -221,7 +221,7 @@ ignoreCol _go _i _md _im _be _es = return mempty
 
 foldCol :: Monoid r
         => (ObjId -> Cmd r) -> p1 -> p2
-        -> Maybe ImgRef -> Maybe ImgRef -> [ColEntry]
+        -> Maybe ImgRef -> Maybe ImgRef -> ColEntries
         -> Cmd r
 foldCol go _i _md im be es = do
   s1 <- fold <$> traverse (go . _iref) im
@@ -233,7 +233,7 @@ foldCol go _i _md im be es = do
 
 -- traverse all collection entries
 foldColEntries :: Monoid r
-         => (ObjId -> Cmd r) -> p1 -> p2 -> p3 -> p4 -> [ColEntry]
+         => (ObjId -> Cmd r) -> p1 -> p2 -> p3 -> p4 -> ColEntries
          -> Cmd r
 foldColEntries go _i _md _im _be es =
   fold <$> traverse (go . (^. theColObjId)) es
@@ -241,7 +241,7 @@ foldColEntries go _i _md _im _be es =
 
 -- traverse only the subcollections
 foldColColEntries :: Monoid r
-                  => (ObjId -> Cmd r) -> p1 -> p2 -> p3 -> p4 -> [ColEntry]
+                  => (ObjId -> Cmd r) -> p1 -> p2 -> p3 -> p4 -> ColEntries
                   -> Cmd r
 foldColColEntries go _i _md _im _be es =
   fold <$> traverse go (es ^.. traverse . theColColRef)

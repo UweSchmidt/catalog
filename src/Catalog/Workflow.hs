@@ -44,6 +44,7 @@ import Catalog.System.Convert         ( createResizedImage
                                       )
 import Text.SimpleParser              ( parseMaybe )
 
+import qualified Data.Sequence        as Seq
 import qualified Data.Text            as T
 import qualified Text.Blaze.Html      as Blaze
 import           Text.Blaze.Html.Renderer.Utf8
@@ -199,7 +200,7 @@ denormPathPos r =
   )
   where
     lookupOId oid pnd =
-      searchPos
+      Seq.findIndexL
       ((== oid) . (^. theColObjId))
       (pnd ^. theColEntries)
 
@@ -711,7 +712,7 @@ toFirstChild' r
 -- normalization must be done before
 toChildren :: Req'IdNode a -> CmdMB [Req'IdNode a]
 toChildren r =
-  traverse normC $ zip [0..] (r ^. rColNode . theColEntries)
+  traverse normC $ zip [0..] (r ^. rColNode . theColEntries . isoSeqList)
   where
     normC (i, ce) =
       colEntry'

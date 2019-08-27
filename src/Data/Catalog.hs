@@ -79,7 +79,8 @@ at' :: CatalogKey ref => ref -> Lens' (CatMap ref v) (Maybe v)
 at' k f m = f mv <&> \r -> case r of
     Nothing -> maybe m (const (deleteCat k m)) mv
     Just v' -> insertCat k v' m
-    where mv = lookupCat k m
+    where
+      mv = lookupCat k m
 {-# INLINE at' #-}
 
 -- ----------------------------------------
