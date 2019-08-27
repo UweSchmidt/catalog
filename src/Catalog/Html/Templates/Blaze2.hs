@@ -81,7 +81,7 @@ renderPage p = R.renderHtml p ^. isoText . lazy
 type IconDescr = (Text, Text, Text, Text)
 
 colPage' :: Text -> Text -> Text
-         -> Text -> Text -> Text
+         -> Text
          -> Geo
          -> Text -> Text -> Text -> Text
          -> Text -> Text -> Text -> Text
@@ -91,10 +91,11 @@ colPage' :: Text -> Text -> Text
          -> Text -> Text
          -> Text -> Text -> Text
          -> Int  -> [IconDescr]
+         -> MetaData
          -> Html
 colPage'
   theBaseRef theHeadTitle theDate
-  theTitle theSubTitle theComment
+  theTitle
   theImgGeo
   theDuration thisHref thisPos
   theNextHref thePrevHref theParentHref theChild1Href theFwrdHref
@@ -104,6 +105,7 @@ colPage'
   theParentTitle parentImgRef
   theNextTitle thePrevTitle theChild1Title
   no'cols icons
+  metaData
 
   = colPage
     theBaseRef
@@ -133,8 +135,7 @@ colPage'
     )
     ( colTitle
       theTitle
-      theSubTitle
-      theComment
+      metaData
     )
     ( colNav
       ( parentNav theParentTitle parentImgRef  theImgGeoDir theIconGeoDir)
@@ -478,16 +479,20 @@ jsCode theDuration thisHref thisPos
     , "-->"
     ]
 
-colTitle :: Text -> Text -> Text -> Html
-colTitle theTitle theSubTitle theComment = do
+colTitle :: Text -> MetaData -> Html
+colTitle theTitle md = do
   di "title"    theTitle
-  di "subtitle" theSubTitle
-  di "comment"  theComment
+  di "subtitle" (md ^. metaDataAt descrSubtitle)
+  di "comment"  (md ^. metaDataAt descrComment)
+  di' gpsToHtml "comment"  (lookupGPS md)
   where
     di :: Text -> Text -> Html
-    di c t
-      | T.null t = mempty
-      | otherwise =   H.div ! class_ (toValue c) $ toHtml t
+    di = di' toHtml
+
+    di' :: (Text -> Html) -> Text -> Text -> Html
+    di' toH c t
+      | T.null t  = mempty
+      | otherwise = H.div ! class_ (toValue c) $ toH t
 
 colImg :: Text -> Text -> Text -> Text -> Html
 colImg theImgGeoDir theIconGeoDir thisImgRef theHeadTitle =
@@ -711,22 +716,12 @@ picMeta md = mconcat mdTab
         key   = imgRating
         val   = md ^. metaDataAt key
 
-
     mdMap :: Text -> Html
     mdMap descr =
-      toEntry descr key2 val $
-      H.a ! href (toValue url) $
-      toHtml $ formatDegree val
+      toEntry descr compositeGPSPosition val $
+      gpsToHtml val
       where
-        key1 =     descrGPSPosition
-        key2 = compositeGPSPosition
-        val  = lookupByNames [key1, key2] md
-        url :: Text
-        url  = "https://maps.google.de/maps/@"
-               <>
-               (val ^. isoString . from isoGoogleMapsDegree . isoText)
-               <>
-               ",17z"
+        val  = lookupGPS md
 
     mdFile :: Text -> Html
     mdFile descr =
@@ -735,11 +730,6 @@ picMeta md = mconcat mdTab
       where
         d = md ^. metaDataAt fileDirectory
         v = md ^. metaDataAt fileFileName
-
-    -- subst " deg" by degree char '\176'
-    formatDegree :: Text -> Text
-    formatDegree t =
-      (SP.sedP (const "\176") (SP.string " deg") $ t ^. isoString) ^. isoText
 
     mdTab :: [Html]
     mdTab =
@@ -776,6 +766,27 @@ picMeta md = mconcat mdTab
       , mdval  "Bearbeitet"            fileFileModifyDate
       , mdRat  "Bewertung"
       ]
+
+lookupGPS :: MetaData -> Text
+lookupGPS =
+  lookupByNames [descrGPSPosition, compositeGPSPosition]
+
+gpsToHtml :: Text -> Html
+gpsToHtml val =
+  H.a ! href (toValue url) $
+  toHtml $ formatDegree val
+  where
+    url :: Text
+    url  = "https://maps.google.de/maps/@"
+           <>
+           (val ^. isoString . from isoGoogleMapsDegree . isoText)
+           <>
+           ",17z"
+
+    -- subst " deg" by degree char '\176'
+    formatDegree :: Text -> Text
+    formatDegree t =
+      (SP.sedP (const "\176") (SP.string " deg") $ t ^. isoString) ^. isoText
 
 -- ----------------------------------------
 

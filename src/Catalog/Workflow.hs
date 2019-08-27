@@ -982,8 +982,6 @@ genReqColPage' r = do
         icon'no )        = lookupPageCnfs this'geo
 
   let   this'meta        = r ^. rColNode . theMetaData
-  let   this'subTitle    = this'meta ^. metaDataAt descrSubtitle
-  let   this'comment     = this'meta ^. metaDataAt descrComment
   (     this'url,
         this'iconurl,
         this'title )    <- toIconDescr icon'geo r
@@ -1040,8 +1038,6 @@ genReqColPage' r = do
     this'title
     now'
     this'title
-    this'subTitle
-    this'comment
     this'geo
     "1.0"   -- theDuration
     this'url
@@ -1066,6 +1062,7 @@ genReqColPage' r = do
     c1'title
     icon'no
     cs'descr4
+    this'meta
 
 -- ----------------------------------------
 
