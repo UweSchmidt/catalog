@@ -37,9 +37,9 @@ cleanupImgRefs i0 = do
       -- trcObj i "cleanupImgRefs: process img dir: "
 
       let es = es0 ^. isoDirEntries
-      es' <- filterM (isOK checkDirRef) es
+      es' <- filterSeqM (isOK checkDirRef) es
 
-      when (length es' < length es) $ do
+      when (Seq.length es' < Seq.length es) $ do
         warnObj i $
           "cleanupImgRefs: dir entries removed " ++ show (es, es') ++ " in "
         adjustDirEntries (const $ es' ^. from isoDirEntries) i
@@ -266,8 +266,11 @@ checkUpLinkObjIds =
           return $
             s0 <> s1
 
-        toObjIds :: ObjId -> [ObjId] -> ObjIds
-        toObjIds i = S.fromList . filter (/= i)
+        toObjIds :: Foldable t => ObjId -> t ObjId -> ObjIds
+        toObjIds i = foldMap neI
+          where
+            neI j | j == i    = mempty
+                  | otherwise = S.singleton j
 
     showWrongUpLinks :: ObjIds -> Cmd ()
     showWrongUpLinks os

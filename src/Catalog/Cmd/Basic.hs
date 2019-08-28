@@ -115,9 +115,9 @@ getImgVals :: ObjId -> Getting a ImgNode a -> Cmd a
 getImgVals i l = getTree (theNode i . nodeVal . l)
 {-# INLINE getImgVals #-}
 
-getImgSubDirs :: DirEntries -> Cmd [ObjId]
+getImgSubDirs :: DirEntries -> Cmd (Seq ObjId)
 getImgSubDirs es =
-  filterM (\ i' -> getImgVals i' (to isDIR)) (es ^. isoDirEntries)
+  filterSeqM (\ i' -> getImgVals i' (to isDIR)) (es ^. isoDirEntries)
 
 -- ----------------------------------------
 
@@ -207,7 +207,7 @@ objid2contNames i = getImgVal i >>= go
           return (e ^. theParts . isoImgParts . traverse . theImgName . to (:[]))
 
       | isDIR e =
-          traverse getImgName (e ^. theDirEntries . isoDirEntries)
+          traverse getImgName (e ^. theDirEntries . isoDirEntries . isoSeqList)
 
       | isROOT e = let (i1, i2) = e ^. theImgRoot in do
           n1 <- getImgName i1

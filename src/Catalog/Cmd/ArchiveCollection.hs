@@ -202,11 +202,10 @@ genCollectionsByDir di = do
 
         imgA :: ObjId -> ImgParts -> MetaData -> Cmd ColEntries
         imgA i pts _md = do
-          let res = map (mkColImgRef i) $ sort ns
           trcObj i $ "genCol img: " ++ show res
           return (res ^. from isoSeqList)
-          where
-            ns = pts ^.. thePartNamesI
+            where
+              res = map (mkColImgRef i) $ sort (pts ^.. thePartNamesI)
 
         -- generate a coresponding collection with all entries
         -- entries are sorted by name
@@ -223,7 +222,7 @@ genCollectionsByDir di = do
           ic <- mkColByPath insertColByName setupDirCol cp
 
           -- get collection entries, and insert them into collection
-          cs  <- mconcat <$> traverse go (es ^. isoDirEntries)
+          cs  <- fold <$> traverse go (es ^. isoDirEntries)
 
           trcObj ic "genCol dir: set dir contents"
           adjustColByName cs ic

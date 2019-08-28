@@ -508,7 +508,7 @@ isColImgRef = not . isColColRef
 
 -- ----------------------------------------
 
-newtype DirEntries' ref = DE [ref]
+newtype DirEntries' ref = DE (Seq ref)
 
 deriving instance (Eq   ref) => Eq   (DirEntries' ref)
 deriving instance (Ord  ref) => Ord  (DirEntries' ref)
@@ -521,10 +521,10 @@ instance IsEmpty (DirEntries' ref) where
   {-# INLINE isempty #-}
 
 instance Semigroup (DirEntries' ref) where
-  DE xs <> DE ys = DE $ xs ++ ys
+  DE xs <> DE ys = DE $ xs <> ys
 
 instance Monoid (DirEntries' ref) where
-  mempty  = DE []
+  mempty  = DE mempty
   mappend = (<>)
 
 instance (ToJSON ref) => ToJSON (DirEntries' ref) where
@@ -535,25 +535,25 @@ instance (FromJSON ref) => FromJSON (DirEntries' ref) where
   parseJSON rs = DE <$> parseJSON rs
   {-# INLINE parseJSON #-}
 
-mkDirEntries :: [ref] -> DirEntries' ref
+mkDirEntries :: Seq ref -> DirEntries' ref
 mkDirEntries = DE
 {-# INLINE mkDirEntries #-}
 
-isoDirEntries :: Iso' (DirEntries' ref) [ref]
+isoDirEntries :: Iso' (DirEntries' ref) (Seq ref)
 isoDirEntries = iso (\ (DE xs) -> xs) DE
 {-# INLINE isoDirEntries #-}
 
 addDirEntry :: ref -> DirEntries' ref -> DirEntries' ref
 addDirEntry r (DE rs) = DE rs'
   where
-    !rs' = r : rs
+    ! rs' = r Seq.<| rs
 {-# INLINE addDirEntry #-}
 
 delDirEntry :: (Eq ref) => ref -> DirEntries' ref -> DirEntries' ref
 delDirEntry r (DE rs) =
-  DE (length rs' `seq` rs')  -- avoid lazyness, eval whole list
+  DE rs'
   where
-    rs'  = filter (/= r) rs
+    ! rs' = Seq.filter (/= r) rs
 {-# INLINE delDirEntry #-}
 
 delColEntry :: (Eq ref) => ref -> ColEntries' ref -> ColEntries' ref
