@@ -85,6 +85,10 @@ filePathConfig =
       , (IMGdng,    mk2 (jpgdirPre >> baseName)              dngExt  )
       ]
 
+dropVirtualCopyNo :: String -> String
+dropVirtualCopyNo s =
+  fromMaybe s $ parseMaybe (fst <$> virtualCopyNo) s
+
 parseExt :: [String] -> SP String
 parseExt = foldl1 (<|>) . map (\ s -> try $ string' s)
 
@@ -118,6 +122,24 @@ geoExt = string "." <++> p'geo
 p'geo :: SP String
 p'geo = some digitChar <++> string "x" <++> some digitChar
 
+-- detecting virtual copies of images
+-- DxO appends _<no> to the image name
+-- to prevent name clashes during export
+--
+-- problem: there are other file names
+-- ending with _<no> where this is a sequence number
+-- not a virtual copy id
+--
+-- consequence: the virtual copy numbers can't be detected
+-- without the context, in which the file is located
+--
+-- virtualCopyNo and baseName' are not used in this
+-- module to detect virtual copies
+
+virtualCopyNo :: SP (String, String)
+virtualCopyNo = anyStringThen' cNo
+  where
+    cNo = single '_' *> some digitChar <* eof
 
 baseName
   , imgdirName, imgdirPre

@@ -81,7 +81,7 @@ instance ToJSON Name where
   {-# INLINE toJSON #-}
 
 instance FromJSON Name where
-  parseJSON (J.String t) = return (t ^. from isoText)
+  parseJSON (J.String t) = return $ isoText # t
   parseJSON _            = mzero
 
 -- ----------------------------------------

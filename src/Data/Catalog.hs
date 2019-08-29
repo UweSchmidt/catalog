@@ -48,8 +48,8 @@ instance CatalogKey ObjId where
   deleteCat k   (CatMapObjId m) = CatMapObjId (IM.delete (k ^. objId2Int)   m)
   foldCat f acc (CatMapObjId m) = IM.foldrWithKey f' acc m
                                   where
-                                    f' k = f (k ^. from objId2Int)
-  toListCat     (CatMapObjId m) = map (first (^. from objId2Int)) $ IM.toList m
+                                    f' k = f (objId2Int # k)
+  toListCat     (CatMapObjId m) = map (first (objId2Int #)) $ IM.toList m
   fromListCat                   = CatMapObjId . IM.fromList . map (first (^. objId2Int))
 
 -- catalog map as Map with Path as key

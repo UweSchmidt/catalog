@@ -20,6 +20,7 @@ newtype TimeStamp = TS X.EpochTime
 
 isoEpochTime :: Iso' TimeStamp X.EpochTime
 isoEpochTime = iso (\ (TS et) -> et) TS
+{-# INLINE isoEpochTime #-}
 
 deriving instance Eq   TimeStamp
 deriving instance Ord  TimeStamp
@@ -27,8 +28,8 @@ deriving instance Show TimeStamp
 
 instance IsoString TimeStamp where
   isoString = iso
-              (\ (TS t) -> show t)
-              (\ s -> fromMaybe zeroTimeStamp $ TS <$> readMaybe s)
+              (^. isoEpochTime . to show)
+              (maybe mempty TS . readMaybe)
   {-# INLINE isoString #-}
 
 instance IsoText TimeStamp where
@@ -46,12 +47,12 @@ instance IsEmpty TimeStamp where
   {-# INLINE isempty #-}
 
 instance ToJSON TimeStamp where
-  toJSON = toJSON . view isoString
+  toJSON = toJSON . view isoString -- (s ->) is an instance of MonadReader
   {-# INLINE toJSON #-}
 
 instance FromJSON TimeStamp where
   parseJSON (J.String t) =
-    return (t ^. isoString . from isoString)
+    return $ isoString # (t ^. isoString) -- conv: Text -> String -> TimeStamp
 
   parseJSON _ =
     mzero

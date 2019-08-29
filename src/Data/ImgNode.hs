@@ -327,7 +327,7 @@ instance FromJSON ImgParts where
   parseJSON x = (ImgParts . M.fromList) <$> parseJSON x
 
 mkImgParts :: [ImgPart] -> ImgParts
-mkImgParts ps = ps ^. from isoImgParts
+mkImgParts ps = isoImgParts # ps
 {-# INLINE mkImgParts #-}
 
 isoImgParts :: Iso' ImgParts [ImgPart]

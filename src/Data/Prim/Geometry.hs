@@ -133,9 +133,7 @@ instance IsoString GeoAR where
       toS x = (x ^. geoar2pair . _2 . isoString) ++ "-" ++
               (x ^. geoar2pair . _1 . isoString)
 
-      frS s =  ( g  ^. from isoString
-               , ar ^. from isoString
-               ) ^. from geoar2pair
+      frS s =  geoar2pair # (isoString # g, isoString # ar)
         where
           (ar, '-' : g) = break (== '-') s
 
@@ -155,7 +153,7 @@ mkGeoAR :: Geo -> AspectRatio -> GeoAR
 mkGeoAR (Geo w h) = GeoAR w h
 
 geoar'org :: GeoAR
-geoar'org = (geo'org, Pad) ^. from geoar2pair
+geoar'org = geoar2pair # (geo'org, Pad)
 
 geoar2pair :: Iso' GeoAR (Geo, AspectRatio)
 geoar2pair = iso (\ (GeoAR w h ar) -> (Geo w h, ar))
@@ -174,7 +172,7 @@ geoARParser :: SP GeoAR
 geoARParser = do
   ar  <- arParser <* char '-'
   geo <- geoParser
-  return $ (geo, ar) ^. from geoar2pair
+  return $ geoar2pair # (geo, ar)
 
 isoGeoAR :: Iso' String (Maybe GeoAR)
 isoGeoAR = iso readGeoAR (maybe "" (^. isoString))

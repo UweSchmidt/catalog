@@ -203,7 +203,7 @@ genCollectionsByDir di = do
         imgA :: ObjId -> ImgParts -> MetaData -> Cmd ColEntries
         imgA i pts _md = do
           trcObj i $ "genCol img: " ++ show res
-          return (res ^. from isoSeqList)
+          return $ isoSeqList # res
             where
               res = map (mkColImgRef i) $ sort (pts ^.. thePartNamesI)
 
@@ -427,7 +427,7 @@ dateMap2Collections pc dm =
       verbose $ "dateMap2Collections: collection updated: " ++ show ymd
       return ()
       where
-        ymd = i ^. from isoDateInt
+        ymd = isoDateInt # i
         cs  = toSeqColEntrySet ces
 
 -- ----------------------------------------

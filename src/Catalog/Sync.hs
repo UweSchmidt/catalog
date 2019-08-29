@@ -6,7 +6,7 @@ module Catalog.Sync
 where
 
 import Catalog.Cmd
-import Catalog.FilePath        (filePathToImgType)
+import Catalog.FilePath        (filePathToImgType, dropVirtualCopyNo)
 import Catalog.System.ExifTool (syncMetaData)
 import Data.ImgTree
 import Data.MetaData
@@ -288,12 +288,13 @@ collectDirCont i = do
     trc $ "collectDirCont: imgfiles "      ++ show imgfiles
 
   return ( realsubdirs ^.. traverse . _1
-         , partitionBy (^. _2 . _1) imgfiles
+         , partClassifiedNames imgfiles
          )
   where
     isSubDir :: SysPath -> (Name, (Name, ImgType)) -> Cmd Bool
     isSubDir fp n =
       dirExist ((</> (n ^. _1 . isoString)) <$> fp)
+
 
 type ClassifiedName  = (Name, (Name, ImgType))
 type ClassifiedNames = [ClassifiedName]
@@ -371,11 +372,11 @@ fsDirStat = fsStat "directory" dirExist
 fsFileStat :: SysPath -> Cmd FileStatus
 fsFileStat = fsStat "regular file" fileExist
 
-parseDirCont :: SysPath -> Cmd [(Name, (Name, ImgType))]
+parseDirCont :: SysPath -> Cmd ClassifiedNames
 parseDirCont p = do
   (es, jpgdirs)  <- classifyNames <$> readDir p
   trc $ "parseDirCont: " ++ show (es, jpgdirs)
-  jss <- mapM
+  jss <- traverse
          (parseJpgDirCont p)                       -- process jpg subdirs
          (jpgdirs ^.. traverse . _1 . isoString)
   trc $ "parseDirCont: " ++ show jss
@@ -388,7 +389,7 @@ parseDirCont p = do
       .
       map (mkName &&& filePathToImgType)
 
-parseJpgDirCont :: SysPath -> FilePath -> Cmd [(Name, (Name, ImgType))]
+parseJpgDirCont :: SysPath -> FilePath -> Cmd ClassifiedNames
 parseJpgDirCont p d = do
   ex <- dirExist sp
   if ex
@@ -407,8 +408,36 @@ parseJpgDirCont p d = do
                   in (mkName dn, filePathToImgType dn)
           )
 
-hasImgType :: (ImgType -> Bool) -> (Name, (Name, ImgType)) -> Bool
-hasImgType p = p . (^. _2 . _2)
+hasImgType :: (ImgType -> Bool) -> ClassifiedName -> Bool
+hasImgType p = p . snd . snd
 {-# INLINE hasImgType #-}
+
+partClassifiedNames :: ClassifiedNames -> [ClassifiedNames]
+partClassifiedNames = unfoldr part . sortBy (compare `on` (^. key))
+  where
+    key :: Lens' ClassifiedName Name
+    key   = _2 . _1
+
+    part :: ClassifiedNames -> Maybe (ClassifiedNames, ClassifiedNames)
+    part [] = Nothing
+    part (x : xs) = Just $ part1 x xs
+
+    part1 :: ClassifiedName -> ClassifiedNames -> (ClassifiedNames, ClassifiedNames)
+    part1 x1 []             = ([x1], [])
+    part1 x1 xs@(x2 : xs')
+      | k1 `equiv` k2  = part1 x2' xs' & _1 %~ (x1 :)
+      | otherwise      = ([x1], xs)
+      where
+        k1    = x1 ^. key
+        k2    = x2 ^. key
+        x2'   = x2 &  key .~ k1
+
+        equiv n1 n2 =
+          n1 == n2
+          ||
+          s1 == dropVirtualCopyNo s2  -- equality relative to virtual copy no
+          where
+            s1 = n1 ^. isoString
+            s2 = n2 ^. isoString
 
 -- ----------------------------------------

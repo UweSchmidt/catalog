@@ -208,11 +208,9 @@ foldWithKeyMD f acc m@(MD hm) =
   foldl' f' acc keys
   where
     keys :: [Name]
-    keys =
-      map (^. from isoText) (HM.keys hm)
+    keys = map (isoText #) (HM.keys hm)
 
-    f' acc' n' =
-      f n' (m ^. metaDataAt n') acc'
+    f' acc' n' = f n' (m ^. metaDataAt n') acc'
 
 -- merging of meta data
 -- default: entries of m1 overwrite entries of m2
@@ -297,8 +295,8 @@ metaDataAt key = md2obj . at (key ^. isoText) . val2text
     val2text = iso totext fromtext
       where
         totext (Just (J.String t)) = t
-        totext (Just (J.Number n)) = showSc n ^. from isoString
-        totext _                   = ""
+        totext (Just (J.Number n)) = isoString # showSc n
+        totext _                   = mempty
 
         fromtext t
           | isempty t = Nothing
@@ -313,7 +311,6 @@ metaDataAt key = md2obj . at (key ^. isoText) . val2text
             showI :: Integer -> String
             showI = show
 
-{-# INLINE metaDataAt #-}
 
 partMetaData :: (Name -> Bool) -> Iso' MetaData (MetaData, MetaData)
 partMetaData predicate = iso part (uncurry mappend)
@@ -321,7 +318,7 @@ partMetaData predicate = iso part (uncurry mappend)
     part (MD m) = (MD *** MD) $ HM.foldrWithKey pf (HM.empty, HM.empty) m
       where
         pf k v (m1, m2)
-          | predicate (k ^. from isoText) =
+          | predicate (isoText # k) =
               (HM.insert k v m1, m2)
           | otherwise =
               (m1, HM.insert k v m2)
@@ -444,7 +441,7 @@ isoRating = iso fromS show
     fromS s = min ratingMax $ i1 `max` i2
       where
         i1 = max 0 . fromMaybe 0 . readMaybe $ s
-        i2 = s ^. from isoStars
+        i2 = isoStars # s
 
 isoStars :: Iso' Rating String
 isoStars = iso (flip replicate '*')
@@ -455,7 +452,7 @@ mkRating r = mempty & metaDataAt descrRating .~ (r ^. isoString . isoText)
 
 getEXIFUpdateTime :: MetaData -> TimeStamp
 getEXIFUpdateTime md =
-  md ^. metaDataAt imgEXIFUpdate . from isoText
+  isoText # (md ^. metaDataAt imgEXIFUpdate)
 
 setEXIFUpdateTime :: TimeStamp -> MetaData -> MetaData
 setEXIFUpdateTime ts md =
@@ -601,7 +598,9 @@ attrGroupsParser =
 -- ----------------------------------------
 
 attrGroup2attrName :: AttrGroup -> [Name]
-attrGroup2attrName (px, as) = map (\ a -> (px <> ":" <> a) ^. from isoText) as
+attrGroup2attrName (px, as) = map f as
+  where
+    f a = isoText # (px <> ":" <> a)
 
 allAttrGroups :: [AttrGroup]
 allAttrGroups =

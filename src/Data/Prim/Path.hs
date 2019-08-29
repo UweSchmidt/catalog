@@ -71,7 +71,7 @@ emptyPath = mkPath mempty
 {-# INLINE emptyPath #-}
 
 listToPath :: [Text] -> Path
-listToPath = foldr (\ t -> consPath  (t ^. from isoText)) emptyPath
+listToPath = foldr (consPath . (isoText #)) emptyPath
 
 nullPath :: (Monoid n, Eq n) => Path' n -> Bool
 nullPath (BN n)

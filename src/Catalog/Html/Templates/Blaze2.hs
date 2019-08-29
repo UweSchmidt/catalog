@@ -779,7 +779,10 @@ gpsToHtml val =
     url :: Text
     url  = "https://maps.google.de/maps/@"
            <>
-           (val ^. isoString . from isoGoogleMapsDegree . isoText)
+           (val & isoString %~ (isoGoogleMapsDegree #))
+           -- puzzle with lenses:
+           --
+           -- (val ^. isoString . from isoGoogleMapsDegree . isoText)
            <>
            ",17z"
 

@@ -42,7 +42,7 @@ cleanupImgRefs i0 = do
       when (Seq.length es' < Seq.length es) $ do
         warnObj i $
           "cleanupImgRefs: dir entries removed " ++ show (es, es') ++ " in "
-        adjustDirEntries (const $ es' ^. from isoDirEntries) i
+        adjustDirEntries (const $ isoDirEntries # es') i
 
       mapM_ go es'
 

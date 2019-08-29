@@ -65,7 +65,7 @@ readCheckSum s =
   CS $ fromIntegral i
   where
     i :: Int
-    i = s ^. from isoHex
+    i = isoHex # s
 
 instance IsoHex CheckSum where
   isoHex = iso showCheckSum readCheckSum

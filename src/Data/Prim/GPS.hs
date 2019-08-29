@@ -129,7 +129,7 @@ isoGoogleMapsDegree =
   where
     googleMapsUrl2degree :: String -> String
     googleMapsUrl2degree url =
-      res ^. from isoMaybe
+      isoMaybe # res
       where
         deg :: Maybe GPSposDeg
         deg = url ^? googleMapsGPSdec . from isoDegDec
@@ -139,7 +139,7 @@ isoGoogleMapsDegree =
 
     degree2googleMapsUrl :: String -> String
     degree2googleMapsUrl deg =
-      res ^. from isoMaybe
+      isoMaybe # res
       where
         dec :: Maybe GPSposDec
         dec = deg ^? prismString . isoDegDec

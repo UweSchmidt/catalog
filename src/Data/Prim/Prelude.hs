@@ -36,6 +36,7 @@ module Data.Prim.Prelude
        , sort
        , sortBy
        , nub
+       , unfoldr
        , zip3
        , zip4
        , zip5
@@ -283,7 +284,7 @@ instance IsoMaybe ByteString
 instance IsoMaybe LazyByteString
 
 take1st :: (IsoMaybe a, Monoid a) => [a] -> a
-take1st xs = mconcat (map (^. isoMaybe) xs) ^. from isoMaybe
+take1st xs = isoMaybe # mconcat (map (^. isoMaybe) xs)
 
 -- ----------------------------------------
 
