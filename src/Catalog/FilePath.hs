@@ -82,6 +82,7 @@ filePathConfig =
       -- with subdir classification (>> instead of <++>)
       , (IMGcopy,   mk2 (jpgdirPre >> baseName) (geoExt <++> jpgExt'))
       , (IMGjpg,    mk2 (jpgdirPre >> baseName)              jpgExt' )
+      , (IMGimg,    mk2 (jpgdirPre >> baseName)              imgExt )
       , (IMGdng,    mk2 (jpgdirPre >> baseName)              dngExt  )
       ]
 
@@ -150,7 +151,7 @@ baseName   = some (oneOf' "-+._" <|> alphaNumChar)
 imgdirName = baseName
 imgdirPre  = SP.option "" (imgdirName <++> string "/")
 
-jpgdirName =             jpgdirName' (eof >> return "")
+jpgdirName =                jpgdirName' (eof >> return "")
 jpgdirPre  = SP.option "" $ jpgdirName' (string "/")
 
 jpgdirName' :: SP String -> SP String
@@ -162,8 +163,8 @@ jpgdirName' eof' =
   try ( p'geo <++> eof' )
   <|>
   try ( ( foldl1 (<|>) $
-          map (\ s -> try $ string s)
-          ["small", "web", "bw", "jpg", "tif", "tiff", "dng", "dxo"]
+          map (\ s -> try $ string s)   -- first "tiff", then "tif" !!!
+          ["small", "web", "bw", "jpg", "tiff", "tif", "dng", "dxo"]
         )
         <++> og <++> eof'
       )

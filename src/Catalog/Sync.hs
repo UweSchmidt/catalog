@@ -377,7 +377,7 @@ parseDirCont p = do
   (es, jpgdirs)  <- classifyNames <$> readDir p
   trc $ "parseDirCont: " ++ show (es, jpgdirs)
   jss <- traverse
-         (parseJpgDirCont p)                       -- process jpg subdirs
+         (parseImgSubDirCont p)                       -- process jpg subdirs
          (jpgdirs ^.. traverse . _1 . isoString)
   trc $ "parseDirCont: " ++ show jss
   return $ es ++ concat jss
@@ -389,20 +389,20 @@ parseDirCont p = do
       .
       map (mkName &&& filePathToImgType)
 
-parseJpgDirCont :: SysPath -> FilePath -> Cmd ClassifiedNames
-parseJpgDirCont p d = do
+parseImgSubDirCont :: SysPath -> FilePath -> Cmd ClassifiedNames
+parseImgSubDirCont p d = do
   ex <- dirExist sp
   if ex
     then
       classifyNames <$> readDir sp
     else do
-      verbose $ "parseJpgDirCont: not a directory: " ++ show sp
+      verbose $ "parseImgSubDirCont: not a directory: " ++ show sp
       return []
   where
     sp = (</> d) <$> p
 
     classifyNames =
-      filter (\ n -> isJpg (n ^. _2 . _2))
+      filter (\ n -> isShowablePart (n ^. _2 . _2))
       .
       map (\ n -> let dn = d </> n
                   in (mkName dn, filePathToImgType dn)
