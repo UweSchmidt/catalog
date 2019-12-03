@@ -366,7 +366,7 @@ catalogServer env runR runM =
       :<|>
       mkM2n (uncurry modify'changeWriteProtected)
       :<|>
-      mkM2i modify'sort
+      mkM2  modify'sort
       :<|>
       mkM2  modify'removeFromCollection
       :<|>

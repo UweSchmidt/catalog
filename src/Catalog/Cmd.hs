@@ -73,6 +73,7 @@ initState env = do
     jp' <- view envJsonArchive
     initImgStore n'archive n'collections mp'
     loadImgStore jp'
+    genSysCollections
   case res of
     Left msg ->
       return (Left $ show msg)
