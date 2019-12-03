@@ -418,13 +418,8 @@ read'isSortable  = return . isSortableCol
 -- existence check of a collection
 
 read'isCollection :: Path -> Cmd Bool
-read'isCollection p = do
-  v <- lookupByPath p
-  case v of
-    Nothing ->
-      return False
-    Just (_i, n) ->
-      return $ isCOL n
+read'isCollection p =
+  maybe False (isCOL . snd) <$> lookupByPath p
 
 -- --------------------
 --

@@ -274,6 +274,14 @@ sortByDate =
 --
 -- set/modify collection entries
 
+
+-- add a collection in front of an col entry list
+
+insertColByCons :: ObjId -> ObjId -> Cmd ()
+insertColByCons i = adjustColEntries (Seq.singleton (mkColColRef i) <>)
+
+-- insert a collection and sort entries by name
+
 insertColByName :: ObjId -> ObjId -> Cmd ()
 insertColByName i = adjustColByName $ Seq.singleton $ mkColColRef i
 
@@ -447,7 +455,7 @@ mkImportCol ts pc = do
   mid <- lookupByPath tsp
   case mid of
     Nothing ->
-      mkColByPath insertColByName setupImpCol tsp
+      mkColByPath insertColByCons setupImpCol tsp
     Just (ip, _vp) ->
       return ip
 
