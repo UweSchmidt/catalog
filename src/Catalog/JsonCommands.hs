@@ -368,7 +368,9 @@ modify'snapshot t = snapshotImgStore (t ^. isoString)
 -- sync a subcollection of /archive/photo with filesystem
 
 modify'syncCol :: ObjId -> Cmd ()
-modify'syncCol = syncCol' syncDirP
+modify'syncCol i = do
+  ts <- now
+  syncCol' (syncDirP ts) i
 
 syncCol' :: (Path -> Cmd ()) -> ObjId -> Cmd ()
 syncCol' sync i = do
@@ -403,13 +405,13 @@ read'collection n = mapObjId2Path n
 -- access restrictions on a collection
 
 read'isWriteable :: ImgNode -> Cmd Bool
-read'isWriteable n = return (isWriteable  $ n ^. theColMetaData)
+read'isWriteable = return . isWriteableCol
 
 read'isRemovable :: ImgNode -> Cmd Bool
-read'isRemovable n = return (isRemovable  $ n ^. theColMetaData)
+read'isRemovable = return . isRemovableCol
 
 read'isSortable :: ImgNode -> Cmd Bool
-read'isSortable n = return (isSortable  $ n ^. theColMetaData)
+read'isSortable  = return . isSortableCol
 
 -- --------------------
 --

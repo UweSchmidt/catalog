@@ -7,6 +7,7 @@ module Catalog.Cmd.ArchiveCollection
        , genCollectionsByDir
        , genCollectionsByDir'
        , updateCollectionsByDate
+       , updateImportsDir
        , img2colPath
        , exportImgStore
        )
@@ -44,8 +45,6 @@ genSysCollections = do
   genByDateCollection        -- generated on import, sorted by create date
   genAlbumsCollection        -- root of user created collections
 
-  -- genImportsCollection    -- used for import of old Album2 data
-
 genCollectionRootMeta :: Cmd ()
 genCollectionRootMeta = do
   ic <- getRootImgColId
@@ -70,7 +69,7 @@ genAlbumsCollection :: Cmd ()
 genAlbumsCollection = genSysCollection no'restr n'albums tt'albums
 
 genImportsCollection :: Cmd ()
-genImportsCollection = genSysCollection no'restr n'imports tt'imports
+genImportsCollection = genSysCollection no'change n'imports tt'imports
 
 genByDateCollection :: Cmd ()
 genByDateCollection = genSysCollection no'change n'bycreatedate tt'bydate
@@ -335,21 +334,22 @@ setColBlogToFstTxtEntry rm i = do
 mkColMeta :: Text -> Text -> Text -> Text -> Text -> Cmd MetaData
 mkColMeta t s c o a = do
   d <- (\ t' -> show t' ^. isoText) <$> atThisMoment
-  return $
-      mempty
-      & metaDataAt descrTitle      .~ t
-      & metaDataAt descrSubtitle   .~ s
-      & metaDataAt descrComment    .~ c
-      & metaDataAt descrOrderedBy  .~ o
-      & metaDataAt descrCreateDate .~ d
-      & metaDataAt descrAccess     .~ a
+  let md = mempty
+           & metaDataAt descrTitle      .~ t
+           & metaDataAt descrSubtitle   .~ s
+           & metaDataAt descrComment    .~ c
+           & metaDataAt descrOrderedBy  .~ o
+           & metaDataAt descrCreateDate .~ d
+           & metaDataAt descrAccess     .~ a
+  trc $ unwords ["mkColMeta:", show t, show o, show a, show md]
+  return md
 
 -- create collections recursively, similar to 'mkdir -p'
 
 mkColByPath :: (ObjId -> ObjId -> Cmd ()) ->
                (ObjId -> Cmd MetaData) -> Path -> Cmd ObjId
 mkColByPath insertCol setupCol p = do
-  -- trc $ "mkColByPath " ++ show p
+  trc $ "mkColByPath " ++ show p
   -- check for legal path
   when (isempty $ tailPath p) $
     abort $ "mkColByPath: can't create collection " ++ quotePath p
@@ -366,7 +366,7 @@ mkColByPath insertCol setupCol p = do
         verbose $ "mkColByPath " ++ show p1 ++ "/" ++ show n
         -- create collection
         ic <- mkImgCol ip n
-        -- inser collection into parent collection
+        -- insert collection into parent collection
         insertCol ic ip
         return ic
 
@@ -378,7 +378,7 @@ mkColByPath insertCol setupCol p = do
         return ip
 
   -- meta data update always done,
-  -- neccessary if the titile generation has been modified
+  -- neccessary if the title generation has been modified
   md <- setupCol cid
   adjustMetaData (md <>) cid
   return cid
@@ -429,6 +429,35 @@ dateMap2Collections pc dm =
       where
         ymd = isoDateInt # i
         cs  = toSeqColEntrySet ces
+
+-- ----------------------------------------
+
+updateImportsDir :: TimeStamp -> ColEntrySet -> Cmd ()
+updateImportsDir ts ces =
+  unless (isempty ces) $ do
+    genImportsCollection
+    idir <- mkImportCol ts p'imports
+    adjustColByName (toSeqColEntrySet ces) idir
+    return ()
+
+-- create import collection, if dir not yet there
+
+mkImportCol :: TimeStamp -> Path -> Cmd ObjId
+mkImportCol ts pc = do
+  mid <- lookupByPath tsp
+  case mid of
+    Nothing ->
+      mkColByPath insertColByName setupImpCol tsp
+    Just (ip, _vp) ->
+      return ip
+
+  where
+    tsn = formatTimeStamp ts
+    tsp = pc `snocPath` (mkName $ intercalate "T" $ words tsn)
+
+    setupImpCol _i = mkColMeta (tsn' ^. isoText) "" "" to'name no'wrtsrt
+      where
+        tsn' = unwords ["Import", tsn]
 
 -- ----------------------------------------
 --
