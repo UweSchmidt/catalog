@@ -125,7 +125,7 @@ tt'albums
 tt'bydate      = "Geordnet nach Datum"
 tt'clipboard   = "Clipboard"
 tt'albums      = "Alle Alben"
-tt'imports     = "Photo2 Import"
+tt'imports     = "Import Historie"
 tt'trash       = "Papierkorb"
 tt'collections = "Uwe alle seine Bilder"
 tt'photos      = "Alle Ordner"
@@ -152,7 +152,8 @@ tt'day y m d =
 
 no'restr
   , no'change
-  , no'delete, no'sort, no'write, no'wrtdel :: Text
+  , no'delete, no'sort, no'write
+  , no'wrtdel, no'wrtsrt :: Text
 
 no'restr  = ""
 no'write  = "no-write"
@@ -160,6 +161,7 @@ no'sort   = "no-sort"
 no'delete = "no-delete"
 no'change = T.unwords [no'delete, no'sort, no'write]
 no'wrtdel = T.unwords [no'delete, no'write]
+no'wrtsrt = T.unwords [no'sort, no'write]
 
 to'colandname
   , to'dateandtime

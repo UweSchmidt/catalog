@@ -434,7 +434,6 @@ sortColEntries getVal cmpVal es =
       v <- getVal ce
       return (ce, v)
 
-
 -- merge old and new entries
 -- old entries are removed from list of new entries
 -- the remaining new entries are appended

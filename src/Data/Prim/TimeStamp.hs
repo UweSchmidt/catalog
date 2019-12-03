@@ -5,6 +5,7 @@ module Data.Prim.TimeStamp
        , now
        , fsTimeStamp
        , isoEpochTime
+       , formatTimeStamp
        )
 where
 
@@ -13,6 +14,8 @@ import qualified Data.Aeson as J
 import           Data.Prim.Prelude
 import           System.Posix (FileStatus)
 import qualified System.Posix as X
+import           Data.Time.Clock.POSIX(posixSecondsToUTCTime)
+import           Data.Time.Format(defaultTimeLocale, formatTime)
 
 -- ----------------------------------------
 
@@ -67,5 +70,15 @@ now = liftIO (TS <$> X.epochTime)
 fsTimeStamp :: FileStatus -> TimeStamp
 fsTimeStamp = TS . X.modificationTime
 {-# INLINE fsTimeStamp #-}
+
+formatTimeStamp :: TimeStamp -> String
+formatTimeStamp (TS t) =
+  formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
+  . posixSecondsToUTCTime
+  . fromIntegral
+  $ secs
+  where
+    secs :: Int
+    secs = round . toRational $ t
 
 -- ----------------------------------------

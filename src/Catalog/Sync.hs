@@ -88,16 +88,17 @@ syncNode = idSyncFS False
 
 syncDir :: Cmd ()
 syncDir = do
+  ts <- now
   -- check whether clipboard, and other collections are there
   verbose "syncDir: check/create the system collections"
   genSysCollections
 
   -- get the dir path for the (sub-)dir to be synchronized
   -- and start sync
-  syncDirPath >>= syncDirP
+  syncDirPath >>= syncDirP ts
 
-syncDirP :: Path -> Cmd ()
-syncDirP p = do
+syncDirP :: TimeStamp -> Path -> Cmd ()
+syncDirP ts p = do
   verbose $ "syncDir: at " ++ quotePath p
 
   -- remember all ImgRef's in dir to be synchronized
@@ -133,9 +134,10 @@ syncDirP p = do
 
   verbose $ "syncDir: images added:   " ++ show new'refs
   updateCollectionsByDate new'refs
+  updateImportsDir ts new'refs
 
   -- final action: check integrity, especially
-  -- whether there dead enties in dir tree
+  -- whether there are dead enties in dir tree
   checkImgStore
   return ()
 
@@ -146,7 +148,7 @@ syncDir' p = do
   mbi <- lookupByPath p
   i <- case mbi of
     Nothing -> do
-      -- try to create new dir in parent dir, parent must be there already
+      -- try to create new dir in parent dir, parent must already be there
       let (p1, n) = p ^. viewBase
       (di, dn) <- getIdNode' p1
       unless (isDIR dn) $
@@ -179,12 +181,13 @@ syncNewDirs p = do
 
 syncNewDirsCont :: ObjId -> Cmd ()
 syncNewDirsCont i = do
+  ts      <- now
   p       <- objid2path i
   cont    <- objid2contNames i
   newdirs <- (filter (`notElem` cont) . fst) <$>
              collectDirCont i
   trc $ "syncNewDirsCont: " ++ show newdirs
-  mapM_ (syncDirP . (p `snocPath`)) newdirs
+  mapM_ (syncDirP ts . (p `snocPath`)) newdirs
 
 -- ----------------------------------------
 -- the work horse

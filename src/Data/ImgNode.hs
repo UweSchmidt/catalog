@@ -75,6 +75,9 @@ module Data.ImgNode
        , intersectColEntrySet
        , ObjIds
        , singleObjId
+       , isWriteableCol
+       , isSortableCol
+       , isRemovableCol
        )
 where
 
@@ -618,5 +621,18 @@ type ObjIds = Set ObjId
 
 singleObjId :: ObjId -> ObjIds
 singleObjId = S.singleton
+
+-- ----------------------------------------
+
+hasAccessRights :: (MetaData -> Bool) -> ImgNode' a -> Bool
+hasAccessRights p n =
+  isCOL n && (p $ n ^. theColMetaData)
+
+isWriteableCol
+  , isSortableCol, isRemovableCol :: ImgNode' a -> Bool
+
+isWriteableCol = hasAccessRights isWriteable
+isSortableCol  = hasAccessRights isSortable
+isRemovableCol = hasAccessRights isRemovable
 
 -- ----------------------------------------

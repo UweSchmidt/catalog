@@ -55,26 +55,6 @@ import qualified Data.Sequence as Seq
 -- commands for modifying the catalog
 
 -- --------------------
---
--- a little helper for index calc
-
-toPosList :: [Int] -> [Int]
-toPosList xs =
-  map snd
-  . sortBy (compare `on` fst)
-  . filter ((>= 0) . fst)
-  . zip xs
-  $ [0..]
-
-toPosDescList :: [Int] -> [Int]
-toPosDescList xs =
-  reverse
-  . map snd
-  . filter ((>= 0) . fst)
-  . zip xs
-  $ [0..]
-
--- --------------------
 
 modify'saveblogsource :: Int -> Text -> ImgNode -> Cmd ()
 modify'saveblogsource pos t n = putBlogCont t pos n
@@ -82,19 +62,17 @@ modify'saveblogsource pos t n = putBlogCont t pos n
     putBlogCont :: Text -> Int -> ImgNode -> Cmd ()
     putBlogCont val =
       processColEntryAt
-        (putColBlogSource val)
-        (\ i    -> do
-            n'            <- getImgVal i -- theColBlog
+        (putColBlogSource val)   -- change blog file
+        putColBlog               -- change blog entry of collection
+        where
+          putColBlog i = do
+            n'  <- getImgVal i   -- the blog file of the collection
             br  <- maybe
-                             ( do p <- objid2path i
-                                  abort ("modify'saveblogsource: "
-                                         ++ "no blog entry set in collection: "
-                                         ++ p ^. isoString)
-                             )
-                             return
-                             (n' ^? theColBlog . traverse)
+                   (abortP i ("modify'saveblogsource: "
+                              ++ "no blog entry set in collection: "))
+                   return
+                   (n' ^? theColBlog . traverse)
             putColBlogSource val br
-        )
 
 -- --------------------
 --
@@ -120,11 +98,13 @@ modify'changeWriteProtected ixs ro n =
 -- sort a collection by sequence of positions
 -- result is the new collection
 
-modify'sort :: [Int] -> ObjId -> Cmd ()
-modify'sort ixs i
+modify'sort :: [Int] -> ObjId -> ImgNode -> Cmd ()
+modify'sort ixs i n
   | null ixs =
       return ()
-  | otherwise =
+  | otherwise = do
+      unless (isSortableCol n) $
+        abortP i "modify'sort: collection not sortable"
       adjustColEntries (reorderCol ixs) i
 
 reorderCol :: [Int] -> Seq a -> Seq a
@@ -160,10 +140,7 @@ cmp (mi, mx) (i, x) (j, y)
 
 modify'removeFromCollection :: [Int] -> ObjId -> ImgNode -> Cmd ()
 modify'removeFromCollection ixs i n = do
-  -- check whether collection is readonly
-  unless (isWriteable $ n ^. theColMetaData) $ do
-    path <- objid2path i
-    abort ("removeFrCol: collection is write protected: " ++ show path)
+  checkRemoveable "modify'removeToCollection" ixs i n
   removeFromCol ixs i n
 
 removeFromCol :: [Int] -> ObjId -> ImgNode -> Cmd ()
@@ -179,6 +156,23 @@ removeFromCol ixs oid n =
              (\ _ -> adjustColEntries (Seq.deleteAt pos) oid)
              rmRec
 
+checkMoveable :: [Int] -> ImgNode -> Cmd Bool
+checkMoveable ixs n =
+  and <$> mapM check ixs
+  where
+    cs = n ^. theColEntries
+
+    check :: Int -> Cmd Bool
+    check pos = maybe (return True) ck $ cs ^? ix pos
+      where
+        ck :: ColEntry -> Cmd Bool
+        ck = colEntry'
+             (const $ return True)
+             ckCol
+
+        ckCol :: ObjId -> Cmd Bool
+        ckCol i = isRemovableCol <$> getImgVal i
+
 -- --------------------
 --
 -- copy marked images and collections to another collection
@@ -191,7 +185,7 @@ removeFromCol ixs oid n =
 
 modify'copyToCollection :: [Int] -> Path -> ImgNode -> Cmd ()
 modify'copyToCollection ixs dPath n = do
-  di <- checkWriteableCol dPath
+  di <- checkWriteableCol "modify'copyToCollection" dPath
   copyToCol ixs di n
 
 copyToCol :: [Int] -> ObjId -> ImgNode -> Cmd ()
@@ -227,14 +221,22 @@ modifyMetaDataRec mf path = do
       adjustMetaData mf i
       foldColColEntries go i md im be cs
 
-checkWriteableCol :: Path -> Cmd ObjId
-checkWriteableCol dPath = do
+checkWriteableCol :: String -> Path -> Cmd ObjId
+checkWriteableCol jsonCall dPath = do
   (di, dn) <- getIdNode' dPath
-  unless (isCOL dn) $
-    abort ("jsonCall: not a collection: " ++ show dPath)
-  unless (isWriteable $ dn ^. theColMetaData) $
-    abort ("jsonCall: collection is write protected: " ++ show dPath)
+  unless (isWriteableCol dn) $
+    abortP di (jsonCall ++ ": not a writeable collection")
   return di
+
+checkRemoveable :: String -> [Int] -> ObjId -> ImgNode -> Cmd ()
+checkRemoveable jsonCall ixs i n = do
+  -- check whether source collection is writeable (contents may change)
+  unless (isWriteableCol n) $
+    abortP i (jsonCall ++ ": source collection is write protected")
+
+  -- check whether entries (collections are removable)
+  unlessM (checkMoveable ixs n) $
+    abortP i (jsonCall ++ ": delete-protected entry found in")
 
 -- --------------------
 --
@@ -244,7 +246,9 @@ checkWriteableCol dPath = do
 
 modify'moveToCollection :: [Int] -> Path -> ObjId -> ImgNode -> Cmd ()
 modify'moveToCollection ixs dPath i n = do
-  di <- checkWriteableCol dPath
+  checkRemoveable "modify'moveToCollection" ixs i n
+  di <- checkWriteableCol "modify'moveToCollection" dPath
+
   copyToCol     ixs di n
   removeFromCol ixs  i n
 
@@ -368,15 +372,16 @@ modify'snapshot t = snapshotImgStore (t ^. isoString)
 -- sync a subcollection of /archive/photo with filesystem
 
 modify'syncCol :: ObjId -> Cmd ()
-modify'syncCol = syncCol' syncDirP
+modify'syncCol i = do
+  ts <- now
+  syncCol' (syncDirP ts) i
 
 syncCol' :: (Path -> Cmd ()) -> ObjId -> Cmd ()
 syncCol' sync i = do
   path <- objid2path i
   unless (isPathPrefix p'photos path) $
-    abort ("syncCol': collection does not have path prefix "
-           ++ quotePath p'photos ++ ": "
-           ++ quotePath path)
+    abortP i ("syncCol': collection does not have path prefix "
+              ++ quotePath p'photos)
   let path'dir = substPathPrefix p'photos p'arch'photos path
   verbose $ "syncCol': directory " ++ quotePath path'dir
   sync path'dir
@@ -403,26 +408,21 @@ read'collection n = mapObjId2Path n
 -- access restrictions on a collection
 
 read'isWriteable :: ImgNode -> Cmd Bool
-read'isWriteable n = return (isWriteable  $ n ^. theColMetaData)
+read'isWriteable = return . isWriteableCol
 
 read'isRemovable :: ImgNode -> Cmd Bool
-read'isRemovable n = return (isRemovable  $ n ^. theColMetaData)
+read'isRemovable = return . isRemovableCol
 
 read'isSortable :: ImgNode -> Cmd Bool
-read'isSortable n = return (isSortable  $ n ^. theColMetaData)
+read'isSortable  = return . isSortableCol
 
 -- --------------------
 --
 -- existence check of a collection
 
 read'isCollection :: Path -> Cmd Bool
-read'isCollection p = do
-  v <- lookupByPath p
-  case v of
-    Nothing ->
-      return False
-    Just (_i, n) ->
-      return $ isCOL n
+read'isCollection p =
+  maybe False (isCOL . snd) <$> lookupByPath p
 
 -- --------------------
 --
@@ -448,10 +448,7 @@ read'blogsource =
     (\ i -> do
         n  <- getImgVal i
         br <- maybe
-              ( do p <- objid2path i
-                   abort ("getBlogCont: no blog entry set in collection: "
-                           ++ p ^. isoString)
-              )
+              (abortP i "getBlogCont: no blog entry set in collection")
               return
               (n ^? theColBlog . traverse)
         getColBlogSource br
@@ -482,5 +479,32 @@ read'ratings n =
     f = colEntry' (getR . _iref) getR
       where
         getR i' = getRating <$> getMetaData i'
+
+-- --------------------
+
+abortP :: ObjId -> String -> Cmd a
+abortP i msg = do
+  p <- objid2path i
+  abort (msg ++ ": " ++ show p)
+
+-- --------------------
+--
+-- a little helper for index calc
+
+toPosList :: [Int] -> [Int]
+toPosList xs =
+  map snd
+  . sortBy (compare `on` fst)
+  . filter ((>= 0) . fst)
+  . zip xs
+  $ [0..]
+
+toPosDescList :: [Int] -> [Int]
+toPosDescList xs =
+  reverse
+  . map snd
+  . filter ((>= 0) . fst)
+  . zip xs
+  $ [0..]
 
 -- ----------------------------------------

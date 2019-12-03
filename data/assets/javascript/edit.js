@@ -573,7 +573,8 @@ function collectionIsGenerated(path) {
     return path === pathClipboard()
         || path === pathCollections()
         || isPathPrefix(pathPhotos(), path)
-        || isPathPrefix(pathTimeline(), path);
+        || isPathPrefix(pathTimeline(), path)
+        || isPathPrefix(pathImports(), path);
 }
 
 function collectionId(path) {
@@ -1117,6 +1118,7 @@ function statusError(msg) {
 
 // clear errors and messages
 function statusClear() {
+    console.log('statusClear');
     $('#status-container')
         .removeClass('status-err-bg');
     statusMsg('');
@@ -2814,6 +2816,7 @@ function pathCollections() { return "/archive/collections"; }
 function pathClipboard()   { return "/archive/collections/clipboard"; }
 function pathPhotos()      { return "/archive/collections/photos"; }
 function pathTimeline()    { return "/archive/collections/timeline"; }
+function pathImports()     { return "/archive/collections/imports"; }
 function pathTrash()       { return "/archive/collections/trash"; }
 
 function idCollections() { return path2id(pathCollections()); }
