@@ -148,8 +148,7 @@ isoGoogleMapsDegree =
         res = (prismString #) <$> dec
 
 instance PrismString GPSdeg where
-  prismString = prism' showDeg
-                       (parseMaybe $ parserDeg [N, E, S, W])
+  prismString = prism' showDeg (parseMaybe $ parserDeg [N, E, S, W])
 
 -- helper funtions
 
@@ -160,7 +159,14 @@ parserPosDec = tt <$> signedFloat <* msp <* char ',' <*> signedFloat <* msp
 
 showDeg :: GPSdeg -> String
 showDeg (GPSdeg d m s r) = unwords
-  [ show d, "deg", show m ++ "'", printf "%.9f" s ++ "\"", show r]
+  [ show d, "deg", show m ++ "'", fmtSec s ++ "\"", show r]
+  where
+    fmtSec :: Double -> String
+    fmtSec = reverse . rem0 . reverse . printf "%.9f"
+
+    rem0 ('0' : xs@(c2 : _))
+      | isDigit c2          = rem0 xs
+    rem0 xs                 = xs
 
 parserDeg :: [GPSdir] -> SP GPSdeg
 parserDeg dirs = do

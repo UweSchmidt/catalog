@@ -28,6 +28,7 @@ module Data.MetaData
   , getCreateMeta
   , getFileName
   , getOrientation
+  , getGPSposDeg
 
   , Rating
   , mkRating
@@ -457,6 +458,13 @@ getEXIFUpdateTime md =
 setEXIFUpdateTime :: TimeStamp -> MetaData -> MetaData
 setEXIFUpdateTime ts md =
     md & metaDataAt imgEXIFUpdate .~ (ts ^. isoText)
+
+getGPSposDeg :: MetaData -> Maybe GPSposDeg
+getGPSposDeg md
+  | isempty t = Nothing
+  | otherwise = t ^? isoString . prismString
+  where
+    t = lookupByNames [descrGPSPosition, compositeGPSPosition] md
 
 -- ----------------------------------------
 --

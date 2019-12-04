@@ -17,7 +17,6 @@ where
 
 import           Data.MetaData ( MetaData
                                , metaDataAt
-                               , lookupByNames
 
                                , compositeDOF
                                , compositeGPSAltitude
@@ -34,7 +33,6 @@ import           Data.MetaData ( MetaData
                                , descrTitleLatin
                                , descrWeb
                                , descrWikipedia
-                               , descrGPSPosition
 
                                , exifCreateDate
                                , exifExposureCompensation
@@ -52,6 +50,8 @@ import           Data.MetaData ( MetaData
                                , fileFileModifyDate
                                , fileFileName
                                , fileRefJpg
+
+                               , getGPSposDeg
 
                                , imgRating
 
@@ -741,9 +741,9 @@ picMeta md = mconcat mdTab
       , mdval  "Ort"                   descrLocation
       , mdLink "Web"                   descrWeb
       , mdLink "Wikipedia"             descrWikipedia
+      , mdval  "Aufnahmedatum"         exifCreateDate
       , mdMap  "Position"
       , mdval  "Höhe"                  compositeGPSAltitude
-      , mdval  "Aufnahmedatum"         exifCreateDate
       , mdval  "Kamera"                exifModel
       , mdval  "Objektiv"              compositeLensSpec
       , mdval  "Objektiv Typ"          compositeLensID
@@ -769,7 +769,7 @@ picMeta md = mconcat mdTab
 
 lookupGPS :: MetaData -> Text
 lookupGPS =
-  lookupByNames [descrGPSPosition, compositeGPSPosition]
+  maybe mempty (isoString . prismString #) . getGPSposDeg
 
 gpsToHtml :: Text -> Html
 gpsToHtml val =
@@ -780,16 +780,14 @@ gpsToHtml val =
     url  = "https://maps.google.de/maps/@"
            <>
            (val & isoString %~ (isoGoogleMapsDegree #))
-           -- puzzle with lenses:
-           --
-           -- (val ^. isoString . from isoGoogleMapsDegree . isoText)
            <>
            ",17z"
 
     -- subst " deg" by degree char '\176'
+
     formatDegree :: Text -> Text
     formatDegree t =
-      (SP.sedP (const "\176") (SP.string " deg") $ t ^. isoString) ^. isoText
+      t & isoString %~ SP.sedP (const "\176") (SP.string " deg")
 
 -- ----------------------------------------
 
