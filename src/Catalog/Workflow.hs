@@ -57,6 +57,7 @@ type IdNode  = (ObjId, ImgNode)
 type Pos     = Maybe Int
 
 data ReqType = RPage    -- deliver HTML col-, img-, movie-, blog page  text/html
+             | RPage1
              | RIcon    -- deliver JPG icon, fixed aspectratio         image/jpg
              | RIconp   -- like RIcon with org img aspectratio         image/jpg
              | RImg     -- deliver JPG image                           image/jpg
@@ -388,6 +389,7 @@ toUrlImgPath r = do
 
 toUrlExt :: ReqType -> FilePath
 toUrlExt RPage  = ".html"
+toUrlExt RPage1 = ".html"
 toUrlExt RIcon  = ".jpg"
 toUrlExt RIconp = ".jpg"
 toUrlExt RImg   = ".jpg"
@@ -738,18 +740,22 @@ toPrevNextPar r =
 
 -- ----------------------------------------
 
-thePageCnfs :: [(Geo, (Geo, Int))]
+thePageCnfs :: [(Geo, (Geo, Geo, Int))]
 thePageCnfs =
-  [ (Geo 2560 1440, (Geo  160  120, 14))
-  , (Geo 1920 1200, (Geo  160  120, 11))
-  , (Geo 1600 1200, (Geo  160  120,  9))
-  , (Geo 1400 1050, (Geo  140  105,  9))
-  , (Geo 1280  800, (Geo  120   90,  9))
+  [ (Geo 2560 1440, (Geo  160  120, Geo  1600 160, 14))
+  , (Geo 1920 1200, (Geo  160  120, Geo  1600 160, 11))
+  , (Geo 1600 1200, (Geo  160  120, Geo  1500 160,  9))
+  , (Geo 1400 1050, (Geo  140  105, Geo  1200 120,  9))
+  , (Geo 1280  800, (Geo  120   90, Geo  1200 120,  9))
   ]
 
-lookupPageCnfs :: Geo -> (Geo, Int)
-lookupPageCnfs geo
-  = fromMaybe (Geo 160 120, 9) $ lookup geo thePageCnfs
+lookupPageCnfs :: ReqType -> Geo -> (Geo, Geo, Int)
+lookupPageCnfs ty geo
+  = fromMaybe (Geo  160  120, Geo 160 120,  9)
+    (pty ty <$> lookup geo thePageCnfs)
+  where
+    pty RPage1 (geo1,  geo2, _ncol) = (geo1, geo2,    0)
+    pty _RPage (geo1, _geo2,  ncol) = (geo1, geo1, ncol)
 
 -- ----------------------------------------
 -- image attributes
@@ -958,13 +964,16 @@ type IconDescr3 = (Text, Text, Text)
 toIconDescr :: Geo -> Req'IdNode a -> Cmd IconDescr3
 toIconDescr icon'geo r = do
   let r'url         = toUrlPath  r ^. isoText
-  let r'iconurl     = toUrlPath (r & rType .~ RIcon
+  let r'iconurl     = toUrlPath (r & rType %~ iType
                                    & rGeo  .~ icon'geo
                                 )  ^. isoText
   r'meta           <- runMB (toImgMeta r)
   let r'title       = r'meta ^. metaDataAt descrTitle
 
   return (r'url, r'iconurl, r'title)
+  where
+    iType RPage1 = RImg
+    iType _RPage = RIcon
 
 emptyIconDescr :: IconDescr3
 emptyIconDescr = (mempty, mempty, mempty)
@@ -978,14 +987,17 @@ genReqColPage r =
 genReqColPage' :: Req'IdNode a -> Cmd Blaze.Html
 genReqColPage' r = do
   now'  <- whatTimeIsIt
+
+  let   this'ty          = r ^. rType
   let   this'geo         = r ^. rGeo
-  let ( icon'geo,
-        icon'no )        = lookupPageCnfs this'geo
+  let ( inav'geo,
+        icon'geo,
+        icon'no )        = lookupPageCnfs this'ty this'geo
 
   let   this'meta        = r ^. rColNode . theMetaData
   (     this'url,
         this'iconurl,
-        this'title )    <- toIconDescr icon'geo r
+        this'title )    <- toIconDescr inav'geo r
 
   let   base'ref         = "/"  -- will be changed when working with relative urls
 
@@ -1000,19 +1012,17 @@ genReqColPage' r = do
         (fwrd'url, fwrd'iconurl, _wrd'title)
                         <- traverse
                            (\ r' -> fromMaybe emptyIconDescr <$>
-                                    traverse (toIconDescr icon'geo ) r'
+                                    traverse (toIconDescr inav'geo ) r'
                            )
                            nav
 
   -- the icon descr of the children
   cs                    <- runMB (toChildren r)
   cs'descr              <- traverse (toIconDescr icon'geo) cs
-  let ( c1'url,
-        c1'iconurl,
-        c1'title )       = fromMaybe emptyIconDescr
-                           . listToMaybe
-                           . take 1
-                           $ cs'descr
+  ( c1'url,
+    c1'iconurl,
+    c1'title )          <- fromMaybe emptyIconDescr
+                           <$> traverse (toIconDescr inav'geo) (listToMaybe cs)
 
   let   cs'descr4        = zipWith
                            ( \ (x1, x2, x3) i ->
@@ -1061,7 +1071,7 @@ genReqColPage' r = do
     next'title
     prev'title
     c1'title
-    icon'no
+    icon'no     -- == 0: floating icon layout
     cs'descr4
     this'meta
 

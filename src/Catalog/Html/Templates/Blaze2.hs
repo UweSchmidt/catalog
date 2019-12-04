@@ -149,7 +149,7 @@ colPage'
     )
     ( colContents
       no'cols
-      ( map (colIcon theImgGeoDir theIconGeoDir) icons )
+      ( map (colIcon no'cols theImgGeoDir theIconGeoDir) icons )
     )
 
 picPage' :: Text -> Text -> Text
@@ -554,8 +554,23 @@ nav' theHref theTitle theImgRef theImgGeoDir theIconGeoDir
             ! alt    (toValue theTitle)
 
 -- ----------------------------------------
+--
+-- format collection contents
+-- 1. variant:
+--    flow layout of icons,
+--    all icons are of the same height
+--    and aspect ratio of the original
+-- 2. variant:
+--    all icons have the same size and aspect ratio
+--    parts of the original are cut of
 
 colContents :: Int -> [Html] -> Html
+
+-- floating layout of collection contents
+colContents 0 colIcons = do
+  H.p ! class_ "col-contents" $ mconcat colIcons
+
+-- table layout of collection contents
 colContents no'cols colIcons = do
   table ! class_ "col-contents" $ mconcat $ map toRow colRows
   where
@@ -564,10 +579,15 @@ colContents no'cols colIcons = do
     toRow r = do
       tr ! class_ "col-row" $ mconcat r
 
-colIcon :: Text -> Text -> IconDescr -> Html
-colIcon theImgGeoDir theIconGeoDir
+
+colIcon :: Int -> Text -> Text -> IconDescr -> Html
+colIcon 0 = colIcon' H.span
+colIcon _ = colIcon' td
+
+colIcon' :: (Html -> Html) -> Text -> Text -> IconDescr -> Html
+colIcon' el theImgGeoDir theIconGeoDir
        (theChildHref, theChildImgRef, theChildTitle, theChildId) = do
-  td ! class_ (toValue $ "icon-" <> theIconGeoDir)
+  el ! class_ (toValue $ "icon-" <> theIconGeoDir)
      ! A.id   (toValue theChildId)
      ! A.name (toValue theChildId) $ do
     H.a ! href    (toValue $ "javascript:childPage('" <> theChildHref <> "');")

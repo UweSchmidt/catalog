@@ -113,7 +113,12 @@ type ImgAPI
     Get '[JPEG] CachedByteString
 
 type PageAPI
-  = "page" :> Capture "geo" Geo':> CaptureAll "path" Text :>
+  = "page"  :> PageAPIfmt
+    :<|>
+    "page1" :> PageAPIfmt
+
+type PageAPIfmt
+  = Capture "geo" Geo':> CaptureAll "path" Text :>
     Get '[HTMLStatic] LazyByteString
 
 -- ----------------------------------------

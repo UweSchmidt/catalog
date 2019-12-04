@@ -378,6 +378,19 @@ table.nav tr td {
   padding: 3px;
 }
 
+img.icon-1600x160,
+img.icon-1500x160 {
+  height:         160px;
+  border: 0px solid red;
+  padding-bottom:   5px;
+}
+
+img.icon-1200x120 {
+  height:         120px;
+  border: 0px solid red;
+  padding-bottom:   5px;
+}
+
 img.icon-160x120,
 img.icon-fix-160x120 {
   width:          160px;
@@ -385,6 +398,8 @@ img.icon-fix-160x120 {
   border: 0px solid red;
 }
 
+img.icon2-1600x160,
+img.icon2-1500x160,
 img.icon2-160x120,
 img.icon2-fix-160x120 {
   width:           80px;
@@ -399,6 +414,7 @@ img.icon-fix-140x105 {
   border: 0px solid red;
 }
 
+img.icon2-1200x120,
 img.icon2-140x105,
 img.icon2-fix-140x105 {
   width:           72px;
@@ -418,6 +434,16 @@ img.icon2-fix-120x90 {
   width:           60px;
   height:          45px;
   border: 0px solid red;
+}
+
+p.col-contents {
+  margin-left:  5px;
+  margin-right: 5px;
+  /* line-height: 150px; */
+}
+
+span.icon-1200x120 {
+  margin: 5px;
 }
 
 div.album-content {

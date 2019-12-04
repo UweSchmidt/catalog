@@ -210,7 +210,7 @@ buildCmd3 rotate d'g s'geo d' s'
     resize      = ["-thumbnail", geo ++ "!"]
     resize1     = ( if isThumbnail
                     then "-thumbnail"
-                    else "-geometry"
+                    else "-resize"
                   ) : [d'geo ^. isoString]
     quality     = "-quality" : [ if isThumbnail
                                  then "75"
@@ -220,7 +220,7 @@ buildCmd3 rotate d'g s'geo d' s'
 
     isPad       = (xoff == (-1) && yoff == (-1))
     isCrop      = (xoff > 0     || yoff > 0)
-    isThumbnail = d'geo ^. theW <= 300 && d'geo ^. theH <= 300
+    isThumbnail = d'geo ^. theW <= 300 || d'geo ^. theH <= 300
     geo         = r ^. isoString
 
     -- for .tiff convert needs the layer # to be taken

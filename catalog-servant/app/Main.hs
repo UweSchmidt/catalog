@@ -160,7 +160,10 @@ catalogServer env runR runM =
     :<|>
     get'img
     :<|>
-    get'html
+    ( get'html
+      :<|>
+      get'html1
+    )
     :<|>
     get'movie
   )
@@ -297,13 +300,19 @@ catalogServer env runR runM =
     -- handle html pages
 
     get'html :: Geo' -> [Text] -> Handler LazyByteString
-    get'html (Geo' geo) ts@(_ : _)
+    get'html = get'html' RPage
+
+    get'html1 :: Geo' -> [Text] -> Handler LazyByteString
+    get'html1 = get'html' RPage1
+
+    get'html' :: ReqType -> Geo' -> [Text] -> Handler LazyByteString
+    get'html' rt (Geo' geo) ts@(_ : _)
       | Just ppos <- path2colPath ".html" ts
       , exPageConf geo =
-          runR $ processReqPage (mkReq RPage geo ppos)
+          runR $ processReqPage (mkReq rt geo ppos)
 
-    get'html (Geo' geo) ts =
-      notThere RPage geo ts
+    get'html' rt (Geo' geo) ts =
+      notThere rt geo ts
 
     -- --------------------
     -- aux ops
