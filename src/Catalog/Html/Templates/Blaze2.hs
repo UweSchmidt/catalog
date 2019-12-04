@@ -398,7 +398,7 @@ vers :: Text
 vers = "0.2.3.10"
 
 dats :: Text
-dats = "2019-12-03"
+dats = "2019-12-04"
 
 headPage :: Text -> Text -> Text -> Html -> Html
 headPage theBaseRef theHeadTitle theDate theJS
