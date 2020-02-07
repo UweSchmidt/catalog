@@ -33,8 +33,10 @@ library
                      Data.Prim.ObjId
                      Data.Prim.SysPath
                      Data.Prim.TimeStamp
+                     Catalog.EvalCmd
                      Catalog.FilePath
                      Catalog.Cmd
+                     Catalog.CmdAPI
                      Catalog.Cmd.ArchiveCollection
                      Catalog.Cmd.Basic
                      Catalog.Cmd.CopyRemove

@@ -32,14 +32,14 @@ import qualified Data.ByteString.Lazy as LBS
 
 -- catalog modules
 import Data.Prim
-import Data.ImgTree
 import Data.ImageStore         ( ImgStore )
 
 import Catalog.Cmd
+import Catalog.EvalCmd
 import Catalog.FilePath        ( splitDirFileExt
                                , isoPicNo
                                )
-import Catalog.JsonCommands    -- all read'... and modify'...
+
 import Catalog.Options         ( mainWithArgs )
 import Catalog.Workflow        ( ReqType(..)
                                , PathPos
@@ -60,69 +60,24 @@ import API
 
 -- ----------------------------------------
 --
--- conversions of [Text] to Path
+-- eval commands
 
-ttp :: (Path -> a) -> ([Text] -> a)
-ttp f xs = f (listToPath xs)
+mkcmd1' :: (Cmd r -> Handler r)
+        -> (Path -> Cmd' r)
+        -> [Text]
+        -> Handler r
+mkcmd1' toHandler cmd =
+  toHandler . evalCmd . cmd . listToPath
 
-ttp2 :: (a -> Path -> b) -> (a -> [Text] -> b)
-ttp2 = flip . ttp . flip
 
-ttpSnd :: ((a, Path) -> b) -> ((a, [Text]) -> b)
-ttpSnd f (x, ys) = f (x, listToPath ys)
+mkcmd2' :: (Cmd r -> Handler r)
+        -> (a -> Path -> Cmd' r)
+        -> [Text]
+        -> a
+        -> Handler r
+mkcmd2' toHandler cmd path args =
+  toHandler . evalCmd . cmd args . listToPath $ path
 
--- ----------------------------------------
---
--- adapter for catalog commands to handler
-
-pin :: ((ObjId, ImgNode) -> a) ->
-       (a -> Cmd r) ->
-       (Path -> Cmd r)
-pin sel cmd path = do
-  i'n <- getIdNode' path
-  cmd $ sel i'n
-
-mkcmd0 :: (Cmd r -> Handler r) ->
-          (Path -> Cmd r) ->
-          ([Text] -> Handler r)
-mkcmd0 toHandler pcmd =
-  toHandler . pcmd . listToPath
-
-mkcmd1 :: (Cmd r -> Handler r) ->
-          (ObjId -> ImgNode -> Cmd r) ->
-          ([Text] -> Handler r)
-mkcmd1 toHandler pcmd =
-  toHandler . pin id (uncurry pcmd) . listToPath
-
-mkcmd1i :: (Cmd r -> Handler r) ->
-           (ObjId -> Cmd r) ->
-           ([Text] -> Handler r)
-mkcmd1i toHandler pcmd =
-  toHandler . pin fst pcmd . listToPath
-
-mkcmd1n :: (Cmd r -> Handler r) ->
-           (ImgNode -> Cmd r) ->
-           ([Text] -> Handler r)
-mkcmd1n toHandler pcmd =
-  toHandler . pin snd pcmd . listToPath
-
-mkcmd2i :: (Cmd r -> Handler r) ->
-           (a -> ObjId -> Cmd r) ->
-           ([Text] -> a -> Handler r)
-mkcmd2i toHandler pcmd path args =
-  toHandler . (pin fst $ pcmd args) . listToPath $ path
-
-mkcmd2 :: (Cmd r -> Handler r) ->
-          (a -> ObjId -> ImgNode -> Cmd r) ->
-           ([Text] -> a -> Handler r)
-mkcmd2 toHandler pcmd path args =
-  toHandler . (pin id $ uncurry $ pcmd args) . listToPath $ path
-
-mkcmd2n :: (Cmd r -> Handler r) ->
-           (a -> ImgNode -> Cmd r) ->
-           ([Text] -> a -> Handler r)
-mkcmd2n toHandler pcmd path args =
-  toHandler . (pin snd $ pcmd args) . listToPath $ path
 
 -- ----------------------------------------
 -- the server
@@ -335,77 +290,71 @@ catalogServer env runR runM =
 
     -- --------------------
 
-    mkR0  = mkcmd0  runR
---  mkR1  = mkcmd1  runR
-    mkR1n = mkcmd1n runR
---  mkR2  = mkcmd2  runR
---  mkR2i = mkcmd2i runR
-    mkR2n = mkcmd2n runR
+    mkR1' = mkcmd1' runR
+    mkR2' = mkcmd2' runR
 
     json'read =
-      mkR1n read'collection
+      mkR1' TheCollection
       :<|>
-      mkR1n read'isWriteable
+      mkR1' IsWriteable
       :<|>
-      mkR1n read'isRemovable
+      mkR1' IsRemovable
       :<|>
-      mkR1n read'isSortable
+      mkR1' IsSortable
       :<|>
-      mkR0  read'isCollection
+      mkR1' IsCollection
       :<|>
-      mkR2n read'blogcontents
+      mkR2' TheBlogContents
       :<|>
-      mkR2n read'blogsource
+      mkR2' TheBlogSource
       :<|>
-      mkR2n read'metadata
+      mkR2' TheMetaData
       :<|>
-      mkR2n read'rating
+      mkR2' TheRating
       :<|>
-      mkR1n read'ratings
-      where
+      mkR1' TheRatings
 
---  mkM1  = mkcmd1  runM
-    mkM1i = mkcmd1i runM
-    mkM2  = mkcmd2  runM
-    mkM2i = mkcmd2i runM
-    mkM2n = mkcmd2n runM
+
+    mkM1' = mkcmd1' runM
+    mkM2' = mkcmd2' runM
+    mkM3' = mkM2' . uncurry
 
     json'modify =
-      mkM2n (uncurry modify'saveblogsource)
+      mkM3' SaveBlogSource
       :<|>
-      mkM2n (uncurry modify'changeWriteProtected)
+      mkM3' ChangeWriteProtected
       :<|>
-      mkM2  modify'sort
+      mkM2' SortCollection
       :<|>
-      mkM2  modify'removeFromCollection
+      mkM2' RemoveFromCollection
       :<|>
-      mkM2n (uncurry modify'copyToCollection)
+      mkM3' CopyToCollection
       :<|>
-      mkM2  (uncurry modify'moveToCollection)
+      mkM3' MoveToCollection
       :<|>
-      mkM2i (uncurry modify'colimg)
+      mkM3' SetCollectionImg
       :<|>
-      mkM2i (uncurry modify'colblog)
+      mkM3' SetCollectionBlog
       :<|>
-      mkM2i modify'newcol
+      mkM2' NewCollection
       :<|>
-      mkM2i modify'renamecol
+      mkM2' RenameCollection
       :<|>
-      mkM2n (uncurry modify'setMetaData)
+      mkM3' SetMetaData
       :<|>
-      mkM2n (uncurry modify'setMetaData1)
+      mkM3' SetMetaData1
       :<|>
-      mkM2n (uncurry modify'setRating)
+      mkM3' SetRating
       :<|>
-      mkM2n (uncurry modify'setRating1)
+      mkM3' SetRating1
       :<|>
-      mkM2n (\t _i -> modify'snapshot t)
+      mkM2' Snapshot
       :<|>
-      mkM1i modify'syncCol
+      mkM1' SyncCollection
       :<|>
-      mkM1i modify'syncExif
+      mkM1' SyncExif
       :<|>
-      mkM1i modify'newSubCols
+      mkM1' NewSubCollections
 
 -- ----------------------------------------
 --
