@@ -52,29 +52,29 @@ import API
 --
 -- eval commands
 
-mkcmd1' :: (Cmd r -> Handler r)
+mkcmd1' :: (Cmd' r -> Handler r)
         -> (Path -> Cmd' r)
         -> [Text]
         -> Handler r
-mkcmd1' toHandler cmd =
-  toHandler . evalCmd . cmd . listToPath
+mkcmd1' toHandler cmd' =
+  toHandler . cmd' . listToPath
 
 
-mkcmd2' :: (Cmd r -> Handler r)
+mkcmd2' :: (Cmd' r -> Handler r)
         -> (a -> Path -> Cmd' r)
         -> [Text]
         -> a
         -> Handler r
-mkcmd2' toHandler cmd path args =
-  toHandler . evalCmd . cmd args . listToPath $ path
+mkcmd2' toHandler cmd' path args =
+  toHandler . cmd' args . listToPath $ path
 
 
 -- ----------------------------------------
 -- the server
 
 catalogServer :: Env ->
-                 (forall a . Cmd a -> Handler a) ->
-                 (forall a . Cmd a -> Handler a) ->
+                 (forall a . Cmd' a -> Handler a) ->
+                 (forall a . Cmd' a -> Handler a) ->
                  Server CatalogAPI
 catalogServer env runR runM =
   ( bootstrap
@@ -151,7 +151,7 @@ catalogServer env runR runM =
 
     staticFile :: FilePath -> BaseName a -> Handler LazyByteString
     staticFile dirPath (BaseName n) =
-      runR . evalCmd $ StaticFile dirPath n
+      runR $ StaticFile dirPath n
 
     -- --------------------
     -- new URL handlers
@@ -222,7 +222,7 @@ catalogServer env runR runM =
     get'img' :: ReqType
              -> Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
     get'img' rt (Geo' geo) ts referer = do
-      res <- runR . evalCmd $ JpgImgCopy rt geo (listToPath ts)
+      res <- runR $ JpgImgCopy rt geo (listToPath ts)
       return $ cachedResponse referer res
 
      -- --------------------
@@ -236,7 +236,7 @@ catalogServer env runR runM =
 
     get'html' :: ReqType -> Geo' -> [Text] -> Handler LazyByteString
     get'html' rt (Geo' geo) ts = do
-      runR . evalCmd $ HtmlPage rt geo (listToPath ts)
+      runR $ HtmlPage rt geo (listToPath ts)
 
     -- --------------------
 
@@ -357,28 +357,28 @@ main' env st = do
 -- the 2. is for modifying the store, those operations run sequentially
 -- and at the end they update both mvars with the new state
 
-runReadCmd :: Env -> MVar ImgStore -> Cmd a -> Handler a
-runReadCmd env mvs cmd = do
+runReadCmd :: Env -> MVar ImgStore -> Cmd' a -> Handler a
+runReadCmd env mvs cmd' = do
   res <- liftIO runc
   either raise500 return res
   where
     runc = do
       store <- readMVar mvs
-      res <- ( (^. _1) <$> runAction cmd env store )
+      res <- ( (^. _1) <$> runAction (evalCmd cmd') env store )
              `catch`
              -- TODO this still does not catch: error "some error"
              (\ e -> return (Left . Msg . show $ (e :: SomeException)))
       return res
 
-runModyCmd :: Env -> MVar ImgStore -> MVar ImgStore -> Cmd a -> Handler a
-runModyCmd env mvr mvm cmd = do
+runModyCmd :: Env -> MVar ImgStore -> MVar ImgStore -> Cmd' a -> Handler a
+runModyCmd env mvr mvm cmd' = do
   res <- liftIO runc
   either raise500 return res
   where
     runc = do
       store <- takeMVar mvm
       res <- ( do
-                 (res', new'store) <- runAction cmd env store
+                 (res', new'store) <- runAction (evalCmd cmd') env store
                  _old <- swapMVar mvr new'store
                  putMVar mvm new'store
                  return res'
