@@ -8,12 +8,29 @@ module Catalog.EvalCmd
   )
 where
 
-import Data.Prim    ( ObjId )
+import Data.Prim
 import Data.ImgTree ( ImgNode )
 
 import Catalog.Cmd
 import Catalog.CmdAPI
 import Catalog.JsonCommands
+
+import Catalog.FilePath        ( splitDirFileExt
+                               , isoPicNo
+                               )
+
+import Catalog.Workflow        ( ReqType(..)
+                               , Req'
+                               , PathPos
+                               , emptyReq'
+                               , reqType2AR
+                               , processReqImg
+                               , processReqPage
+                               , thePageCnfs
+                               , rType
+                               , rGeo
+                               , rPathPos
+                               )
 
 -- ----------------------------------------
 
@@ -107,6 +124,80 @@ evalCmd (TheRating pos p) =
 
 evalCmd (TheRatings p) =
   path2node p >>= read'ratings
+
+-- eval get commands
+
+evalCmd (StaticFile dp bn) = do
+  sp <- view ( envMountPath .
+               isoFilePath .
+               to (++ (dp ++ "/" ++ bn ^. isoString)) .
+               from isoFilePath
+             )
+  readStaticFile sp
+
+evalCmd (JpgImgCopy rt geo path)
+  | isNothing $ lookup geo thePageCnfs =
+      abort $ "illegal page config " ++ show path
+  | Just ppos <- path2colPath ".jpg" (path ^. isoString) =
+      process ppos
+  | otherwise =
+      abort $ "illegal doc path " ++ show path
+  where
+    process ppos =
+       processReqImg (mkReq rt geo ppos)
+       >>= toSysPath
+       >>= readFileLB
+
+evalCmd (HtmlPage rt geo path)
+  | Just ppos <- path2colPath ".html" (path ^. isoString) =
+      process ppos
+  | otherwise =
+      abort $ "illegal doc path " ++ show path
+  where
+    process ppos =
+       processReqPage (mkReq rt geo ppos)
+
+-- ----------------------------------------
+--
+-- helper functions
+
+mkReq :: ReqType -> Geo -> PathPos -> Req' ()
+mkReq rt' geo' ppos' =
+  emptyReq' & rType    .~ rt'
+            & rGeo     .~ geo'
+            & rPathPos .~ ppos'
+
+-- parser for object path
+--
+-- remove extension
+-- parse optional collection index
+--
+-- example: path2colPath ".jpg" "collections/2018/may/pic-0007.jpg"
+--          -> Just ("/collections/2018/may", Just 7)
+
+path2colPath :: String -> FilePath -> Maybe PathPos
+path2colPath ext ps
+  | Just (dp, fn, ex) <- splitDirFileExt ps
+  , ex == ext =
+      Just $ buildPP dp fn
+  | otherwise =
+      Nothing
+  where
+    --  ps = concatMap (('/' :) . (^. isoString)) ts
+
+    buildPP dp' fn'
+      | cx < 0    = (readPath $ dp' </> fn', Nothing)
+      | otherwise = (readPath   dp',         Just cx)
+      where
+        cx = fn' ^. from isoPicNo
+
+
+readStaticFile :: SysPath -> Cmd LazyByteString
+readStaticFile sp = do
+  ex <- fileExist sp
+  if ex
+    then readFileLB sp
+    else abort $ "document not found: " ++ sp ^. isoFilePath
 
 -- --------------------
 

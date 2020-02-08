@@ -3,21 +3,25 @@
 {-# LANGUAGE GADTs #-}
 
 module Catalog.CmdAPI
-  ( Cmd'(..)
-  , module Data.Prim
-  , module Data.ImgTree
-  , module Data.MetaData
+  ( Cmd'(..)          -- the catalog API for server
+
+  -- reexport of types used in Cmd'
+  , ImgNodeP
+  , MetaData
+  , Name
+  , Path
+  , Rating
+  , ReqType
+  , Text
   )
 where
 
-import Data.Prim     ( Name
-                     , Path
-                     , Text
-                     )
-import Data.ImgTree  ( ImgNodeP )
-import Data.MetaData ( MetaData
-                     , Rating
-                     )
+import Data.Prim
+import Data.ImgTree     ( ImgNodeP )
+import Data.MetaData    ( MetaData
+                        , Rating
+                        )
+import Catalog.Workflow ( ReqType )
 
 -- ----------------------------------------
 --
@@ -55,6 +59,11 @@ data Cmd' a where
   TheMetaData          ::          Int      -> Path -> Cmd' MetaData
   TheRating            ::          Int      -> Path -> Cmd' Rating
   TheRatings           ::                      Path -> Cmd' [Rating]
+
+  -- catalog get commands
+  StaticFile           ::          FilePath -> Text -> Cmd' LazyByteString
+  JpgImgCopy           ::    ReqType -> Geo -> Path -> Cmd' LazyByteString
+  HtmlPage             ::    ReqType -> Geo -> Path -> Cmd' LazyByteString
 
 
 {- client side: commands will be turned into requests

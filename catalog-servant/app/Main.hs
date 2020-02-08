@@ -24,11 +24,8 @@ import Network.Wai.Logger      ( withStdoutLogger )
 
 import Servant
 
-import System.Directory        ( doesFileExist )
 import System.Exit             ( die )
 import System.IO               ( hPutStrLn, stderr, hFlush )
-
-import qualified Data.ByteString.Lazy as LBS
 
 -- catalog modules
 import Data.Prim
@@ -43,14 +40,7 @@ import Catalog.FilePath        ( splitDirFileExt
 import Catalog.Options         ( mainWithArgs )
 import Catalog.Workflow        ( ReqType(..)
                                , PathPos
-                               , emptyReq'
                                , reqType2AR
-                               , processReqImg
-                               , processReqPage
-                               , thePageCnfs
-                               , rType
-                               , rGeo
-                               , rPathPos
                                )
 
 -- servant interface
@@ -127,7 +117,7 @@ catalogServer env runR runM =
     mountPath = env ^. envMountPath . isoFilePath
     static p  = do
       -- trace ("static: " ++ mountPath ++ p) $
-        serveDirectoryWebApp (mountPath ++ p)
+      serveDirectoryWebApp (mountPath ++ p)
 
     bootstrap         = static ps'bootstrap
     assets'css        = static ps'css
@@ -160,15 +150,8 @@ catalogServer env runR runM =
         bn = BaseName "rpc-servant.js"
 
     staticFile :: FilePath -> BaseName a -> Handler LazyByteString
-    staticFile dirPath (BaseName n) = do
-      ex <- liftIO $ doesFileExist fp
-      case ex of
-        False ->
-          throwError err404
-        True ->
-          liftIO (LBS.readFile fp)
-      where
-        fp = mountPath ++ dirPath ++ "/" ++ n ^. isoString
+    staticFile dirPath (BaseName n) =
+      runR . evalCmd $ StaticFile dirPath n
 
     -- --------------------
     -- new URL handlers
@@ -238,20 +221,11 @@ catalogServer env runR runM =
 
     get'img' :: ReqType
              -> Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
-    get'img' rt (Geo' geo) ts@(_ : _) referer
+    get'img' rt (Geo' geo) ts referer = do
+      res <- runR . evalCmd $ JpgImgCopy rt geo (listToPath ts)
+      return $ cachedResponse referer res
 
-      -- check for collection path with .jpg extension
-      | Just ppos <- path2colPath ".jpg" ts =
-          do
-            res <- runR $ processReqImg (mkReq rt geo ppos)
-                          >>= toSysPath
-                          >>= readFileLB
-            return $ cachedResponse referer res
-
-    get'img' rt (Geo' geo) ts _ref =
-      notThere rt geo ts
-
-    -- --------------------
+     -- --------------------
     -- handle html pages
 
     get'html :: Geo' -> [Text] -> Handler LazyByteString
@@ -261,32 +235,8 @@ catalogServer env runR runM =
     get'html1 = get'html' RPage1
 
     get'html' :: ReqType -> Geo' -> [Text] -> Handler LazyByteString
-    get'html' rt (Geo' geo) ts@(_ : _)
-      | Just ppos <- path2colPath ".html" ts
-      , exPageConf geo =
-          runR $ processReqPage (mkReq rt geo ppos)
-
-    get'html' rt (Geo' geo) ts =
-      notThere rt geo ts
-
-    -- --------------------
-    -- aux ops
-
-    exPageConf geo = isJust $ lookup geo thePageCnfs
-
-    mkReq rt geo ppos' =
-      emptyReq' & rType    .~ rt
-                & rGeo     .~ geo
-                & rPathPos .~ ppos'
-
-    notThere :: ReqType -> Geo -> [Text] -> Handler a
-    notThere rt geo ts =
-      throwError $
-      err404 { errBody =
-                 ( "document not found: " ++ backToPath rt geo ts )
-                 ^. from isoString
-             }
-
+    get'html' rt (Geo' geo) ts = do
+      runR . evalCmd $ HtmlPage rt geo (listToPath ts)
 
     -- --------------------
 
