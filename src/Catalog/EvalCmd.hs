@@ -23,10 +23,8 @@ import Catalog.Workflow        ( ReqType(..)
                                , Req'
                                , PathPos
                                , emptyReq'
-                               , reqType2AR
                                , processReqImg
                                , processReqPage
-                               , thePageCnfs
                                , rType
                                , rGeo
                                , rPathPos
@@ -136,8 +134,6 @@ evalCmd (StaticFile dp bn) = do
   readStaticFile sp
 
 evalCmd (JpgImgCopy rt geo path)
-  | isNothing $ lookup geo thePageCnfs =
-      abort $ "illegal page config " ++ show path
   | Just ppos <- path2colPath ".jpg" (path ^. isoString) =
       process ppos
   | otherwise =
@@ -183,8 +179,6 @@ path2colPath ext ps
   | otherwise =
       Nothing
   where
-    --  ps = concatMap (('/' :) . (^. isoString)) ts
-
     buildPP dp' fn'
       | cx < 0    = (readPath $ dp' </> fn', Nothing)
       | otherwise = (readPath   dp',         Just cx)

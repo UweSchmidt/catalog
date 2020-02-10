@@ -9,7 +9,11 @@ import Prelude ()
 import Prelude.Compat
 
 import Control.Concurrent.MVar ( MVar
-                               , newMVar, readMVar, takeMVar, swapMVar, putMVar
+                               , newMVar
+                               , readMVar
+                               , takeMVar
+                               , swapMVar
+                               , putMVar
                                , withMVar)
 import Control.Exception       ( SomeException
                                , catch) -- , try, toException)
@@ -31,51 +35,34 @@ import System.IO               ( hPutStrLn, stderr, hFlush )
 import Data.Prim
 import Data.ImageStore         ( ImgStore )
 
-import Catalog.Cmd
-import Catalog.EvalCmd
-import Catalog.FilePath        ( splitDirFileExt
-                               , isoPicNo
+import Catalog.Cmd             ( Env
+                               , runAction
+                               , liftIO
+                               , envLogOp
+                               , envMountPath
+                               , envPort
+                               , envSyncDir
+                               , initState
                                )
-
+import Catalog.EvalCmd         ( Cmd'(..)
+                               , evalCmd
+                               )
 import Catalog.Options         ( mainWithArgs )
-import Catalog.Workflow        ( ReqType(..)
-                               , PathPos
-                               , reqType2AR
-                               )
+import Catalog.Workflow        ( ReqType(..) )
 
 -- servant interface
 import API
 
 -- import Debug.Trace
 
--- ----------------------------------------
---
--- eval commands
-
-mkcmd1' :: (Cmd' r -> Handler r)
-        -> (Path -> Cmd' r)
-        -> [Text]
-        -> Handler r
-mkcmd1' toHandler cmd' =
-  toHandler . cmd' . listToPath
-
-
-mkcmd2' :: (Cmd' r -> Handler r)
-        -> (a -> Path -> Cmd' r)
-        -> [Text]
-        -> a
-        -> Handler r
-mkcmd2' toHandler cmd' path args =
-  toHandler . cmd' args . listToPath $ path
-
 
 -- ----------------------------------------
 -- the server
 
-catalogServer :: Env ->
-                 (forall a . Cmd' a -> Handler a) ->
-                 (forall a . Cmd' a -> Handler a) ->
-                 Server CatalogAPI
+catalogServer :: Env
+              -> (forall a . Cmd' a -> Handler a)
+              -> (forall a . Cmd' a -> Handler a)
+              -> Server CatalogAPI
 catalogServer env runR runM =
   ( bootstrap
     :<|>
@@ -154,43 +141,6 @@ catalogServer env runR runM =
       runR $ StaticFile dirPath n
 
     -- --------------------
-    -- new URL handlers
-
-    -- parsed URL -> org URL, for error messages
-
-    backToPath :: ReqType -> Geo -> [Text] -> String
-    backToPath req geo path =
-      mconcat . map ('/' :) $
-      ( reqType2AR req ^. isoString
-        : geo  ^. isoString
-        : map (^. isoString) path
-      )
-
-    -- parser for object path
-    --
-    -- remove extension
-    -- parse optional collection index
-    --
-    -- example: path2colPath ".jpg" ["collections","2018", "may", "pic-0007.jpg"]
-    --          -> Just ("/collections/2018/may", Just 7)
-
-    path2colPath :: String -> [Text] -> Maybe PathPos
-    path2colPath ext ts
-      | Just (dp, fn, ex) <- splitDirFileExt ps
-      , ex == ext =
-          Just $ buildPP dp fn
-      | otherwise =
-          Nothing
-      where
-        ps = concatMap (('/' :) . (^. isoString)) ts
-
-        buildPP dp' fn'
-          | cx < 0    = (readPath $ dp' </> fn', Nothing)
-          | otherwise = (readPath   dp',         Just cx)
-          where
-            cx = fn' ^. from isoPicNo
-
-    -- --------------------
 
     cachedResponse :: Maybe Text -> LazyByteString -> CachedByteString
     cachedResponse mbref bs =
@@ -222,7 +172,7 @@ catalogServer env runR runM =
     get'img' :: ReqType
              -> Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
     get'img' rt (Geo' geo) ts referer = do
-      res <- runR $ JpgImgCopy rt geo (listToPath ts)
+      res <- runR . JpgImgCopy rt geo . listToPath $ ts
       return $ cachedResponse referer res
 
      -- --------------------
@@ -235,76 +185,75 @@ catalogServer env runR runM =
     get'html1 = get'html' RPage1
 
     get'html' :: ReqType -> Geo' -> [Text] -> Handler LazyByteString
-    get'html' rt (Geo' geo) ts = do
-      runR $ HtmlPage rt geo (listToPath ts)
+    get'html' rt (Geo' geo) =
+      runR . HtmlPage rt geo . listToPath
 
     -- --------------------
 
-    mkR1' = mkcmd1' runR
-    mkR2' = mkcmd2' runR
+    runR1 cmd'         = runR . cmd'      . listToPath
+    runR2 cmd' ts args = runR . cmd' args . listToPath $ ts
 
     json'read =
-      mkR1' TheCollection
+      runR1 TheCollection
       :<|>
-      mkR1' IsWriteable
+      runR1 IsWriteable
       :<|>
-      mkR1' IsRemovable
+      runR1 IsRemovable
       :<|>
-      mkR1' IsSortable
+      runR1 IsSortable
       :<|>
-      mkR1' IsCollection
+      runR1 IsCollection
       :<|>
-      mkR2' TheBlogContents
+      runR2 TheBlogContents
       :<|>
-      mkR2' TheBlogSource
+      runR2 TheBlogSource
       :<|>
-      mkR2' TheMetaData
+      runR2 TheMetaData
       :<|>
-      mkR2' TheRating
+      runR2 TheRating
       :<|>
-      mkR1' TheRatings
+      runR1 TheRatings
 
-
-    mkM1' = mkcmd1' runM
-    mkM2' = mkcmd2' runM
-    mkM3' = mkM2' . uncurry
+    runM1 cmd'         = runM . cmd'      . listToPath
+    runM2 cmd' ts args = runM . cmd' args . listToPath $ ts
+    runM3              = runM2 . uncurry
 
     json'modify =
-      mkM3' SaveBlogSource
+      runM3 SaveBlogSource
       :<|>
-      mkM3' ChangeWriteProtected
+      runM3 ChangeWriteProtected
       :<|>
-      mkM2' SortCollection
+      runM2 SortCollection
       :<|>
-      mkM2' RemoveFromCollection
+      runM2 RemoveFromCollection
       :<|>
-      mkM3' CopyToCollection
+      runM3 CopyToCollection
       :<|>
-      mkM3' MoveToCollection
+      runM3 MoveToCollection
       :<|>
-      mkM3' SetCollectionImg
+      runM3 SetCollectionImg
       :<|>
-      mkM3' SetCollectionBlog
+      runM3 SetCollectionBlog
       :<|>
-      mkM2' NewCollection
+      runM2 NewCollection
       :<|>
-      mkM2' RenameCollection
+      runM2 RenameCollection
       :<|>
-      mkM3' SetMetaData
+      runM3 SetMetaData
       :<|>
-      mkM3' SetMetaData1
+      runM3 SetMetaData1
       :<|>
-      mkM3' SetRating
+      runM3 SetRating
       :<|>
-      mkM3' SetRating1
+      runM3 SetRating1
       :<|>
-      mkM2' Snapshot
+      runM2 Snapshot
       :<|>
-      mkM1' SyncCollection
+      runM1 SyncCollection
       :<|>
-      mkM1' SyncExif
+      runM1 SyncExif
       :<|>
-      mkM1' NewSubCollections
+      runM1 NewSubCollections
 
 -- ----------------------------------------
 --
@@ -338,10 +287,12 @@ main' env st = do
   let runMody  = runModyCmd env mvRead mvMody
 
   withStdoutLogger $ \logger -> do
-    let settings = setPort (env ^. envPort) $ setLogger logger defaultSettings
+    let settings =
+          defaultSettings & setPort   (env ^. envPort)
+                          & setLogger logger
+
     runSettings settings $
-      serve (Proxy :: Proxy CatalogAPI) $
-      catalogServer env runRead runMody
+      serve (Proxy :: Proxy CatalogAPI) (catalogServer env runRead runMody)
 
 -- curl -v http://localhost:8081/bootstrap/dist/css/bootstrap-theme.css
 -- curl -v http://localhost:8081/assets/javascript/html-album.js
