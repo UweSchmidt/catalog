@@ -11,7 +11,7 @@ module Catalog.CmdAPI
   , Name
   , Path
   , Rating
-  , ReqType
+  , ReqType(..)
   , Text
   )
 where
@@ -21,7 +21,7 @@ import Data.ImgTree     ( ImgNodeP )
 import Data.MetaData    ( MetaData
                         , Rating
                         )
-import Catalog.Workflow ( ReqType )
+import Catalog.Workflow ( ReqType(..) )
 
 -- ----------------------------------------
 --
@@ -65,18 +65,5 @@ data Cmd' a where
   JpgImgCopy           ::    ReqType -> Geo -> Path -> Cmd' LazyByteString
   HtmlPage             ::    ReqType -> Geo -> Path -> Cmd' LazyByteString
 
-
-{- client side: commands will be turned into requests
-
-reqCmd :: Cmd a -> (forall r. ToJSON r => Req r)
-reqCmd c = undefined
-
-data Method = Post | Get
-data Req r = Req
-           { method :: Method
-           , url    :: Text
-           , body   :: Maybe r
-           }
--- -}
 
 -- ----------------------------------------

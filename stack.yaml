@@ -15,6 +15,7 @@ resolver: lts-13.10
 packages:
 - '.'
 - './catalog-servant'
+- './catalog-client'
 # - './catalog-server'
 # - './catalog-sync'
 

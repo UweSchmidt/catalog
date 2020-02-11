@@ -33,6 +33,7 @@ bump () {
 
 bump catalog.cabal
 bump catalog-servant/catalog-servant.cabal
+bump catalog-client/catalog-client.cabal
 bump src/Catalog/Options.hs
 bump src/Catalog/Html/Templates/Blaze2.hs
 bump data/assets/html/edit.html
