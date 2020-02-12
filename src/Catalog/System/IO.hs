@@ -4,7 +4,6 @@
 module Catalog.System.IO
   ( SysPath
   , FileStatus
-  , toSysPath
   , fileExist
   , fileNotEmpty
   , dirExist
@@ -34,7 +33,6 @@ module Catalog.System.IO
 where
 
 import           Catalog.Cmd.Types
-import           Catalog.Cmd.Basic (toSysPath)
 
 import qualified Data.ByteString.Lazy.Char8 as LB
 import           Data.Prim.Prelude
@@ -52,18 +50,18 @@ import qualified System.Posix      as X
 
 type FileStatus = X.FileStatus
 
-fileExist :: SysPath -> Cmd Bool
+fileExist :: Config r => SysPath -> Action r s Bool
 fileExist sp = io . D.doesFileExist $ sp ^. isoFilePath
 
 -- fileExist :: FilePath -> Cmd Bool
 -- fileExist = io . D.doesFileExist
 
-dirExist :: SysPath -> Cmd Bool
+dirExist :: Config r => SysPath -> Action r s Bool
 dirExist sp = io . D.doesDirectoryExist $ sp ^. isoFilePath
 
 -- check whether a file is there and not empty
 
-fileNotEmpty :: SysPath -> Cmd Bool
+fileNotEmpty :: Config r => SysPath -> Action r s Bool
 fileNotEmpty sp = do
   ex <- fileExist sp
   if not ex
@@ -71,56 +69,56 @@ fileNotEmpty sp = do
             return $ X.fileSize st == 0
     else return True
 
-getFileStatus :: SysPath -> Cmd FileStatus
+getFileStatus :: Config r => SysPath -> Action r s FileStatus
 getFileStatus sp = io . X.getFileStatus $ sp ^. isoFilePath
 
-getModiTime :: SysPath -> Cmd TimeStamp
+getModiTime :: Config r => SysPath -> Action r s TimeStamp
 getModiTime f = fsTimeStamp <$> getFileStatus f
 
-getModiTime' :: SysPath -> Cmd TimeStamp
+getModiTime' :: Config r => SysPath -> Action r s TimeStamp
 getModiTime' f = do
   ex <- fileExist f
   if ex
     then getModiTime f
     else return mempty
 
-setModiTime :: TimeStamp -> SysPath -> Cmd ()
+setModiTime :: Config r => TimeStamp -> SysPath -> Action r s ()
 setModiTime ts sp =
   io $ X.setFileTimes (sp ^. isoFilePath) ep ep
   where
     ep = ts ^. isoEpochTime
 
-writeFileLB :: SysPath -> LB.ByteString -> Cmd ()
+writeFileLB :: Config r => SysPath -> LB.ByteString -> Action r s ()
 writeFileLB sp = io . LB.writeFile (sp ^. isoFilePath)
 
-readFileLB :: SysPath -> Cmd LB.ByteString
+readFileLB :: Config r => SysPath -> Action r s LB.ByteString
 readFileLB sp = io . LB.readFile $ sp ^. isoFilePath
 
-readFileT :: SysPath -> Cmd Text
+readFileT :: Config r => SysPath -> Action r s Text
 readFileT sp = io . T.readFile $ sp ^. isoFilePath
 
-readFileT' :: SysPath -> Cmd Text
+readFileT' :: Config r => SysPath -> Action r s Text
 readFileT' fp = do
   ex <- fileExist fp
   if ex
     then readFileT fp
     else return mempty
 
-writeFileT :: SysPath -> Text -> Cmd ()
+writeFileT :: Config r => SysPath -> Text -> Action r s ()
 writeFileT sp = io . T.writeFile (sp ^. isoFilePath)
 
-writeFileLT :: SysPath -> LazyText -> Cmd ()
+writeFileLT :: Config r => SysPath -> LazyText -> Action r s ()
 writeFileLT sp = io . LT.writeFile (sp ^. isoFilePath)
 
-removeFile :: SysPath -> Cmd ()
+removeFile :: Config r => SysPath -> Action r s ()
 removeFile sp = io . D.removeFile $ sp ^. isoFilePath
 
-renameFile :: SysPath -> SysPath -> Cmd ()
+renameFile :: Config r => SysPath -> SysPath -> Action r s ()
 renameFile old new = io $ X.rename (old ^. isoFilePath) (new ^. isoFilePath)
 
 -- try to make a hard link, if that fails copy file
 
-linkFile :: SysPath -> SysPath -> Cmd ()
+linkFile :: Config r => SysPath -> SysPath -> Action r s ()
 linkFile oldf newf =
   (io $ X.createLink old new)
   `catchError`
@@ -129,16 +127,16 @@ linkFile oldf newf =
     old = oldf ^. isoFilePath
     new = newf ^. isoFilePath
 
-createDir :: SysPath -> Cmd ()
+createDir :: Config r => SysPath -> Action r s ()
 createDir sp = io . D.createDirectoryIfMissing True $ sp ^. isoFilePath
 
-removeDir :: SysPath -> Cmd ()
+removeDir :: Config r => SysPath -> Action r s ()
 removeDir sp = io . D.removeDirectoryRecursive $ sp ^. isoFilePath
 
-getWorkingDirectory :: Cmd FilePath
+getWorkingDirectory :: Config r => Action r s FilePath
 getWorkingDirectory = io X.getWorkingDirectory
 
-readDir :: SysPath -> Cmd [FilePath]
+readDir :: Config r => SysPath -> Action r s [FilePath]
 readDir sp = io $ do
   s  <- X.openDirStream (sp ^. isoFilePath)
   xs <- readDirEntries s
@@ -153,22 +151,22 @@ readDir sp = io $ do
           es <- readDirEntries s
           return (e1 : es)
 
-putStrLnLB :: LB.ByteString -> Cmd ()
+putStrLnLB :: Config r => LB.ByteString -> Action r s ()
 putStrLnLB = io . LB.putStrLn
 
-putStrLn' :: String -> Cmd ()
+putStrLn' :: Config r => String -> Action r s ()
 putStrLn' = io . putStrLn
 
 -- ----------------------------------------
 
-atThisMoment :: Cmd UTCTime
+atThisMoment :: Config r => Action r s UTCTime
 atThisMoment = io C.getCurrentTime
+
+nowAsIso8601 :: Config r => Action r s String
+nowAsIso8601 = formatTimeIso8601 <$> atThisMoment
 
 formatTimeIso8601 :: UTCTime -> String
 formatTimeIso8601 =
   C.formatTime C.defaultTimeLocale (C.iso8601DateFormat (Just "%H:%M:%S"))
-
-nowAsIso8601 :: Cmd String
-nowAsIso8601 = formatTimeIso8601 <$> atThisMoment
 
 -- ----------------------------------------
