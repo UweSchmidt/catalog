@@ -50,17 +50,43 @@ appname = "client"
 -- ----------------------------------------
 
 main :: IO ()
-main = mainWithArgs appname $ \ cenv -> do
-  env <- initCEnv cenv
-  res <- runCCmd env catalogClient
+main = mainWithArgs appname $ \ env -> do
+  env' <- initCEnv env
+  res  <- runCCmd env' catalogClient
   exitWith $
     either (const $ ExitFailure 1) (const ExitSuccess) $ res
 
+-- ----------------------------------------
+
 catalogClient :: CCmd ()
 catalogClient = do
+  c <- view envClientCmd
   p <- view envPath
-  r <- reqCmd $ TheCollection p
-  io $ print r
+  case c of
+    CEntry -> do
+      r <- reqCmd $ TheCollection p
+      io $ print r
+    _ -> do
+      abort $ (prismString # c) ++ " command not yet implemented"
+
+-- ----------------------------------------
+
+data ClientCmd = CEntry | CDownload
+  deriving (Show, Read, Enum, Bounded, Eq, Ord)
+
+instance PrismString ClientCmd where
+  prismString = prism' show'ccmd read'ccmd
+
+show'ccmd :: ClientCmd -> String
+show'ccmd = drop 1 . map toLower . show
+
+read'ccmd :: String -> Maybe ClientCmd
+read'ccmd =
+  readMaybe . (\ (x : xs) -> 'C' : toUpper x : xs) . (++ " ")
+
+client'cmds :: String
+client'cmds =
+  intercalate ", " [show'ccmd c | c <- [minBound .. maxBound]]
 
 -- ----------------------------------------
 
@@ -299,6 +325,7 @@ data CEnv = CEnv
   , _host        :: ByteString
   , _port        :: Int
   , _path        :: Path
+  , _ccmd        :: ClientCmd
   , _reqtype     :: ReqType
   , _geo         :: Geo
   , _downloaddir :: FilePath
@@ -316,6 +343,7 @@ mkCEnv :: Bool
        -> ByteString
        -> Int
        -> Path
+       -> ClientCmd
        -> ReqType
        -> Geo
        -> FilePath
@@ -332,6 +360,7 @@ defaultCEnv = CEnv
   , _host         = "localhost"
   , _port         = 3001
   , _path         = ""
+  , _ccmd         = CEntry
   , _reqtype      = RImg
   , _geo          = Geo 1 1
   , _downloaddir  = "."
@@ -364,6 +393,9 @@ envPort k e = (\ new -> e {_port = new}) <$> k (_port e)
 
 envPath :: Lens' CEnv Path
 envPath k e = (\ new -> e {_path = new}) <$> k (_path e)
+
+envClientCmd :: Lens' CEnv ClientCmd
+envClientCmd k e = (\ new -> e {_ccmd = new}) <$> k (_ccmd e)
 
 envReqType :: Lens' CEnv ReqType
 envReqType k e = (\ new -> e {_reqtype = new}) <$> k (_reqtype e)
@@ -436,6 +468,16 @@ envp = mkCEnv
           <> value "/archive"
           <> help "The collection path to be processed"
       )
+  <*> option ccmdReader
+      ( long "cmd"
+        <> short 'c'
+        <> help ( "The client command, one of ["
+                  ++ client'cmds
+                  ++ "], default: entry"
+                )
+        <> value CEntry
+        <> metavar "COMMAND"
+      )
   <*> option imgReqReader
       ( long "img-variant"
         <> short 'i'
@@ -461,14 +503,15 @@ envp = mkCEnv
   <*> pure (defaultCEnv ^. envLogOp)
   <*> pure (defaultCEnv ^. envManager)
 
-geoReader :: ReadM Geo
-geoReader = eitherReader parse
+
+ccmdReader :: ReadM ClientCmd
+ccmdReader = eitherReader parse
   where
     parse arg =
       maybe
-        (Left $ "Wrong geometry: " ++ arg)
+        (Left $ "Wrong client command: " ++ arg)
         Right
-        (readGeo' arg)
+        (arg ^? prismString)
 
 imgReqReader :: ReadM ReqType
 imgReqReader = eitherReader parse
@@ -478,6 +521,15 @@ imgReqReader = eitherReader parse
         (Left $ "Wrong image format: " ++ arg)
         Right
         (arg ^? prismString)
+
+geoReader :: ReadM Geo
+geoReader = eitherReader parse
+  where
+    parse arg =
+      maybe
+        (Left $ "Wrong geometry: " ++ arg)
+        Right
+        (readGeo' arg)
 
 
 -- ----------------------------------------
