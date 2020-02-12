@@ -24,9 +24,9 @@ executable catalog-client
 --                     , http-api-data
 --                     , http-media
                      , http-types
---                     , lens
                      , monad-reader-state-err-io
                      , mtl
+                     , optparse-applicative
                      , text
 
 

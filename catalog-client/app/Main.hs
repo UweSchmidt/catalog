@@ -29,116 +29,38 @@ import           Network.HTTP.Types.Method ( Method )
 import           Network.HTTP.Types.Status ( statusCode
                                            , statusMessage
                                            )
+import           Options.Applicative
 import           System.IO
-
--- ----------------------------------------
-
-data CEnv = CEnv
-  { _trc         :: Bool
-  , _verbose     :: Bool
-  , _host        :: ByteString
-  , _port        :: Int
-  , _path        :: Path
-  , _geo         :: Geo
-  , _logOp       :: String -> IO ()
-  , _manager     :: Manager
-  }
-
-instance Config CEnv where
-  traceOn   e = e ^. envTrc
-  verboseOn e = e ^. envVerbose
-  getLogOp  e = e ^. envLogOp
-
-mkCEnv :: Bool
-       -> Bool
-       -> ByteString
-       -> Int
-       -> Path
-       -> Geo
-       -> (String -> IO ())
-       -> Manager
-       -> CEnv
-mkCEnv = CEnv
-
-
-defaultCEnv :: CEnv
-defaultCEnv = CEnv
-  { _trc          = False
-  , _verbose      = False
-  , _host         = "localhost"
-  , _port         = 3001
-  , _path         = ""
-  , _geo          = Geo 1 1
-  , _logOp        = defaultLogger
-  , _manager      = defaultManager
-  }
-
-initCEnv :: CEnv -> IO CEnv
-initCEnv env = do
-  manager <- newManager defaultManagerSettings
-  return (env & envManager .~ manager)
-
-defaultLogger :: String -> IO ()
-defaultLogger = hPutStr stderr
-
-defaultManager :: Manager
-defaultManager = undefined
-
-envTrc :: Lens' CEnv Bool
-envTrc k e = (\ new -> e {_trc = new}) <$> k (_trc e)
-
-envVerbose :: Lens' CEnv Bool
-envVerbose k e = (\ new -> e {_verbose = new}) <$> k (_verbose e)
-
-envHost :: Lens' CEnv ByteString
-envHost k e = (\ new -> e {_host = new}) <$> k (_host e)
-
-envPort :: Lens' CEnv Int
-envPort k e = (\ new -> e {_port = new}) <$> k (_port e)
-
-envPath :: Lens' CEnv Path
-envPath k e = (\ new -> e {_path = new}) <$> k (_path e)
-
-envGeo :: Lens' CEnv Geo
-envGeo k e = (\ new -> e {_geo = new}) <$> k (_geo e)
-
-envLogOp :: Lens' CEnv (String -> IO ())
-envLogOp k e = (\ new -> e {_logOp = new}) <$> k (_logOp e)
-
-envManager :: Lens' CEnv Manager
-envManager k e = (\ new -> e {_manager = new}) <$> k (_manager e)
+import           System.Exit
 
 -- --------------------
+--
+-- version of the software
+-- version number is updated automatically
 
-type CState = ()
+version :: String
+version = "0.2.3.14"
 
-emptyCState :: CState
-emptyCState = ()
+date :: String
+date = "2020-02-10"
 
--- --------------------
-
-type CCmd   = Action CEnv CState
-
-runCCmd :: CEnv -> CCmd a -> IO (Either Msg a)
-runCCmd env cmd = fst <$> runAction cmd env emptyCState
+appname :: String
+appname = "client"
 
 -- ----------------------------------------
 
 main :: IO ()
-main = do
-  env <- initCEnv defaultCEnv
-  res <- runCCmd env (return ())
-  either (error . show) return res
+main = mainWithArgs appname $ \ cenv -> do
+  env <- initCEnv cenv
+  res <- runCCmd env catalogClient
+  exitWith $
+    either (const $ ExitFailure 1) (const ExitSuccess) $ res
 
-main1 :: Show a => CCmd a -> IO ()
-main1 cmd = do
-  env <- initCEnv defaultCEnv
-  res <- runCCmd env (cmd)
-  print res -- either (error . show) return res
-  return ()
-
-t1 :: IO ()
-t1 = main1 (reqCmd $ TheCollection $ readPath "/archive/photos")
+catalogClient :: CCmd ()
+catalogClient = do
+  p <- view envPath
+  r <- reqCmd $ TheCollection p
+  io $ print r
 
 -- ----------------------------------------
 
@@ -350,5 +272,212 @@ jsonDecode lbs =
     (abort "JSON decode error")
     return
     (decode lbs)
+
+-- --------------------
+--
+-- the client monad, a reader-state-error-io monad
+
+type CCmd   = Action CEnv CState
+
+runCCmd :: CEnv -> CCmd a -> IO (Either Msg a)
+runCCmd env cmd = fst <$> runAction cmd env emptyCState
+
+-- --------------------
+--
+-- the app state, currently empty
+
+type CState = ()
+
+emptyCState :: CState
+emptyCState = ()
+
+-- ----------------------------------------
+
+data CEnv = CEnv
+  { _trc         :: Bool
+  , _verbose     :: Bool
+  , _host        :: ByteString
+  , _port        :: Int
+  , _path        :: Path
+  , _reqtype     :: ReqType
+  , _geo         :: Geo
+  , _downloaddir :: FilePath
+  , _logOp       :: String -> IO ()
+  , _manager     :: Manager
+  }
+
+instance Config CEnv where
+  traceOn   e = e ^. envTrc
+  verboseOn e = e ^. envVerbose
+  getLogOp  e = e ^. envLogOp
+
+mkCEnv :: Bool
+       -> Bool
+       -> ByteString
+       -> Int
+       -> Path
+       -> ReqType
+       -> Geo
+       -> FilePath
+       -> (String -> IO ())
+       -> Manager
+       -> CEnv
+mkCEnv = CEnv
+
+
+defaultCEnv :: CEnv
+defaultCEnv = CEnv
+  { _trc          = False
+  , _verbose      = False
+  , _host         = "localhost"
+  , _port         = 3001
+  , _path         = ""
+  , _reqtype      = RImg
+  , _geo          = Geo 1 1
+  , _downloaddir  = "."
+  , _logOp        = defaultLogger
+  , _manager      = defaultManager
+  }
+
+initCEnv :: CEnv -> IO CEnv
+initCEnv env = do
+  manager <- newManager defaultManagerSettings
+  return (env & envManager .~ manager)
+
+defaultLogger :: String -> IO ()
+defaultLogger = hPutStr stderr
+
+defaultManager :: Manager
+defaultManager = undefined
+
+envTrc :: Lens' CEnv Bool
+envTrc k e = (\ new -> e {_trc = new}) <$> k (_trc e)
+
+envVerbose :: Lens' CEnv Bool
+envVerbose k e = (\ new -> e {_verbose = new}) <$> k (_verbose e)
+
+envHost :: Lens' CEnv ByteString
+envHost k e = (\ new -> e {_host = new}) <$> k (_host e)
+
+envPort :: Lens' CEnv Int
+envPort k e = (\ new -> e {_port = new}) <$> k (_port e)
+
+envPath :: Lens' CEnv Path
+envPath k e = (\ new -> e {_path = new}) <$> k (_path e)
+
+envReqType :: Lens' CEnv ReqType
+envReqType k e = (\ new -> e {_reqtype = new}) <$> k (_reqtype e)
+
+envGeo :: Lens' CEnv Geo
+envGeo k e = (\ new -> e {_geo = new}) <$> k (_geo e)
+
+envDownload :: Lens' CEnv FilePath
+envDownload k e = (\ new -> e {_downloaddir = new}) <$> k (_downloaddir e)
+
+envLogOp :: Lens' CEnv (String -> IO ())
+envLogOp k e = (\ new -> e {_logOp = new}) <$> k (_logOp e)
+
+envManager :: Lens' CEnv Manager
+envManager k e = (\ new -> e {_manager = new}) <$> k (_manager e)
+
+-- ----------------------------------------
+--
+-- cmd line option parsing
+--
+
+mainWithArgs :: String -> (CEnv -> IO ()) -> IO ()
+mainWithArgs theAppName theAppMain =
+  execParser (appInfo theAppName)
+  >>= theAppMain
+
+appInfo :: String -> ParserInfo CEnv
+appInfo pname =
+  info (envp <**> helper)
+  ( fullDesc
+    <> progDesc "download collections and images from catalog"
+    <> header ("catalog-" ++ pname ++ " - " ++ version ++ " (" ++ date ++ ")")
+  )
+
+envp :: Parser CEnv
+envp = mkCEnv
+  <$> ( flag (defaultCEnv ^. envTrc) True
+        ( long "trc"
+          <> short 't'
+          <> help "Turn on trace output"
+        )
+      )
+  <*> ( flag (defaultCEnv ^. envVerbose) True
+        ( long "verbose"
+          <> short 'v'
+          <> help "Turn on verbose output"
+        )
+      )
+  <*> strOption
+      ( long "host"
+        <> short 'H'
+        <> metavar "HOST"
+        <> showDefault
+        <> value "localhost"
+        <> help "The host for the catalog server"
+      )
+  <*> option auto
+      ( long "port"
+        <> short 'P'
+        <> help "The port listened at by the catalog server"
+        <> showDefault
+        <> value 3001
+        <> metavar "PORT"
+      )
+  <*> strOption
+      ( long "path"
+          <> short 'p'
+          <> metavar "PATH"
+          <> showDefault
+          <> value "/archive"
+          <> help "The collection path to be processed"
+      )
+  <*> option imgReqReader
+      ( long "img-variant"
+        <> short 'i'
+        <> help "The image variant: img, icon, iconp, default: img"
+        <> value RImg
+        <> metavar "IMG-VARIANT"
+      )
+  <*> option geoReader
+      ( long "geometry"
+        <> short 'g'
+        <> help "The image geometry: <width>x<height> or org (original size)"
+        <> value (Geo 1 1)
+        <> metavar "GEOMETRY"
+      )
+  <*> strOption
+      ( long "download"
+          <> short 'd'
+          <> metavar "DOWNLOAD-DIR"
+          <> showDefault
+          <> value "."
+          <> help "The dir to store downloads"
+      )
+  <*> pure (defaultCEnv ^. envLogOp)
+  <*> pure (defaultCEnv ^. envManager)
+
+geoReader :: ReadM Geo
+geoReader = eitherReader parse
+  where
+    parse arg =
+      maybe
+        (Left $ "Wrong geometry: " ++ arg)
+        Right
+        (readGeo' arg)
+
+imgReqReader :: ReadM ReqType
+imgReqReader = eitherReader parse
+  where
+    parse arg =
+      maybe
+        (Left $ "Wrong image format: " ++ arg)
+        Right
+        (arg ^? prismString)
+
 
 -- ----------------------------------------

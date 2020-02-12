@@ -122,13 +122,17 @@ rImgRef :: Lens' (Req'IdNode'ImgRef a) ImgRef
 rImgRef = rVal . _2 . _1
 
 instance IsoString ReqType where
-  isoString = iso toS frS
-    where
-      toS = drop 1 . map toLower . show
-      frS = fromMaybe RRef .
-            readMaybe .
-            (\ (x : xs) -> 'R' : toUpper x : xs) .
-            (++ " ")
+  isoString = iso show'ReqType (fromMaybe RRef . read'ReqType)
+
+instance PrismString ReqType where
+  prismString = prism' show'ReqType read'ReqType
+
+show'ReqType :: ReqType -> String
+show'ReqType = drop 1 . map toLower . show
+
+read'ReqType :: String -> Maybe ReqType
+read'ReqType =
+  readMaybe . (\ (x : xs) -> 'R' : toUpper x : xs) . (++ " ")
 
 toReq'IdNode :: Req'IdNode a -> Req'IdNode ()
 toReq'IdNode r = r & rVal . _2 .~ ()
