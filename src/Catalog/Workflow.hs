@@ -343,10 +343,7 @@ toRawPath r =
   where
     path' = r ^. rPath . isoString
     geo'  = "/" ++ r ^. rGeo  . isoString
-    pos'  = maybe mempty (\ i -> "/" ++ toS i) $ r ^. rPos
-
-    toS =
-      ("pic-" ++ ) . reverse . take 4 . reverse . ("0000" ++ ). show
+    pos'  = maybe mempty (('/' :) . (^. isoPicNo)) $ r ^. rPos
 
 -- --------------------
 --

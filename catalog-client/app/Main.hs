@@ -5,10 +5,11 @@
 module Main
 where
 
-import           Catalog.CmdAPI            ( Cmd'(..)
-                                           , ReqType(..)
-                                           )
+import           Catalog.CmdAPI
+import           Catalog.System.IO
+import           Catalog.FilePath          ( isoPicNo )
 import           Data.Prim
+import           Data.ImgNode
 
 import           Data.Aeson                ( decode
                                            , encode
@@ -58,20 +59,10 @@ main = mainWithArgs appname $ \ env -> do
 
 -- ----------------------------------------
 
-catalogClient :: CCmd ()
-catalogClient = do
-  c <- view envClientCmd
-  p <- view envPath
-  case c of
-    CEntry -> do
-      r <- reqCmd $ TheCollection p
-      io $ print r
-    _ -> do
-      abort $ (prismString # c) ++ " command not yet implemented"
-
--- ----------------------------------------
-
-data ClientCmd = CEntry | CDownload
+data ClientCmd
+  = CEntry
+  | CDownload
+  | CNotImpl
   deriving (Show, Read, Enum, Bounded, Eq, Ord)
 
 instance PrismString ClientCmd where
@@ -87,6 +78,107 @@ read'ccmd =
 client'cmds :: String
 client'cmds =
   intercalate ", " [show'ccmd c | c <- [minBound .. maxBound]]
+
+-- ----------------------------------------
+
+catalogClient :: CCmd ()
+catalogClient = do
+  c <- view envClientCmd
+  p <- view (envPath . isoString . from isoString)
+  case c of
+    CEntry ->
+      evalCEntry p >>= io . print
+
+    CDownload -> do
+      rt  <- view (envReqType  . isoString)
+      geo <- view  envGeo
+      d0  <- view  envDownload
+
+      -- dir hierachy equals cache hierachy in catalog server
+      let geo'
+            | geo == geo'org = orgGeo
+            | otherwise      = geo ^. isoString
+      let px = "docs" </> rt </> geo'
+
+      let d  = isoFilePath # d0
+      let d1 = isoFilePath # (d0 </> px)
+
+      dx  <- dirExist d
+      if dx
+        then evalCDownload d1 p
+        else abort $ "Download dir not found: " <> d0
+
+    _ -> do
+      abort $ (prismString # c) ++ " command not yet implemented"
+
+evalCEntry :: Path -> CCmd ImgNodeP
+evalCEntry p = do
+      trc $ unwords ["evalCEntry:", p ^. isoString]
+      r <- reqCmd $ TheCollection p
+      trc $ unwords ["res =", show r]
+      return r
+
+evalCDownload :: SysPath -> Path -> CCmd ()
+evalCDownload d p = do
+  -- pre: directory d already exists
+  trc $ unwords [ "evalCDownload:"
+                , p ^. isoString
+                ]
+
+  -- name clash with already existing directory
+  whenM (dirExist d') $
+    void $
+    abort $ unwords
+      [ "evalCDownload:"
+      , "dir already exists"
+      , d' ^. isoFilePath
+      , ", cleanup download dir"
+      , d ^. isoFilePath
+      ]
+
+  -- get collection from server
+  n <- evalCEntry p
+  unless (isCOL n) $
+    abort $ unwords
+      [ "evalCDownload:"
+      , "no collection found for path"
+      , p ^. isoString
+      ]
+
+  -- create download subdir
+  createDir d'
+
+  -- download all collection entries
+  forM_ (zip [(0::Int) ..] $ n ^. theColEntries . isoSeqList) $
+    \ (i, ce) -> colEntry (dli p i) (dlc) ce
+
+  where
+    d' = d & isoFilePath %~ (<> p ^. isoString)
+
+    -- download an image
+    dli :: Path -> Int -> Path -> Name -> CCmd ()
+    dli dpath pos _ipath _ipart = do
+      rt  <- view envReqType
+      geo <- view envGeo
+
+      trc $ unwords
+        [ "evalCDownload:"
+        , "download JPG image copy to"
+        , sp ^. isoFilePath
+        ]
+
+      lbs <- reqCmd (JpgImgCopy rt geo pp)
+      writeFileLB sp lbs
+      where
+        pn :: String
+        pn = pos ^. isoPicNo
+        sn = "/" <> pn <> ".jpg"
+        pp = dpath `snocPath` mkName pn
+        sp = d' & isoFilePath %~ (<> sn)
+
+    -- download a subcollection: recursive call
+    dlc :: Path -> CCmd ()
+    dlc cpath = evalCDownload d cpath
 
 -- ----------------------------------------
 
@@ -262,6 +354,7 @@ basicReq method' setBody path' = do
         , port   = port'
         , path   = path' ^. isoString . from isoString
         }
+  verbose $ show'basicReq request
 
   manager  <- view envManager
   response <- liftIO $ httpLbs request manager
@@ -279,6 +372,16 @@ basicReq method' setBody path' = do
 
   return
     (responseBody response)
+
+show'basicReq :: Request -> String
+show'basicReq r =
+  unwords [ method r ^. isoString
+          , "http://"
+            <> host r ^. isoString
+            <> ":"
+            <> show (port r)
+            <> path r ^. isoString
+          ]
 
 setReqBodyJSON :: LazyByteString -> Request -> Request
 setReqBodyJSON body' req =
@@ -374,7 +477,7 @@ initCEnv env = do
   return (env & envManager .~ manager)
 
 defaultLogger :: String -> IO ()
-defaultLogger = hPutStr stderr
+defaultLogger = hPutStrLn stderr
 
 defaultManager :: Manager
 defaultManager = undefined
