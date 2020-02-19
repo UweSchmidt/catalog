@@ -201,21 +201,32 @@ buildCmd3 rotate d'g s'geo d' s'
     r           = rGeo  aspect
 
     rGeo Fix    = d'geo
+    rGeo Flex
+      | similAR = d'geo
     rGeo _      = resizeGeo s'geo d'geo
 
     crGeo Fix   = cropGeo s'geo d'geo
     crGeo Pad   = (s'geo, Geo (-1) (-1))
     crGeo Crop  = (s'geo, Geo 0 0)
+    crGeo Flex
+      | similAR = crGeo Fix
+      | otherwise
+                = crGeo Pad
 
-    resize      = ["-thumbnail", geo ++ "!"]
-    resize1     = ( if isThumbnail
+    similAR   = similarAspectRatio s'geo d'geo
+
+    resize      = thumb ++ [geo ++ "!"]
+    resize1     = thumb ++ [d'geo ^. isoString]
+
+    thumb       = [ if isThumbnail
                     then "-thumbnail"
                     else "-resize"
-                  ) : [d'geo ^. isoString]
-    quality     = "-quality" : [ if isThumbnail
-                                 then "75"
-                                 else "90"
-                               ]
+                  ]
+    quality     = "-quality" :
+                  [ if isThumbnail
+                    then "75"
+                    else "90"
+                  ]
     interlace   = [ "-interlace", "Plane" ]
 
     isPad       = (xoff == (-1) && yoff == (-1))
@@ -224,37 +235,35 @@ buildCmd3 rotate d'g s'geo d' s'
     geo         = r ^. isoString
 
     -- for .tiff convert needs the layer # to be taken
-    -- if image contains thumbnail there are 2 layers in the .tiff file
+    -- if the image contains a thumbnail,
+    -- there are 2 layers in the .tiff file
     tiffLayer x
       | ".tif"  `isSuffixOf` x
         ||
         ".tiff" `isSuffixOf` x = x ++ "[0]"
       | otherwise              = x
 
-    cmdName
-        | isPad         = [ "convert", "-quiet" ] -- ["montage" ]
-        | otherwise     = [ "convert", "-quiet" ]
+    cmdName             = [ "convert", "-quiet" ]
 
     cmdArgs
         | isPad         = resize1
-                          ++ [ "-background", "'#333333'" ]
-                       -- ++ [ "-size", show (2*w) ++ "x" ++ show (2*h) ]
-                       -- this gives too low quality
+                          ++ quality ++ interlace
+                          -- ++ [ "-background", "'#333333'" ]
                           ++ [ s, d ]
+
         | isCrop        = [ "-crop", show cw ++ "x" ++ show ch ++ "+" ++
                             show xoff ++ "+" ++ show yoff
                           , s, "miff:-"
                           , "|"
                           , "convert"
                           ]
-                          ++ resize ++ quality
+                          ++ resize ++ quality ++ interlace
                           ++ ["miff:-", d ]
+
         | otherwise     = resize ++ [s, d]
 
     shellCmd    = unwords $
                   cmdName
-                  ++ interlace
-                  ++ quality
                   ++ rotate
                   ++ cmdArgs
 
@@ -278,9 +287,9 @@ resizeGeo' (Geo sw sh) (Geo dw dh)
 
 cropGeo         :: Geo -> Geo -> (Geo, Geo)
 cropGeo (Geo sw sh) (Geo dw dh)
-    | sw *dh >= dw * sh                 -- source wider than reqired
+    | sw * dh >= dw * sh                -- source wider than reqired
         = (Geo sw' sh, Geo xoff 0)
-    | otherwise                         -- sorce highter than required
+    | otherwise                         -- source higher than required
         = (Geo sw sh', Geo 0 yoff)
     where
     sw'  = dw * sh `div` dh
@@ -289,6 +298,21 @@ cropGeo (Geo sw sh) (Geo dw dh)
     yoff = (sh - sh') `div` 3           -- cut off 1/3 from top and 2/3 from bottom
                                         -- else important parts like heads
                                         -- are cut off (Ouch!!)
+
+similarAspectRatio :: Geo -> Geo -> Bool
+similarAspectRatio (Geo sw sh) (Geo dw dh) =
+  dr >= sr / sf
+  &&
+  dr <= sr * sf
+  where
+    td :: Int -> Double
+    td = fromInteger . toInteger
+
+    sf :: Double  -- similarity factor
+    sf = 1.2
+
+    sr = td sw / td sh
+    dr = td dw / td dh
 
 -- ----------------------------------------
 

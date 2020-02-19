@@ -92,6 +92,8 @@ catalogServer env runR runM =
     :<|>
     get'img
     :<|>
+    get'imgfx
+    :<|>
     ( get'html
       :<|>
       get'html1
@@ -168,6 +170,9 @@ catalogServer env runR runM =
 
     get'img  :: Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
     get'img  = get'img' RImg
+
+    get'imgfx  :: Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
+    get'imgfx  = get'img' RImgfx
 
     get'img' :: ReqType
              -> Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString

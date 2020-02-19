@@ -76,6 +76,8 @@ type NewDocAPI
       :<|>
       ImgAPI
       :<|>
+      ImgfxAPI
+      :<|>
       PageAPI
       :<|>
       MovieAPI
@@ -109,6 +111,11 @@ type IconpAPI
 
 type ImgAPI
   = "img" :> Capture "geo" Geo':> CaptureAll "path" Text :>
+    Header "Referer" Text :>
+    Get '[JPEG] CachedByteString
+
+type ImgfxAPI
+  = "imgfx" :> Capture "geo" Geo':> CaptureAll "path" Text :>
     Header "Referer" Text :>
     Get '[JPEG] CachedByteString
 

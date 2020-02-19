@@ -100,7 +100,7 @@ flipGeo (Geo w h) = Geo h w
 
 -- ----------------------------------------
 
-data AspectRatio = Fix | Pad | Crop
+data AspectRatio = Fix | Pad | Crop | Flex
                  deriving (Eq, Ord, Enum, Bounded, Show, Read)
 
 instance IsoString AspectRatio where
