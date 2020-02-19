@@ -66,8 +66,8 @@ data ReqType = RPage    -- deliver HTML col-, img-, movie-, blog page  text/html
              | RBlog    -- ???
              | RRef     -- deliver an url, not a content
              | RMovie   -- currently redundant, movie files are served statically
-             deriving (Eq, Ord, Show, Read)
-             -- !!! naming convention of constr RXxxx used in isoString
+             deriving (Eq, Ord, Enum, Show, Read)
+             -- !!! nameing convention of constr RXxxx used in isoString
 
 data Req' a
   = Req' { _rType    :: ReqType      -- type
@@ -78,6 +78,9 @@ data Req' a
 
 type Req'IdNode                a = Req'              (IdNode,  a)
 type Req'IdNode'ImgRef         a = Req'IdNode        (ImgRef,  a)
+
+imgReqTypes :: [ReqType]
+imgReqTypes = [RIcon .. RImgfx]
 
 -- --------------------
 

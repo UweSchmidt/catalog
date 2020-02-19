@@ -8,6 +8,7 @@ where
 import           Catalog.CmdAPI
 import           Catalog.System.IO
 import           Catalog.FilePath          ( isoPicNo )
+import           Catalog.Workflow          ( imgReqTypes )
 import           Data.Prim
 import           Data.ImgNode
 
@@ -78,6 +79,10 @@ read'ccmd =
 client'cmds :: String
 client'cmds =
   intercalate ", " [show'ccmd c | c <- [minBound .. maxBound]]
+
+img'variants :: String
+img'variants =
+  intercalate ", " . map (^. isoString) $ imgReqTypes
 
 -- ----------------------------------------
 
@@ -584,7 +589,10 @@ envp = mkCEnv
   <*> option imgReqReader
       ( long "img-variant"
         <> short 'i'
-        <> help "The image variant: img, icon, iconp, default: img"
+        <> help ( "The image variant, one of ["
+                  ++ img'variants
+                  ++ "], default: img"
+                )
         <> value RImg
         <> metavar "IMG-VARIANT"
       )
