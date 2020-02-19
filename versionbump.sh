@@ -2,7 +2,7 @@
 
 # set -x
 
-version="0.2.4.1"
+version="0.2.4.2"
 dat=$(date "+%Y-%m-%d")
 
 LANG="en_US.UTF-8"
@@ -20,7 +20,7 @@ bump () {
         perl -p -i~ \
              -e 's/"[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+"/"'"$version"'"/' \
              "$f"
-        # set the date, in quoted string format "2000-01-01"
+        # set the date, separator is word start, format 2000-01-01
         perl -p -i~ \
              -e 's/\b[0-9]{4}-[0-9]{2}-[0-9]{2}\b/'"$dat"'/' \
              "$f"
