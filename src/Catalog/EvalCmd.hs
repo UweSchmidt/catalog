@@ -19,8 +19,7 @@ import Catalog.FilePath        ( splitDirFileExt
                                , isoPicNo
                                )
 
-import Catalog.Workflow        ( ReqType(..)
-                               , Req'
+import Catalog.Workflow        ( Req'
                                , PathPos
                                , emptyReq'
                                , processReqImg
