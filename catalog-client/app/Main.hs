@@ -61,9 +61,10 @@ main = mainWithArgs appname $ \ env -> do
 -- ----------------------------------------
 
 data ClientCmd
-  = CEntry
-  | CDownload
-  | CNotImpl
+  = CDownload       -- download a collection tree
+  | CLs             -- list subcollections
+  | CEntry          -- dump an entry in the catalog hierachy
+  | CNotImpl        -- dummy for all the not yet needed commands
   deriving (Show, Read, Enum, Bounded, Eq, Ord)
 
 instance PrismString ClientCmd where
@@ -94,6 +95,9 @@ catalogClient = do
     CEntry ->
       evalCEntry p >>= io . print
 
+    CLs ->
+      evalCLs p >>= io . sequenceA_ . map print
+
     CDownload -> do
       rt  <- view (envReqType  . isoString)
       geo <- view  envGeo
@@ -122,6 +126,17 @@ evalCEntry p = do
       r <- reqCmd $ TheCollection p
       trc $ unwords ["res =", show r]
       return r
+
+evalCLs :: Path -> CCmd [Path]
+evalCLs p = do
+      trc $ unwords ["evalCLs:", p ^. isoString]
+      subcols <$> reqCmd (TheCollection p)
+  where
+    subcols :: ImgNodeP -> [Path]
+    subcols n
+      | isCOL  n  = n ^.. theColEntries . traverse . theColColRef
+      | isROOT n  = n ^.. theRootImgCol
+      | otherwise = []
 
 evalCDownload :: SysPath -> Path -> CCmd ()
 evalCDownload d p = do
