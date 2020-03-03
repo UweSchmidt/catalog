@@ -1,6 +1,7 @@
 catalog/
 catalog-server
 catalog-sync
+catalog-servant*
 photos
 cache
 Alben
