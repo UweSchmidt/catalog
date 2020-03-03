@@ -15,12 +15,9 @@ import Catalog.Cmd
 import Catalog.CmdAPI
 import Catalog.JsonCommands
 
-import Catalog.FilePath        ( splitDirFileExt
-                               , isoPicNo
-                               )
-
 import Catalog.Workflow        ( Req'
                                , PathPos
+                               , isoPathPos
                                , emptyReq'
                                , processReqImg
                                , processReqPage
@@ -108,16 +105,16 @@ evalCmd (IsCollection p) =
   read'isCollection p
 
 evalCmd (TheBlogContents pos p) =
-  path2node p >>= read'blogcontents pos
+  getIdNode' p >>= uncurry (read'blogcontents pos)
 
 evalCmd (TheBlogSource pos p) =
-  path2node p >>= read'blogsource pos
+  getIdNode' p >>= uncurry (read'blogsource pos)
 
 evalCmd (TheMetaData pos p) =
-  path2node p >>= read'metadata pos
+  getIdNode' p >>= uncurry (read'metadata pos)
 
 evalCmd (TheRating pos p) =
-  path2node p >>= read'rating pos
+  getIdNode' p >>= uncurry (read'rating pos)
 
 evalCmd (TheRatings p) =
   path2node p >>= read'ratings
@@ -133,7 +130,7 @@ evalCmd (StaticFile dp bn) = do
   readStaticFile sp
 
 evalCmd (JpgImgCopy rt geo path)
-  | Just ppos <- path2colPath ".jpg" (path ^. isoString) =
+  | Just ppos <- path2colPath ".jpg" path =
       process ppos
   | otherwise =
       abort $ "illegal doc path " ++ show path
@@ -144,7 +141,7 @@ evalCmd (JpgImgCopy rt geo path)
        >>= readFileLB
 
 evalCmd (HtmlPage rt geo path)
-  | Just ppos <- path2colPath ".html" (path ^. isoString) =
+  | Just ppos <- path2colPath ".html" path =
       process ppos
   | otherwise =
       abort $ "illegal doc path " ++ show path
@@ -170,20 +167,9 @@ mkReq rt' geo' ppos' =
 -- example: path2colPath ".jpg" "collections/2018/may/pic-0007.jpg"
 --          -> Just ("/collections/2018/may", Just 7)
 
-path2colPath :: String -> FilePath -> Maybe PathPos
-path2colPath ext ps
-  | Just (dp, fn, ex) <- splitDirFileExt ps
-  , ex == ext =
-      Just $ buildPP dp fn
-  | otherwise =
-      Nothing
-  where
-    buildPP dp' fn'
-      | cx < 0    = (readPath $ dp' </> fn', Nothing)
-      | otherwise = (readPath   dp',         Just cx)
-      where
-        cx = fn' ^. from isoPicNo
-
+path2colPath :: String -> Path -> Maybe PathPos
+path2colPath ext p =
+  (^. isoPathPos) <$> checkAndRemExt ext p
 
 readStaticFile :: SysPath -> Cmd LazyByteString
 readStaticFile sp = do

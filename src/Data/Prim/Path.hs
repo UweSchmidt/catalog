@@ -16,6 +16,7 @@ module Data.Prim.Path
        , headPath
        , substPathName
        , substPathPrefix
+       , checkAndRemExt
        , remCommonPathPrefix
        , isPathPrefix
        , nullPath
@@ -146,6 +147,18 @@ substPathPrefix old'px new'px p0 =
       where
         (hpx, tpx) = px ^. viewTop
         (hp,  tp ) = p  ^. viewTop
+
+checkAndRemExt :: (Monoid n, Eq n, IsoString n)
+               => String -> Path' n -> Maybe (Path' n)
+checkAndRemExt ext p
+  | rext `isPrefixOf` rbn = Just $ viewBase # (dp, isoString # bn')
+  | otherwise             = Nothing
+  where
+    (dp, bn) = p ^. viewBase
+    rbn  = bn ^. isoString . to reverse
+    rext = reverse ext
+    bn'  = reverse . drop (length ext) $ rbn
+
 
 remCommonPathPrefix :: (Monoid n, Eq n) => Path' n -> Path' n -> (Path' n, Path' n)
 remCommonPathPrefix p1 p2

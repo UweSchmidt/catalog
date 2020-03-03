@@ -84,6 +84,11 @@ module Data.Prim.Prelude
        , whenM
        , unlessM
        , filterSeqM
+         -- pretty printing helper
+       , fillLeft
+       , fillRight
+       , fillLeftList
+       , fillRightList
        )
 where
 
@@ -446,3 +451,24 @@ filterSeqM p = foldM f mempty
 {-# INLINE filterSeqM #-}
 
 -- ----------------------------------------
+--
+-- pretty printing stuff
+
+fillLeft :: Char -> Int -> String -> String
+fillLeft c i xs = replicate (i - length xs) c ++ xs
+
+fillRight :: Char -> Int -> String -> String
+fillRight c i xs = xs ++ replicate (i - length xs) c
+
+fillLeftList :: Char -> [String] -> [String]
+fillLeftList = fillList fillLeft
+
+fillRightList :: Char -> [String] -> [String]
+fillRightList = fillList fillRight
+
+
+fillList :: (Char -> Int -> String -> String)
+         -> Char -> [String] -> [String]
+fillList ff c xs = map (ff c l) xs
+  where
+    l = maximum (0 : map length xs)

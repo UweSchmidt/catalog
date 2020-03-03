@@ -12,6 +12,7 @@ module Data.MetaData
   , selectByNames
   , selectByParser
   , lookupByNames
+  , prettyMD
 
   , clearAccess
   , addNoDeleteAccess
@@ -346,6 +347,20 @@ lookupByNames ns md =
   where
     vs = filter (not . isempty) $
          map (\ n -> md ^. metaDataAt n) ns
+
+-- ----------------------------------------
+
+keysMD :: MetaData -> [Name]
+keysMD (MD mp) = map (isoText #) . HM.keys $ mp
+
+prettyMD :: MetaData -> [String]
+prettyMD md = sort $ zipWith (<:>) keys' attrs
+  where
+    keys  = keysMD md
+    keys' = fillRightList ' ' . map (^.isoString) $ keys
+    attrs = map (\ k ->  md ^. metaDataAt k . isoString) $ keys
+
+    xs <:> ys = xs ++ " : " ++ ys
 
 -- ----------------------------------------
 --

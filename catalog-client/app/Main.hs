@@ -8,13 +8,21 @@ where
 import           Catalog.CmdAPI
 import           Catalog.System.IO
 import           Catalog.FilePath          ( isoPicNo )
-import           Catalog.Workflow          ( imgReqTypes )
-import           Data.Prim
+import           Catalog.Workflow          ( PathPos
+                                           , imgReqTypes
+                                           , isoPathPos
+                                           )
+import           Data.Prim          hiding ( argument )
 import           Data.ImgNode
-
+import           Data.MetaData             ( prettyMD
+                                           , selectByParser
+                                           )
 import           Data.Aeson                ( decode
                                            , encode
                                            )
+import           Text.SimpleParser         ( SP )
+import qualified Text.SimpleParser   as SP
+
 import           Control.Monad.ReaderStateErrIO
 
 import           Network.HTTP.Client       ( Request(..)
@@ -60,26 +68,14 @@ main = mainWithArgs appname $ \ env -> do
 
 -- ----------------------------------------
 
-data ClientCmd
-  = CDownload       -- download a collection tree
-  | CLs             -- list subcollections
-  | CEntry          -- dump an entry in the catalog hierachy
-  | CNotImpl        -- dummy for all the not yet needed commands
-  deriving (Show, Read, Enum, Bounded, Eq, Ord)
+data CC
+  = CC'ls       Path
+  | CC'md       PathPos KeyParser
+  | CC'entry    Path
+  | CC'download Path ReqType Geo FilePath
+  | CC'noop
 
-instance PrismString ClientCmd where
-  prismString = prism' show'ccmd read'ccmd
-
-show'ccmd :: ClientCmd -> String
-show'ccmd = drop 1 . map toLower . show
-
-read'ccmd :: String -> Maybe ClientCmd
-read'ccmd =
-  readMaybe . (\ (x : xs) -> 'C' : toUpper x : xs) . (++ " ")
-
-client'cmds :: String
-client'cmds =
-  intercalate ", " [show'ccmd c | c <- [minBound .. maxBound]]
+type KeyParser = SP String
 
 img'variants :: String
 img'variants =
@@ -89,36 +85,35 @@ img'variants =
 
 catalogClient :: CCmd ()
 catalogClient = do
-  c <- view envClientCmd
-  p <- view (envPath . isoString . from isoString)
+  c <- view envCC
+  -- p <- view (envPath . isoString . from isoString)
   case c of
-    CEntry ->
+    CC'entry p ->
       evalCEntry p >>= io . print
 
-    CLs ->
+    CC'ls p ->
       evalCLs p >>= io . sequenceA_ . map print
 
-    CDownload -> do
-      rt  <- view (envReqType  . isoString)
-      geo <- view  envGeo
-      d0  <- view  envDownload
+    CC'md pp keys ->
+      evalCMetaData pp keys >>= io . sequenceA_ . map putStrLn . prettyMD
 
+    CC'download p rt geo d0 -> do
       -- dir hierachy equals cache hierachy in catalog server
       let geo'
             | geo == geo'org = orgGeo
             | otherwise      = geo ^. isoString
-      let px = "docs" </> rt </> geo'
+      let px = "docs" </> (rt ^. isoString) </> geo'
 
       let d  = isoFilePath # d0
       let d1 = isoFilePath # (d0 </> px)
 
       dx  <- dirExist d
       if dx
-        then evalCDownload d1 p
+        then evalCDownload rt geo d1 p
         else abort $ "Download dir not found: " <> d0
 
-    _ -> do
-      abort $ (prismString # c) ++ " command not yet implemented"
+    CC'noop ->
+      trc $ "nothing to do"
 
 evalCEntry :: Path -> CCmd ImgNodeP
 evalCEntry p = do
@@ -138,8 +133,17 @@ evalCLs p = do
       | isROOT n  = n ^.. theRootImgCol
       | otherwise = []
 
-evalCDownload :: SysPath -> Path -> CCmd ()
-evalCDownload d p = do
+evalCMetaData :: PathPos -> KeyParser -> CCmd MetaData
+evalCMetaData pp@(p, cx) keyP = do
+      trc $ unwords ["evalCMetaData:", from isoString . isoPathPos # pp]
+      r <- (^. selectByParser keyP)
+           <$>
+           (reqCmd $ TheMetaData (fromMaybe (-1) cx) p)
+      trc $ unwords ["res =", show r]
+      return r
+
+evalCDownload :: ReqType -> Geo -> SysPath -> Path -> CCmd ()
+evalCDownload rt geo d p = do
   -- pre: directory d already exists
   trc $ unwords [ "evalCDownload:"
                 , p ^. isoString
@@ -178,8 +182,6 @@ evalCDownload d p = do
     -- download an image
     dli :: Path -> Int -> Path -> Name -> CCmd ()
     dli dpath pos _ipath _ipart = do
-      rt  <- view envReqType
-      geo <- view envGeo
 
       trc $ unwords
         [ "evalCDownload:"
@@ -198,7 +200,7 @@ evalCDownload d p = do
 
     -- download a subcollection: recursive call
     dlc :: Path -> CCmd ()
-    dlc cpath = evalCDownload d cpath
+    dlc cpath = evalCDownload rt geo d cpath
 
 -- ----------------------------------------
 
@@ -441,17 +443,15 @@ emptyCState :: CState
 emptyCState = ()
 
 -- ----------------------------------------
+--
+-- environment and command line IF
 
 data CEnv = CEnv
   { _trc         :: Bool
   , _verbose     :: Bool
   , _host        :: ByteString
   , _port        :: Int
-  , _path        :: Path
-  , _ccmd        :: ClientCmd
-  , _reqtype     :: ReqType
-  , _geo         :: Geo
-  , _downloaddir :: FilePath
+  , _cc          :: CC
   , _logOp       :: String -> IO ()
   , _manager     :: Manager
   }
@@ -461,35 +461,38 @@ instance Config CEnv where
   verboseOn e = e ^. envVerbose
   getLogOp  e = e ^. envLogOp
 
-mkCEnv :: Bool
-       -> Bool
-       -> ByteString
-       -> Int
-       -> Path
-       -> ClientCmd
-       -> ReqType
-       -> Geo
-       -> FilePath
-       -> (String -> IO ())
-       -> Manager
-       -> CEnv
-mkCEnv = CEnv
-
-
 defaultCEnv :: CEnv
 defaultCEnv = CEnv
   { _trc          = False
   , _verbose      = False
   , _host         = "localhost"
   , _port         = 3001
-  , _path         = ""
-  , _ccmd         = CEntry
-  , _reqtype      = RImg
-  , _geo          = Geo 1 1
-  , _downloaddir  = "."
+  , _cc           = CC'noop
   , _logOp        = defaultLogger
   , _manager      = defaultManager
   }
+
+defaultPath :: Path
+defaultPath = "/archive"
+
+----------------------
+--
+-- the constructor used in commandline option parsing
+
+mkCEnv :: (Bool, Bool)
+       -> (ByteString, Int)
+       -> CC
+       -> CEnv
+mkCEnv (trc', verbose')
+       (host', port')
+       cc' =
+  CEnv trc' verbose'
+       host' port'
+       cc'
+       defaultLogger
+       defaultManager
+
+-- --------------------
 
 initCEnv :: CEnv -> IO CEnv
 initCEnv env = do
@@ -514,20 +517,8 @@ envHost k e = (\ new -> e {_host = new}) <$> k (_host e)
 envPort :: Lens' CEnv Int
 envPort k e = (\ new -> e {_port = new}) <$> k (_port e)
 
-envPath :: Lens' CEnv Path
-envPath k e = (\ new -> e {_path = new}) <$> k (_path e)
-
-envClientCmd :: Lens' CEnv ClientCmd
-envClientCmd k e = (\ new -> e {_ccmd = new}) <$> k (_ccmd e)
-
-envReqType :: Lens' CEnv ReqType
-envReqType k e = (\ new -> e {_reqtype = new}) <$> k (_reqtype e)
-
-envGeo :: Lens' CEnv Geo
-envGeo k e = (\ new -> e {_geo = new}) <$> k (_geo e)
-
-envDownload :: Lens' CEnv FilePath
-envDownload k e = (\ new -> e {_downloaddir = new}) <$> k (_downloaddir e)
+envCC :: Lens' CEnv CC
+envCC k e = (\ new -> e {_cc = new}) <$> k (_cc e)
 
 envLogOp :: Lens' CEnv (String -> IO ())
 envLogOp k e = (\ new -> e {_logOp = new}) <$> k (_logOp e)
@@ -547,14 +538,22 @@ mainWithArgs theAppName theAppMain =
 
 appInfo :: String -> ParserInfo CEnv
 appInfo pname =
-  info (envp <**> helper)
+  info (helper <*> envp)
   ( fullDesc
-    <> progDesc "download collections and images from catalog"
+    <> progDesc "query, modify and download collections from catalog"
     <> header ("catalog-" ++ pname ++ " - " ++ version ++ " (" ++ date ++ ")")
   )
 
 envp :: Parser CEnv
 envp = mkCEnv
+  <$> verboseP
+  <*> hostP
+  <*> cmdP
+
+-- --------------------
+
+verboseP :: Parser (Bool, Bool)
+verboseP = (,)
   <$> ( flag (defaultCEnv ^. envTrc) True
         ( long "trc"
           <> short 't'
@@ -567,7 +566,10 @@ envp = mkCEnv
           <> help "Turn on verbose output"
         )
       )
-  <*> strOption
+
+hostP :: Parser (ByteString, Int)
+hostP = (,)
+  <$> strOption
       ( long "host"
         <> short 'H'
         <> metavar "HOST"
@@ -583,26 +585,68 @@ envp = mkCEnv
         <> value 3001
         <> metavar "PORT"
       )
-  <*> strOption
-      ( long "path"
-          <> short 'p'
-          <> metavar "PATH"
-          <> showDefault
-          <> value "/archive"
-          <> help "The collection path to be processed"
+
+cmdP :: Parser CC
+cmdP = subparser $
+  command "ls"
+    ( (CC'ls    <$> pathP)
+      `withInfo`
+      ( "List subcollections, default PATH is: "
+        ++ show defaultPath
       )
-  <*> option ccmdReader
-      ( long "cmd"
-        <> short 'c'
-        <> help ( "The client command, one of ["
-                  ++ client'cmds
-                  ++ "], default: entry"
-                )
-        <> value CEntry
-        <> metavar "COMMAND"
+    )
+  <>
+  command "md"
+    ( mdP
+      `withInfo`
+      ( "Show metadata for a collection or entry of a collection, default PATH is: "
+        ++ show defaultPath
       )
-  <*> option imgReqReader
-      ( long "img-variant"
+    )
+  <>
+  command "download"
+    ( downLoadP
+      `withInfo`
+      "Download all images of a collection"
+    )
+  <>
+  command "entry"
+    ( (CC'entry <$> pathP)
+      `withInfo`
+      ( "Dump catalog entry, for testing and debugging, default Path is: "
+        ++ show defaultPath
+      )
+    )
+  <>
+  command "noop"
+    ( pure CC'noop
+      `withInfo`
+      "Do nothing"
+    )
+
+mdP :: Parser CC
+mdP = flip CC'md
+  <$> option wildcardParser
+      ( long "keys"
+        <> short 'k'
+        <> metavar "KEY-SELECT"
+        <> value SP.manyChars
+        <> help "Select metadata keys by searching of a substring"
+      )
+  <*> pathPP
+
+downLoadP :: Parser CC
+downLoadP = dl
+  <$> downLoadOptP
+  <*> pathP1
+  where
+    dl (reqtype', geo', dest') path'
+      = CC'download path' reqtype' geo' dest'
+
+downLoadOptP :: Parser (ReqType, Geo, FilePath)
+downLoadOptP = (,,)
+  <$> option imgReqReader
+      ( long "variant"
         <> short 'i'
         <> help ( "The image variant, one of ["
                   ++ img'variants
@@ -619,25 +663,29 @@ envp = mkCEnv
         <> metavar "GEOMETRY"
       )
   <*> strOption
-      ( long "download"
+      ( long "dest"
           <> short 'd'
           <> metavar "DOWNLOAD-DIR"
           <> showDefault
           <> value "."
           <> help "The dir to store downloads"
       )
-  <*> pure (defaultCEnv ^. envLogOp)
-  <*> pure (defaultCEnv ^. envManager)
 
+pathP :: Parser Path
+pathP = pathP1 <|> pure defaultPath
 
-ccmdReader :: ReadM ClientCmd
-ccmdReader = eitherReader parse
-  where
-    parse arg =
-      maybe
-        (Left $ "Wrong client command: " ++ arg)
-        Right
-        (arg ^? prismString)
+pathP1 :: Parser Path
+pathP1 = argument str (metavar "PATH")
+
+pathPP :: Parser PathPos
+pathPP = (^. isoPathPos) <$> pathP
+
+withInfo :: Parser a -> String -> ParserInfo a
+withInfo opts desc = info (helper <*> opts) $ progDesc desc
+
+-- ----------------------------------------
+--
+-- app specific option parsers
 
 imgReqReader :: ReadM ReqType
 imgReqReader = eitherReader parse
@@ -656,6 +704,15 @@ geoReader = eitherReader parse
         (Left $ "Wrong geometry: " ++ arg)
         Right
         (readGeo' arg)
+
+wildcardParser :: ReadM KeyParser
+wildcardParser = eitherReader parse
+  where
+    parse arg = Right $ wildcard2parser arg
+
+    wildcard2parser :: String -> KeyParser
+    wildcard2parser [] = SP.manyChars
+    wildcard2parser xs = SP.anyStringThen (SP.string xs) <* SP.manyChars
 
 
 -- ----------------------------------------

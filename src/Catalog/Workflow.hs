@@ -82,6 +82,21 @@ type Req'IdNode'ImgRef         a = Req'IdNode        (ImgRef,  a)
 imgReqTypes :: [ReqType]
 imgReqTypes = [RIcon .. RImgfx]
 
+path2pathPos :: Path -> PathPos
+path2pathPos p
+  | cx >= 0   = (dp, Just cx)
+  | otherwise = (p,  Nothing)
+  where
+    (dp, bn) = p  ^. viewBase
+    cx       = bn ^. isoString . from isoPicNo
+
+pathPos2path :: PathPos -> Path
+pathPos2path (p,  Nothing) = p
+pathPos2path (dp, Just cx) = dp `snocPath` (cx ^. isoPicNo . from isoString)
+
+isoPathPos :: Iso' Path PathPos
+isoPathPos = iso path2pathPos pathPos2path
+
 -- --------------------
 
 deriving instance Show a => Show (Req' a)

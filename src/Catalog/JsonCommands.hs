@@ -429,47 +429,56 @@ read'isCollection p =
 --
 -- get the contents of a blog entry, already converted to HTML
 
-read'blogcontents :: Int -> ImgNode -> Cmd Text
-read'blogcontents =
-  processColEntryAt
-    getColBlogCont                        -- ImgEnt: entry is a blog text
-    (\ i    -> do                         -- ColRef: lookup the col blog ref
-        n <- getImgVal i                  -- theColBlog
-        maybe (return mempty)             -- return nothing, when not there
-              getColBlogCont              -- else generate the HTML
-              (n ^? theColBlog . traverse)
-    )
+read'blogcontents :: Int -> ObjId -> ImgNode -> Cmd Text
+read'blogcontents pos _i n
+  | pos < 0   = maybe
+                (return mempty)             -- return nothing, when not there
+                getColBlogCont              -- else generate the HTML
+                (n ^? theColBlog . traverse)
+
+  | otherwise = processColEntryAt
+                getColBlogCont                        -- ImgEnt: entry is a blog text
+                (\ i' -> do n' <- getImgVal i'        -- theColBlog
+                            read'blogcontents (-1) i' n'
+                )
+                pos n
 
 -- get the contents of a blog entry
 
-read'blogsource :: Int -> ImgNode -> Cmd Text
-read'blogsource =
-  processColEntryAt
-    getColBlogSource
-    (\ i -> do
-        n  <- getImgVal i
-        br <- maybe
-              (abortP i "getBlogCont: no blog entry set in collection")
-              return
-              (n ^? theColBlog . traverse)
-        getColBlogSource br
-    )
+read'blogsource :: Int -> ObjId -> ImgNode -> Cmd Text
+read'blogsource pos i n
+  | pos < 0   = do br <- maybe
+                         (abortP i "getBlogCont: no blog entry set in collection")
+                         return
+                         (n ^? theColBlog . traverse)
+                   getColBlogSource br
+
+  | otherwise = processColEntryAt
+                getColBlogSource
+                (\ i' -> do n' <- getImgVal i'
+                            read'blogsource (-1) i' n'
+                )
+                pos
+                n
 
 -- --------------------
 --
 -- get the meta data of a collection entry
 
-read'metadata :: Int -> ImgNode -> Cmd MetaData
-read'metadata =
-  processColEntryAt
-    (\ (ImgRef i _) -> getMetaData i)
-    (\ i            -> getMetaData i)
+read'metadata :: Int -> ObjId -> ImgNode -> Cmd MetaData
+read'metadata pos i n
+  | pos < 0   = getMetaData i
+  | otherwise = processColEntryAt
+                (\ (ImgRef i' _) -> getMetaData i')
+                (\ i'            -> getMetaData i')
+                pos
+                n
 
 -- get the rating field of a collection entry
 
-read'rating :: Int -> ImgNode -> Cmd Rating
-read'rating pos n =
-  getRating <$> read'metadata pos n
+read'rating :: Int -> ObjId -> ImgNode -> Cmd Rating
+read'rating pos i n =
+  getRating <$> read'metadata pos i n
 
 -- get the rating field of all entries in a collection
 
