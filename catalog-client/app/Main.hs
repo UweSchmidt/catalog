@@ -20,7 +20,10 @@ import           Data.MetaData             ( prettyMD
 import           Data.Aeson                ( decode
                                            , encode
                                            )
-import           Text.SimpleParser         ( SP )
+import           Text.SimpleParser         ( SP
+                                           , parseMaybe
+                                           , parseGlob
+                                           )
 import qualified Text.SimpleParser   as SP
 
 import           Control.Monad.ReaderStateErrIO
@@ -629,9 +632,9 @@ mdP = flip CC'md
   <$> option wildcardParser
       ( long "keys"
         <> short 'k'
-        <> metavar "KEY-SELECT"
+        <> metavar "GLOB-PATTERN"
         <> value SP.manyChars
-        <> help "Select metadata keys by searching of a substring"
+        <> help "Select metadata keys by a glob style pattern matching"
       )
   <*> pathPP
 
@@ -708,11 +711,10 @@ geoReader = eitherReader parse
 wildcardParser :: ReadM KeyParser
 wildcardParser = eitherReader parse
   where
-    parse arg = Right $ wildcard2parser arg
-
-    wildcard2parser :: String -> KeyParser
-    wildcard2parser [] = SP.manyChars
-    wildcard2parser xs = SP.anyStringThen (SP.string xs) <* SP.manyChars
-
+    parse arg =
+      maybe
+        (Left $ "Wrong glob style pattern: " ++ arg)
+        Right
+        (parseMaybe parseGlob arg)
 
 -- ----------------------------------------
