@@ -66,13 +66,13 @@ evalCmd (SetMetaData ixs md p) =
   path2node p >>= modify'setMetaData ixs md
 
 evalCmd (SetMetaData1 pos md p) =
-  path2node p >>= modify'setMetaData1 pos md
+  getIdNode' p >>= uncurry (modify'setMetaData1 pos md)
 
 evalCmd (SetRating ixs r p) =
   path2node p >>= modify'setRating ixs r
 
 evalCmd (SetRating1 pos r p) =
-  path2node p >>= modify'setRating1 pos r
+  getIdNode' p >>= uncurry (modify'setRating1 pos r)
 
 evalCmd (Snapshot t _p) =
   modify'snapshot t

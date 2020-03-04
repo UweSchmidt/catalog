@@ -13,6 +13,9 @@ module Data.MetaData
   , selectByParser
   , lookupByNames
   , prettyMD
+  , someKeysMD
+  , globKeysMD
+  , allKeysMD
 
   , clearAccess
   , addNoDeleteAccess
@@ -196,6 +199,10 @@ instance FromJSON MetaData where
 
 -- share keys of MD maps deserialized in FromJSON instance
 -- unknown keys are removed
+--
+-- this is a space optimization, in all MD maps the keys are
+-- all build with the key values defined in this module
+-- removing shareAttrKeys has no effect on the semantics
 
 shareAttrKeys :: MetaData -> MetaData
 shareAttrKeys (MD m) = MD $ HM.foldlWithKey' ins HM.empty m
@@ -349,6 +356,18 @@ lookupByNames ns md =
          map (\ n -> md ^. metaDataAt n) ns
 
 -- ----------------------------------------
+
+
+someKeysMD :: (Name -> Bool) -> [Name]
+someKeysMD p = filter p allKeysMD
+
+globKeysMD :: SP String -> [Name]
+globKeysMD gp = someKeysMD p
+  where
+    p n = matchP gp (n ^. isoString)
+
+allKeysMD :: [Name]
+allKeysMD = map (isoText #) . sort . HM.keys $ allAttrKeys
 
 keysMD :: MetaData -> [Name]
 keysMD (MD mp) = map (isoText #) . HM.keys $ mp
