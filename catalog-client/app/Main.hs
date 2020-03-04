@@ -76,6 +76,7 @@ data CC
   = CC'ls       Path
   | CC'lsmd     PathPos [Name]
   | CC'setmd1   PathPos Name Text
+  | CC'delmd1   PathPos Name
   | CC'entry    Path
   | CC'download Path ReqType Geo FilePath
   | CC'noop
@@ -103,6 +104,9 @@ catalogClient = do
 
     CC'setmd1 pp key val ->
       evalCSetMetaData1 pp key val
+
+    CC'delmd1 pp key ->
+      evalCSetMetaData1 pp key "-"
 
     CC'download p rt geo d0 -> do
       -- dir hierachy equals cache hierachy in catalog server
@@ -614,7 +618,7 @@ cmdP = subparser $
       )
     )
   <>
-  command "lsmd"
+  command "ls-md"
     ( mdP
       `withInfo`
       ( "Show metadata for a collection or entry of a collection, "
@@ -623,10 +627,20 @@ cmdP = subparser $
       )
     )
   <>
-  command "setmd"
+  command "set-md"
     ( setmdP
       `withInfo`
       ( "Set metadata attr for a collection or entry of a collection, "
+        ++ "default PATH is: "
+        ++ show defaultPath
+        ++ ", key may be given as glob pattern"
+      )
+    )
+  <>
+  command "del-md"
+    ( delmdP
+      `withInfo`
+      ( "Delete metadata attr for a collection or entry of a collection, "
         ++ "default PATH is: "
         ++ show defaultPath
         ++ ", key may be given as glob pattern"
@@ -670,6 +684,10 @@ setmdP = CC'setmd1
   <*> keyP
   <*> valP
 
+delmdP :: Parser CC
+delmdP = CC'delmd1
+  <$> pathPP1
+  <*> keyP
 
 downLoadP :: Parser CC
 downLoadP = dl
