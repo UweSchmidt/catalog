@@ -14,17 +14,18 @@ import           Catalog.Workflow          ( PathPos
                                            )
 import           Data.Prim          hiding ( argument )
 import           Data.ImgNode
-import           Data.MetaData             ( prettyMD
-                                           , selectByParser
+import           Data.MetaData             ( metaDataAt
+                                           , prettyMD
+                                           , allKeysMD
+                                           , globKeysMD
+                                           , selectByNames
                                            )
 import           Data.Aeson                ( decode
                                            , encode
                                            )
-import           Text.SimpleParser         ( SP
-                                           , parseMaybe
+import           Text.SimpleParser         ( parseMaybe
                                            , parseGlob
                                            )
-import qualified Text.SimpleParser   as SP
 
 import           Control.Monad.ReaderStateErrIO
 
@@ -52,10 +53,10 @@ import           System.Exit
 -- version number is updated automatically
 
 version :: String
-version = "0.2.4.4"
+version = "0.2.5.1"
 
 date :: String
-date = "2020-03-03"
+date = "2020-03-05"
 
 appname :: String
 appname = "client"
@@ -73,12 +74,13 @@ main = mainWithArgs appname $ \ env -> do
 
 data CC
   = CC'ls       Path
-  | CC'md       PathPos KeyParser
+  | CC'lsmd     PathPos [Name]
+  | CC'setmd1   PathPos Name Text
+  | CC'delmd1   PathPos Name
   | CC'entry    Path
   | CC'download Path ReqType Geo FilePath
   | CC'noop
 
-type KeyParser = SP String
 
 img'variants :: String
 img'variants =
@@ -97,8 +99,14 @@ catalogClient = do
     CC'ls p ->
       evalCLs p >>= io . sequenceA_ . map print
 
-    CC'md pp keys ->
+    CC'lsmd pp keys ->
       evalCMetaData pp keys >>= io . sequenceA_ . map putStrLn . prettyMD
+
+    CC'setmd1 pp key val ->
+      evalCSetMetaData1 pp key val
+
+    CC'delmd1 pp key ->
+      evalCSetMetaData1 pp key "-"
 
     CC'download p rt geo d0 -> do
       -- dir hierachy equals cache hierachy in catalog server
@@ -136,14 +144,25 @@ evalCLs p = do
       | isROOT n  = n ^.. theRootImgCol
       | otherwise = []
 
-evalCMetaData :: PathPos -> KeyParser -> CCmd MetaData
-evalCMetaData pp@(p, cx) keyP = do
+evalCMetaData :: PathPos -> [Name] -> CCmd MetaData
+evalCMetaData pp@(p, cx) keys = do
       trc $ unwords ["evalCMetaData:", from isoString . isoPathPos # pp]
-      r <- (^. selectByParser keyP)
+      r <- (^. selectByNames keys)
            <$>
            (reqCmd $ TheMetaData (fromMaybe (-1) cx) p)
       trc $ unwords ["res =", show r]
       return r
+
+evalCSetMetaData1 :: PathPos -> Name -> Text -> CCmd ()
+evalCSetMetaData1 pp@(p, cx) key val = do
+      trc $ unwords [ "evalSetCMetaData:"
+                    , from isoString . isoPathPos # pp
+                    , key ^. isoString
+                    , val ^. isoString
+                    ]
+      let md1 = mempty & metaDataAt key .~ val
+      _r <- reqCmd $ SetMetaData1 (fromMaybe (-1) cx) md1 p
+      trc "done"
 
 evalCDownload :: ReqType -> Geo -> SysPath -> Path -> CCmd ()
 evalCDownload rt geo d p = do
@@ -599,11 +618,32 @@ cmdP = subparser $
       )
     )
   <>
-  command "md"
+  command "ls-md"
     ( mdP
       `withInfo`
-      ( "Show metadata for a collection or entry of a collection, default PATH is: "
+      ( "Show metadata for a collection or entry of a collection, "
+        ++ "default PATH is: "
         ++ show defaultPath
+      )
+    )
+  <>
+  command "set-md"
+    ( setmdP
+      `withInfo`
+      ( "Set metadata attr for a collection or entry of a collection, "
+        ++ "default PATH is: "
+        ++ show defaultPath
+        ++ ", key may be given as glob pattern"
+      )
+    )
+  <>
+  command "del-md"
+    ( delmdP
+      `withInfo`
+      ( "Delete metadata attr for a collection or entry of a collection, "
+        ++ "default PATH is: "
+        ++ show defaultPath
+        ++ ", key may be given as glob pattern"
       )
     )
   <>
@@ -628,15 +668,26 @@ cmdP = subparser $
     )
 
 mdP :: Parser CC
-mdP = flip CC'md
-  <$> option wildcardParser
+mdP = flip CC'lsmd
+  <$> option globParser
       ( long "keys"
         <> short 'k'
         <> metavar "GLOB-PATTERN"
-        <> value SP.manyChars
+        <> value allKeysMD
         <> help "Select metadata keys by a glob style pattern matching"
       )
   <*> pathPP
+
+setmdP :: Parser CC
+setmdP = CC'setmd1
+  <$> pathPP1
+  <*> keyP
+  <*> valP
+
+delmdP :: Parser CC
+delmdP = CC'delmd1
+  <$> pathPP1
+  <*> keyP
 
 downLoadP :: Parser CC
 downLoadP = dl
@@ -683,6 +734,15 @@ pathP1 = argument str (metavar "PATH")
 pathPP :: Parser PathPos
 pathPP = (^. isoPathPos) <$> pathP
 
+pathPP1 :: Parser PathPos
+pathPP1 = (^. isoPathPos) <$> pathP1
+
+keyP :: Parser Name
+keyP = argument globParser1 (metavar "KEY")
+
+valP :: Parser Text
+valP = argument str (metavar "VALUE")
+
 withInfo :: Parser a -> String -> ParserInfo a
 withInfo opts desc = info (helper <*> opts) $ progDesc desc
 
@@ -708,13 +768,26 @@ geoReader = eitherReader parse
         Right
         (readGeo' arg)
 
-wildcardParser :: ReadM KeyParser
-wildcardParser = eitherReader parse
+globParser :: ReadM [Name]
+globParser = globParser' notNull
+  where
+    notNull arg [] = Left $ "No keys found for pattern: " ++ arg
+    notNull _   xs = Right xs
+
+globParser1 :: ReadM Name
+globParser1 = globParser' single
+  where
+    single _   [x] = Right x
+    single arg []  = Left $ "No key found for pattern: " ++ arg
+    single arg xs  = Left $ "No unique key found for pattern: " ++ arg
+                            ++ ", could be one of " ++ show xs
+
+globParser' :: (String -> [Name] -> Either String a) -> ReadM a
+globParser' check = eitherReader parse
   where
     parse arg =
-      maybe
-        (Left $ "Wrong glob style pattern: " ++ arg)
-        Right
-        (parseMaybe parseGlob arg)
+      case parseMaybe parseGlob arg of
+        Nothing -> Left $ "Wrong glob style pattern: " ++ arg
+        Just gp -> check arg (globKeysMD gp)
 
 -- ----------------------------------------

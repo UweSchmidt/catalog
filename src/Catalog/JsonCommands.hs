@@ -336,13 +336,14 @@ modify'setMetaData ixs md n =
              (adjustMetaData (md <>) . _iref)
              (adjustMetaData (md <>)        )
 
--- set meta data fields for a single collection entry
+-- set meta data fields for a collection or a single collection entry
 
-modify'setMetaData1 :: Int -> MetaData -> ImgNode -> Cmd ()
-modify'setMetaData1 i' =
-  modify'setMetaData ixs
+modify'setMetaData1 :: Int -> MetaData -> ObjId -> ImgNode -> Cmd ()
+modify'setMetaData1 pos md oid n
+  | pos < 0   = adjustMetaData (md <>) oid      -- update coll  metadata
+  | otherwise = modify'setMetaData ixs md n     -- update entry metadata
   where
-    ixs = replicate i' (0-1) ++ [1]
+    ixs = replicate pos (0-1) ++ [1]
 
 -- set the rating field for a list of selected collection entries
 
@@ -350,13 +351,15 @@ modify'setRating :: [Int] -> Rating -> ImgNode -> Cmd ()
 modify'setRating ixs r =
   modify'setMetaData ixs (mkRating r)
 
--- set the rating field for a single collection entry
+-- set the rating field for a collection or a single collection entry
 
-modify'setRating1 :: Int -> Rating -> ImgNode -> Cmd ()
-modify'setRating1 i' =
-  modify'setRating ixs
+modify'setRating1 :: Int -> Rating -> ObjId -> ImgNode -> Cmd ()
+modify'setRating1 pos r oid n
+  | pos < 0   = modify'setMetaData1 pos md oid n
+  | otherwise = modify'setRating ixs r n
   where
-    ixs = replicate i' (0-1) ++ [1]
+    md  = mkRating r
+    ixs = replicate pos (0-1) ++ [1]
 
 -- --------------------
 --

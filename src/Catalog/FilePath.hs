@@ -124,8 +124,9 @@ p'geo :: SP String
 p'geo = some digitChar <++> string "x" <++> some digitChar
 
 -- detecting virtual copies of images
--- DxO appends _<no> to the image name
+-- DxO appends _<no> or _<no>-<digits> to the image name
 -- to prevent name clashes during export
+-- <no> may be a 'M' (master) or a digit seq for the virtual copy
 --
 -- problem: there are other file names
 -- ending with _<no> where this is a sequence number
@@ -135,12 +136,15 @@ p'geo = some digitChar <++> string "x" <++> some digitChar
 -- without the context, in which the file is located
 --
 -- virtualCopyNo and baseName' are not used in this
--- module to detect virtual copies
+-- module to detect virtual copies, but in module for
+-- syncing with filesystem
 
 virtualCopyNo :: SP (String, String)
 virtualCopyNo = anyStringThen' cNo
   where
-    cNo = single '_' *> some digitChar <* eof
+    cNo = single '_' *> ((++) <$> vcb <*> option "" vcs) <* eof
+    vcb = some digitChar <|> string "M"
+    vcs = (:) <$> single '-' <*> some digitChar
 
 baseName
   , imgdirName, imgdirPre
@@ -376,8 +380,11 @@ isoPicNo = iso toS frS
     frS s =
       fromMaybe (-1) $ parseMaybe picNoParser s
 
+-- "pic-" prefix is important
+-- else collections like 2020 are interpreted as pic no
+
 picNoParser :: SP Int
-picNoParser = option "" (string "pic-") *> L.decimal
+picNoParser = string "pic-" *> L.decimal
 
 -- --------------------
 
