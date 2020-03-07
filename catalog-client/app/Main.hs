@@ -78,7 +78,7 @@ data CC
   | CC'setmd1   PathPos Name Text
   | CC'delmd1   PathPos Name
   | CC'entry    Path
-  | CC'download Path ReqType Geo FilePath
+  | CC'download Path ReqType Geo FilePath Bool
   | CC'noop
 
 
@@ -108,7 +108,7 @@ catalogClient = do
     CC'delmd1 pp key ->
       evalCSetMetaData1 pp key "-"
 
-    CC'download p rt geo d0 -> do
+    CC'download p rt geo d0 withSeqNo -> do
       -- dir hierachy equals cache hierachy in catalog server
       let geo'
             | geo == geo'org = orgGeo
@@ -118,9 +118,14 @@ catalogClient = do
       let d  = isoFilePath # d0
       let d1 = isoFilePath # (d0 </> px)
 
+      so <- if withSeqNo
+            then do initSeqNo
+                    return nextSeqNo
+             else return (return "")
+
       dx  <- dirExist d
       if dx
-        then evalCDownload rt geo d1 p
+        then evalCDownload rt geo d1 p so
         else abort $ "Download dir not found: " <> d0
 
     CC'noop ->
@@ -164,8 +169,8 @@ evalCSetMetaData1 pp@(p, cx) key val = do
       _r <- reqCmd $ SetMetaData1 (fromMaybe (-1) cx) md1 p
       trc "done"
 
-evalCDownload :: ReqType -> Geo -> SysPath -> Path -> CCmd ()
-evalCDownload rt geo d p = do
+evalCDownload :: ReqType -> Geo -> SysPath -> Path -> (CCmd String) -> CCmd ()
+evalCDownload rt geo d p nsn = do
   -- pre: directory d already exists
   trc $ unwords [ "evalCDownload:"
                 , p ^. isoString
@@ -204,6 +209,8 @@ evalCDownload rt geo d p = do
     -- download an image
     dli :: Path -> Int -> Path -> Name -> CCmd ()
     dli dpath pos _ipath _ipart = do
+      px <- nsn
+      let sp = sp' px
 
       trc $ unwords
         [ "evalCDownload:"
@@ -216,13 +223,12 @@ evalCDownload rt geo d p = do
       where
         pn :: String
         pn = pos ^. isoPicNo
-        sn = "/" <> pn <> ".jpg"
         pp = dpath `snocPath` mkName pn
-        sp = d' & isoFilePath %~ (<> sn)
+        sp' px' = d' & isoFilePath %~ (<> ("/" <> px' <> pn <> ".jpg"))
 
     -- download a subcollection: recursive call
     dlc :: Path -> CCmd ()
-    dlc cpath = evalCDownload rt geo d cpath
+    dlc cpath = evalCDownload rt geo d cpath nsn
 
 -- ----------------------------------------
 
@@ -459,10 +465,30 @@ runCCmd env cmd = fst <$> runAction cmd env emptyCState
 --
 -- the app state, currently empty
 
-type CState = ()
+data CState = CState
+  { _seqno :: Int
+  }
 
 emptyCState :: CState
-emptyCState = ()
+emptyCState = CState
+  { _seqno = 0
+  }
+
+stateSeqno :: Lens' CState Int
+stateSeqno k s = (\ new -> s {_seqno = new}) <$> k (_seqno s)
+
+initSeqNo :: CCmd ()
+initSeqNo = stateSeqno .= 0
+
+nextSeqNo :: CCmd String
+nextSeqNo = do
+  stateSeqno %= (1 +)
+  toS <$> use stateSeqno
+  where
+    toS i = replicate l '0' <> s <> "-"
+      where
+        s = show i
+        l = (4 - length s) `max` 0
 
 -- ----------------------------------------
 --
@@ -694,11 +720,11 @@ downLoadP = dl
   <$> downLoadOptP
   <*> pathP1
   where
-    dl (reqtype', geo', dest') path'
-      = CC'download path' reqtype' geo' dest'
+    dl (reqtype', geo', dest', seqno') path'
+      = CC'download path' reqtype' geo' dest' seqno'
 
-downLoadOptP :: Parser (ReqType, Geo, FilePath)
-downLoadOptP = (,,)
+downLoadOptP :: Parser (ReqType, Geo, FilePath, Bool)
+downLoadOptP = (,,,)
   <$> option imgReqReader
       ( long "variant"
         <> short 'i'
@@ -723,6 +749,14 @@ downLoadOptP = (,,)
           <> showDefault
           <> value "."
           <> help "The dir to store downloads"
+      )
+  <*> flag False True
+      ( long "with-seq-no"
+        <> short 'n'
+        <> help ("Prefix downloaded images with a sequence number"
+                 ++ " (useful for digital photo frame to show "
+                 ++ " the pictures in collection order)"
+                )
       )
 
 pathP :: Parser Path
