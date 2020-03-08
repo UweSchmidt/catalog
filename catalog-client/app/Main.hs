@@ -78,7 +78,7 @@ data CC
   | CC'setmd1   PathPos Name Text
   | CC'delmd1   PathPos Name
   | CC'entry    Path
-  | CC'download Path ReqType Geo FilePath Bool
+  | CC'download Path ReqType Geo FilePath Bool Bool
   | CC'noop
 
 
@@ -108,7 +108,7 @@ catalogClient = do
     CC'delmd1 pp key ->
       evalCSetMetaData1 pp key "-"
 
-    CC'download p rt geo d0 withSeqNo -> do
+    CC'download p rt geo d0 withSeqNo overwrite -> do
       -- dir hierachy equals cache hierachy in catalog server
       let geo'
             | geo == geo'org = orgGeo
@@ -125,7 +125,7 @@ catalogClient = do
 
       dx  <- dirExist d
       if dx
-        then evalCDownload rt geo d1 p so
+        then evalCDownload rt geo d1 so overwrite p
         else abort $ "Download dir not found: " <> d0
 
     CC'noop ->
@@ -169,66 +169,67 @@ evalCSetMetaData1 pp@(p, cx) key val = do
       _r <- reqCmd $ SetMetaData1 (fromMaybe (-1) cx) md1 p
       trc "done"
 
-evalCDownload :: ReqType -> Geo -> SysPath -> Path -> (CCmd String) -> CCmd ()
-evalCDownload rt geo d p nsn = do
-  -- pre: directory d already exists
-  trc $ unwords [ "evalCDownload:"
-                , p ^. isoString
+evalCDownload :: ReqType -> Geo -> SysPath -> CCmd String -> Bool
+              -> Path -> CCmd ()
+evalCDownload rt geo d nsn overwrite = evalDownload'
+  where
+    evalDownload' p = do
+      trc $ unwords [ "evalCDownload:"
+                    , p ^. isoString
+                    ]
+
+      -- get collection from server
+      n <- evalCEntry p
+      unless (isCOL n) $
+        abort $ unwords
+          [ "evalCDownload:"
+          , "no collection found for path"
+          , p ^. isoString
+          ]
+
+      -- create download subdir
+      unlessM (dirExist d') $ do
+        trc $ unwords [ "evalCDownload: create dir"
+                      , d' ^. isoFilePath
+                      ]
+
+      createDir d'
+
+      -- download all collection entries
+      forM_ (zip [(0::Int) ..] $ n ^. theColEntries . isoSeqList) $
+        \ (i, ce) -> colEntry (dli p i) evalDownload' ce
+
+      where
+        d' = d & isoFilePath %~ (<> p ^. isoString)
+
+        -- download an image
+        dli :: Path -> Int -> Path -> Name -> CCmd ()
+        dli dpath pos _ipath _ipart = do
+          px <- nsn
+          let sp = sp' px
+
+          trc $ unwords
+            [ "evalCDownload:"
+            , "download JPG image copy to"
+            , sp ^. isoFilePath
+            ]
+
+          unless overwrite $
+            whenM (fileExist sp) $
+              void $ abort $ unwords
+                [ "evalCDownload:"
+                , "file for download already exists"
+                , sp ^. isoFilePath ++ ","
+                , "cleanup download dir or use -f (--force) option"
                 ]
 
-  -- name clash with already existing directory
-  whenM (dirExist d') $
-    void $
-    abort $ unwords
-      [ "evalCDownload:"
-      , "dir already exists"
-      , d' ^. isoFilePath
-      , ", cleanup download dir"
-      , d ^. isoFilePath
-      ]
-
-  -- get collection from server
-  n <- evalCEntry p
-  unless (isCOL n) $
-    abort $ unwords
-      [ "evalCDownload:"
-      , "no collection found for path"
-      , p ^. isoString
-      ]
-
-  -- create download subdir
-  createDir d'
-
-  -- download all collection entries
-  forM_ (zip [(0::Int) ..] $ n ^. theColEntries . isoSeqList) $
-    \ (i, ce) -> colEntry (dli p i) (dlc) ce
-
-  where
-    d' = d & isoFilePath %~ (<> p ^. isoString)
-
-    -- download an image
-    dli :: Path -> Int -> Path -> Name -> CCmd ()
-    dli dpath pos _ipath _ipart = do
-      px <- nsn
-      let sp = sp' px
-
-      trc $ unwords
-        [ "evalCDownload:"
-        , "download JPG image copy to"
-        , sp ^. isoFilePath
-        ]
-
-      lbs <- reqCmd (JpgImgCopy rt geo pp)
-      writeFileLB sp lbs
-      where
-        pn :: String
-        pn = pos ^. isoPicNo
-        pp = dpath `snocPath` mkName pn
-        sp' px' = d' & isoFilePath %~ (<> ("/" <> px' <> pn <> ".jpg"))
-
-    -- download a subcollection: recursive call
-    dlc :: Path -> CCmd ()
-    dlc cpath = evalCDownload rt geo d cpath nsn
+          lbs <- reqCmd (JpgImgCopy rt geo pp)
+          writeFileLB sp lbs
+            where
+              pn :: String
+              pn = pos ^. isoPicNo
+              pp = dpath `snocPath` mkName pn
+              sp' px' = d' & isoFilePath %~ (<> ("/" <> px' <> pn <> ".jpg"))
 
 -- ----------------------------------------
 
@@ -720,11 +721,11 @@ downLoadP = dl
   <$> downLoadOptP
   <*> pathP1
   where
-    dl (reqtype', geo', dest', seqno') path'
-      = CC'download path' reqtype' geo' dest' seqno'
+    dl (reqtype', geo', dest', seqno', overwrite') path'
+      = CC'download path' reqtype' geo' dest' seqno' overwrite'
 
-downLoadOptP :: Parser (ReqType, Geo, FilePath, Bool)
-downLoadOptP = (,,,)
+downLoadOptP :: Parser (ReqType, Geo, FilePath, Bool, Bool)
+downLoadOptP = (,,,,)
   <$> option imgReqReader
       ( long "variant"
         <> short 'i'
@@ -757,6 +758,11 @@ downLoadOptP = (,,,)
                  ++ " (useful for digital photo frame to show "
                  ++ " the pictures in collection order)"
                 )
+      )
+  <*> flag False True
+      ( long "force"
+        <> short 'f'
+        <> help "Force destination file overwrite when downloading files"
       )
 
 pathP :: Parser Path
