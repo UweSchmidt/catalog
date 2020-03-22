@@ -127,6 +127,7 @@ p'geo = some digitChar <++> string "x" <++> some digitChar
 -- DxO appends _<no> or _<no>-<digits> to the image name
 -- to prevent name clashes during export
 -- <no> may be a 'M' (master) or a digit seq for the virtual copy
+-- optionally followed by '_Nik' for DxO export to Nik collection
 --
 -- problem: there are other file names
 -- ending with _<no> where this is a sequence number
@@ -142,9 +143,21 @@ p'geo = some digitChar <++> string "x" <++> some digitChar
 virtualCopyNo :: SP (String, String)
 virtualCopyNo = anyStringThen' cNo
   where
-    cNo = single '_' *> ((++) <$> vcb <*> option "" vcs) <* eof
-    vcb = some digitChar <|> string "M"
-    vcs = (:) <$> single '-' <*> some digitChar
+    cNo = single '_'
+          *>
+          ((++) <$> vcb
+                <*> option "" vcs
+          )
+          <*
+          eof
+    vcb = ((++) <$> (some digitChar
+                     <|>
+                     string "M"
+                    )
+                <*> option "" (string "_Nik")
+          )
+    vcs = (:) <$> single '-'
+              <*> some digitChar
 
 baseName
   , imgdirName, imgdirPre
