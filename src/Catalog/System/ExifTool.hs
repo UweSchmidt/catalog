@@ -43,7 +43,7 @@ getMDpart p ip pt
 setMD :: (ImgType -> Bool)
       -> ObjId
       -> [ImgPart]
-      -> Cmd ()
+      -> Cmd Bool
 setMD p i ps = do
   ip  <- objid2path i
 
@@ -51,21 +51,27 @@ setMD p i ps = do
   md0 <- getMetaData i
 
   -- merge metadata of all image parts with old metadata
-  md1 <- ((<> md0) . mconcat) <$> mapM (getMDpart p ip) ps
+  mdn <- mconcat <$> mapM (getMDpart p ip) ps
 
-  if md1 /= md0
-     ||
-     isempty (getEXIFUpdateTime md0)
+  if isempty mdn
     then
-      -- something has changed since last update
-      -- so add timestamp and store new metadata
-      do md2 <- flip setEXIFUpdateTime md1 <$> now
-         adjustMetaData (const md2) i
-         verbose $
-           "setMD: update exif data for " ++ show ip
+    return True
     else
-         trc $
-           "setMD: no change in exif data " ++ show ip
+    do let md1 = mdn <> md0
+       if md1 /= md0
+          ||
+          isempty (getEXIFUpdateTime md0)
+         then
+         -- something has changed since last update
+         -- so add timestamp and store new metadata
+         do md2 <- flip setEXIFUpdateTime md1 <$> now
+            adjustMetaData (const md2) i
+            verbose $
+              "setMD: update exif data for " ++ show ip
+         else
+         do trc $
+              "setMD: no change in exif data " ++ show ip
+       return False
 
 -- ----------------------------------------
 
@@ -149,12 +155,11 @@ syncMetaData' i ps = do
 
   -- collect meta data from raw and xmp parts
   when update $ do
-    setMD isRawMeta i ps
-
-    -- if neither raw, png, ... nor xmp there, collect meta from jpg files
-    unless (has (traverse . theImgType . isA isRawMeta) ps) $
-      setMD isJpg i ps
-
+    -- set metadata from raw files
+    mdEmpty <- setMD isRawMeta i ps
+    -- no raw file metadata there, take .jpg metadata
+    when mdEmpty $ do
+      setMD isJpg i ps >> return ()
 {-
 -- rating is stored in image node, not in exif data file
 -- but rating is imported from LR xmp file with keyword "XMP:Rating"

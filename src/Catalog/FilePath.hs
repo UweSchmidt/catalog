@@ -98,24 +98,22 @@ jpgExt'
   , ptoExt, jsonExt, dngExt, txtExt
   , movExt :: SP String
 
-jpgExt' = parseExt [".jpg"]
-rawExt  = parseExt [".nef", ".rw2"]
+jpgExt' = parseExt (lookupExt IMGjpg)
+rawExt  = parseExt rawFiles
 
-rawFiles :: [String]
-rawFiles = [".nef", ".rw2"]
 
 -- sort extensions by length: ".tiff" before ".tif"
 -- else backtracking with try does not work properly
-imgExt  = parseExt [".png", ".tiff", ".tif", ".gif", ".ppm", ".pgm", ".pbm"]
-xmpExt  = parseExt [".xmp"]
-dxoExt  = parseExt ( (++) <$> (".jpg" : rawFiles)
-                          <*> [".dxo", ".dop"]
+imgExt  = parseExt imgFiles
+xmpExt  = parseExt metaFiles
+dxoExt  = parseExt ( (++) <$> (jpgFiles <> rawFiles)
+                          <*> dxoFiles
                    ) -- lists are an Applicative
-ptoExt  = parseExt [".pto"]
-jsonExt = parseExt [".json"]
-dngExt  = parseExt [".dng"]
-txtExt  = parseExt [".txt", ".md"]
-movExt  = parseExt [".mp4"]
+ptoExt  = parseExt huginFiles
+jsonExt = parseExt jsonFiles
+dngExt  = parseExt dngFiles
+txtExt  = parseExt txtFiles
+movExt  = parseExt movieFiles
 
 geoExt :: SP String
 geoExt = string "." <++> p'geo
@@ -353,19 +351,49 @@ extImg
   , extJson
   ] = map (uncurry matchExts) imgTypeExt
 
+-- sort extensions by length: ".tiff" before ".tif"
+-- else backtracking with try does not work properly
+
 imgTypeExt :: [(ImgType, [String])]
 imgTypeExt =
-  [ (IMGimg,   [".png", ".gif", ".tif", ".tiff", ".ppm", ".pgm", ".pbm"])
+  [ (IMGimg,   [".png", ".gif", ".tiff", ".tif", ".ppm", ".pgm", ".pbm"])
   , (IMGjpg,   [".jpg"])
   , (IMGtxt,   [".txt", ".md"])
   , (IMGmovie, [".mp4"])
-  , (IMGraw,   [".nef", ".rw2"])
+  , (IMGraw,   [".nef", ".rw2", ".afphoto"])
+    -- affinity photo is handled like a raw development tool
+    -- .jpg's or .tiffs maybe associated with the original .afphoto files
   , (IMGdng,   [".dng"])
   , (IMGmeta,  [".xmp"])
   , (IMGdxo,   [".dop", ".dxo"])
   , (IMGhugin, [".pto"])
   , (IMGjson,  [".json"])
   ]
+
+lookupExt :: ImgType -> [String]
+lookupExt it = fromMaybe mempty $ lookup it imgTypeExt
+
+imgFiles
+  , jpgFiles
+  , txtFiles
+  , movieFiles
+  , rawFiles
+  , dngFiles
+  , metaFiles
+  , dxoFiles
+  , huginFiles
+  , jsonFiles :: [String]
+
+imgFiles   = lookupExt IMGimg
+jpgFiles   = lookupExt IMGjpg
+txtFiles   = lookupExt IMGtxt
+movieFiles = lookupExt IMGmovie
+rawFiles   = lookupExt IMGraw
+dngFiles   = lookupExt IMGdng
+metaFiles  = lookupExt IMGmeta
+dxoFiles   = lookupExt IMGdxo
+huginFiles = lookupExt IMGhugin
+jsonFiles  = lookupExt IMGjson
 
 fileName2ImgType :: String -> ImgType
 fileName2ImgType fn =
