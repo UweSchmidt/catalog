@@ -155,11 +155,15 @@ syncMetaData' i ps = do
 
   -- collect meta data from raw and xmp parts
   when update $ do
-    -- set metadata from raw files
-    mdEmpty <- setMD isRawMeta i ps
-    -- no raw file metadata there, take .jpg metadata
-    when mdEmpty $ do
-      setMD isJpg i ps >> return ()
+    e0 <- setMD isRawMeta i ps  -- set metadata from raw files
+
+    when e0 $ do                -- no raw file found
+      e1 <- setMD isImg i ps    -- set meta from .tif, .png, ....
+
+      when e1 $ do              -- no img file found (.tif, .png, ...)
+        setMD isJpg i ps        -- set meta from .jpg
+          >> return ()
+
 {-
 -- rating is stored in image node, not in exif data file
 -- but rating is imported from LR xmp file with keyword "XMP:Rating"

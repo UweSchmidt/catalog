@@ -44,6 +44,11 @@ isJpg :: ImgType -> Bool
 isJpg IMGjpg = True
 isJpg _      = False
 
+-- is .jpg file
+isImg :: ImgType -> Bool
+isImg IMGimg = True
+isImg _      = False
+
 -- is .txt or .md file
 isTxt :: ImgType -> Bool
 isTxt IMGtxt = True
@@ -61,7 +66,7 @@ isImgSubDir _         = False
 
 -- file for extracting metadata
 isRawMeta :: ImgType -> Bool
-isRawMeta ty = ty `elem` [IMGraw, IMGimg, IMGmeta, IMGmovie]
+isRawMeta ty = ty `elem` [IMGraw, IMGmeta, IMGmovie]
 
 -- file, that is stored as part of an image entry
 isAnImgPart :: ImgType -> Bool
@@ -82,8 +87,8 @@ isShowablePart :: ImgType -> Bool
 isShowablePart ty = ty `elem` [IMGjpg, IMGimg, IMGtxt, IMGmovie]
 
 -- is image with camera EXIF info
-isImgWithMeta :: ImgType -> Bool
-isImgWithMeta ty = ty `elem` [IMGraw, IMGjpg, IMGimg, IMGmovie]
+-- isImgWithMeta :: ImgType -> Bool
+-- isImgWithMeta ty = ty `elem` [IMGraw, IMGjpg, IMGimg, IMGmovie]
 
 -- is .xmp file with meta data from Lightroom (e.g. GPS or rating)
 isMeta :: ImgType -> Bool
