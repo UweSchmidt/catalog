@@ -61,6 +61,9 @@ snapshotImgStore cmt = do
     saveImgStore pt'
     checkinImgStore cmt pt'
 
+  verbose $ "snapshotImgStore: snapshot created and checked in into " ++ show pt
+
+
 checkinImgStore :: String -> FilePath -> Cmd ()
 checkinImgStore cmt f = do
   pt <- toSysPath f

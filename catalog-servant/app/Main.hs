@@ -8,6 +8,9 @@ module Main where
 import Prelude ()
 import Prelude.Compat
 
+import Control.Concurrent.Async( async
+                               , link
+                               )
 import Control.Concurrent.STM  ( atomically
                                , TMVar
                                , newTMVarIO
@@ -15,6 +18,10 @@ import Control.Concurrent.STM  ( atomically
                                , readTMVar
                                , swapTMVar
                                , takeTMVar
+                               , TChan
+                               , newTChanIO
+                               , readTChan
+                               , writeTChan
                                )
 import Control.Exception       ( SomeException
                                , catch -- , try, toException
@@ -62,10 +69,11 @@ import API
 -- the server
 
 catalogServer :: Env
-              -> (forall a . Cmd' a -> Handler a)
-              -> (forall a . Cmd' a -> Handler a)
+              -> (forall a . Cmd' a  -> Handler a )
+              -> (forall a . Cmd' a  -> Handler a )
+              -> (           Cmd' () -> Handler ())
               -> Server CatalogAPI
-catalogServer env runR runM =
+catalogServer env runR runM runB =
   ( bootstrap
     :<|>
     ( assets'css
@@ -224,6 +232,7 @@ catalogServer env runR runM =
     runM1 cmd'         = runM . cmd'      . listToPath
     runM2 cmd' ts args = runM . cmd' args . listToPath $ ts
     runM3              = runM2 . uncurry
+    runB2 cmd' ts args = runB . cmd' args . listToPath $ ts
 
     json'modify =
       runM3 SaveBlogSource
@@ -254,7 +263,7 @@ catalogServer env runR runM =
       :<|>
       runM3 SetRating1
       :<|>
-      runM2 Snapshot
+      runB2 Snapshot          -- background action: save catalog
       :<|>
       runM1 SyncCollection
       :<|>
@@ -288,20 +297,29 @@ main = mainWithArgs "servant" $ \ env -> do
 
 main' :: Env -> ImgStore -> IO ()
 main' env st = do
-  -- create MVars for the image archive state
-  mvRead <- newTMVarIO st
-  mvMody <- newTMVarIO st
+  -- create TMVars for reading and modifying image archive store
+  -- and a queue for saving the image store in a background thread
+  mvRead  <- newTMVarIO st
+  mvMody  <- newTMVarIO st
+  mvQueue <- newTChanIO
 
-  let runRead  = runReadCmd env mvRead
-  let runMody  = runModyCmd env mvRead mvMody
+  let runRead  = runReadCmd       env mvRead
+  let runMody  = runModyCmd       env mvRead mvMody
+  let runBg    = runBackgroundCmd env mvRead mvQueue
 
+  -- start background thread for saving image store
+  bgq <- async $ jobQueue mvQueue
+  link bgq
+
+  -- start servant server
   withStdoutLogger $ \logger -> do
     let settings =
           defaultSettings & setPort   (env ^. envPort)
                           & setLogger logger
 
     runSettings settings $
-      serve (Proxy :: Proxy CatalogAPI) (catalogServer env runRead runMody)
+      serve (Proxy :: Proxy CatalogAPI) $
+      catalogServer env runRead runMody runBg
 
 -- curl -v http://localhost:8081/bootstrap/dist/css/bootstrap-theme.css
 -- curl -v http://localhost:8081/assets/javascript/html-album.js
@@ -363,6 +381,27 @@ runModyCmd env mvr mvm cmd' = do
         >>
         putTMVar  mvm new'store
       return res
+
+runBackgroundCmd :: Env -> TMVar ImgStore -> TChan Job -> Cmd' () -> Handler ()
+runBackgroundCmd env mvs queue cmd' = do
+  liftIO $
+    atomically $
+    writeTChan queue $ runc
+  return ()
+  where
+    runc :: Job
+    runc = do
+      store <- atomically $ readTMVar mvs
+      _ <- runAction (evalCmd cmd') env store
+      return ()
+
+type Job = IO ()
+
+jobQueue :: TChan Job -> IO ()
+jobQueue q = forever $ do
+  job <- atomically $ readTChan q
+  job
+
 
 raise500 :: Msg -> Handler a
 raise500 (Msg msg) =

@@ -16,6 +16,7 @@ executable catalog-servant
   other-modules:       API
 
   build-depends:       base >= 4.7
+                     , async
                      , base-compat
                      , blaze-html
                      , bytestring
@@ -30,7 +31,7 @@ executable catalog-servant
                      , servant
                      , servant-blaze
                      , servant-server
-                     , stm >= 2.5.0.0
+                     , stm
                      , text
                      , wai
                      , wai-app-static
