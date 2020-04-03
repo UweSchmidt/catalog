@@ -8,15 +8,17 @@ module Main where
 import Prelude ()
 import Prelude.Compat
 
-import Control.Concurrent.MVar ( MVar
-                               , newMVar
-                               , readMVar
-                               , takeMVar
-                               , swapMVar
-                               , putMVar
-                               , withMVar)
+import Control.Concurrent.STM  ( atomically
+                               , TMVar
+                               , newTMVarIO
+                               , putTMVar
+                               , readTMVar
+                               , swapTMVar
+                               , takeTMVar
+                               )
 import Control.Exception       ( SomeException
-                               , catch) -- , try, toException)
+                               , catch -- , try, toException
+                               )
 import Control.Monad.ReaderStateErrIO
                                ( Msg(..) )
 import Network.Wai.Handler.Warp( setPort
@@ -269,7 +271,7 @@ catalogServer env runR runM =
 main :: IO ()
 main = mainWithArgs "servant" $ \ env -> do
   -- create a semaphore for syncing log output
-  sem  <- newMVar ()
+  sem  <- newTMVarIO ()
   let env' = env & envLogOp .~ logCmd sem
 
   est  <- initState env'
@@ -277,16 +279,18 @@ main = mainWithArgs "servant" $ \ env -> do
   where
     -- a log command that syncronizes
     -- output of messages to stderr
-    logCmd :: MVar () -> (String -> IO ())
-    logCmd sem s =
-      withMVar sem $ \ _ -> do hPutStrLn stderr s
-                               hFlush    stderr
+    logCmd :: TMVar () -> (String -> IO ())
+    logCmd sem s = do
+      v <- atomically $ takeTMVar sem
+      hPutStrLn stderr s
+      hFlush    stderr
+      atomically $ putTMVar sem v
 
 main' :: Env -> ImgStore -> IO ()
 main' env st = do
   -- create MVars for the image archive state
-  mvRead <- newMVar st
-  mvMody <- newMVar st
+  mvRead <- newTMVarIO st
+  mvMody <- newTMVarIO st
 
   let runRead  = runReadCmd env mvRead
   let runMody  = runModyCmd env mvRead mvMody
@@ -313,34 +317,51 @@ main' env st = do
 -- the 2. is for modifying the store, those operations run sequentially
 -- and at the end they update both mvars with the new state
 
-runReadCmd :: Env -> MVar ImgStore -> Cmd' a -> Handler a
+runReadCmd :: Env -> TMVar ImgStore -> Cmd' a -> Handler a
 runReadCmd env mvs cmd' = do
   res <- liftIO runc
   either raise500 return res
   where
     runc = do
-      store <- readMVar mvs
-      res <- ( (^. _1) <$> runAction (evalCmd cmd') env store )
-             `catch`
-             -- TODO this still does not catch: error "some error"
-             (\ e -> return (Left . Msg . show $ (e :: SomeException)))
+      -- read the store, but leave the store in the TMVar mvs
+      -- for other read operations
+      -- in case of an exception, the mvs TMVar is still valid,
+      -- no restore has to be done
+
+      store <- atomically $ readTMVar mvs
+      (res, _store) <- runAction (evalCmd cmd') env store
+                       `catch`
+                       -- TODO this still does not catch: error "some error"
+                       (\ e ->
+                           return
+                           (Left . Msg $ show (e :: SomeException), store)
+                       )
       return res
 
-runModyCmd :: Env -> MVar ImgStore -> MVar ImgStore -> Cmd' a -> Handler a
+runModyCmd :: Env -> TMVar ImgStore -> TMVar ImgStore -> Cmd' a -> Handler a
 runModyCmd env mvr mvm cmd' = do
   res <- liftIO runc
   either raise500 return res
   where
     runc = do
-      store <- takeMVar mvm
-      res <- ( do
-                 (res', new'store) <- runAction (evalCmd cmd') env store
-                 _old <- swapMVar mvr new'store
-                 putMVar mvm new'store
-                 return res'
-             )
-             `catch`
-             (\ e -> return (Left . Msg . show $ (e :: SomeException)))
+      -- the mvm TMVar is read and emptied
+      -- nobody else can modify until the modifying action is
+      -- finished and the result stored back into mvm TMVar
+      --
+      -- in case of an exception the mvm TMVar must be restored
+      -- with the initial value
+
+      store <- atomically $ takeTMVar mvm
+      (res, new'store) <- runAction (evalCmd cmd') env store
+                          `catch`
+                          (\ e ->
+                              return
+                              (Left . Msg $ show (e :: SomeException), store)
+                          )
+      atomically $
+        swapTMVar mvr new'store
+        >>
+        putTMVar  mvm new'store
       return res
 
 raise500 :: Msg -> Handler a

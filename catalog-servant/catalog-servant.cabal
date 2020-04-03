@@ -30,6 +30,7 @@ executable catalog-servant
                      , servant
                      , servant-blaze
                      , servant-server
+                     , stm >= 2.5.0.0
                      , text
                      , wai
                      , wai-app-static
