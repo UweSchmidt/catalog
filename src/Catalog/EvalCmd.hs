@@ -125,8 +125,8 @@ evalCmd (TheRating pos p) =
 evalCmd (TheRatings p) =
   path2node p >>= read'ratings
 
-evalCmd (CheckImgPart nm p) =
-  path2node p >>= read'checkImgPart p nm
+evalCmd (CheckImgPart onlyUpdate nm p) =
+  path2node p >>= read'checkImgPart onlyUpdate p nm
 
 -- eval get commands
 

@@ -62,7 +62,7 @@ data Cmd' a where
   TheMetaData          ::          Int      -> Path -> Cmd' MetaData
   TheRating            ::          Int      -> Path -> Cmd' Rating
   TheRatings           ::                      Path -> Cmd' [Rating]
-  CheckImgPart         ::          Name     -> Path -> Cmd' CheckSumRes
+  CheckImgPart         :: Bool ->  Name     -> Path -> Cmd' CheckSumRes
 
   -- catalog get commands
   StaticFile           ::          FilePath -> Text -> Cmd' LazyByteString

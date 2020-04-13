@@ -189,7 +189,8 @@ putStrLn' = io . putStrLn
 
 checksumFile :: Config r => SysPath -> Action r s CheckSum
 checksumFile sp = io $ do
-  mkCheckSum <$> BS.readFile (sp ^. isoFilePath)
+  r <- mkCheckSum <$> BS.readFile (sp ^. isoFilePath)
+  return $! r
 
 -- ----------------------------------------
 

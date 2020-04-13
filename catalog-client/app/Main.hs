@@ -81,7 +81,8 @@ data CC
   | CC'lsmd     PathPos [Name]
   | CC'setmd1   PathPos Name Text
   | CC'delmd1   PathPos Name
-  | CC'checksum Path    Name
+  | CC'checksum Path    Name Bool
+  | CC'updcsum  Path    Name Bool
   | CC'entry    Path
   | CC'download Path ReqType Geo FilePath Bool Bool
   | CC'noop
@@ -113,13 +114,26 @@ catalogClient = do
     CC'delmd1 pp key ->
       evalCSetMetaData1 pp key "-"
 
-    CC'checksum p part -> do
-      let pretty p' part' csr = do
-            io . putStrLn $
-              unwords [ substPathName part' (p' :: Path) ^. isoString <> ":"
-                      , prettyCSR csr
-                      ]
-      evalCCheckSum pretty p part
+    CC'checksum p part onlyUpdate -> do
+      evalCCheckSum prettyCheckSumRes onlyUpdate p part
+
+    CC'updcsum p part onlyUpdate -> do
+      let upd p' part' csr = do
+            case csr of
+              CSupdate cs'new ts'new -> do
+                reqCmd $ UpdateCheckSum  cs'new part' p'
+                reqCmd $ UpdateTimeStamp ts'new part' p'
+
+              CSnew cs'new -> do
+                reqCmd $ UpdateCheckSum  cs'new part' p'
+
+              CSerr _cs'new _cs'old -> do
+                prettyCheckSumRes p' part' csr
+
+              CSok _cs'new ->
+                pure ()
+
+      evalCCheckSum upd onlyUpdate p part
 
     CC'download p rt geo d0 withSeqNo overwrite -> do
       -- dir hierachy equals cache hierachy in catalog server
@@ -192,37 +206,44 @@ evalCSetMetaData1 pp@(p, cx) key val = do
 type CSCmd r = Path -> Name -> CheckSumRes -> CCmd r
 
 evalCCheckSum :: Monoid r => CSCmd r ->
-                 Path -> Name -> CCmd r
-evalCCheckSum k p n
+                 Bool -> Path -> Name -> CCmd r
+evalCCheckSum k u p n
   | isempty n =
-      evalCEntry p >>= evalCCheckSum' k p
+      evalCEntry p >>= evalCCheckSum' k u p
   | otherwise =
-      evalCCheckSumPart k p n
+      evalCCheckSumPart k u p n
 
 evalCCheckSum' :: Monoid r => CSCmd r ->
-                  Path -> ImgNodeP -> CCmd r
-evalCCheckSum' k p e
+                  Bool -> Path -> ImgNodeP -> CCmd r
+evalCCheckSum' k u p e
   | isIMG e   = mconcat <$>
                 traverse
-                  (evalCCheckSumPart k p)
+                  (evalCCheckSumPart k u p)
                   (e ^.. theParts . isoImgParts . traverse . theImgName)
   | isDIR e   = mconcat <$>
                 traverse
-                  (\ p' -> evalCEntry p'>>= evalCCheckSum' k p')
+                  (\ p' -> evalCEntry p'>>= evalCCheckSum' k u p')
                   (e ^.. theDirEntries . isoDirEntries . traverse)
   | otherwise = pure mempty
 
 evalCCheckSumPart :: Monoid r => CSCmd r ->
-                     Path -> Name -> CCmd r
-evalCCheckSumPart k p part = do
+                     Bool -> Path -> Name -> CCmd r
+evalCCheckSumPart k onlyUpdate p part = do
       trc $ unwords ["evalCCheckSumPart:"
                     , p ^. isoString
                     , "part:"
                     , part ^. isoString
                     ]
-      r <- reqCmd $ CheckImgPart part p
+      r <- reqCmd $ CheckImgPart onlyUpdate part p
       trc $ unwords ["res =", show r]
       k p part r
+
+prettyCheckSumRes :: CSCmd ()
+prettyCheckSumRes p part csr = do
+  io . putStrLn $
+    unwords [ substPathName part p ^. isoString <> ":"
+            , prettyCSR csr
+            ]
 
 -- --------------------
 --
@@ -390,8 +411,8 @@ reqCmd (TheRating pos p) =
 reqCmd (TheRatings p) =
   simpleJSONget "ratings" p
 
-reqCmd (CheckImgPart n p) =
-  paramJSONget "checkimgpart" p n
+reqCmd (CheckImgPart onlyUpdate n p) =
+  paramJSONget "checkimgpart" p (onlyUpdate, n)
 
 -- resized images and html pages
 
@@ -752,10 +773,18 @@ cmdP = subparser $
     )
   <>
   command "checksum"
-    ( (CC'checksum <$> pathP1 <*> partP)
+    ( checksumP CC'checksum
       `withInfo`
-      ( "Compute checksum for all or a specific part "
-        ++ "of a catalog entry for an image"
+      ( "Show checksums for image files "
+        ++ "of a catalog entry for an image or a whole image dir"
+      )
+    )
+  <>
+  command "update-checksum"
+    ( checksumP CC'updcsum
+      `withInfo`
+      ( "Compute, check and/or update checksums for image files "
+        ++ "of a catalog entry for an image or a whole image dir"
       )
     )
   <>
@@ -772,6 +801,17 @@ cmdP = subparser $
       `withInfo`
       "Do nothing"
     )
+
+checksumP :: (Path -> Name -> Bool -> CC) -> Parser CC
+checksumP cc = cl <$> ((,,) <$> checkOptP <*> pathP1 <*> partP)
+  where
+    cl (onlyUpdate, p, n) = cc p n onlyUpdate
+
+checkOptP :: Parser Bool
+checkOptP = flag False True
+            ( long "only-update"
+              <> help "only checksum updates with new files, no checks done"
+            )
 
 mdP :: Parser CC
 mdP = flip CC'lsmd

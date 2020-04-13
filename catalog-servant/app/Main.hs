@@ -204,8 +204,9 @@ catalogServer env runR runM runB =
 
     -- --------------------
 
-    runR1 cmd'         = runR . cmd'      . listToPath
-    runR2 cmd' ts args = runR . cmd' args . listToPath $ ts
+    runR1 cmd'         = runR  . cmd'      . listToPath
+    runR2 cmd' ts args = runR  . cmd' args . listToPath $ ts
+    runR3              = runR2 . uncurry
 
     json'read =
       runR1 TheCollection
@@ -228,7 +229,7 @@ catalogServer env runR runM runB =
       :<|>
       runR1 TheRatings
       :<|>
-      runR2 CheckImgPart
+      runR3 CheckImgPart
 
     runM1 cmd'         = runM . cmd'      . listToPath
     runM2 cmd' ts args = runM . cmd' args . listToPath $ ts

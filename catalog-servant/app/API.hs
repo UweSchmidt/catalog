@@ -183,7 +183,7 @@ type JsonGetAPI
       :<|>
       "ratings"       :> SimplePost [Rating]
       :<|>
-      "checkimgpart"  :> ParamPost Name CheckSumRes
+      "checkimgpart"  :> ParamPost (Bool, Name) CheckSumRes
     )
 
 -- the modifying ops

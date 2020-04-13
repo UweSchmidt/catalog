@@ -510,7 +510,7 @@ read'ratings n =
       where
         getR i' = getRating <$> getMetaData i'
 
-read'checkImgPart :: Path -> Name -> ImgNode -> Cmd CheckSumRes
+read'checkImgPart :: Bool -> Path -> Name -> ImgNode -> Cmd CheckSumRes
 read'checkImgPart p nm n = checkImgPart p nm n
 
 -- --------------------

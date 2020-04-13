@@ -21,7 +21,7 @@ import qualified Data.Aeson      as J
 
 data CheckSumRes = CSupdate CheckSum TimeStamp
                  | CSnew    CheckSum
-                 | CSerr    CheckSum Path ImgPart
+                 | CSerr    CheckSum CheckSum
                  | CSok     CheckSum
 
 deriving instance Show CheckSumRes
@@ -37,12 +37,10 @@ prettyCSR (CSnew cs) =
   unwords [ "checksum for image part not yet set, checksum:"
           , cs ^. isoString
           ]
-prettyCSR (CSerr cs p ip) =
+prettyCSR (CSerr cs'new cs'old) =
   unwords [ "image part corrupted,"
-          , "path:",         p  ^. isoString
-          , "part:",         ip ^. theImgName . isoString
-          , "old checksum:", ip ^. theImgCheckSum . isoString
-          , "new checksum:", cs ^. isoString
+          , "old checksum:", cs'old ^. isoString
+          , "new checksum:", cs'new ^. isoString
           ]
 prettyCSR (CSok cs) =
   unwords [ "checksum for image part ok, checksum:"
@@ -59,11 +57,10 @@ instance ToJSON CheckSumRes where
     [ "CheckSumRes"  J..= ("CSnew" :: String)
     , "cs"           J..= cs
     ]
-  toJSON (CSerr cs p n) = J.object
+  toJSON (CSerr cs cs'old) = J.object
     [ "CheckSumRes"  J..= ("CSerr" :: String)
     , "cs"           J..= cs
-    , "path"         J..= p
-    , "name"         J..= n
+    , "old"          J..= cs'old
     ]
   toJSON (CSok cs) = J.object
     [ "CheckSumRes"  J..= ("CSok" :: String)
@@ -81,8 +78,7 @@ instance FromJSON CheckSumRes where
            CSnew    <$> o J..: "cs"
          "CSerr" ->
            CSerr    <$> o J..: "cs"
-                    <*> o J..: "path"
-                    <*> o J..: "name"
+                    <*> o J..: "old"
          "CSok" ->
            CSok     <$> o J..: "cs"
          _ -> mzero
@@ -99,23 +95,32 @@ processImgPart cmd p nm n = do
     (cmd p)
     (n ^? theImgPart nm)
 
-checkImgPart :: Path -> Name -> ImgNode -> Cmd CheckSumRes
-checkImgPart =  processImgPart checkImgPart'
+checkImgPart :: Bool -> Path -> Name -> ImgNode -> Cmd CheckSumRes
+checkImgPart onlyUpdate = processImgPart (checkImgPart' onlyUpdate)
 
-checkImgPart' :: Path -> ImgPart -> Cmd CheckSumRes
-checkImgPart' p ip = do
+checkImgPart' :: Bool -> Path -> ImgPart -> Cmd CheckSumRes
+checkImgPart' onlyUpdate p ip = do
   fsp <- path2SysPath (substPathName (ip ^. theImgName) p)
   fts <- fsTimeStamp <$> fsFileStat fsp
-  fcs <- checksumFile fsp
-  return $
-    check (fts, fcs) (ip ^. theImgTimeStamp, ip ^. theImgCheckSum)
+
+  if onlyUpdate
+     &&
+     fts == ts0 && not (isempty cs0)
+    then return $ CSok cs0
+    else do
+      fcs <- checksumFile fsp
+      return $
+        check fts fcs
 
   where
-    check (ts1, cs1) (ts0, cs0)
+    ts0 = ip ^. theImgTimeStamp
+    cs0 = ip ^. theImgCheckSum
+
+    check ts1 cs1
       | ts1 /= ts0  = CSupdate cs1 ts1    -- file modified since last check
       | isempty cs0 = CSnew    cs1        -- checksum not yet computed
-      | cs1 /= cs0  = CSerr    cs1 p ip   -- file corrupted
-      | otherwise   = CSok     cs1
+      | cs1 /= cs0  = CSerr    cs1 cs0    -- file corrupted
+      | otherwise   = CSok     cs0
 
 updateCheckSum :: ObjId -> Name -> CheckSum -> Cmd ()
 updateCheckSum i n cs = do
