@@ -83,6 +83,7 @@ data CC
   | CC'delmd1   PathPos Name
   | CC'checksum Path    Name Bool Bool
   | CC'updcsum  Path    Name Bool
+  | CC'snapshot Text
   | CC'entry    Path
   | CC'download Path ReqType Geo FilePath Bool Bool
   | CC'noop
@@ -155,6 +156,9 @@ catalogClient = do
         then evalCDownload rt geo d1 so overwrite p
         else abort $ "Download dir not found: " <> d0
 
+    CC'snapshot msg -> do
+      evalCSnapshot msg defaultPath
+
     CC'noop ->
       trc $ "nothing to do"
 
@@ -195,6 +199,10 @@ evalCSetMetaData1 pp@(p, cx) key val = do
       let md1 = mempty & metaDataAt key .~ val
       _r <- reqCmd $ SetMetaData1 (fromMaybe (-1) cx) md1 p
       trc "done"
+
+evalCSnapshot :: Text -> Path -> CCmd ()
+evalCSnapshot msg p =
+  reqCmd $ Snapshot msg p
 
 -- --------------------
 --
@@ -799,11 +807,26 @@ cmdP = subparser $
       )
     )
   <>
+  command "snapshot"
+    ( snapshotP
+      `withInfo`
+      ( "Take a snapshot of catalog" )
+    )
+  <>
   command "noop"
     ( pure CC'noop
       `withInfo`
       "Do nothing"
     )
+
+snapshotP :: Parser CC
+snapshotP = CC'snapshot
+  <$> strOption
+      ( long "message"
+        <> short 'm'
+        <> metavar "MESSAGE"
+        <> help "The git commit message"
+      )
 
 checksumP :: Parser CC
 checksumP = cl <$> ((,,,) <$> checkOptP <*> checkOpt2P <*> pathP1 <*> partP)
