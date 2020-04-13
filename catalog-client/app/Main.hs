@@ -81,7 +81,7 @@ data CC
   | CC'lsmd     PathPos [Name]
   | CC'setmd1   PathPos Name Text
   | CC'delmd1   PathPos Name
-  | CC'checksum Path    Name Bool
+  | CC'checksum Path    Name Bool Bool
   | CC'updcsum  Path    Name Bool
   | CC'entry    Path
   | CC'download Path ReqType Geo FilePath Bool Bool
@@ -114,8 +114,8 @@ catalogClient = do
     CC'delmd1 pp key ->
       evalCSetMetaData1 pp key "-"
 
-    CC'checksum p part onlyUpdate -> do
-      evalCCheckSum prettyCheckSumRes onlyUpdate p part
+    CC'checksum p part onlyUpdate onlyMissing -> do
+      evalCCheckSum (prettyCheckSumRes onlyMissing) onlyUpdate p part
 
     CC'updcsum p part onlyUpdate -> do
       let upd p' part' csr = do
@@ -128,7 +128,7 @@ catalogClient = do
                 reqCmd $ UpdateCheckSum  cs'new part' p'
 
               CSerr _cs'new _cs'old -> do
-                prettyCheckSumRes p' part' csr
+                prettyCheckSumRes True p' part' csr
 
               CSok _cs'new ->
                 pure ()
@@ -238,8 +238,11 @@ evalCCheckSumPart k onlyUpdate p part = do
       trc $ unwords ["res =", show r]
       k p part r
 
-prettyCheckSumRes :: CSCmd ()
-prettyCheckSumRes p part csr = do
+prettyCheckSumRes :: Bool -> CSCmd ()
+
+prettyCheckSumRes True _ _ (CSok _) = return ()
+
+prettyCheckSumRes _    p part csr = do
   io . putStrLn $
     unwords [ substPathName part p ^. isoString <> ":"
             , prettyCSR csr
@@ -773,7 +776,7 @@ cmdP = subparser $
     )
   <>
   command "checksum"
-    ( checksumP CC'checksum
+    ( checksumP
       `withInfo`
       ( "Show checksums for image files "
         ++ "of a catalog entry for an image or a whole image dir"
@@ -781,7 +784,7 @@ cmdP = subparser $
     )
   <>
   command "update-checksum"
-    ( checksumP CC'updcsum
+    ( udpcsumP
       `withInfo`
       ( "Compute, check and/or update checksums for image files "
         ++ "of a catalog entry for an image or a whole image dir"
@@ -802,16 +805,29 @@ cmdP = subparser $
       "Do nothing"
     )
 
-checksumP :: (Path -> Name -> Bool -> CC) -> Parser CC
-checksumP cc = cl <$> ((,,) <$> checkOptP <*> pathP1 <*> partP)
+checksumP :: Parser CC
+checksumP = cl <$> ((,,,) <$> checkOptP <*> checkOpt2P <*> pathP1 <*> partP)
   where
-    cl (onlyUpdate, p, n) = cc p n onlyUpdate
+    cl (onlyUpdate, onlyMissing, p, n) = CC'checksum p n onlyUpdate onlyMissing
+
+udpcsumP :: Parser CC
+udpcsumP = cl <$> ((,,) <$> checkOptP <*> pathP1 <*> partP)
+  where
+    cl (onlyUpdate, p, n) = CC'updcsum p n onlyUpdate
+
+checkOpt2P :: Parser Bool
+checkOpt2P =
+  flag False True
+  ( long "only-missing"
+    <> help "Only show files with wrong or missing checksums"
+  )
 
 checkOptP :: Parser Bool
-checkOptP = flag False True
-            ( long "only-update"
-              <> help "only checksum updates with new files, no checks done"
-            )
+checkOptP =
+  flag False True
+  ( long "only-update"
+    <> help "only checksum updates with new files, no checks done"
+  )
 
 mdP :: Parser CC
 mdP = flip CC'lsmd
