@@ -103,7 +103,7 @@ data ImgNode' ref = IMG  !ImgParts
                   | COL  !MetaData               -- collection meta data
                          !(Maybe (ImgRef' ref))  -- optional image
                          !(Maybe (ImgRef' ref))  -- optional blog entry
-                         !(ColEntries' ref)  -- the list of images
+                         !(ColEntries'    ref)   -- the list of images
                                                  -- and subcollections
 
 -- ----------------------------------------

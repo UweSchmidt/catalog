@@ -7,9 +7,10 @@ module Catalog.System.IO
   , fileExist
   , fileNotEmpty
   , dirExist
-  , getFileStatus
+  , fsStat
+  , fsDirStat
+  , fsFileStat
   , getModiTime
-  , getModiTime'
   , setModiTime
   , writeFileLB
   , writeFileT
@@ -26,25 +27,39 @@ module Catalog.System.IO
   , readDir
   , putStrLnLB
   , putStrLn'
+  , checksumFile
   , atThisMoment
   , formatTimeIso8601
   , nowAsIso8601
   )
 where
 
-import           Catalog.Cmd.Types
-
+import           Catalog.Cmd.Types          ( Action
+                                            , Config
+                                            , io
+                                            , abort
+                                            , catchError
+                                            )
+import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy.Char8 as LB
 import           Data.Prim.Prelude
-import           Data.Prim.SysPath
-import           Data.Prim.TimeStamp
-import qualified Data.Text.IO      as T
-import qualified Data.Text.Lazy.IO as LT
-import           Data.Time.Clock (UTCTime)
-import qualified Data.Time.Clock   as C
-import qualified Data.Time.Format  as C
-import qualified System.Directory  as D
-import qualified System.Posix      as X
+import           Data.Prim.CheckSum         ( CheckSum
+                                            , mkCheckSum
+                                            )
+import           Data.Prim.SysPath          ( SysPath
+                                            , isoFilePath
+                                            )
+import           Data.Prim.TimeStamp        ( TimeStamp
+                                            , isoEpochTime
+                                            , fsTimeStamp
+                                            )
+import qualified Data.Text.IO               as T
+import qualified Data.Text.Lazy.IO          as LT
+import           Data.Time.Clock            ( UTCTime )
+import qualified Data.Time.Clock            as C
+import qualified Data.Time.Format           as C
+import qualified System.Directory           as D
+import qualified System.Posix               as X
 
 -- ----------------------------------------
 
@@ -65,21 +80,34 @@ fileNotEmpty :: Config r => SysPath -> Action r s Bool
 fileNotEmpty sp = do
   ex <- fileExist sp
   if not ex
-    then do st <- getFileStatus sp
+    then do st <- fsStat sp
             return $ X.fileSize st == 0
     else return True
 
-getFileStatus :: Config r => SysPath -> Action r s FileStatus
-getFileStatus sp = io . X.getFileStatus $ sp ^. isoFilePath
+fsStat' :: Config r
+        => String
+        -> (SysPath -> Action r s Bool)
+        -> SysPath
+        -> Action r s FileStatus
+fsStat' msg exists sp = do
+  unlessM (exists sp) $
+    abort $ "fs entry not found or not a " ++ msg ++ ": " ++ show sp
+  io . X.getFileStatus $ sp ^. isoFilePath
+
+fsStat :: Config r => SysPath -> Action r s FileStatus
+fsStat = fsStat' "" (const $ return True)
+
+fsDirStat :: Config r => SysPath -> Action r s FileStatus
+fsDirStat = fsStat' "directory" dirExist
+
+fsFileStat :: Config r => SysPath -> Action r s FileStatus
+fsFileStat = fsStat' "regular file" fileExist
 
 getModiTime :: Config r => SysPath -> Action r s TimeStamp
-getModiTime f = fsTimeStamp <$> getFileStatus f
-
-getModiTime' :: Config r => SysPath -> Action r s TimeStamp
-getModiTime' f = do
+getModiTime f = do
   ex <- fileExist f
   if ex
-    then getModiTime f
+    then fsTimeStamp <$> fsStat f
     else return mempty
 
 setModiTime :: Config r => TimeStamp -> SysPath -> Action r s ()
@@ -156,6 +184,12 @@ putStrLnLB = io . LB.putStrLn
 
 putStrLn' :: Config r => String -> Action r s ()
 putStrLn' = io . putStrLn
+
+-- ----------------------------------------
+
+checksumFile :: Config r => SysPath -> Action r s CheckSum
+checksumFile sp = io $ do
+  mkCheckSum <$> BS.readFile (sp ^. isoFilePath)
 
 -- ----------------------------------------
 

@@ -1,12 +1,16 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main
 where
 
 import           Catalog.CmdAPI
 import           Catalog.System.IO
+import           Catalog.CheckSum          ( CheckSumRes(..)
+                                           , prettyCSR
+                                           )
 import           Catalog.FilePath          ( isoPicNo )
 import           Catalog.Workflow          ( PathPos
                                            , imgReqTypes
@@ -77,6 +81,7 @@ data CC
   | CC'lsmd     PathPos [Name]
   | CC'setmd1   PathPos Name Text
   | CC'delmd1   PathPos Name
+  | CC'checksum Path    Name
   | CC'entry    Path
   | CC'download Path ReqType Geo FilePath Bool Bool
   | CC'noop
@@ -107,6 +112,14 @@ catalogClient = do
 
     CC'delmd1 pp key ->
       evalCSetMetaData1 pp key "-"
+
+    CC'checksum p part -> do
+      let pretty p' part' csr = do
+            io . putStrLn $
+              unwords [ substPathName part' (p' :: Path) ^. isoString <> ":"
+                      , prettyCSR csr
+                      ]
+      evalCCheckSum pretty p part
 
     CC'download p rt geo d0 withSeqNo overwrite -> do
       -- dir hierachy equals cache hierachy in catalog server
@@ -141,7 +154,7 @@ evalCEntry p = do
 evalCLs :: Path -> CCmd [Path]
 evalCLs p = do
       trc $ unwords ["evalCLs:", p ^. isoString]
-      subcols <$> reqCmd (TheCollection p)
+      subcols <$> evalCEntry p -- reqCmd (TheCollection p)
   where
     subcols :: ImgNodeP -> [Path]
     subcols n
@@ -168,6 +181,52 @@ evalCSetMetaData1 pp@(p, cx) key val = do
       let md1 = mempty & metaDataAt key .~ val
       _r <- reqCmd $ SetMetaData1 (fromMaybe (-1) cx) md1 p
       trc "done"
+
+-- --------------------
+--
+-- continuation passing style for evalCCheckSum used
+--
+-- more flexible than building a result list and process
+-- that list after it was completely build
+
+type CSCmd r = Path -> Name -> CheckSumRes -> CCmd r
+
+evalCCheckSum :: Monoid r => CSCmd r ->
+                 Path -> Name -> CCmd r
+evalCCheckSum k p n
+  | isempty n =
+      evalCEntry p >>= evalCCheckSum' k p
+  | otherwise =
+      evalCCheckSumPart k p n
+
+evalCCheckSum' :: Monoid r => CSCmd r ->
+                  Path -> ImgNodeP -> CCmd r
+evalCCheckSum' k p e
+  | isIMG e   = mconcat <$>
+                traverse
+                  (evalCCheckSumPart k p)
+                  (e ^.. theParts . isoImgParts . traverse . theImgName)
+  | isDIR e   = mconcat <$>
+                traverse
+                  (\ p' -> evalCEntry p'>>= evalCCheckSum' k p')
+                  (e ^.. theDirEntries . isoDirEntries . traverse)
+  | otherwise = pure mempty
+
+evalCCheckSumPart :: Monoid r => CSCmd r ->
+                     Path -> Name -> CCmd r
+evalCCheckSumPart k p part = do
+      trc $ unwords ["evalCCheckSumPart:"
+                    , p ^. isoString
+                    , "part:"
+                    , part ^. isoString
+                    ]
+      r <- reqCmd $ CheckImgPart part p
+      trc $ unwords ["res =", show r]
+      k p part r
+
+-- --------------------
+--
+-- download all images of a collection with a given size
 
 evalCDownload :: ReqType -> Geo -> SysPath -> CCmd String -> Bool
               -> Path -> CCmd ()
@@ -232,6 +291,8 @@ evalCDownload rt geo d nsn overwrite = evalDownload'
               sp' px' = d' & isoFilePath %~ (<> ("/" <> px' <> pn <> ".jpg"))
 
 -- ----------------------------------------
+--
+-- request commands
 
 reqCmd :: Cmd' a -> CCmd a
 
@@ -291,6 +352,12 @@ reqCmd (SyncExif p) =
 reqCmd (NewSubCollections p) =
   simpleJSONmodify "newSubCols" p
 
+reqCmd (UpdateCheckSum cs n p) =
+  paramJSONmodify "updateCheckSum" p (cs, n)
+
+reqCmd (UpdateTimeStamp ts n p) =
+  paramJSONmodify "updateTimeStamp" p (ts, n)
+
 -- catalog queries
 
 reqCmd (TheCollection p) =
@@ -322,6 +389,9 @@ reqCmd (TheRating pos p) =
 
 reqCmd (TheRatings p) =
   simpleJSONget "ratings" p
+
+reqCmd (CheckImgPart n p) =
+  paramJSONget "checkimgpart" p n
 
 -- resized images and html pages
 
@@ -464,7 +534,8 @@ runCCmd env cmd = fst <$> runAction cmd env emptyCState
 
 -- --------------------
 --
--- the app state, currently empty
+-- the app state, currently nearly empty
+-- just a sequence number for downloaded images
 
 data CState = CState
   { _seqno :: Int
@@ -680,6 +751,14 @@ cmdP = subparser $
       "Download all images of a collection"
     )
   <>
+  command "checksum"
+    ( (CC'checksum <$> pathP1 <*> partP)
+      `withInfo`
+      ( "Compute checksum for all or a specific part "
+        ++ "of a catalog entry for an image"
+      )
+    )
+  <>
   command "entry"
     ( (CC'entry <$> pathP)
       `withInfo`
@@ -782,6 +861,11 @@ keyP = argument globParser1 (metavar "KEY")
 
 valP :: Parser Text
 valP = argument str (metavar "VALUE")
+
+partP :: Parser Name
+partP = mkName <$> argument str (metavar "PART")
+        <|>
+        pure mempty
 
 withInfo :: Parser a -> String -> ParserInfo a
 withInfo opts desc = info (helper <*> opts) $ progDesc desc

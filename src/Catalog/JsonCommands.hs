@@ -1,4 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Catalog.JsonCommands
@@ -20,6 +19,8 @@ module Catalog.JsonCommands
   , modify'sort
   , modify'syncCol
   , modify'syncExif
+  , modify'updateCheckSum
+  , modify'updateTimeStamp
   , read'blogcontents
   , read'blogsource
   , read'collection
@@ -30,6 +31,7 @@ module Catalog.JsonCommands
   , read'metadata
   , read'rating
   , read'ratings
+  , read'checkImgPart
   )
 where
 
@@ -42,6 +44,11 @@ import Catalog.Cmd
 import Catalog.Html.Basic ( getColBlogSource
                           , putColBlogSource
                           , getColBlogCont
+                          )
+import Catalog.CheckSum   ( CheckSumRes
+                          , checkImgPart
+                          , updateCheckSum
+                          , updateTimeStamp
                           )
 import Catalog.Sync       ( syncDirP
                           , syncNewDirs
@@ -400,6 +407,16 @@ modify'syncExif = forceSyncAllMetaData
 modify'newSubCols :: ObjId -> Cmd ()
 modify'newSubCols = syncCol' syncNewDirs
 
+-- set checksum of an image part
+
+modify'updateCheckSum :: CheckSum -> Name -> ObjId -> Cmd ()
+modify'updateCheckSum cs n i = updateCheckSum i n cs
+
+-- set timestamp of an image part
+
+modify'updateTimeStamp :: TimeStamp -> Name -> ObjId -> Cmd ()
+modify'updateTimeStamp ts n i = updateTimeStamp i n ts
+
 -- ----------------------------------------
 --
 -- command for quering the catalog
@@ -492,6 +509,9 @@ read'ratings n =
     f = colEntry' (getR . _iref) getR
       where
         getR i' = getRating <$> getMetaData i'
+
+read'checkImgPart :: Path -> Name -> ImgNode -> Cmd CheckSumRes
+read'checkImgPart p nm n = checkImgPart p nm n
 
 -- --------------------
 

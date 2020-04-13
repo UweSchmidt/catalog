@@ -21,6 +21,7 @@ import Data.ImgTree     ( ImgNodeP )
 import Data.MetaData    ( MetaData
                         , Rating
                         )
+import Catalog.CheckSum ( CheckSumRes )
 import Catalog.Workflow ( ReqType(..) )
 
 -- ----------------------------------------
@@ -47,6 +48,8 @@ data Cmd' a where
   SyncCollection       ::                      Path -> Cmd' ()
   SyncExif             ::                      Path -> Cmd' ()
   NewSubCollections    ::                      Path -> Cmd' ()
+  UpdateCheckSum       :: CheckSum  -> Name -> Path -> Cmd' ()
+  UpdateTimeStamp      :: TimeStamp -> Name -> Path -> Cmd' ()
 
   -- catalog reading commands
   TheCollection        ::                      Path -> Cmd' ImgNodeP
@@ -59,6 +62,7 @@ data Cmd' a where
   TheMetaData          ::          Int      -> Path -> Cmd' MetaData
   TheRating            ::          Int      -> Path -> Cmd' Rating
   TheRatings           ::                      Path -> Cmd' [Rating]
+  CheckImgPart         ::          Name     -> Path -> Cmd' CheckSumRes
 
   -- catalog get commands
   StaticFile           ::          FilePath -> Text -> Cmd' LazyByteString

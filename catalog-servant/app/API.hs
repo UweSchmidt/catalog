@@ -18,6 +18,7 @@ import Servant
 import Data.Prim
 import Data.ImgTree (ImgNodeP)
 import Data.MetaData
+import Catalog.CheckSum (CheckSumRes)
 import qualified Data.Text as T
 
 
@@ -181,6 +182,8 @@ type JsonGetAPI
       "rating"        :> ParamPost Int Rating
       :<|>
       "ratings"       :> SimplePost [Rating]
+      :<|>
+      "checkimgpart"  :> ParamPost Name CheckSumRes
     )
 
 -- the modifying ops
@@ -222,6 +225,10 @@ type JsonModifyAPI
       "syncExif"             :> SimplePost ()
       :<|>
       "newSubCols"           :> SimplePost ()
+      :<|>
+      "updateCheckSum"       :> ParamPost (CheckSum, Name) ()
+      :<|>
+      "updateTimeStamp"      :> ParamPost (TimeStamp, Name) ()
     )
 
 -- ----------------------------------------

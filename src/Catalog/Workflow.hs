@@ -645,8 +645,8 @@ withCache :: (FilePath -> FilePath -> Cmd ())
 withCache cmd sp dp = do
   sp' <- toSysPath sp
   dp' <- toSysPath dp
-  sw  <- getModiTime' sp'
-  dw  <- getModiTime' dp'
+  sw  <- getModiTime sp'
+  dw  <- getModiTime dp'
 
   unless (dw == sw && not (isempty dw)) $ do
     -- no cache hit

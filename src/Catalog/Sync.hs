@@ -363,18 +363,6 @@ checkEmptyDir i =
 --
 -- low level directory and file ops
 
-fsStat :: String -> (SysPath -> Cmd Bool) -> SysPath -> Cmd FileStatus
-fsStat msg exists f = do
-  unlessM (exists f) $
-    abort $ "fs entry not found or not a " ++ msg ++ ": " ++ show f
-  getFileStatus f
-
-fsDirStat :: SysPath -> Cmd FileStatus
-fsDirStat = fsStat "directory" dirExist
-
-fsFileStat :: SysPath -> Cmd FileStatus
-fsFileStat = fsStat "regular file" fileExist
-
 parseDirCont :: SysPath -> Cmd ClassifiedNames
 parseDirCont p = do
   (es, jpgdirs)  <- classifyNames <$> readDir p

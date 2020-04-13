@@ -34,6 +34,7 @@ library
                      Data.Prim.SysPath
                      Data.Prim.TimeStamp
                      Catalog.EvalCmd
+                     Catalog.CheckSum
                      Catalog.FilePath
                      Catalog.Cmd
                      Catalog.CmdAPI

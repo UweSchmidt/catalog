@@ -86,6 +86,12 @@ evalCmd (SyncExif p) =
 evalCmd (NewSubCollections p) =
   path2id p >>= modify'newSubCols
 
+evalCmd (UpdateCheckSum cs n p) =
+  path2id p >>= modify'updateCheckSum cs n
+
+evalCmd (UpdateTimeStamp ts n p) =
+  path2id p >>= modify'updateTimeStamp ts n
+
 
 -- eval reading commands
 
@@ -118,6 +124,9 @@ evalCmd (TheRating pos p) =
 
 evalCmd (TheRatings p) =
   path2node p >>= read'ratings
+
+evalCmd (CheckImgPart nm p) =
+  path2node p >>= read'checkImgPart p nm
 
 -- eval get commands
 

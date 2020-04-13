@@ -43,7 +43,6 @@ import System.IO               ( hPutStrLn, stderr, hFlush )
 -- catalog modules
 import Data.Prim
 import Data.ImageStore         ( ImgStore )
-
 import Catalog.Cmd             ( Env
                                , runAction
                                , liftIO
@@ -228,6 +227,8 @@ catalogServer env runR runM runB =
       runR2 TheRating
       :<|>
       runR1 TheRatings
+      :<|>
+      runR2 CheckImgPart
 
     runM1 cmd'         = runM . cmd'      . listToPath
     runM2 cmd' ts args = runM . cmd' args . listToPath $ ts
@@ -270,6 +271,10 @@ catalogServer env runR runM runB =
       runM1 SyncExif
       :<|>
       runM1 NewSubCollections
+      :<|>
+      runM3 UpdateCheckSum
+      :<|>
+      runM3 UpdateTimeStamp
 
 -- ----------------------------------------
 --
