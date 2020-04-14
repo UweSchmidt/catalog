@@ -22,6 +22,7 @@ import qualified Data.Aeson      as J
 data CheckSumRes = CSupdate CheckSum TimeStamp
                  | CSnew    CheckSum
                  | CSerr    CheckSum CheckSum
+                 | CSlost
                  | CSok     CheckSum
 
 deriving instance Show CheckSumRes
@@ -40,6 +41,9 @@ prettyCSR (CSerr cs'new cs'old) =
   unwords [ "CORRUPTED"
           , "checksum:", cs'new ^. isoString
           , "expected:", cs'old ^. isoString
+          ]
+prettyCSR CSlost =
+  unwords [ "DELETED"
           ]
 prettyCSR (CSok cs) =
   unwords [ "OK"
@@ -61,6 +65,9 @@ instance ToJSON CheckSumRes where
     , "cs"           J..= cs
     , "old"          J..= cs'old
     ]
+  toJSON CSlost    = J.object
+    [ "CheckSumRes"  J..= ("CSlost" :: String)
+    ]
   toJSON (CSok cs) = J.object
     [ "CheckSumRes"  J..= ("CSok" :: String)
     , "cs"           J..= cs
@@ -78,6 +85,8 @@ instance FromJSON CheckSumRes where
          "CSerr" ->
            CSerr    <$> o J..: "cs"
                     <*> o J..: "old"
+         "CSlost" ->
+           pure CSlost
          "CSok" ->
            CSok     <$> o J..: "cs"
          _ -> mzero
@@ -100,16 +109,20 @@ checkImgPart onlyUpdate = processImgPart (checkImgPart' onlyUpdate)
 checkImgPart' :: Bool -> Path -> ImgPart -> Cmd CheckSumRes
 checkImgPart' onlyUpdate p ip = do
   fsp <- path2SysPath (substPathName (ip ^. theImgName) p)
-  fts <- fsTimeStamp <$> fsFileStat fsp
-
-  if onlyUpdate
-     &&
-     fts == ts0 && not (isempty cs0)
-    then return $ CSok cs0
+  fex <- fileExist fsp
+  if not fex
+    then return CSlost
     else do
-      fcs <- checksumFile fsp
-      return $
-        check fts fcs
+      fts <- fsTimeStamp <$> fsFileStat fsp
+
+      if onlyUpdate
+         &&
+        fts == ts0 && not (isempty cs0)
+        then return $ CSok cs0
+        else do
+          fcs <- checksumFile fsp
+          return $
+            check fts fcs
 
   where
     ts0 = ip ^. theImgTimeStamp

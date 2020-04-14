@@ -137,6 +137,9 @@ catalogClient = do
               CSerr _cs'new _cs'old -> do
                 issue
 
+              CSlost -> do
+                issue
+
               CSok _cs'new ->
                 pure ()
 
