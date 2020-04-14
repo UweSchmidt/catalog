@@ -7,6 +7,9 @@ import qualified Data.Digest.Murmur64 as MM
 import           Data.Maybe
 import           Data.Prim.Prelude
 import           Data.Word
+import           Numeric(readHex)
+import           Text.Printf (printf)
+import           Data.Aeson (withText)
 
 -- ----------------------------------------
 
@@ -61,12 +64,28 @@ instance IsEmpty ObjId where
   {-# INLINE isempty #-}
 
 instance ToJSON ObjId where
-  toJSON = toJSON . fromObjId
+  -- old instance as decimals
+  -- toJSON = toJSON . fromObjId
+
+  toJSON = toJSON . oidToHex
   {-# INLINE toJSON #-}
 
 instance FromJSON ObjId where
-  parseJSON o = toObjId <$> parseJSON o
-  {-# INLINE parseJSON #-}
+  parseJSON o =
+    parseHex o     -- new: hex number as string
+    <|>
+    parseNumber o  -- old: decimal as number
+    where
+      -- the old parser for numbers in scientific format
+      parseNumber n = toObjId <$> parseJSON n
+
+      -- the new parser for hex string representation of ObjId's
+      parseHex = withText "ObjId" $ \ xs ->
+        maybe
+          mzero
+          pure
+          (oidFromHex $ xs ^. isoString)
+
 
 instance IsoString ObjId where
   isoString = objId2integer . isoString
@@ -74,5 +93,16 @@ instance IsoString ObjId where
 
 instance IsoHex ObjId where
   isoHex = objId2Int . isoHex
+
+oidHex :: Prism' String ObjId
+oidHex = prism' oidToHex oidFromHex
+
+oidToHex :: ObjId -> String
+oidToHex (ObjId w64) = printf "0x%016x" w64
+
+oidFromHex :: String -> Maybe ObjId
+oidFromHex ('0' : 'x' : xs)
+  | [(i, "")] <- readHex xs = Just (ObjId i)
+oidFromHex _                = Nothing
 
 -- ----------------------------------------
