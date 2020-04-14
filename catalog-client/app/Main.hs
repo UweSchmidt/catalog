@@ -241,7 +241,7 @@ evalCCheckSum' k u p e
   | isDIR e = do
       putStrLn' $
         unwords [ p ^. isoString <> ":"
-                , "CHECK all images in dir"
+                , "CHECK dir"
                 ]
       mconcat <$>
         traverse
