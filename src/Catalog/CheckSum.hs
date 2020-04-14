@@ -116,7 +116,7 @@ checkImgPart' onlyUpdate p ip = do
     cs0 = ip ^. theImgCheckSum
 
     check ts1 cs1
-      | ts1 /= ts0  = CSupdate cs1 ts1    -- file modified since last check
+      | ts1 > ts0   = CSupdate cs1 ts1    -- file modified since last check
       | isempty cs0 = CSnew    cs1        -- checksum not yet computed
       | cs1 /= cs0  = CSerr    cs1 cs0    -- file corrupted
       | otherwise   = CSok     cs0
