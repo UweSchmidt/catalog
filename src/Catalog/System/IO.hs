@@ -61,6 +61,9 @@ import qualified Data.Time.Clock            as C
 import qualified Data.Time.Format           as C
 import qualified System.Directory           as D
 import qualified System.Posix               as X
+import           System.IO                  ( hFlush
+                                            , stdout
+                                            )
 
 -- ----------------------------------------
 
@@ -184,7 +187,9 @@ putStrLnLB :: Config r => LB.ByteString -> Action r s ()
 putStrLnLB = io . LB.putStrLn
 
 putStrLn' :: Config r => String -> Action r s ()
-putStrLn' = io . putStrLn
+putStrLn' xs = io $ do
+  putStrLn xs
+  hFlush stdout   -- no buffering, even if stdout is redirected into a file
 
 print' :: (Config r, Show a) => a -> Action r s ()
 print' = putStrLn' . show
