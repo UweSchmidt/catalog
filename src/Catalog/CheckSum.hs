@@ -28,23 +28,22 @@ deriving instance Show CheckSumRes
 
 prettyCSR :: CheckSumRes -> String
 prettyCSR (CSupdate cs ts) =
-  unwords [ "image part modified, new checksum:"
-          , cs ^. isoString
-          , "new timestamp:"
-          , ts ^. isoString
+  unwords [ "MODIFIED"
+          , "checksum:",  cs ^. isoString
+          , "timestamp:", ts &  formatTimeStamp
           ]
 prettyCSR (CSnew cs) =
-  unwords [ "checksum for image part not yet set, checksum:"
-          , cs ^. isoString
+  unwords [ "NEW"
+          , "checksum:", cs ^. isoString
           ]
 prettyCSR (CSerr cs'new cs'old) =
-  unwords [ "image part corrupted,"
-          , "old checksum:", cs'old ^. isoString
-          , "new checksum:", cs'new ^. isoString
+  unwords [ "CORRUPTED"
+          , "checksum:", cs'new ^. isoString
+          , "expected:", cs'old ^. isoString
           ]
 prettyCSR (CSok cs) =
-  unwords [ "checksum for image part ok, checksum:"
-          , cs ^. isoString
+  unwords [ "OK"
+          , "checksum:", cs ^. isoString
           ]
 
 instance ToJSON CheckSumRes where

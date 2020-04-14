@@ -57,10 +57,10 @@ import           System.Exit
 -- version number is updated automatically
 
 version :: String
-version = "0.2.7.0"
+version = "0.2.7.1"
 
 date :: String
-date = "2020-04-13"
+date = "2020-04-14"
 
 appname :: String
 appname = "client"
@@ -101,13 +101,13 @@ catalogClient = do
   -- p <- view (envPath . isoString . from isoString)
   case c of
     CC'entry p ->
-      evalCEntry p >>= io . print
+      evalCEntry p >>= print'
 
     CC'ls p ->
-      evalCLs p >>= io . sequenceA_ . map print
+      evalCLs p >>= sequenceA_ . map print'
 
     CC'lsmd pp keys ->
-      evalCMetaData pp keys >>= io . sequenceA_ . map putStrLn . prettyMD
+      evalCMetaData pp keys >>= sequenceA_ . map putStrLn' . prettyMD
 
     CC'setmd1 pp key val ->
       evalCSetMetaData1 pp key val
@@ -115,26 +115,33 @@ catalogClient = do
     CC'delmd1 pp key ->
       evalCSetMetaData1 pp key "-"
 
+
     CC'checksum p part onlyUpdate onlyMissing -> do
       evalCCheckSum (prettyCheckSumRes onlyMissing) onlyUpdate p part
 
+
     CC'updcsum p part onlyUpdate -> do
       let upd p' part' csr = do
+            let issue = prettyCheckSumRes True p' part' csr
+
             case csr of
               CSupdate cs'new ts'new -> do
                 reqCmd $ UpdateCheckSum  cs'new part' p'
                 reqCmd $ UpdateTimeStamp ts'new part' p'
+                issue
 
               CSnew cs'new -> do
                 reqCmd $ UpdateCheckSum  cs'new part' p'
+                issue
 
               CSerr _cs'new _cs'old -> do
-                prettyCheckSumRes True p' part' csr
+                issue
 
               CSok _cs'new ->
                 pure ()
 
       evalCCheckSum upd onlyUpdate p part
+
 
     CC'download p rt geo d0 withSeqNo overwrite -> do
       -- dir hierachy equals cache hierachy in catalog server
@@ -221,18 +228,28 @@ evalCCheckSum k u p n
   | otherwise =
       evalCCheckSumPart k u p n
 
+
 evalCCheckSum' :: Monoid r => CSCmd r ->
                   Bool -> Path -> ImgNodeP -> CCmd r
 evalCCheckSum' k u p e
-  | isIMG e   = mconcat <$>
-                traverse
-                  (evalCCheckSumPart k u p)
-                  (e ^.. theParts . isoImgParts . traverse . theImgName)
-  | isDIR e   = mconcat <$>
-                traverse
-                  (\ p' -> evalCEntry p'>>= evalCCheckSum' k u p')
-                  (e ^.. theDirEntries . isoDirEntries . traverse)
+  | isIMG e = do
+      mconcat <$>
+        traverse
+          (evalCCheckSumPart k u p)
+          (e ^.. theParts . isoImgParts . traverse . theImgName)
+
+  | isDIR e = do
+      putStrLn' $
+        unwords [ p ^. isoString <> ":"
+                , "CHECK all images in dir"
+                ]
+      mconcat <$>
+        traverse
+          (\ p' -> evalCEntry p'>>= evalCCheckSum' k u p')
+          (e ^.. theDirEntries . isoDirEntries . traverse)
+
   | otherwise = pure mempty
+
 
 evalCCheckSumPart :: Monoid r => CSCmd r ->
                      Bool -> Path -> Name -> CCmd r
@@ -246,12 +263,13 @@ evalCCheckSumPart k onlyUpdate p part = do
       trc $ unwords ["res =", show r]
       k p part r
 
+
 prettyCheckSumRes :: Bool -> CSCmd ()
 
 prettyCheckSumRes True _ _ (CSok _) = return ()
 
-prettyCheckSumRes _    p part csr = do
-  io . putStrLn $
+prettyCheckSumRes _  p part csr = do
+  putStrLn' $
     unwords [ substPathName part p ^. isoString <> ":"
             , prettyCSR csr
             ]
@@ -794,8 +812,8 @@ cmdP = subparser $
   command "update-checksum"
     ( udpcsumP
       `withInfo`
-      ( "Compute, check and/or update checksums for image files "
-        ++ "of a catalog entry for an image or a whole image dir"
+      ( "Compute, check and/or update checksums "
+        ++ "of an image or a whole image dir"
       )
     )
   <>
@@ -829,14 +847,14 @@ snapshotP = CC'snapshot
       )
 
 checksumP :: Parser CC
-checksumP = cl <$> ((,,,) <$> checkOptP <*> checkOpt2P <*> pathP1 <*> partP)
+checksumP = cc <$> checkOptP <*> checkOpt2P <*> pathP1 <*> partP
   where
-    cl (onlyUpdate, onlyMissing, p, n) = CC'checksum p n onlyUpdate onlyMissing
+    cc onlyUpdate onlyMissing p n = CC'checksum p n onlyUpdate onlyMissing
 
 udpcsumP :: Parser CC
-udpcsumP = cl <$> ((,,) <$> checkOptP <*> pathP1 <*> partP)
+udpcsumP = cc <$> checkOptP <*> pathP1 <*> partP
   where
-    cl (onlyUpdate, p, n) = CC'updcsum p n onlyUpdate
+    cc onlyUpdate p n = CC'updcsum p n onlyUpdate
 
 checkOpt2P :: Parser Bool
 checkOpt2P =

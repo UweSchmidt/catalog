@@ -27,6 +27,7 @@ module Catalog.System.IO
   , readDir
   , putStrLnLB
   , putStrLn'
+  , print'
   , checksumFile
   , atThisMoment
   , formatTimeIso8601
@@ -184,6 +185,9 @@ putStrLnLB = io . LB.putStrLn
 
 putStrLn' :: Config r => String -> Action r s ()
 putStrLn' = io . putStrLn
+
+print' :: (Config r, Show a) => a -> Action r s ()
+print' = putStrLn' . show
 
 -- ----------------------------------------
 
