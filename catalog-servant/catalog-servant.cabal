@@ -1,5 +1,5 @@
 name:                catalog-servant
-version:             0.2.8.1
+version:             0.2.8.2
 synopsis:            Servant server for catalog
 homepage:            https://github.com/UweSchmidt/apps/catalog
 license:             BSD3
