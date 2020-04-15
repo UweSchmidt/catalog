@@ -117,57 +117,66 @@ catalogClient = do
       evalCSetMetaData1 pp key "-"
 
 
-    CC'checksum p part onlyUpdate onlyMissing -> do
-      evalCCheckSum (prettyCheckSumRes onlyMissing) onlyUpdate p part
+    CC'checksum p part onlyUpdate onlyMissing ->
+      local (\env -> env & envOnlyUpdate  .~ onlyUpdate
+                         & envOnlyMissing .~ onlyMissing
+            ) $
+      do
+        evalCCheckSum prettyCheckSumRes p part
 
 
-    CC'updcsum p part onlyUpdate -> do
-      let upd p' part' csr = do
-            let issue = prettyCheckSumRes True p' part' csr
+    CC'updcsum p part onlyUpdate ->
+      local (\env -> env & envOnlyUpdate  .~ onlyUpdate
+                         & envOnlyMissing .~ True
+            ) $
+      do
+        let upd p' part' csr = do
+              let issue = prettyCheckSumRes p' part' csr
 
-            case csr of
-              CSupdate cs'new ts'new -> do
-                reqCmd $ UpdateCheckSum  cs'new part' p'
-                reqCmd $ UpdateTimeStamp ts'new part' p'
-                issue
+              case csr of
+                CSupdate cs'new ts'new -> do
+                  reqCmd $ UpdateCheckSum  cs'new part' p'
+                  reqCmd $ UpdateTimeStamp ts'new part' p'
+                  issue
 
-              CSnew cs'new -> do
-                reqCmd $ UpdateCheckSum  cs'new part' p'
-                issue
+                CSnew cs'new -> do
+                  reqCmd $ UpdateCheckSum  cs'new part' p'
+                  issue
 
-              CSerr _cs'new _cs'old -> do
-                issue
+                CSerr _cs'new _cs'old -> do
+                  issue
 
-              CSlost -> do
-                issue
+                CSlost -> do
+                  issue
 
-              CSok _cs'new ->
-                pure ()
+                CSok _cs'new ->
+                  pure ()
 
-      evalCCheckSum upd onlyUpdate p part
+        evalCCheckSum upd p part
 
 
-    CC'download p rt geo d0 withSeqNo overwrite -> do
-      -- dir hierachy equals cache hierachy in catalog server
-      let geo'
-            | geo == geo'org = orgGeo
-            | otherwise      = geo ^. isoString
-      let px = "docs" </> (rt ^. isoString) </> geo'
+    CC'download p rt geo d0 withSeqNo overwrite ->
+      do
+        -- dir hierachy equals cache hierachy in catalog server
+        let geo'
+              | geo == geo'org = orgGeo
+              | otherwise      = geo ^. isoString
+        let px = "docs" </> (rt ^. isoString) </> geo'
 
-      let d  = isoFilePath # d0
-      let d1 = isoFilePath # (d0 </> px)
+        let d  = isoFilePath # d0
+        let d1 = isoFilePath # (d0 </> px)
 
-      so <- if withSeqNo
-            then do initSeqNo
-                    return nextSeqNo
-             else return (return "")
+        so <- if withSeqNo
+              then do initSeqNo
+                      return nextSeqNo
+              else return (return "")
 
-      dx  <- dirExist d
-      if dx
-        then evalCDownload rt geo d1 so overwrite p
-        else abort $ "Download dir not found: " <> d0
+        dx  <- dirExist d
+        if dx
+          then evalCDownload rt geo d1 so overwrite p
+          else abort $ "Download dir not found: " <> d0
 
-    CC'snapshot msg -> do
+    CC'snapshot msg ->
       evalCSnapshot msg defaultPath
 
     CC'noop ->
@@ -224,22 +233,22 @@ evalCSnapshot msg p =
 
 type CSCmd r = Path -> Name -> CheckSumRes -> CCmd r
 
-evalCCheckSum :: Monoid r => CSCmd r ->
-                 Bool -> Path -> Name -> CCmd r
-evalCCheckSum k u p n
+evalCCheckSum :: Monoid r => CSCmd r
+              -> Path -> Name -> CCmd r
+evalCCheckSum k p n
   | isempty n =
-      evalCEntry p >>= evalCCheckSum' k u p
+      evalCEntry p >>= evalCCheckSum' k p
   | otherwise =
-      evalCCheckSumPart k u p n
+      evalCCheckSumPart k p n
 
 
-evalCCheckSum' :: Monoid r => CSCmd r ->
-                  Bool -> Path -> ImgNodeP -> CCmd r
-evalCCheckSum' k u p e
+evalCCheckSum' :: Monoid r => CSCmd r
+               -> Path -> ImgNodeP -> CCmd r
+evalCCheckSum' k p e
   | isIMG e = do
       mconcat <$>
         traverse
-          (evalCCheckSumPart k u p)
+          (evalCCheckSumPart k p)
           (e ^.. theParts . isoImgParts . traverse . theImgName)
 
   | isDIR e = do
@@ -249,34 +258,36 @@ evalCCheckSum' k u p e
                 ]
       mconcat <$>
         traverse
-          (\ p' -> evalCEntry p'>>= evalCCheckSum' k u p')
+          (\ p' -> evalCEntry p'>>= evalCCheckSum' k p')
           (e ^.. theDirEntries . isoDirEntries . traverse)
 
   | otherwise = pure mempty
 
 
-evalCCheckSumPart :: Monoid r => CSCmd r ->
-                     Bool -> Path -> Name -> CCmd r
-evalCCheckSumPart k onlyUpdate p part = do
-      trc $ unwords ["evalCCheckSumPart:"
-                    , p ^. isoString
-                    , "part:"
-                    , part ^. isoString
-                    ]
-      r <- reqCmd $ CheckImgPart onlyUpdate part p
-      trc $ unwords ["res =", show r]
-      k p part r
+evalCCheckSumPart :: Monoid r => CSCmd r
+                  -> Path -> Name -> CCmd r
+evalCCheckSumPart k p part = do
+  onlyUpdate <- view envOnlyUpdate
+  trc $ unwords ["evalCCheckSumPart:"
+                , p ^. isoString
+                , "part:"
+                , part ^. isoString
+                ]
+  r <- reqCmd $ CheckImgPart onlyUpdate part p
+  trc $ unwords ["res =", show r]
+  k p part r
 
 
-prettyCheckSumRes :: Bool -> CSCmd ()
+prettyCheckSumRes :: CSCmd ()
+prettyCheckSumRes p part csr = do
+  onlyMissing <- view envOnlyMissing
 
-prettyCheckSumRes True _ _ (CSok _) = return ()
-
-prettyCheckSumRes _  p part csr = do
-  putStrLn' $
-    unwords [ substPathName part p ^. isoString <> ":"
-            , prettyCSR csr
-            ]
+  case (onlyMissing, csr) of
+    (True, CSok _) -> return ()         -- only errors are issued
+    _              -> putStrLn' $
+                      unwords [ substPathName part p ^. isoString <> ":"
+                              , prettyCSR csr
+                              ]
 
 -- --------------------
 --
@@ -629,6 +640,8 @@ data CEnv = CEnv
   , _cc          :: CC
   , _logOp       :: String -> IO ()
   , _manager     :: Manager
+  , _onlyUpdate  :: Bool
+  , _onlyMissing :: Bool
   }
 
 instance Config CEnv where
@@ -645,6 +658,8 @@ defaultCEnv = CEnv
   , _cc           = CC'noop
   , _logOp        = defaultLogger
   , _manager      = defaultManager
+  , _onlyUpdate   = False
+  , _onlyMissing  = False
   }
 
 defaultPath :: Path
@@ -666,6 +681,7 @@ mkCEnv (trc', verbose')
        cc'
        defaultLogger
        defaultManager
+       False False      -- checksum options
 
 -- --------------------
 
@@ -700,6 +716,12 @@ envLogOp k e = (\ new -> e {_logOp = new}) <$> k (_logOp e)
 
 envManager :: Lens' CEnv Manager
 envManager k e = (\ new -> e {_manager = new}) <$> k (_manager e)
+
+envOnlyUpdate :: Lens' CEnv Bool
+envOnlyUpdate k e = (\ new -> e {_onlyUpdate = new}) <$> k (_onlyUpdate e)
+
+envOnlyMissing :: Lens' CEnv Bool
+envOnlyMissing k e = (\ new -> e {_onlyMissing = new}) <$> k (_onlyMissing e)
 
 -- ----------------------------------------
 --
