@@ -261,7 +261,8 @@ evalCCheckSum' k p e
       mconcat <$>
         traverse
           (\ p' -> evalCEntry p'>>= evalCCheckSum' k p')
-          (e ^.. theDirEntries . isoDirEntries . traverse)
+          (sort $ e ^.. theDirEntries . isoDirEntries . traverse)
+          -- ^  traversal with ascending path names
 
   | otherwise = pure mempty
 
