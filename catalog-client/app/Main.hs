@@ -83,7 +83,7 @@ data CC
   | CC'setmd1   PathPos Name Text
   | CC'delmd1   PathPos Name
   | CC'checksum Path    Name Bool Bool
-  | CC'updcsum  Path    Name Bool
+  | CC'updcsum  Path    Name Bool Bool
   | CC'snapshot Text
   | CC'entry    Path
   | CC'download Path ReqType Geo FilePath Bool Bool
@@ -125,7 +125,7 @@ catalogClient = do
         evalCCheckSum prettyCheckSumRes p part
 
 
-    CC'updcsum p part onlyUpdate ->
+    CC'updcsum p part onlyUpdate forceUpdate ->
       local (\env -> env & envOnlyUpdate  .~ onlyUpdate
                          & envOnlyMissing .~ True
             ) $
@@ -143,7 +143,9 @@ catalogClient = do
                   reqCmd $ UpdateCheckSum  cs'new part' p'
                   issue
 
-                CSerr _cs'new _cs'old -> do
+                CSerr cs'new _cs'old -> do
+                  when forceUpdate $
+                    reqCmd $ UpdateCheckSum  cs'new part' p'
                   issue
 
                 CSlost -> do
@@ -879,9 +881,16 @@ checksumP = cc <$> checkOptP <*> checkOpt2P <*> pathP1 <*> partP
     cc onlyUpdate onlyMissing p n = CC'checksum p n onlyUpdate onlyMissing
 
 udpcsumP :: Parser CC
-udpcsumP = cc <$> checkOptP <*> pathP1 <*> partP
+udpcsumP = cc <$> checkOptP <*> checkOpt3P <*> pathP1 <*> partP
   where
-    cc onlyUpdate p n = CC'updcsum p n onlyUpdate
+    cc onlyUpdate forceUpdate p n = CC'updcsum p n onlyUpdate forceUpdate
+
+checkOptP :: Parser Bool
+checkOptP =
+  flag False True
+  ( long "only-update"
+    <> help "only checksum updates with new files, no checks done"
+  )
 
 checkOpt2P :: Parser Bool
 checkOpt2P =
@@ -890,11 +899,11 @@ checkOpt2P =
     <> help "Only show files with wrong or missing checksums"
   )
 
-checkOptP :: Parser Bool
-checkOptP =
+checkOpt3P :: Parser Bool
+checkOpt3P =
   flag False True
-  ( long "only-update"
-    <> help "only checksum updates with new files, no checks done"
+  ( long "force-update"
+    <> help "in case of checksum error update checksum with new value"
   )
 
 mdP :: Parser CC
