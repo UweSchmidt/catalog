@@ -196,6 +196,9 @@ print' = putStrLn' . show
 
 -- ----------------------------------------
 
+-- don't use lazy bytestrings, this leads to space leaks
+-- with very large files (> 1Gb, e.g. .afphoto stacks)
+
 checksumFile :: Config r => SysPath -> Action r s CheckSum
 checksumFile sp = io $ do
   r <- mkCheckSum <$> BS.readFile (sp ^. isoFilePath)

@@ -41,6 +41,7 @@ import           Network.HTTP.Client       ( Request(..)
                                            , defaultRequest
                                            , httpLbs
                                            , newManager
+                                           , responseTimeoutNone
                                            )
 import           Network.HTTP.Types.Header ( hContentType )
 import           Network.HTTP.Types.Method ( Method )
@@ -527,6 +528,7 @@ basicReq method' setBody path' = do
         , host   = isoString # host'
         , port   = port'
         , path   = path' ^. isoString . from isoString
+        , responseTimeout = responseTimeoutNone
         }
   verbose $ show'basicReq request
 
