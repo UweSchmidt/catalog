@@ -64,6 +64,8 @@ import qualified System.Posix               as X
 import           System.IO                  ( hFlush
                                             , stdout
                                             )
+-- import           System.IO.MMap             ( mmapFileByteString )
+-- import           System.Mem                 ( performGC )
 
 -- ----------------------------------------
 
@@ -203,6 +205,19 @@ checksumFile :: Config r => SysPath -> Action r s CheckSum
 checksumFile sp = io $ do
   r <- mkCheckSum <$> BS.readFile (sp ^. isoFilePath)
   return $! r
+
+{-
+-- test with mmapped files
+--
+-- memmory size of server process raises up to 20GB when processing large files (.afphoto)
+-- even when running garabage collection after a checksum run
+
+checksumFile :: Config r => SysPath -> Action r s CheckSum
+checksumFile sp = io $ do
+  bs <- mmapFileByteString (sp ^. isoFilePath) Nothing
+  return $! mkCheckSum bs
+
+-}
 
 -- ----------------------------------------
 

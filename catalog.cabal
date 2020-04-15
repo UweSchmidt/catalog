@@ -1,5 +1,5 @@
 name:                catalog
-version:             0.2.8.0
+version:             0.2.8.1
 synopsis:            Image catalog
 description:         Please see README.md
 homepage:            http://github.com/UweSchmidt/apps/catalog#readme
@@ -69,6 +69,7 @@ library
                    , directory            >= 1.1
                    , filepath             >= 1
                    , lens                 >= 4.12
+                   -- , mmap
                    , monad-reader-state-err-io
                    , mtl                  >= 2.2
                    , murmur-hash          >= 0.1
