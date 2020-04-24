@@ -2,6 +2,7 @@ catalog/
 catalog-server
 catalog-sync
 catalog-servant*
+catalog-client
 photos
 cache
 Alben
