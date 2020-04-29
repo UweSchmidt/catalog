@@ -1,0 +1,67 @@
+name:           client-polysemy
+version:        0.1.0.0
+description:    Catalog client with polysemy effect library
+author:         Uwe Schmidt
+maintainer:     Uwe Schmidt
+copyright:      2020 Uwe Schmidt
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.12
+
+source-repository head
+  type:     git
+  location: https://github.com/UweSchmidt/apps/catalog
+
+
+executable client-polysemy
+  main-is:            Main.hs
+  other-modules:      Client.Commands
+                      Client.Commands.Interpreter
+                      Polysemy.Consume
+                      Polysemy.Consume.BGQueue
+                      Polysemy.HttpRequest
+                      Polysemy.Logging
+                      Server.Commands
+                      Server.Commands.ClientInterpreter
+                      System.HttpRequest
+                      Paths_client_polysemy
+
+  hs-source-dirs:     app src
+
+  default-extensions: ConstraintKinds
+                      DataKinds
+                      FlexibleContexts
+                      GADTs
+                      LambdaCase
+                      OverloadedStrings
+                      PolyKinds
+                      RankNTypes
+                      ScopedTypeVariables
+                      TypeApplications
+                      TypeFamilies
+                      TypeOperators
+
+  ghc-options: -threaded
+               -rtsopts
+               -with-rtsopts=-N
+               -Wall -fwarn-tabs -O2
+               -funbox-strict-fields
+               -flate-specialise
+               -fspecialise-aggressively
+
+  build-depends: async                >= 2.2.2
+               , aeson                >= 0.8
+               , base                 >= 4.7 && <5
+               , bytestring           >= 0.9
+               , catalog
+               , exceptions
+               , http-client
+               , http-types
+               , optparse-applicative
+               , polysemy             >= 1.2.3
+               , random
+               , stm
+               , text
+               
+  default-language: Haskell2010
