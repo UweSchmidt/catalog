@@ -20,6 +20,7 @@ module Polysemy.Consume
 
     -- * Actions
   , consume
+  , writeln
 
     -- * Interpretations
   , consumeIO          -- perform an arbitrary IO cmd to process value
@@ -40,6 +41,10 @@ data Consume v m a where
   Consume :: v -> Consume v m ()
 
 makeSem ''Consume
+
+writeln :: Member (Consume Text) r
+        => Text -> Sem r ()
+writeln = consume @Text
 
 ------------------------------------------------------------------------------
 --

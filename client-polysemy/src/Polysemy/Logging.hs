@@ -39,6 +39,9 @@ module Polysemy.Logging
   , LogMsg
   , LogLevel (..)
   , logMsgToText
+
+    -- * aux functions
+  , untext
   )
 where
 
@@ -48,6 +51,7 @@ import Polysemy.Consume.BGQueue
 import Polysemy.Error
 
 import           Data.Text    ( Text )
+import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import           System.IO    ( Handle
                               , stderr
@@ -120,6 +124,9 @@ log'dbg  = log' LogDbg  . LogMsg
 {-# INLINE log'verb #-}
 {-# INLINE log'trc #-}
 {-# INLINE log'dbg #-}
+
+untext :: [Text] -> Text
+untext = T.unwords
 
 abortWith :: ( Member (Error Text) r
              , Member Logging r
