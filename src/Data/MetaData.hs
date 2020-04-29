@@ -697,7 +697,7 @@ fileDirectory
   , fileRefJpg :: Name
 
 keysAttrFile :: [Name]
-keysAttrFile @
+keysAttrFile@
   [ fileDirectory
   , fileFileSize
   , fileFileModifyDate
@@ -761,7 +761,7 @@ exifArtist
   , exifWhiteBalance :: Name
 
 keysAttrExif :: [Name]
-keysAttrExif @
+keysAttrExif@
   [ exifArtist
   , exifBitsPerSample
   , exifCopyright
@@ -814,7 +814,7 @@ makerNotesColorSpace
   , makerNotesTimeZone :: Name
 
 keysAttrMaker :: [Name]
-keysAttrMaker @
+keysAttrMaker@
   [ makerNotesColorSpace
   , makerNotesDaylightSavings
   , makerNotesFocusDistance
@@ -875,7 +875,7 @@ compositeAperture
   , compositeSubSecDateTimeOriginal :: Name
 
 keysAttrComposite :: [Name]
-keysAttrComposite @
+keysAttrComposite@
   [ compositeAperture
   , compositeAutoFocus
   , compositeCircleOfConfusion
@@ -915,7 +915,7 @@ quickTimeDuration
   , quickTimeVideoFrameRate :: Name
 
 keysAttrQuickTime :: [Name]
-keysAttrQuickTime @
+keysAttrQuickTime@
   [ quickTimeDuration
   , quickTimeImageWidth
   , quickTimeImageHeight
@@ -942,7 +942,7 @@ xmpGPSLatitude
   , xmpRating :: Name
 
 keysAttrXmp :: [Name]
-keysAttrXmp @
+keysAttrXmp@
   [ xmpGPSLatitude
   , xmpGPSLongitude
   , xmpGPSAltitude
@@ -992,7 +992,7 @@ descrTitle
   , descrGPSPosition :: Name
 
 keysAttrCol :: [Name]
-keysAttrCol @
+keysAttrCol@
   [ descrTitle
   , descrSubtitle
   , descrTitleEnglish
@@ -1024,7 +1024,7 @@ imgRating
   , imgEXIFUpdate :: Name
 
 keysAttrImg :: [Name]
-keysAttrImg @
+keysAttrImg@
   [ imgRating
   , imgEXIFUpdate
   ] = attrGroup2attrName attrImg
