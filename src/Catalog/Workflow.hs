@@ -69,6 +69,8 @@ data ReqType = RPage    -- deliver HTML col-, img-, movie-, blog page  text/html
              deriving (Eq, Ord, Enum, Show, Read)
              -- !!! nameing convention of constr RXxxx used in isoString
 
+instance IsoText ReqType
+
 data Req' a
   = Req' { _rType    :: ReqType      -- type
          , _rPathPos :: PathPos      -- collection path and maybe index

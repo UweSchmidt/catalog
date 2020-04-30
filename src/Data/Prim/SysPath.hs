@@ -4,9 +4,12 @@
 
 module Data.Prim.SysPath
   ( SysPath
+  , SysTextPath
   , isoFilePath
+  , isoTextPath
   , emptySysPath
   , mkSysPath
+  , mkSysTextPath
   )
 where
 
@@ -18,25 +21,31 @@ import Data.Prim.Prelude
 newtype SysPath' a = SP {_unSP :: a}
   deriving (Eq, Ord, Show, Functor)
 
-type SysPath = SysPath' FilePath
+type SysPath     = SysPath' FilePath
+type SysTextPath = SysPath' Text
 
 isoFilePath :: Iso' SysPath FilePath
 isoFilePath = iso _unSP SP
 
-instance ToJSON SysPath where
+isoTextPath :: Iso' SysTextPath Text
+isoTextPath = iso _unSP SP
+
+instance ToJSON a => ToJSON (SysPath' a) where
   toJSON = toJSON . _unSP
 
-instance FromJSON SysPath where
+instance FromJSON a => FromJSON (SysPath' a) where
   parseJSON o = SP <$> parseJSON o
 
-instance IsEmpty SysPath where
-  isempty (SP "") = True
-  isempty _       = False
+instance (Eq a, Monoid a) => IsEmpty (SysPath' a) where
+  isempty sp = sp == emptySysPath
 
-emptySysPath :: SysPath
+emptySysPath :: Monoid a => SysPath' a
 emptySysPath = SP mempty
 
 mkSysPath :: FilePath -> SysPath
 mkSysPath = SP
+
+mkSysTextPath :: Text -> SysTextPath
+mkSysTextPath = SP
 
 -- ----------------------------------------
