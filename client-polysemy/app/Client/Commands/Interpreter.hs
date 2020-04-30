@@ -24,9 +24,9 @@ where
 
 import Polysemy
 import Polysemy.Consume
--- import Polysemy.Error
+import Polysemy.Error
 import Polysemy.Logging
--- import Polysemy.Reader
+import Polysemy.State
 
 -- import System.HttpRequest
 
@@ -51,7 +51,7 @@ import Catalog.Workflow
 
 ------------------------------------------------------------------------------
 
-type CCmdEffects r = (Members '[Consume Text, SCommand, Logging] r)
+type CCmdEffects r = (Members '[Consume Text, Error Text, SCommand, Logging] r)
 
 evalCCommands :: CCmdEffects r => InterpreterFor CCommand r
 evalCCommands =
@@ -74,6 +74,9 @@ evalCCommands =
 
     CcDelmd1 pp key ->
       evalSetMetaData1 pp key "-"
+
+    CcDownload p rt geo dir withSeqNo overwrite ->
+      evalDownload p rt geo dir withSeqNo overwrite
 
 {-# INLINE evalCCommands #-}
 
@@ -115,5 +118,99 @@ evalSetMetaData1 pp@(p, cx) key val = do
   let md1 = mempty & metaDataAt key .~ val
   _r <- setMetaData1 (fromMaybe (-1) cx) md1 p
   return ()
+
+------------------------------------------------------------------------------
+infixr 6 +/+
+
+(+/+) :: Text -> Text -> Text
+t1 +/+ t2 = t1 <> "/" <> t2
+
+evalDownload :: CCmdEffects r
+             => Path -> ReqType -> Geo
+             -> Text -> Bool    -> Bool
+             -> Sem r ()
+evalDownload p rt geo d withSeqNo overwrite = do
+  let geo'
+        | geo == geo'org = orgGeo ^. isoText
+        | otherwise      = geo    ^. isoText
+  let px = "docs" +/+ rt ^. isoText <> geo'
+  let d1 = d +/+ px
+
+  dx <- dirExist d
+  if dx
+    then fmap snd . runState (0::Int)
+         $ evalDownload1 rt geo d1 (nextSqn withSeqNo) overwrite p
+    else abortWith $ "Download dir not found: " <> d
+
+evalDownload1 :: ( CCmdEffects r
+                 , Member (State Int) r
+                 )
+              => ReqType -> Geo
+              -> Text -> GenSeqNum r -> Bool -> Path
+              -> Sem r ()
+evalDownload1 rt geo d genSqn overwrite = evalDownload'
+  where
+    evalDownload' p = do
+      let d' = d <> p ^. isoText
+
+      log'trc $ untext [ "evalCDownload:"
+                       , p ^. isoText
+                       ]
+
+      -- get collection from server
+      n <- theEntry p
+      unless (isCOL n) $
+        abortWith $ untext [ "evalCDownload:"
+                           , "no collection found for path"
+                           , p ^. isoText
+                           ]
+
+      -- create download subdir
+      unlessM (dirExist d') $ do
+        log'trc $ untext [ "evalCDownload: create dir"
+                         , d'
+                         ]
+
+      createDir d'
+
+      -- download all collection entries
+      forM_ (zip [(0::Int) ..] $ n ^. theColEntries . isoSeqList) $
+        \ (i, ce) -> colEntry (dli p i) evalDownload' ce
+
+        where
+          dli :: Path -> Int -> Path -> Name -> Sem r ()
+          dli dpath pos _ipath _ipart = do
+            undefined
+
+
+createDir :: Text -> Sem r ()
+createDir = undefined
+
+dirExist :: Text -> Sem r Bool
+dirExist = undefined
+
+--------------------
+--
+-- generate sequence numbers for downloaded images
+-- to retain download sequence in filenames
+
+type GenSeqNum r = Member (State Int) r => Sem r Text
+
+nextSqn :: Member (State Int) r => Bool -> Sem r Text
+
+nextSqn False =
+  pure ""
+
+nextSqn True = do
+  n <- get @Int
+  let n1 = n + 1
+  put n1
+  pure $ toS n1
+  where
+    toS i = (replicate l '0' <> s <> "-") ^. isoText
+      where
+        s = show i
+        l = (4 - length s) `max` 0
+
 
 ------------------------------------------------------------------------------

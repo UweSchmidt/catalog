@@ -33,8 +33,6 @@ import System.Random (newStdGen, randomRs, randomRIO)
 import Text.Read (readMaybe)
 
 -- basic stuff
-import Data.Text (Text)
-
 import qualified Data.Text as T
 
 ----------------------------------------
