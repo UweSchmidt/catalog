@@ -25,8 +25,10 @@ module Polysemy.HttpRequest
   , -- * Interpretations
     basicHttpRequests
 
-    -- * aux types
+    -- * aux types and functions
   , ResponseLBS
+  , newBasicManager
+  , httpExcToText
   )
 where
 
@@ -34,16 +36,23 @@ import Polysemy
 import Polysemy.Error
 
 
-import Network.HTTP.Client ( Request(..)
-                           , Response(..)
-                           , Manager
-                           , HttpException
-                           , httpLbs
-                           )
+import Network.HTTP.Client
+       ( Request(..)
+       , Response(..)
+       , Manager
+       , HttpException
+       , httpLbs
+       , defaultManagerSettings
+       -- , defaultRequest
+       , newManager
+       -- , responseTimeoutNone
+       )
+import Data.Text
+       ( Text )
 
 import qualified Control.Exception    as X
-
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text            as T
 
 ------------------------------------------------------------------------------
 
@@ -81,5 +90,12 @@ basicHttpRequests ef manager =
       -- shorter in polysemy >= 1.3
       -- r <- fromExceptionVia ef (httpLbs req manager)
 
+
+newBasicManager :: IO Manager
+newBasicManager =
+  newManager defaultManagerSettings
+
+httpExcToText :: HttpException -> Text
+httpExcToText = T.pack . show
 
 ------------------------------------------------------------------------------

@@ -15,12 +15,18 @@ import Polysemy
 import Polysemy.Input
 import Polysemy.State
 import Polysemy.Error
+import Polysemy.Reader
 
 -- polysemy-useful-stuff
 import Polysemy.Consume
 import Polysemy.Consume.BGQueue
 import Polysemy.HttpRequest
 import Polysemy.Logging
+
+import Client.Commands
+import Client.Commands.Interpreter
+import Server.Commands.ClientInterpreter
+import System.HttpRequest
 
 -- old stuff
 import System.Random (newStdGen, randomRs, randomRIO)
@@ -173,5 +179,29 @@ runLogme =
   . logWithLevel LogDbg
   . runError
   $ logme
+
+----------------------------------------
+
+client :: (Member CCommand r)
+       => Sem r ()
+client = ccEntry "/archive"
+
+runClient :: IO (Either Text ())
+runClient = do
+  man <- newBasicManager
+  runM
+    . writelnToStdout          -- Consume Text
+    . logToStdErr              -- Consume LogMsg
+    . logWithLevel LogVerb     -- Logging
+    . runError                 -- Error Text
+    . runReader @HostPort      -- Reader HostPort
+        ("localhost", 3456)
+    . basicHttpRequests        -- HttpRequest
+        httpExcToText
+        man
+    . evalSCommands            -- SCommand  (server calls)
+    . evalCCommands            -- CCommand  (client commands)
+    $ client
+
 
 ----------------------------------------
