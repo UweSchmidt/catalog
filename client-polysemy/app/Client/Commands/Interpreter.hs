@@ -24,6 +24,7 @@ where
 
 import Polysemy
 import Polysemy.Consume
+import Polysemy.FileSystem
 import Polysemy.Error
 import Polysemy.Logging
 import Polysemy.State
@@ -51,7 +52,8 @@ import Catalog.Workflow
 
 ------------------------------------------------------------------------------
 
-type CCmdEffects r = (Members '[Consume Text, Error Text, SCommand, Logging] r)
+type CCmdEffects r =
+  (Members '[Consume Text, Error Text, SCommand, Logging, FileSystem] r)
 
 evalCCommands :: CCmdEffects r => InterpreterFor CCommand r
 evalCCommands =
@@ -182,12 +184,6 @@ evalDownload1 rt geo d genSqn overwrite = evalDownload'
           dli dpath pos _ipath _ipart = do
             undefined
 
-
-createDir :: Text -> Sem r ()
-createDir = undefined
-
-dirExist :: Text -> Sem r Bool
-dirExist = undefined
 
 --------------------
 --

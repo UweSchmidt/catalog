@@ -20,6 +20,7 @@ import Polysemy.Reader
 -- polysemy-useful-stuff
 import Polysemy.Consume
 import Polysemy.Consume.BGQueue
+import Polysemy.FileSystem
 import Polysemy.HttpRequest
 import Polysemy.Logging
 
@@ -194,11 +195,13 @@ runClient = do
     . runError                 -- Error Text
     . runReader @HostPort      -- Reader HostPort
         ("localhost", 3456)
+    . basicFileSystem          -- FileStatus (file system calls)
+        ioExcToText
     . basicHttpRequests        -- HttpRequest
         httpExcToText
         man
-    . evalSCommands            -- SCommand  (server calls)
-    . evalCCommands            -- CCommand  (client commands)
+    . evalSCommands            -- SCommand   (server calls)
+    . evalCCommands            -- CCommand   (client commands)
     $ client
 
 

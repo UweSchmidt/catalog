@@ -27,10 +27,21 @@ module Polysemy.FileSystem
   , fsFileStat
   , setModiTime
   , writeFileLB
+  , writeFileT
+  , writeFileLT
   , readFileLB
+  , readFileT
+  , readDir
+  , removeFile
+  , removeDir
+  , createDir
+  , renameFile
+  , linkFile
+  , getWorkDir
 
   , fileNotEmpty
   , getModiTime
+  , readFileT'
 
   , -- * Interpretations
     basicFileSystem
@@ -50,29 +61,31 @@ import Polysemy.Error
 import Control.Exception
        ( IOException )
 
-import Control.Monad
+-- import Control.Monad
 
 import Data.Text
        ( Text )
 
+{-
 import System.IO
        ( hFlush
        , stdout
        )
-
+-}
 import System.Posix
        ( FileStatus
        , EpochTime
        )
 
 import qualified Control.Exception          as EX
-import qualified Data.ByteString            as BS
+-- import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy.Char8 as LB
 import qualified Data.Text                  as T
 import qualified Data.Text.IO               as T
+import qualified Data.Text.Lazy             as LT
 import qualified Data.Text.Lazy.IO          as LT
-import qualified Data.Time.Clock            as C
-import qualified Data.Time.Format           as C
+-- import qualified Data.Time.Clock            as C
+-- import qualified Data.Time.Format           as C
 import qualified System.Directory           as D
 import qualified System.Posix               as X
 import qualified System.IO.Error            as EX
@@ -82,14 +95,24 @@ import qualified System.IO.Error            as EX
 type TextPath = Text
 
 data FileSystem m a where
-  DirExist     :: TextPath -> FileSystem m Bool
-  FileExist    :: TextPath -> FileSystem m Bool
-  FsStat       :: TextPath -> FileSystem m FileStatus
-  FsDirStat    :: TextPath -> FileSystem m FileStatus
-  FsFileStat   :: TextPath -> FileSystem m FileStatus
+  DirExist     :: TextPath  ->                  FileSystem m Bool
+  FileExist    :: TextPath  ->                  FileSystem m Bool
+  FsStat       :: TextPath  ->                  FileSystem m FileStatus
+  FsDirStat    :: TextPath  ->                  FileSystem m FileStatus
+  FsFileStat   :: TextPath  ->                  FileSystem m FileStatus
   SetModiTime  :: EpochTime -> TextPath      -> FileSystem m ()
   WriteFileLB  :: TextPath  -> LB.ByteString -> FileSystem m ()
+  WriteFileT   :: TextPath  -> Text          -> FileSystem m ()
+  WriteFileLT  :: TextPath  -> LT.Text       -> FileSystem m ()
   ReadFileLB   :: TextPath  ->                  FileSystem m LB.ByteString
+  ReadFileT    :: TextPath  ->                  FileSystem m Text
+  ReadDir      :: TextPath ->                   FileSystem m [TextPath]
+  RemoveFile   :: TextPath  ->                  FileSystem m ()
+  RemoveDir    :: TextPath  ->                  FileSystem m ()
+  CreateDir    :: TextPath  ->                  FileSystem m ()
+  RenameFile   :: TextPath  -> TextPath ->      FileSystem m ()
+  LinkFile     :: TextPath  -> TextPath ->      FileSystem m ()
+  GetWorkDir   ::                               FileSystem m TextPath
 
 makeSem ''FileSystem
 
@@ -127,8 +150,43 @@ basicFileSystem ef = do
       WriteFileLB p bytes -> embedExc ef $
         LB.writeFile (T.unpack p) bytes
 
+      WriteFileT p txt -> embedExc ef $
+        T.writeFile (T.unpack p) txt
+
+      WriteFileLT p txt -> embedExc ef $
+        LT.writeFile (T.unpack p) txt
+
       ReadFileLB p -> embedExc ef $
         LB.readFile (T.unpack p)
+
+      ReadFileT p -> embedExc ef $
+        T.readFile (T.unpack p)
+
+      ReadDir p -> embedExc ef $
+        map T.pack <$> readDir' (T.unpack p)
+
+      RemoveFile p -> embedExc ef $
+        D.removeFile (T.unpack p)
+
+      RemoveDir p -> embedExc ef $
+        D.removeDirectoryRecursive (T.unpack p)
+
+      CreateDir p -> embedExc ef $
+        D.removeDirectoryRecursive (T.unpack p)
+
+      RenameFile op np -> embedExc ef $
+        X.rename (T.unpack op) (T.unpack np)
+
+      LinkFile op np -> embedExc ef $ do
+        let ofp = T.unpack op
+            nfp = T.unpack np
+
+        X.createLink ofp nfp
+           `EX.catchIOError`
+           ( const $ D.copyFile ofp nfp)
+
+      GetWorkDir -> embedExc ef $
+        T.pack <$> X.getWorkingDirectory
 
 --------------------
 --
@@ -151,6 +209,14 @@ getModiTime p = do
     then do X.modificationTime <$> fsStat p
     else return $ fromIntegral (0::Int)
 
+readFileT' :: Member FileSystem r
+           => TextPath -> Sem r Text
+readFileT' p = do
+  ex <- fileExist p
+  if ex
+    then readFileT p
+    else return mempty
+
 --------------------
 
 fsStat' :: (String -> IO Bool) -> String -> String -> IO FileStatus
@@ -159,6 +225,21 @@ fsStat' exist msg fp = do
   if ex
     then X.getFileStatus fp
     else EX.throw $ EX.userError $ msg ++ " does not exist: " ++ fp
+
+readDir' :: String -> IO [String]
+readDir' fp =
+  EX.bracket
+    (X.openDirStream fp)
+    (X.closeDirStream)
+    readDirEntries
+  where
+    readDirEntries s = do
+      e1 <- X.readDirStream s
+      if null e1
+        then return []
+        else do
+          es <- readDirEntries s
+          return (e1 : es)
 
 --------------------
 --

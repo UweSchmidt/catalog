@@ -20,6 +20,7 @@ executable client-polysemy
                       Client.Commands.Interpreter
                       Polysemy.Consume
                       Polysemy.Consume.BGQueue
+                      Polysemy.FileSystem
                       Polysemy.HttpRequest
                       Polysemy.Logging
                       Server.Commands
