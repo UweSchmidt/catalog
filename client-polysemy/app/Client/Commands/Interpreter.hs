@@ -19,6 +19,9 @@
 module Client.Commands.Interpreter
   ( -- * Interpreter
     evalCCommands
+
+    -- derived commands
+  , checksumFile
   )
 where
 
@@ -40,10 +43,11 @@ import Data.Prim
 import Data.ImgNode hiding (theMetaData)
 import Data.MetaData
 
+import Catalog.FilePath
+       ( isoPicNo )
+
 import Catalog.Workflow
-       ( imgReqTypes
-       , isoPathPos
-       )
+       ( isoPathPos )
 
 
 -- import qualified Data.ByteString.Lazy as LBS
@@ -153,7 +157,6 @@ evalDownload1 :: ( CCmdEffects r
 evalDownload1 rt geo d genSqn overwrite = evalDownload'
   where
     evalDownload' p = do
-      let d' = d <> p ^. isoText
 
       log'trc $ untext [ "evalCDownload:"
                        , p ^. isoText
@@ -180,9 +183,33 @@ evalDownload1 rt geo d genSqn overwrite = evalDownload'
         \ (i, ce) -> colEntry (dli p i) evalDownload' ce
 
         where
-          dli :: Path -> Int -> Path -> Name -> Sem r ()
+          d' = d <> p ^. isoText
+
+          -- dli :: Path -> Int -> Path -> Name -> Sem r ()
           dli dpath pos _ipath _ipart = do
-            undefined
+            px <- genSqn
+
+            let pn = pos ^. isoPicNo . isoText
+            let sp = d' +/+ (px <> pn <> ".jpg")
+            let pp = dpath `snocPath` (isoText # pn)
+
+            log'trc $ untext [ "evalDownload:"
+                             , "download JPG image copy to"
+                             , sp
+                             ]
+
+            unless overwrite $
+              whenM (fileExist sp) $
+                void $
+                abortWith $
+                untext [ "evalDownload:"
+                       , "file for download already exists"
+                       , sp <> ","
+                       , "cleanup download dir or use -f (--force) option"
+                       ]
+
+            lbs <- jpgImgCopy rt geo pp
+            writeFileLB sp lbs
 
 
 --------------------
@@ -208,5 +235,16 @@ nextSqn True = do
         s = show i
         l = (4 - length s) `max` 0
 
+------------------------------------------------------------------------------
+
+-- don't use lazy bytestrings, this leads to space leaks
+-- with very large files (> 1Gb, e.g. .afphoto stacks)
+
+
+checksumFile :: ( Member FileSystem r )
+             => TextPath -> Sem r CheckSum
+checksumFile p = do
+  r <- mkCheckSum <$> readFileBS p
+  return $! r
 
 ------------------------------------------------------------------------------

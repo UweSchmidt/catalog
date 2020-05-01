@@ -26,9 +26,11 @@ module Polysemy.FileSystem
   , fsDirStat
   , fsFileStat
   , setModiTime
+  , writeFileBS
   , writeFileLB
   , writeFileT
   , writeFileLT
+  , readFileBS
   , readFileLB
   , readFileT
   , readDir
@@ -63,6 +65,9 @@ import Control.Exception
 
 -- import Control.Monad
 
+import Data.ByteString
+       ( ByteString )
+
 import Data.Text
        ( Text )
 
@@ -78,7 +83,7 @@ import System.Posix
        )
 
 import qualified Control.Exception          as EX
--- import qualified Data.ByteString            as BS
+import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy.Char8 as LB
 import qualified Data.Text                  as T
 import qualified Data.Text.IO               as T
@@ -101,9 +106,11 @@ data FileSystem m a where
   FsDirStat    :: TextPath  ->                  FileSystem m FileStatus
   FsFileStat   :: TextPath  ->                  FileSystem m FileStatus
   SetModiTime  :: EpochTime -> TextPath      -> FileSystem m ()
+  WriteFileBS  :: TextPath  -> ByteString    -> FileSystem m ()
   WriteFileLB  :: TextPath  -> LB.ByteString -> FileSystem m ()
   WriteFileT   :: TextPath  -> Text          -> FileSystem m ()
   WriteFileLT  :: TextPath  -> LT.Text       -> FileSystem m ()
+  ReadFileBS   :: TextPath  ->                  FileSystem m ByteString
   ReadFileLB   :: TextPath  ->                  FileSystem m LB.ByteString
   ReadFileT    :: TextPath  ->                  FileSystem m Text
   ReadDir      :: TextPath ->                   FileSystem m [TextPath]
@@ -147,6 +154,9 @@ basicFileSystem ef = do
       SetModiTime ep p -> embedExc ef $
         X.setFileTimes (T.unpack p) ep ep
 
+      WriteFileBS p bytes -> embedExc ef $
+        BS.writeFile (T.unpack p) bytes
+
       WriteFileLB p bytes -> embedExc ef $
         LB.writeFile (T.unpack p) bytes
 
@@ -155,6 +165,9 @@ basicFileSystem ef = do
 
       WriteFileLT p txt -> embedExc ef $
         LT.writeFile (T.unpack p) txt
+
+      ReadFileBS p -> embedExc ef $
+        BS.readFile (T.unpack p)
 
       ReadFileLB p -> embedExc ef $
         LB.readFile (T.unpack p)

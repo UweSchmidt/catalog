@@ -25,6 +25,7 @@ module Client.Commands
   , ccLsmd
   , ccSetmd1
   , ccDelmd1
+  , ccDownload
 
     -- * reexported catalog types
   , Geo

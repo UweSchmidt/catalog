@@ -356,6 +356,7 @@ evalCDownload rt geo d nsn overwrite = evalDownload'
               pn :: String
               pn = pos ^. isoPicNo
               pp = dpath `snocPath` mkName pn
+
               sp' px' = d' & isoFilePath %~ (<> ("/" <> px' <> pn <> ".jpg"))
 
 -- ----------------------------------------
