@@ -22,6 +22,9 @@ module Client.Commands.Interpreter
 
     -- derived commands
   , checksumFile
+
+    -- aux
+  , defaultPath
   )
 where
 
@@ -30,6 +33,7 @@ import Polysemy.Consume
 import Polysemy.FileSystem
 import Polysemy.Error
 import Polysemy.Logging
+import Polysemy.Reader
 import Polysemy.State
 
 -- import System.HttpRequest
@@ -42,6 +46,11 @@ import Server.Commands
 import Data.Prim
 import Data.ImgNode hiding (theMetaData)
 import Data.MetaData
+
+import Catalog.CheckSum
+       ( CheckSumRes(..)
+       , prettyCSR
+       )
 
 import Catalog.FilePath
        ( isoPicNo )
@@ -83,6 +92,17 @@ evalCCommands =
 
     CcDownload p rt geo dir withSeqNo overwrite ->
       evalDownload p rt geo dir withSeqNo overwrite
+
+    CcSnapshot msg ->
+      snapshot msg defaultPath
+
+    CcCheckSum p part onlyUpdate onlyMissing ->
+      runReader (CSEnv onlyUpdate onlyMissing False) $
+         evalCheckSum prettyCheckSumRes p part
+
+    CcUpdCSum p part onlyUpdate forceUpdate ->
+      runReader (CSEnv onlyUpdate True forceUpdate) $
+         evalCheckSum updateCheckSumRes p part
 
 {-# INLINE evalCCommands #-}
 
@@ -126,6 +146,7 @@ evalSetMetaData1 pp@(p, cx) key val = do
   return ()
 
 ------------------------------------------------------------------------------
+
 infixr 6 +/+
 
 (+/+) :: Text -> Text -> Text
@@ -237,6 +258,117 @@ nextSqn True = do
 
 ------------------------------------------------------------------------------
 
+data CSEnv = CSEnv { csOnlyUpdate  :: Bool
+                   , csOnlyMissing :: Bool
+                   , csForceUpdate :: Bool
+                   }
+
+type CSEffects r = ( Member (Reader CSEnv) r
+                   , Member (Consume Text) r
+                   , Member Logging r
+                   , Member SCommand r
+                   )
+
+type CSCmd r a  = Path -> Name -> CheckSumRes -> Sem r a
+
+--------------------
+
+evalCheckSum :: CSEffects r
+             => CSCmd r () -> Path -> Name -> Sem r ()
+
+evalCheckSum k p part
+  | isempty part = theEntry p >>= evalCheckSum' k p
+  | otherwise    = evalCheckSumPart k p part
+
+
+evalCheckSum' :: CSEffects r
+              =>  CSCmd r () -> Path -> ImgNodeP -> Sem r ()
+evalCheckSum' k p e
+  | isIMG e = do
+      mconcat <$>
+        traverse
+          (evalCheckSumPart k p)
+          (e ^.. theParts . isoImgParts . traverse . theImgName)
+
+  | isDIR e = do
+      writeln $ untext [p ^. isoText <> ":", "CHECK dir"]
+
+      mconcat <$>
+        traverse
+          (\ p' -> theEntry p' >>= evalCheckSum' k p')
+          (sort $ e ^.. theDirEntries . isoDirEntries . traverse)
+          -- ^  traversal with ascending path names
+
+  | otherwise = pure ()
+
+
+evalCheckSumPart :: CSEffects r
+                 => CSCmd r () -> Path -> Name -> Sem r ()
+
+evalCheckSumPart k p part = do
+  onlyUpdate <- asks @CSEnv csOnlyUpdate
+
+  log'trc $ untext ["evalCCheckSumPart:"
+                   , p ^. isoText
+                   , "part:"
+                   , part ^. isoText
+                   ]
+
+  r <- checkImgPart onlyUpdate part p
+
+  log'trc $ untext ["res =", show r ^. isoText]
+
+  k p part r
+
+----------------------------------------
+--
+-- output for CcUpdCSum
+
+updateCheckSumRes :: CSEffects r => CSCmd r ()
+
+updateCheckSumRes p part csr = do
+  let issue = prettyCheckSumRes p part csr
+
+  case csr of
+    CSupdate cs'new ts'new -> do
+      updateCheckSum  cs'new part p
+      updateTimeStamp ts'new part p
+      issue
+
+    CSnew cs'new -> do
+      updateCheckSum  cs'new part p
+      issue
+
+    CSerr cs'new _cs'old -> do
+      forceUpdate <- asks @CSEnv csForceUpdate
+      when forceUpdate $
+        updateCheckSum  cs'new part p
+      issue
+
+    CSlost -> do
+      issue
+
+    CSok _cs'new ->
+      pure ()
+
+----------------------------------------
+--
+-- output for CcCheckSum command
+
+prettyCheckSumRes :: CSEffects r => CSCmd r ()
+
+prettyCheckSumRes p part csr = do
+  onlyMissing <- asks @CSEnv csOnlyMissing
+
+  case (onlyMissing, csr) of
+    (True, CSok _) -> return ()         -- only errors are issued
+    _              -> writeln $
+                      untext [ substPathName part p ^. isoText <> ":"
+                             , prettyCSR csr ^. isoText
+                             ]
+
+------------------------------------------------------------------------------
+
 -- don't use lazy bytestrings, this leads to space leaks
 -- with very large files (> 1Gb, e.g. .afphoto stacks)
 
@@ -246,5 +378,10 @@ checksumFile :: ( Member FileSystem r )
 checksumFile p = do
   r <- mkCheckSum <$> readFileBS p
   return $! r
+
+------------------------------------------------------------------------------
+
+defaultPath :: Path
+defaultPath = "/archive"
 
 ------------------------------------------------------------------------------

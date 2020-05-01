@@ -18,14 +18,23 @@ executable client-polysemy
   main-is:            Main.hs
   other-modules:      Client.Commands
                       Client.Commands.Interpreter
+                      Client.Options
+                      Server.Commands
+                      Server.Commands.ClientInterpreter
+                      System.HttpRequest
+
+                      -- options for Polysemy.Logging
+                      -- and         System.HttpRequest
+                      Options.Applicative.HostPort
+                      Options.Applicative.LogLevel
+
+                      -- own Polysemy effects
                       Polysemy.Consume
                       Polysemy.Consume.BGQueue
                       Polysemy.FileSystem
                       Polysemy.HttpRequest
                       Polysemy.Logging
-                      Server.Commands
-                      Server.Commands.ClientInterpreter
-                      System.HttpRequest
+
                       Paths_client_polysemy
 
   hs-source-dirs:     app src
@@ -56,6 +65,7 @@ executable client-polysemy
                , base                 >= 4.7 && <5
                , bytestring           >= 0.9
                , catalog
+               , directory
                , exceptions
                , http-client
                , http-types
@@ -64,5 +74,6 @@ executable client-polysemy
                , random
                , stm
                , text
+               , unix
                
   default-language: Haskell2010

@@ -12,6 +12,7 @@ module Main where
 
 -- polysemy
 import Polysemy
+import Polysemy.Internal (send)
 import Polysemy.Input
 import Polysemy.State
 import Polysemy.Error
@@ -28,6 +29,7 @@ import Client.Commands
 import Client.Commands.Interpreter
 import Server.Commands.ClientInterpreter
 import System.HttpRequest
+import Client.Options
 
 -- old stuff
 import System.Random (newStdGen, randomRs, randomRIO)
@@ -180,6 +182,19 @@ runLogme =
   $ logme
 
 ----------------------------------------
+
+
+lsCmd :: CCommand m ()
+lsCmd = CcLs (undefined :: Path)
+
+ls :: Member CCommand r => Sem r ()
+ls = send lsCmd
+
+cCmd :: () -> CCommand m ()
+cCmd = undefined
+
+cCommand :: Member CCommand r => Sem r ()
+cCommand = send $ cCmd ()
 
 client :: (Member CCommand r)
        => Sem r ()

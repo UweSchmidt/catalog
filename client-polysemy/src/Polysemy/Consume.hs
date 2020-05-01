@@ -65,7 +65,7 @@ consumeIO toIO =
 
 writelnToStdout :: Member (Embed IO) r
                 => InterpreterFor (Consume Text) r
-writelnToStdout = consumeIO  T.putStrLn
+writelnToStdout = consumeIO T.putStrLn
 
 {-# INLINE consumeIO #-}
 {-# INLINE writelnToStdout #-}

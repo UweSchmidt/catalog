@@ -26,6 +26,9 @@ module Client.Commands
   , ccSetmd1
   , ccDelmd1
   , ccDownload
+  , ccSnapshot
+  , ccCheckSum
+  , ccUpdCSum
 
     -- * reexported catalog types
   , Geo
@@ -60,6 +63,11 @@ data CCommand m a where
   CcDelmd1   :: PathPos ->  Name           -> CCommand m ()
   CcDownload :: Path    -> ReqType -> Geo
              -> Text    -> Bool    -> Bool -> CCommand m ()
+  CcSnapshot :: Text                       -> CCommand m ()
+  CcCheckSum :: Path    -> Name
+             -> Bool    -> Bool            -> CCommand m ()
+  CcUpdCSum  :: Path    -> Name
+             -> Bool    -> Bool            -> CCommand m ()
 
 makeSem ''CCommand
 
