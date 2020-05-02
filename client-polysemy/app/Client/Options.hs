@@ -13,11 +13,11 @@ import Catalog.Workflow
        ( isoPathPos )
 
 import Data.MetaData
-       ( metaDataAt
-       , prettyMD
-       , allKeysMD
+       ( allKeysMD
        , globKeysMD
-       , selectByNames
+       -- , metaDataAt
+       -- , prettyMD
+       -- , selectByNames
        )
 
 import Data.Prim
@@ -35,7 +35,9 @@ import Text.SimpleParser
 type Host = Text
 type Port = Int
 
-type ClientOpts = ((Host,Port), LogLevel)
+type ClientAct r = (ClientOpts, ClientCmd r)
+type ClientOpts  = ((Host,Port), LogLevel)
+type ClientCmd r = CCommand r ()
 
 version :: String
 version = "0.2.8.2"
@@ -46,18 +48,21 @@ date = "2020-04-15"
 appname :: String
 appname = "client-polysemy"
 
-appInfo :: ParserInfo ClientOpts
+clientAction :: IO (ClientAct r)
+clientAction = execParser appInfo
+
+appInfo :: ParserInfo (ClientAct r)
 appInfo =
-  info (helper <*> optClient)
+  info (helper <*> ((,) <$> optClient <*> cmdClient))
   ( fullDesc
     <> progDesc "query, modify and download collections from catalog"
-    <> header ("catalog-" ++ appname ++ " - " ++ version ++ " (" ++ date ++ ")")
+    <> header (appname <> " - " <> version <> " (" <> date <> ")")
   )
 
 optClient :: Parser ClientOpts
 optClient = (,) <$> optHostPort <*> optLogLevel
 
-type CmdParser r = Parser (CCommand r ())
+type CmdParser r = Parser (ClientCmd r)
 
 cmdClient :: CmdParser r
 cmdClient = subparser $
