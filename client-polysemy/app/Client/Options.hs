@@ -10,7 +10,9 @@ import Client.Commands.Interpreter
        ( defaultPath )
 
 import Catalog.Workflow
-       ( isoPathPos )
+       ( isoPathPos
+       , imgReqTypes
+       )
 
 import Data.MetaData
        ( allKeysMD
@@ -27,8 +29,6 @@ import Text.SimpleParser
        ( parseMaybe
        , parseGlob
        )
-
--- import Data.Text (Text)
 
 ------------------------------------------------------------------------------
 
@@ -59,6 +59,9 @@ appInfo =
     <> header (appname <> " - " <> version <> " (" <> date <> ")")
   )
 
+withInfo :: Parser a -> String -> ParserInfo a
+withInfo opts desc = info (helper <*> opts) $ progDesc desc
+
 optClient :: Parser ClientOpts
 optClient = (,) <$> optHostPort <*> optLogLevel
 
@@ -67,7 +70,7 @@ type CmdParser r = Parser (ClientCmd r)
 cmdClient :: CmdParser r
 cmdClient = subparser $
   command "ls"
-    ( ( CcLs <$> pathP)
+    ( (CcLs <$> argPath)
       `withInfo`
       ( "List subcollections, default PATH is: "
         <> show defaultPath
@@ -75,53 +78,197 @@ cmdClient = subparser $
     )
   <>
   command "ls-md"
-    ( cmdLsmd
+    ( ( flip CcLsmd
+        <$> option globParser
+            ( long "keys"
+              <> short 'k'
+              <> metavar "GLOB-PATTERN"
+              <> value allKeysMD
+              <> help "Select metadata keys by a glob style pattern matching"
+            )
+        <*> argPathPos
+      )
       `withInfo`
       ( "Show metadata for a collection or entry of a collection, "
         ++ "default PATH is: "
         ++ show defaultPath
       )
     )
-
-cmdLsmd :: Parser (CCommand m ())
-cmdLsmd =
-  flip CcLsmd
-  <$> option globParser
-      ( long "keys"
-        <> short 'k'
-        <> metavar "GLOB-PATTERN"
-        <> value allKeysMD
-        <> help "Select metadata keys by a glob style pattern matching"
+  <>
+  command "set-md"
+    ( ( CcSetmd1
+        <$> argPathPos1
+        <*> argKey
+        <*> argValue
       )
-  <*> pathPP
+      `withInfo`
+      ( "Set metadata attr for a collection or entry of a collection, "
+        ++ "default PATH is: "
+        ++ show defaultPath
+        ++ ", key may be given as glob pattern"
+      )
+    )
+  <>
+  command "del-md"
+    ( ( CcDelmd1
+        <$> argPathPos1
+        <*> argKey
+      )
+      `withInfo`
+      ( "Delete metadata attr for a collection or entry of a collection, "
+        ++ "default PATH is: "
+        ++ show defaultPath
+        ++ ", key may be given as glob pattern"
+      )
+    )
+  <>
+  command "download"
+    ( ( let dl reqtype' geo' dest' seqno' overwrite' path'
+              = CcDownload path' reqtype' geo' dest' seqno' overwrite'
+
+            img'variants :: String
+            img'variants =
+              intercalate ", " . map (^. isoString) $ imgReqTypes in
+        dl
+        <$> option imgReqReader
+            ( long "variant"
+              <> short 'i'
+              <> help ( "The image variant, one of ["
+                        <> img'variants
+                        <> "], default: img"
+                      )
+              <> value RImg
+              <> metavar "IMG-VARIANT"
+            )
+        <*> option geoReader
+            ( long "geometry"
+              <> short 'g'
+              <> help "The image geometry: <width>x<height> or org (original size)"
+              <> value (Geo 1 1)
+              <> metavar "GEOMETRY"
+            )
+        <*> strOption
+            ( long "dest"
+              <> short 'd'
+              <> metavar "DOWNLOAD-DIR"
+              <> showDefault
+              <> value "."
+              <> help "The dir to store downloads"
+            )
+        <*> flag False True
+            ( long "with-seq-no"
+              <> short 'n'
+              <> help ("Prefix downloaded images with a sequence number"
+                       <> " (useful for digital photo frame to show "
+                       <> " the pictures in collection order)"
+                      )
+            )
+        <*> flag False True
+            ( long "force"
+              <> short 'f'
+              <> help "Force destination file overwrite when downloading files"
+            )
+        <*> argPath1
+      )
+      `withInfo`
+      "Download all images of a collection"
+    )
+  <>
+  command "checksum"
+    ( ( let cc onlyUpdate onlyMissing p n =
+              CcCheckSum p n onlyUpdate onlyMissing
+        in
+        cc <$> optOnlyUpdate <*> optOnlyMissing <*> argPath1 <*> argPart
+      )
+      `withInfo`
+      ( "Show checksums for image files "
+        ++ "of a catalog entry for an image or a whole image dir"
+      )
+    )
+  <>
+  command "update-checksum"
+    ( ( let cc onlyUpdate forceUpdate p n =
+              CcUpdCSum p n onlyUpdate forceUpdate
+        in
+        cc <$> optOnlyUpdate <*> optForceUpdateP <*> argPath1 <*> argPart
+      )
+      `withInfo`
+      ( "Compute, check and/or update checksums "
+        ++ "of an image or a whole image dir"
+      )
+    )
+  <>
+  command "entry"
+    ( (CcEntry <$> argPath)
+      `withInfo`
+      ( "Dump catalog entry, for testing and debugging, default Path is: "
+        ++ show defaultPath
+      )
+    )
+  <>
+  command "snapshot"
+    ( ( CcSnapshot
+        <$> strOption ( long "message"
+                        <> short 'm'
+                        <> metavar "MESSAGE"
+                        <> help "The git commit message"
+                      )
+      )
+      `withInfo`
+      ( "Take a snapshot of catalog" )
+    )
 
 ----------------------------------------
+--
+-- argument parsers
 
-pathP :: Parser Path
-pathP = pathP1 <|> pure defaultPath
+argPath :: Parser Path
+argPath = argPath1 <|> pure defaultPath
 
-pathP1 :: Parser Path
-pathP1 = argument str (metavar "PATH")
+argPath1 :: Parser Path
+argPath1 = argument str (metavar "PATH")
 
-pathPP :: Parser PathPos
-pathPP = (^. isoPathPos) <$> pathP
+argPathPos :: Parser PathPos
+argPathPos = (^. isoPathPos) <$> argPath
 
-pathPP1 :: Parser PathPos
-pathPP1 = (^. isoPathPos) <$> pathP1
+argPathPos1 :: Parser PathPos
+argPathPos1 = (^. isoPathPos) <$> argPath1
 
-keyP :: Parser Name
-keyP = argument globParser1 (metavar "KEY")
+argKey :: Parser Name
+argKey = argument globParser1 (metavar "KEY")
 
-valP :: Parser Text
-valP = argument str (metavar "VALUE")
+argValue :: Parser Text
+argValue = argument str (metavar "VALUE")
 
-partP :: Parser Name
-partP = mkName <$> argument str (metavar "PART")
+argPart :: Parser Name
+argPart = mkName <$> argument str (metavar "PART")
         <|>
         pure mempty
 
-withInfo :: Parser a -> String -> ParserInfo a
-withInfo opts desc = info (helper <*> opts) $ progDesc desc
+-- ----------------------------------------
+--
+-- subcmd options parsers
+
+optOnlyUpdate :: Parser Bool
+optOnlyUpdate =
+  flag False True
+  ( long "only-update"
+    <> help "only checksum updates with new files, no checks done"
+  )
+
+optOnlyMissing :: Parser Bool
+optOnlyMissing =
+  flag False True
+  ( long "only-missing"
+    <> help "Only show files with wrong or missing checksums"
+  )
+
+optForceUpdateP :: Parser Bool
+optForceUpdateP =
+  flag False True
+  ( long "force-update"
+    <> help "in case of checksum error update checksum with new value"
+  )
 
 -- ----------------------------------------
 --

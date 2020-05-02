@@ -35,7 +35,7 @@ module Client.Commands
   , Name
   , Path
   , PathPos
-  , ReqType
+  , ReqType (..)
   , Text
   )
 where
@@ -50,7 +50,7 @@ import Data.Prim
        )
 import Catalog.Workflow
        ( PathPos
-       , ReqType
+       , ReqType (..)
        )
 
 ------------------------------------------------------------------------------

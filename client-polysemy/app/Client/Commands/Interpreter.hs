@@ -114,9 +114,9 @@ evalLs p = do
   where
     subcols :: ImgNodeP -> [Path]
     subcols n
-      | isCOL  n  = n ^.. theColEntries . traverse . theColColRef
-      | isROOT n  = n ^.. theRootImgCol <> n ^.. theRootImgDir
-      | isDIR  n  = n ^.. theDirEntries . isoDirEntries . traverse
+      | isCOL  n  =        n ^.. theColEntries . traverse . theColColRef
+      | isROOT n  =        n ^.. theRootImgCol <> n ^.. theRootImgDir
+      | isDIR  n  = sort $ n ^.. theDirEntries . isoDirEntries . traverse
       | otherwise = []
 
 {-# INLINE evalLs #-}
