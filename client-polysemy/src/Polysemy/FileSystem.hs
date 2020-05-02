@@ -48,22 +48,21 @@ module Polysemy.FileSystem
   , -- * Interpretations
     basicFileSystem
 
+    -- * reexports
+  , embedExc
+  , ioExcToText
+
     -- * aux types and functions
   , TextPath
   , FileStatus
   , EpochTime
   , IOException
-  , ioExcToText
   )
 where
 
 import Polysemy
 import Polysemy.Error
-
-import Control.Exception
-       ( IOException )
-
--- import Control.Monad
+import Polysemy.EmbedExc
 
 import Data.ByteString
        ( ByteString )
@@ -71,12 +70,6 @@ import Data.ByteString
 import Data.Text
        ( Text )
 
-{-
-import System.IO
-       ( hFlush
-       , stdout
-       )
--}
 import System.Posix
        ( FileStatus
        , EpochTime
@@ -89,8 +82,6 @@ import qualified Data.Text                  as T
 import qualified Data.Text.IO               as T
 import qualified Data.Text.Lazy             as LT
 import qualified Data.Text.Lazy.IO          as LT
--- import qualified Data.Time.Clock            as C
--- import qualified Data.Time.Format           as C
 import qualified System.Directory           as D
 import qualified System.Posix               as X
 import qualified System.IO.Error            as EX
@@ -253,30 +244,5 @@ readDir' fp =
         else do
           es <- readDirEntries s
           return (e1 : es)
-
---------------------
---
--- | perform an IO cmd, catch all IOException
--- and map them to Error exc
-
-embedExc :: forall exc r a
-          . ( Member (Embed IO) r
-            , Member (Error exc) r
-            )
-         => (IOException -> exc)
-         -> IO a
-         -> Sem r a
-embedExc ef iocmd = do
-  r <- embed $ EX.try iocmd
-  case r of
-    Left  e -> throw @exc (ef e)
-    Right a -> pure a
-
-{-# INLINE embedExc #-}
-
-ioExcToText :: IOException -> Text
-ioExcToText = T.pack . show
-
-{-# INLINE ioExcToText  #-}
 
 ------------------------------------------------------------------------------
