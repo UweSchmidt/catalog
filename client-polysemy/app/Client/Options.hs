@@ -40,10 +40,10 @@ type ClientOpts  = ((Host,Port), LogLevel)
 type ClientCmd r = CCommand r ()
 
 version :: String
-version = "0.2.8.2"
+version = "0.2.9.1"
 
 date :: String
-date = "2020-04-15"
+date = "2020-05-02"
 
 appname :: String
 appname = "client-polysemy"
