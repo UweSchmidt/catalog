@@ -2,7 +2,7 @@
 
 # set -x
 
-version="0.2.8.2"
+version="0.2.9.0"
 dat=$(date "+%Y-%m-%d")
 
 LANG="en_US.UTF-8"
@@ -35,6 +35,7 @@ bump catalog.cabal
 bump catalog-servant/catalog-servant.cabal
 bump catalog-client/catalog-client.cabal
 bump catalog-client/app/Main.hs
+bump client-polysemyapp/Options.hs
 bump src/Catalog/Options.hs
 bump src/Catalog/Html/Templates/Blaze2.hs
 bump data/assets/html/edit.html

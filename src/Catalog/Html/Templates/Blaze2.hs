@@ -395,10 +395,10 @@ colPage theBaseRef theHeadTitle theDate theImgGeo
 -- these are updated automatically by versionbump.sh
 
 vers :: Text
-vers = "0.2.8.2"
+vers = "0.2.9.0"
 
 dats :: Text
-dats = "2020-04-15"
+dats = "2020-05-02"
 
 headPage :: Text -> Text -> Text -> Html -> Html
 headPage theBaseRef theHeadTitle theDate theJS

@@ -58,10 +58,10 @@ import           System.Exit
 -- version number is updated automatically
 
 version :: String
-version = "0.2.8.2"
+version = "0.2.9.0"
 
 date :: String
-date = "2020-04-15"
+date = "2020-05-02"
 
 appname :: String
 appname = "client"
