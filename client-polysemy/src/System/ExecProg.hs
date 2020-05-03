@@ -93,11 +93,11 @@ systemProcess mkExc =
           inp'  =     BS.unpack inp
 
       log'trc $
-         T.unwords $
-         ["exec:", prg] <> args
-         <> if null inp'
-            then mempty
-            else [", stdin: " <> T.pack inp']
+         untext $ ["exec:", prg]
+                  <> args
+                  <> if null inp'
+                     then mempty
+                     else [", stdin: " <> T.pack inp']
 
       (rc, out', err') <-
          embedExc mkExc $

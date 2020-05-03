@@ -30,8 +30,11 @@ module Polysemy.Logging
   , abortWith  -- abort with text msg
 
     -- * Interpretations
-  , logWithLevel
-  , logWithoutLevel
+  , logWithLevel       -- regular logging, requires Consume effect
+  , logWithoutLevel    -- issue messages, ignore levels, dto
+  , noLoggingAtAll     -- ignore all logging actions
+
+    -- * Interpretations for LogMsg
   , logToStdErr
   , logToBGQueue
 
@@ -70,7 +73,7 @@ prettyLogLevel LogWarn = "warning: "
 prettyLogLevel LogVerb = "verbose: "
 prettyLogLevel LogTrc  = "trace:   "
 prettyLogLevel LogDbg  = "debug:   "
-prettyLogLevel LogNull = "quiet:   "
+prettyLogLevel LogNull = "quiet:   "  -- make fct total
 
 -- --------------------
 
@@ -81,12 +84,7 @@ makeSem ''Logging
 
 ------------------------------------------------------------------------------
 
-logWithoutLevel :: Member (Consume LogMsg) r
-                => InterpreterFor Logging r
-logWithoutLevel =
-  interpret $
-  \ c -> case c of
-    Log' _l msg -> consume msg
+-- | log messages with priority >= given logLevel
 
 logWithLevel :: Member (Consume LogMsg) r
              => LogLevel
@@ -104,6 +102,24 @@ logWithLevel logLevel =
         then consume $ LogMsg (prettyLogLevel l <> msg)
         else pure ()
 
+-- | log all messages, ignore any levels
+
+logWithoutLevel :: Member (Consume LogMsg) r
+                => InterpreterFor Logging r
+logWithoutLevel =
+  interpret $
+  \ c -> case c of
+    Log' _l msg -> consume msg
+
+-- | remove logging effect code by inlining
+
+noLoggingAtAll :: InterpreterFor Logging r
+noLoggingAtAll =
+  interpret $
+  \ c -> case c of
+           Log' _l _msg -> return ()
+
+{-# INLINE noLoggingAtAll #-}
 {-# INLINE logWithoutLevel #-}
 {-# INLINE logWithLevel #-}
 
