@@ -160,7 +160,7 @@ evalDownload p rt geo d withSeqNo overwrite = do
   let geo'
         | geo == geo'org = orgGeo ^. isoText
         | otherwise      = geo    ^. isoText
-  let px = "docs" +/+ rt ^. isoText <> geo'
+  let px = "docs" +/+ rt ^. isoText +/+ geo'
   let d1 = d +/+ px
 
   dx <- dirExist d
