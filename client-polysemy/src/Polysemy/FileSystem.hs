@@ -176,7 +176,7 @@ basicFileSystem ef = do
         D.removeDirectoryRecursive (T.unpack p)
 
       CreateDir p -> embedExc ef $
-        D.removeDirectoryRecursive (T.unpack p)
+        D.createDirectoryIfMissing True (T.unpack p)
 
       RenameFile op np -> embedExc ef $
         X.rename (T.unpack op) (T.unpack np)
