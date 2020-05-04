@@ -63,9 +63,12 @@ import Data.Text
        ( Text )
 
 
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Text            as T
-import qualified Data.Text.Encoding   as T
+import qualified Data.ByteString.Lazy       as LBS
+import qualified Data.ByteString.Lazy.Char8 as LCS
+import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Char8      as CS
+import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as T
 
 ------------------------------------------------------------------------------
 
@@ -156,15 +159,15 @@ basicReq method' setBody path' = do
   let scode  = statusCode     status
   let smsg   = T.unwords
                [ T.pack $ show scode
-               , T.decodeUtf8 $ statusMessage status
+               , bsToText $ statusMessage status
+                 -- no decodeUtf8, avoid decodeUtf8 errors
                ]
 
   log'verb smsg
 
   if scode /= 200
     then do let msg
-                  | scode == 500 = T.decodeUtf8
-                                   $ LBS.toStrict rbody
+                  | scode == 500 = lbsToText $ rbody
                   | otherwise    = smsg
             abortWith msg
 
@@ -183,5 +186,15 @@ jsonDecode lbs =
     (abortWith "JSON decode error")
     return
     (decode lbs)
+
+------------------------------------------------------------------------------
+--
+-- no decodeUtf8, avoid decodeUtf8 errors
+
+lbsToText :: LBS.ByteString -> Text
+lbsToText = T.pack . LCS.unpack
+
+bsToText :: BS.ByteString -> Text
+bsToText = T.pack . CS.unpack
 
 ------------------------------------------------------------------------------
