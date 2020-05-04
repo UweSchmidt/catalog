@@ -29,6 +29,7 @@ library
                      Data.Prim.Name
                      Data.Prim.Path
                      Data.Prim.PathId
+                     Data.Prim.PathPos
                      Data.Prim.Prelude
                      Data.Prim.ObjId
                      Data.Prim.ReqType

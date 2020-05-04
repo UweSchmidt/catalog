@@ -52,17 +52,6 @@ import Catalog.CheckSum
        , prettyCSR
        )
 
-import Catalog.FilePath
-       ( isoPicNo )
-
-import Catalog.Workflow
-       ( isoPathPos )
-
-
--- import qualified Data.ByteString.Lazy as LBS
--- import qualified Data.Text            as T
--- import qualified Data.Text.Encoding   as T
-
 ------------------------------------------------------------------------------
 
 type CCmdEffects r =

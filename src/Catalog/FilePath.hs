@@ -406,29 +406,6 @@ fileName2ImgType fn =
 
 -- --------------------
 
-isoPicNo :: Iso' Int String
-isoPicNo = iso toS frS
-  where
-    toS i
-      | i >= 0    = ("pic-" ++ )
-                    . fillLeft '0' dgs
-                    . show
-                    $ i
-      | otherwise = mempty
-      where
-        dgs = 4  -- 10000 entries in a collection before string gets longer
-
-    frS s =
-      fromMaybe (-1) $ parseMaybe picNoParser s
-
--- "pic-" prefix is important
--- else collections like 2020 are interpreted as pic no
-
-picNoParser :: SP Int
-picNoParser = string "pic-" *> L.decimal
-
--- --------------------
-
 addJpg :: String -> String
 addJpg fn
   | toBool (parseMaybe (withSuffix jpgExt') fn) = fn

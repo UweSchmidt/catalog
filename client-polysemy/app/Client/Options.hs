@@ -9,9 +9,6 @@ import Client.Commands
 import Client.Commands.Interpreter
        ( defaultPath )
 
-import Catalog.Workflow
-       ( isoPathPos
-       )
 
 import Data.MetaData
        ( allKeysMD

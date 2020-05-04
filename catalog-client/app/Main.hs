@@ -11,10 +11,6 @@ import           Catalog.System.IO
 import           Catalog.CheckSum          ( CheckSumRes(..)
                                            , prettyCSR
                                            )
-import           Catalog.FilePath          ( isoPicNo )
-import           Catalog.Workflow          ( PathPos
-                                           , isoPathPos
-                                           )
 import           Data.Prim          hiding ( argument )
 import           Data.ImgNode
 import           Data.MetaData             ( metaDataAt

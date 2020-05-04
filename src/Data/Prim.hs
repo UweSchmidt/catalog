@@ -6,6 +6,7 @@ module Data.Prim
        , module Data.Prim.ImageType
        , module Data.Prim.Name
        , module Data.Prim.Path
+       , module Data.Prim.PathPos
        -- , module Data.Prim.PathId
        , module Data.Prim.ObjId
        , module Data.Prim.Prelude
@@ -22,6 +23,7 @@ import Data.Prim.GPS
 import Data.Prim.ImageType
 import Data.Prim.Name
 import Data.Prim.Path
+import Data.Prim.PathPos
 import Data.Prim.Prelude
 import Data.Prim.ReqType
 import Data.Prim.SysPath

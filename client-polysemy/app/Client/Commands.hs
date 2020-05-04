@@ -46,11 +46,9 @@ import Data.Prim
        ( Geo
        , Name
        , Path
+       , PathPos
        , ReqType (..)
        , Text
-       )
-import Catalog.Workflow
-       ( PathPos
        )
 
 ------------------------------------------------------------------------------

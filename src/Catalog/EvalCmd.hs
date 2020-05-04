@@ -16,8 +16,6 @@ import Catalog.CmdAPI
 import Catalog.JsonCommands
 
 import Catalog.Workflow        ( Req'
-                               , PathPos
-                               , isoPathPos
                                , emptyReq'
                                , processReqImg
                                , processReqPage

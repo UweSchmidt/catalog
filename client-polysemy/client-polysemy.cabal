@@ -66,7 +66,7 @@ executable client-polysemy
   build-depends: async                >= 2.2.2
                , aeson                >= 0.8
                , base                 >= 4.7 && <5
-               , bytestring           >= 0.9
+               , bytestring
                , catalog
                , directory
                , exceptions
@@ -75,7 +75,6 @@ executable client-polysemy
                , optparse-applicative
                , polysemy             >= 1.2.3
                , process
-               , random
                , stm
                , text
                , unix

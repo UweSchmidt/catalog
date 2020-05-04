@@ -24,7 +24,6 @@ import Data.MetaData                  ( MetaData
 
 import Catalog.Cmd
 import Catalog.FilePath               ( fileName2ImgType
-                                      , isoPicNo
                                       )
 import Catalog.Html.Basic             ( baseNameParser
                                       , ymdParser
@@ -52,9 +51,7 @@ import           Text.Blaze.Html.Renderer.Utf8
 
 -- ----------------------------------------
 
-type PathPos = (Path, Pos)
 type IdNode  = (ObjId, ImgNode)
-type Pos     = Maybe Int
 
 data Req' a
   = Req' { _rType    :: ReqType      -- type
@@ -65,21 +62,6 @@ data Req' a
 
 type Req'IdNode                a = Req'              (IdNode,  a)
 type Req'IdNode'ImgRef         a = Req'IdNode        (ImgRef,  a)
-
-path2pathPos :: Path -> PathPos
-path2pathPos p
-  | cx >= 0   = (dp, Just cx)
-  | otherwise = (p,  Nothing)
-  where
-    (dp, bn) = p  ^. viewBase
-    cx       = bn ^. isoString . from isoPicNo
-
-pathPos2path :: PathPos -> Path
-pathPos2path (p,  Nothing) = p
-pathPos2path (dp, Just cx) = dp `snocPath` (cx ^. isoPicNo . from isoString)
-
-isoPathPos :: Iso' Path PathPos
-isoPathPos = iso path2pathPos pathPos2path
 
 -- --------------------
 
