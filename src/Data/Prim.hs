@@ -9,6 +9,7 @@ module Data.Prim
        -- , module Data.Prim.PathId
        , module Data.Prim.ObjId
        , module Data.Prim.Prelude
+       , module Data.Prim.ReqType
        , module Data.Prim.SysPath
        , module Data.Prim.TimeStamp
        )
@@ -22,6 +23,7 @@ import Data.Prim.ImageType
 import Data.Prim.Name
 import Data.Prim.Path
 import Data.Prim.Prelude
+import Data.Prim.ReqType
 import Data.Prim.SysPath
 import Data.Prim.TimeStamp
 

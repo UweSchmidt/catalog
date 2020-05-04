@@ -22,7 +22,6 @@ import Data.MetaData    ( MetaData
                         , Rating
                         )
 import Catalog.CheckSum ( CheckSumRes )
-import Catalog.Workflow ( ReqType(..) )
 
 -- ----------------------------------------
 --

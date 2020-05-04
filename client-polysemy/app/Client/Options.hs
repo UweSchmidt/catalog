@@ -11,7 +11,6 @@ import Client.Commands.Interpreter
 
 import Catalog.Workflow
        ( isoPathPos
-       , imgReqTypes
        )
 
 import Data.MetaData

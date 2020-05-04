@@ -56,21 +56,6 @@ type PathPos = (Path, Pos)
 type IdNode  = (ObjId, ImgNode)
 type Pos     = Maybe Int
 
-data ReqType = RPage    -- deliver HTML col-, img-, movie-, blog page  text/html
-             | RPage1
-             | RIcon    -- deliver JPG icon, fixed aspectratio         image/jpg
-             | RIconp   -- like RIcon with org img aspectratio         image/jpg
-             | RImg     -- deliver JPG image                           image/jpg
-             | RImgfx   -- JPG imgage, cropped if aspectratio is
-                        -- similar to required geometry                image/jpg
-             | RBlog    -- ???
-             | RRef     -- deliver an url, not a content
-             | RMovie   -- currently redundant, movie files are served statically
-             deriving (Eq, Ord, Enum, Show, Read)
-             -- !!! nameing convention of constr RXxxx used in isoString
-
-instance IsoText ReqType
-
 data Req' a
   = Req' { _rType    :: ReqType      -- type
          , _rPathPos :: PathPos      -- collection path and maybe index
@@ -80,9 +65,6 @@ data Req' a
 
 type Req'IdNode                a = Req'              (IdNode,  a)
 type Req'IdNode'ImgRef         a = Req'IdNode        (ImgRef,  a)
-
-imgReqTypes :: [ReqType]
-imgReqTypes = [RIcon .. RImgfx]
 
 path2pathPos :: Path -> PathPos
 path2pathPos p
@@ -142,12 +124,6 @@ rColNode = rIdNode . _2
 
 rImgRef :: Lens' (Req'IdNode'ImgRef a) ImgRef
 rImgRef = rVal . _2 . _1
-
-instance IsoString ReqType where
-  isoString = iso show'ReqType (fromMaybe RRef . read'ReqType)
-
-instance PrismString ReqType where
-  prismString = prism' show'ReqType read'ReqType
 
 show'ReqType :: ReqType -> String
 show'ReqType = drop 1 . map toLower . show
@@ -529,14 +505,6 @@ genReqImg r = do
   where
     geo = mkGeoAR (r ^. rGeo) (reqType2AR $ r ^. rType)
     ity = fileName2ImgType (r ^. rImgRef . to _iname . isoString)
-
-
-reqType2AR :: ReqType -> AspectRatio
-reqType2AR RIcon  = Fix    -- fixed aspect ratio
-reqType2AR RIconp = Pad    -- aspect ratio of org img
-reqType2AR RImg   = Pad
-reqType2AR RImgfx = Flex   -- flex aspect ratio (crop or pad)
-reqType2AR _      = Pad    -- default
 
 -- read text from a file (blog entry) to generate an icon
 

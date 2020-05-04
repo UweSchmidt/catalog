@@ -31,6 +31,7 @@ library
                      Data.Prim.PathId
                      Data.Prim.Prelude
                      Data.Prim.ObjId
+                     Data.Prim.ReqType
                      Data.Prim.SysPath
                      Data.Prim.TimeStamp
                      Catalog.EvalCmd

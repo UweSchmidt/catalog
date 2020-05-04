@@ -56,7 +56,6 @@ import Catalog.EvalCmd         ( Cmd'(..)
                                , evalCmd
                                )
 import Catalog.Options         ( mainWithArgs )
-import Catalog.Workflow        ( ReqType(..) )
 
 -- servant interface
 import API
@@ -204,9 +203,17 @@ catalogServer env runR runM runB =
 
     -- --------------------
 
-    runR1 cmd'         = runR  . cmd'      . listToPath
+    runR1 :: forall r.
+             (Path -> Cmd' r) -> [Text] -> Handler r
+    runR1 cmd' = runR  . cmd' . listToPath
+
+    runR2 :: forall a r.
+             (a -> Path -> Cmd' r) -> [Text] -> a -> Handler r
     runR2 cmd' ts args = runR  . cmd' args . listToPath $ ts
-    runR3              = runR2 . uncurry
+
+    runR3 :: forall a b r.
+             (a -> b -> Path -> Cmd' r) -> [Text] -> (a, b) -> Handler r
+    runR3 = runR2 . uncurry
 
     json'read =
       runR1 TheCollection
@@ -231,9 +238,20 @@ catalogServer env runR runM runB =
       :<|>
       runR3 CheckImgPart
 
-    runM1 cmd'         = runM . cmd'      . listToPath
+    runM1 :: forall r.
+             (Path -> Cmd' r) -> [Text] -> Handler r
+    runM1 cmd' = runM . cmd' . listToPath
+
+    runM2 :: forall a r.
+             (a -> Path -> Cmd' r) -> [Text] -> a -> Handler r
     runM2 cmd' ts args = runM . cmd' args . listToPath $ ts
-    runM3              = runM2 . uncurry
+
+    runM3 :: forall a b r.
+             (a -> b -> Path -> Cmd' r) -> [Text] -> (a, b) -> Handler r
+    runM3 = runM2 . uncurry
+
+    runB2 :: forall a.
+             (a -> Path -> Cmd' ()) -> [Text] -> a -> Handler ()
     runB2 cmd' ts args = runB . cmd' args . listToPath $ ts
 
     json'modify =
@@ -309,8 +327,10 @@ main' env st = do
   mvMody  <- newTMVarIO st
   mvQueue <- newTChanIO
 
-  let runRead  = runReadCmd       env mvRead
-  let runMody  = runModyCmd       env mvRead mvMody
+  let runRead :: (forall a . Cmd' a -> Handler a)
+      runRead  = runReadCmd       env mvRead
+  let runMody :: (forall a . Cmd' a -> Handler a)
+      runMody  = runModyCmd       env mvRead mvMody
   let runBg    = runBackgroundCmd env mvRead mvQueue
 
   -- start background thread for saving image store

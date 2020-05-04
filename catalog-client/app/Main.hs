@@ -13,7 +13,6 @@ import           Catalog.CheckSum          ( CheckSumRes(..)
                                            )
 import           Catalog.FilePath          ( isoPicNo )
 import           Catalog.Workflow          ( PathPos
-                                           , imgReqTypes
                                            , isoPathPos
                                            )
 import           Data.Prim          hiding ( argument )
