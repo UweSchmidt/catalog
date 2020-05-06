@@ -8,7 +8,6 @@ import Data.Prim
 import Text.SimpleParser
 
 import qualified Text.SimpleParser          as SP
-import qualified Text.Megaparsec.Char.Lexer as L
 
 -- ----------------------------------------
 --
