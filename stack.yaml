@@ -15,7 +15,10 @@ packages:
 - '.'
 - './catalog-servant'
 - './catalog-client'
+- './polysemy-tools'
 - './client-polysemy'
+
+# old stuff
 # - './catalog-server'
 # - './catalog-sync'
 

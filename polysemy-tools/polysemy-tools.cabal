@@ -1,6 +1,6 @@
-name:           client-polysemy
+name:           polysemy-tools
 version:        0.2.9.1
-description:    Catalog client with polysemy effect library
+description:    tool and extensions for polysemy effect library
 author:         Uwe Schmidt
 maintainer:     Uwe Schmidt
 copyright:      2020 Uwe Schmidt
@@ -14,22 +14,23 @@ source-repository head
   location: https://github.com/UweSchmidt/apps/catalog
 
 
-executable client-polysemy
-  main-is:            Main.hs
-  other-modules:      Client.Commands
-                      Client.Commands.Interpreter
-                      Client.Options
-                      Server.Commands
-                      Server.Commands.ClientInterpreter
+library
+  exposed-modules:
+                      -- effexts for system functions
+                      System.ExecProg
+                      System.HttpRequest
+                      
+                      -- own Polysemy effects
+                      Polysemy.Consume
+                      Polysemy.Consume.BGQueue
+                      Polysemy.EmbedExc
+                      Polysemy.FileSystem
+                      Polysemy.HttpRequest
+                      Polysemy.Logging
 
-                      -- options for Polysemy.Logging
-                      -- and         System.HttpRequest
-                      Options.Applicative.HostPort
-                      Options.Applicative.LogLevel
+                      Paths_polysemy_tools
 
-                      Paths_client_polysemy
-
-  hs-source-dirs:     app
+  hs-source-dirs:     src
 
   default-extensions: ConstraintKinds
                       DataKinds
@@ -44,10 +45,7 @@ executable client-polysemy
                       TypeFamilies
                       TypeOperators
 
-  ghc-options: -threaded
-               -rtsopts
-               -with-rtsopts=-N
-               -Wall -fwarn-tabs -O2
+  ghc-options: -Wall -fwarn-tabs -O2
                -funbox-strict-fields
                -flate-specialise
                -fspecialise-aggressively
@@ -56,14 +54,11 @@ executable client-polysemy
                , aeson                >= 0.8
                , base                 >= 4.7 && <5
                , bytestring
-               , catalog
                , directory
                , exceptions
                , http-client
                , http-types
-               , optparse-applicative
                , polysemy             >= 1.2.3
-               , polysemy-tools
                , process
                , stm
                , text
