@@ -1,5 +1,5 @@
 name:           polysemy-tools
-version:        0.2.9.1
+version:        0.1.0.0
 description:    tool and extensions for polysemy effect library
 author:         Uwe Schmidt
 maintainer:     Uwe Schmidt

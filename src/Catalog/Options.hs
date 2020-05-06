@@ -15,7 +15,7 @@ version :: String
 version = "0.2.9.1"
 
 date :: String
-date = "2020-05-02"
+date = "2020-05-06"
 
 mainWithArgs :: String -> (Env -> IO ()) -> IO ()
 mainWithArgs theAppName theAppMain = do
