@@ -14,8 +14,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
 
-  exposed-modules:   Data.Catalog
-                     Data.MetaData
+  exposed-modules:   Data.MetaData
                      Data.ImgNode
                      Data.ImgTree
                      Data.RefTree

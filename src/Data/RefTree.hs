@@ -11,14 +11,10 @@ module Data.RefTree
        , rootRef
        , entries
        , entryAt
-       , theNode
        , theNode'
        , parentRef
        , nodeName
        , nodeVal
-       , theParent
-       , theName
-       , theNodeVal
        , refPath
        , refObjIdPath
        , refInTree
@@ -73,11 +69,6 @@ entryAt r = entries . at r
 theNode' :: (Ord ref) => ref -> Traversal' (RefTree node ref) (node ref)
 theNode' r = entryAt r . traverse
 {-# INLINE theNode' #-}
-
-theNode :: (Ord ref, Show ref)
-        => ref -> Lens' (RefTree node ref) (node ref)
-theNode r = entryAt r . checkJust ("atRef: undefined ref " ++ show r)
-{-# INLINE theNode #-}
 
 -- ----------------------------------------
 
@@ -140,12 +131,6 @@ nodeVal k (UL r n v) = fmap (\ new -> UL r n new) (k v)
 {-# INLINE nodeVal #-}
 
 -- ----------------------------------------
-
-checkJust :: String -> Iso' (Maybe a) a
-checkJust msg = iso (fromMaybe (error msg)) Just
-{-# INLINE checkJust #-}
-
--- ----------------------------------------
 --
 -- a dir tree is a ref tree with a ref to
 -- the parent node,
@@ -156,34 +141,30 @@ type DirTree node ref = RefTree (UpLink node) ref
 
 -- lenses
 
-theParent :: (Ord ref, Show ref) => ref -> Lens' (DirTree node ref) ref
-theParent r = theNode r . parentRef
-{-# INLINE theParent #-}
-
-theName ::  (Ord ref, Show ref) => ref -> Lens' (DirTree node ref) Name
-theName r = theNode r . nodeName
-{-# INLINE theName #-}
-
-theNodeVal ::  (Ord ref, Show ref) => ref -> Lens' (DirTree node ref) (node ref)
-theNodeVal r = theNode r . nodeVal
-{-# INLINE theNodeVal #-}
-
 -- ----------------------------------------
 --
 -- access and modification
 
 -- transform a ref into the path from root to node
 
-refPath :: (Ord ref, Show ref) => ref -> DirTree node ref -> Path
-refPath r0 t
-  = path r0 (mkPath $ t ^. theName r0)
+refPath :: (Ord ref) => ref -> DirTree node ref -> Path
+refPath r00 t =
+  fromMaybe mempty $ refPath' r00
   where
-    path ref acc
-      | isRoot    = acc
-      | otherwise = path par ((t ^. theName par) `consPath ` acc)
-      where
-        par    = t ^. theParent ref
-        isRoot = par == ref   -- root node reached?
+    refPath' r0 = do
+      let theName'   r = t ^? entryAt r . traverse . nodeName
+      let theParent' r = t ^? entryAt r . traverse . parentRef
+
+      let path ref acc = do
+            par <- theParent' ref
+            if par == ref
+              then return acc
+              else do
+                   acc' <- (`consPath` acc) <$> theName' par
+                   path par acc'
+      acc0 <- mkPath <$> theName' r0
+      path r0 acc0
+
 {-# INLINE refPath #-}
 
 -- compute all ancestors of a ref
@@ -192,18 +173,22 @@ refPath r0 t
 
 refObjIdPath :: (Ord ref, Show ref) => ref -> DirTree node ref -> [ref]
 refObjIdPath r0 t =
-  parentIds r0
+  parentIds $ Just r0
   where
-    parentIds r
-      | isRoot    = r : []
-      | otherwise = r : parentIds p
+    parentIds Nothing  = []
+    parentIds (Just r)
+      | isRoot mp = r : []
+      | otherwise = r : parentIds mp
       where
-        p      = t ^. theParent r
-        isRoot = p == r
+        mp     = t ^? entryAt r . traverse . parentRef
+
+        isRoot Nothing  = True
+        isRoot (Just p) = p == r
 
 -- test whether a ref @r@ is a part of the tree given by ref @p@
 refInTree :: (Ord ref, Show ref) => ref -> ref -> DirTree node ref -> Bool
-refInTree r p t = r `elem` tail (refObjIdPath p t)
+refInTree r p t =
+  r `elem` tail (refObjIdPath p t)
 
 -- | create the root of a DirTree.
 --
@@ -217,7 +202,8 @@ mkDirRoot genRef n v
     r = genRef $ mkPath n
 
 isDirRoot :: (Ord ref, Show ref) => ref -> DirTree node ref -> Bool
-isDirRoot r t = t ^. theParent r == r
+isDirRoot r t =
+  t ^? entryAt r . traverse . parentRef == Just r
 {-# INLINE isDirRoot #-}
 
 -- lookup a (ref, nodeval) by a path
@@ -257,13 +243,16 @@ mkDirNode genRef isParentDir updateParent n p v t = do
     throwError $ "mkDirNode: entry already exists: " ++ show rp
 
   -- check parent, must be a dir
-  unless (t ^. theNodeVal p . to isParentDir) $
+  -- unless (t ^. theNodeVal p . to isParentDir) $
+  unless (hasn't (entryAt p . traverse . nodeVal . filtered isParentDir) t) $
     throwError $ "mkDirNode: parent node not a dir: " ++ show pp
 
   return
+    -- insert new node with name and uplink
+    -- and add ref into parent
     ( r
-    , t & entryAt r    .~ Just (UL p n v)  -- insert new node with name and uplink
-        & theNodeVal p %~ updateParent r   -- add ref into parent
+    , t & entryAt r                      .~ Just (UL p n v)
+        & entryAt p . traverse . nodeVal %~ updateParent r
     )
     where
       pp = refPath p t        -- get path of parent,
@@ -280,21 +269,26 @@ remDirNode :: (MonadError String m, Ord ref, Show ref)
 remDirNode removable updateParent r t = do
   -- check whether node exists?
   unless (has (entryAt r) t) $
-    throwError $ "remDirNode: ref doesn't exist: " ++ show r
+    throwError $ "remDirNode: ref doesn't exist: " <> show r
 
   -- root can't be removed
   when (r `isDirRoot` t) $
     throwError "remDirNode: root ref can't be removed"
 
   -- node allowed to be removed (application specific check)?
-  unless (removable (t ^. theNode r . nodeVal)) $
+  unless (hasn't (entryAt r . traverse . nodeVal . filtered removable) t) $
     throwError $ "remDirNode: node value not removable, entry: "
-                 ++ show (refPath r t)
+                 <> show (refPath r t)
 
-  return (t & theNodeVal p %~ updateParent r   -- ^ remove ref from parent
-            & entryAt r    .~ Nothing          -- ^ remove node from map
-         )
-    where
-      p = t ^. theParent r
+  case t ^? entryAt r . traverse . parentRef of
+    Just p ->
+      return
+        -- ^ remove ref from parent
+        -- ^ remove node from map
+        (t & entryAt p . traverse . nodeVal %~ updateParent r
+           & entryAt r                      .~ Nothing
+        )
+    Nothing ->
+      throwError $ "remDirNode: parent node doesn't exist " <> show r
 
 -- ----------------------------------------

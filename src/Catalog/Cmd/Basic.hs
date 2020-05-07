@@ -386,12 +386,12 @@ adjustNodeVal :: Show a
               -> ObjId
               -> Cmd ()
 adjustNodeVal mkj theComp f i = do
-  theImgTree . theNodeVal i . theComp %= f
+  theImgTree . entryAt i . traverse . nodeVal . theComp %= f
   -- journal the changed result
   dt >>= journalAdjust
     where
       journalAdjust t =
-        case t ^.. theNodeVal i . theComp of
+        case t ^.. entryAt i . traverse . nodeVal . theComp of
           -- the expected case
           [new'v] ->
             journalChange $ mkj i new'v
@@ -399,15 +399,15 @@ adjustNodeVal mkj theComp f i = do
           -- the error cases
           [] ->
             warn $ "adjustNodeVal: nothing changed, "
-                   ++ "component to be modified does not exist in "
-                   ++ name'i
+                   <> "component to be modified does not exist in "
+                   <> name'i
 
           -- the critical case
           vs ->
             warn $ "adjustNodeVal: mulitple components have been changed in "
-                   ++ name'i
-                   ++ ": "
-                   ++ show vs
+                   <> name'i
+                   <> ": "
+                   <> show vs
         where
           name'i = show $ i ^. isoString
 
