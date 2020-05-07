@@ -8,7 +8,7 @@
 
 module Catalog.Cmd.Basic
   ( dt
-  , getTree
+  , getTreeAt
   , getImgName
   , getImgParent
   , getImgVal
@@ -18,7 +18,7 @@ module Catalog.Cmd.Basic
   , getRootId
   , getRootImgDirId
   , getRootImgColId
-  , existsObjId
+  , existsEntry
   , lookupByName
   , lookupByPath
   , getIdNode
@@ -95,24 +95,31 @@ dt :: Cmd ImgTree
 dt = use theImgTree
 {-# INLINE dt #-}
 
-getTree :: Getting a ImgTree a -> Cmd a
-getTree l = use (theImgTree . l)
-{-# INLINE getTree #-}
+getTreeAt :: ObjId -> Cmd (Maybe (UpLink ImgNode' ObjId))
+getTreeAt i = use (theImgTree . entryAt i)
+{-# INLINE getTreeAt #-}
+
+getTree' :: Getting a (UpLink ImgNode' ObjId) a -> ObjId -> Cmd a
+getTree' l i = do
+  t <- use theImgTree
+  case t ^. entryAt i of
+    Just n  -> return (n ^. l)
+    Nothing -> abort $ "getTree: illegal ObjId: " ++ show i
 
 getImgName :: ObjId -> Cmd Name
-getImgName i = getTree (theNode i . nodeName)
+getImgName = getTree' nodeName
 {-# INLINE getImgName #-}
 
 getImgParent :: ObjId -> Cmd ObjId
-getImgParent i = getTree (theNode i . parentRef)
+getImgParent = getTree' parentRef
 {-# INLINE getImgParent #-}
 
 getImgVal :: ObjId -> Cmd ImgNode
-getImgVal i = getTree (theNode i . nodeVal)
+getImgVal = getTree' nodeVal
 {-# INLINE getImgVal #-}
 
 getImgVals :: ObjId -> Getting a ImgNode a -> Cmd a
-getImgVals i l = getTree (theNode i . nodeVal . l)
+getImgVals i l = getTree' (nodeVal . l) i
 {-# INLINE getImgVals #-}
 
 getImgSubDirs :: DirEntries -> Cmd (Seq ObjId)
@@ -122,7 +129,7 @@ getImgSubDirs es =
 -- ----------------------------------------
 
 getRootId :: Cmd ObjId
-getRootId = getTree rootRef
+getRootId = use (theImgTree . rootRef)
 {-# INLINE getRootId #-}
 
 getRootImgDirId :: Cmd ObjId
@@ -137,10 +144,10 @@ getRootImgColId = do
   getImgVals ri theRootImgCol
 {-# INLINE getRootImgColId #-}
 
-existsObjId :: ObjId -> Cmd Bool
-existsObjId i =
-  isJust <$> getTree (entryAt i)
-{-# INLINE existsObjId #-}
+existsEntry :: ObjId -> Cmd Bool
+existsEntry i =
+  isJust <$> use (theImgTree . entryAt i)
+{-# INLINE existsEntry #-}
 
 lookupByName :: Name -> ObjId -> Cmd (Maybe (ObjId, ImgNode))
 lookupByName n i = do
@@ -177,8 +184,7 @@ alreadyTherePath msg p = do
 
 -- | ref to path
 objid2path :: ObjId -> Cmd Path
-objid2path i =
-  dt >>= return . refPath i
+objid2path i = dt >>= return . refPath i
 
 -- | ref to type
 objid2type :: ObjId -> Cmd String
@@ -290,7 +296,7 @@ mkImg = mkImg' MkIMG isDIR emptyImg
 -- remove an entry from catalog tree
 rmImgNode :: ObjId -> Cmd ()
 rmImgNode i = do
-  ex <- existsObjId i
+  ex <- existsEntry i
   if ex
     then dt >>= go
     else warn $ "rmImgNode: ObjId doesn't exist: " ++ i ^. isoString
@@ -526,13 +532,8 @@ trcCmd cmd
 
 journalChange :: Journal -> Cmd ()
 journalChange j = do
-  j' <- toJournalPath j
+  j' <- traverse objid2path j
   logg (^. envJournal) "journal" (show j')
-
-toJournalPath :: Journal -> Cmd (Journal' Path)
-toJournalPath j = dt >>= go
-  where
-    go t = return ((`refPath` t) <$> j)
 
 -- ----------------------------------------
 

@@ -36,7 +36,7 @@ foldMT' undefId imgA dirA' rootA' colA' i0 = do
     colA  = colA'  go
     go i  = do
       -- trcObj i $ "foldMT"
-      mn <- getTree (entryAt i)
+      mn <- getTreeAt i
       -- trc $ "foldMT: " ++ show mn
       case mn of
         Nothing ->

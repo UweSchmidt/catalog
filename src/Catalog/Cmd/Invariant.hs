@@ -89,7 +89,7 @@ cleanupImgRefs i0 = do
 
     checkRef :: ObjId -> CmdMB ImgNode
     checkRef i =
-      (^. nodeVal) <$> (MaybeT $ getTree (entryAt i))
+      (^. nodeVal) <$> (MaybeT $ getTreeAt i)
 
     checkDirRef :: ObjId -> CmdMB ImgNode
     checkDirRef i = do
@@ -168,7 +168,7 @@ checkDeadObjIds = do
 
     allDeadObjIds t = do
       us <- allObjIds t
-      as <- S.fromList . M.keys <$> getTree entries
+      as <- S.fromList . M.keys <$> use (theImgTree . entries)
       return $ as `S.difference` us
 
     showDeadObjIds os
@@ -283,7 +283,7 @@ checkUpLinkObjIds =
           foldObjIds showObj os
             where
               showObj i =
-                getTree (entryAt i) >>= maybe (return ()) msg
+                getTreeAt i >>= maybe (return ()) msg
                 where
                   msg n = do
                     warnObj i $

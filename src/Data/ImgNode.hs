@@ -4,6 +4,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 module Data.ImgNode
        ( ImgNode'(..)
@@ -214,7 +216,7 @@ theDirEntries :: Traversal' (ImgNode' ref) (DirEntries' ref)
 theDirEntries = theDir . _1
 {-# INLINE theDirEntries #-}
 
--- traverseWords :: Traverasl' State Word8
+-- traverseWords :: Traversal' State Word8
 -- traverseWords :: Applicative f => (Word8 -> f Word8) -> State -> f State
 -- traverseWords inj (State wa wb) = State <$> inj wa <*> inj wb
 
@@ -406,7 +408,9 @@ type ImgRef      = ImgRef' ObjId
 deriving instance (Eq   ref) => Eq   (ImgRef' ref)
 deriving instance (Ord  ref) => Ord  (ImgRef' ref)
 deriving instance (Show ref) => Show (ImgRef' ref)
-deriving instance Functor ImgRef'
+deriving instance Functor     ImgRef'
+deriving instance Foldable    ImgRef'
+deriving instance Traversable ImgRef'
 
 instance IsEmpty (ImgRef' ref) where
   isempty = isempty . _iname
@@ -424,7 +428,9 @@ type ColEntries' ref = Seq (ColEntry' ref)
 deriving instance (Eq   ref) => Eq   (ColEntry' ref)
 deriving instance (Ord  ref) => Ord  (ColEntry' ref)
 deriving instance (Show ref) => Show (ColEntry' ref)
-deriving instance Functor ColEntry'
+deriving instance Functor     ColEntry'
+deriving instance Foldable    ColEntry'
+deriving instance Traversable ColEntry'
 
 instance (ToJSON ref) => ToJSON (ColEntry' ref) where
   toJSON (ImgEnt (ImgRef i n)) = J.object $
@@ -487,8 +493,8 @@ theColImgRef :: Prism' (ColEntry' ref) (ref, Name)
 theColImgRef =
   prism (\ (i, n) -> ImgEnt (ImgRef i n))
         (\ x -> case x of
-            ImgEnt (ImgRef i n) -> Right (i, n)
-            _                   -> Left  x
+                  ImgEnt (ImgRef i n) -> Right (i, n)
+                  _                   -> Left  x
         )
 {-# INLINE theColImgRef #-}
 

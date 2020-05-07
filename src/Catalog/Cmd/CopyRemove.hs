@@ -183,8 +183,8 @@ cleanupCollections i0 = do
   where
     cleanup :: ObjId -> Cmd ()
     cleanup i = do
-      n <- getTree (theNode i)
-      case n ^. nodeVal of
+      n <- getImgVal i
+      case n of
         COL _md im be es -> do
           cleanupIm i im
           cleanupIm i be
@@ -193,6 +193,7 @@ cleanupCollections i0 = do
           return ()
       where
         -- TODO: Bug, for be adjustColBlog should be called
+        -- TODO: ^^^ Bug in bug ???
         cleanupIm :: ObjId -> Maybe ImgRef -> Cmd ()
         cleanupIm i' (Just ir) =
           unlessM (exImg ir) $
@@ -220,7 +221,7 @@ cleanupCollections i0 = do
 
         exImg :: ImgRef -> Cmd Bool
         exImg (ImgRef i' n') = do
-          me <- getTree (entryAt i')
+          me <- getTreeAt i'
           let ex = case me of
                 Just e
                   | isIMG (e ^. nodeVal) ->

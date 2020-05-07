@@ -12,6 +12,7 @@ module Data.RefTree
        , entries
        , entryAt
        , theNode
+       , theNode'
        , parentRef
        , nodeName
        , nodeVal
@@ -68,6 +69,10 @@ entries k (RT r m) = (\ new -> RT r new) <$> k m
 entryAt :: (Ord ref) => ref -> Lens' (RefTree node ref) (Maybe (node ref))
 entryAt r = entries . at r
 {-# INLINE entryAt #-}
+
+theNode' :: (Ord ref) => ref -> Traversal' (RefTree node ref) (node ref)
+theNode' r = entryAt r . traverse
+{-# INLINE theNode' #-}
 
 theNode :: (Ord ref, Show ref)
         => ref -> Lens' (RefTree node ref) (node ref)

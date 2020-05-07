@@ -26,7 +26,7 @@ withCWN cmd
 -- change working node
 cwSet :: ObjId -> Cmd ()
 cwSet i = do
-  e <- getTree (entryAt i)
+  e <- getTreeAt i
   case e of
     Nothing ->
       abort $ "cwSet: node not found: " ++ show i
@@ -41,7 +41,7 @@ cwSetPath p =
 
 -- | change working node to root node
 cwRoot :: Cmd ()
-cwRoot = getTree rootRef >>= cwSet
+cwRoot = use (theImgTree . rootRef) >>= cwSet
 
 -- | change working node to parent
 

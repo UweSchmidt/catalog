@@ -4,6 +4,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 module Catalog.Journal where
 
@@ -30,7 +32,9 @@ data Journal' ref = MkIMG         ref Name
                   | JSeq (Journal' ref) (Journal' ref)
 
 deriving instance (Show ref) => Show (Journal' ref)
-deriving instance Functor Journal'
+deriving instance Functor     Journal'
+deriving instance Foldable    Journal'
+deriving instance Traversable Journal'
 
 type Journal = Journal' ObjId
 

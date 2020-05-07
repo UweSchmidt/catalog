@@ -246,7 +246,7 @@ syncDirCont recursive i = do
 
     syncSubDir p n = do
       -- trc $ "syncSubDir: " ++ show p ++ "/" ++ show n
-      whenM (isNothing <$> getTree (entryAt new'i)) $
+      whenM (isNothing <$> getTreeAt new'i) $
         void $ mkImgDir i n
 
       idSyncFS recursive new'i
@@ -305,7 +305,7 @@ type ClassifiedNames = [ClassifiedName]
 syncImg :: ObjId -> Path -> ClassifiedNames -> Cmd ()
 syncImg ip pp xs = do
   -- new image ?
-  whenM (isNothing <$> getTree (entryAt i)) $
+  whenM (not <$> existsEntry i) $
     void $ mkImg ip n
 
   unlessM (isIMG <$> getImgVal i) $
