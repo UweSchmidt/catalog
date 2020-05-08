@@ -227,7 +227,7 @@ lookupDirPath genRef p t =
 -- | create a new entry with a new ref and modify the parent node
 -- to store the new ref in its node value
 
-mkDirNode :: (MonadError String m, Ord ref, Show ref)
+mkDirNode :: (Ord ref, Show ref)
           => (Path -> ref)                   -- ^ ref generator
           -> (node ref -> Bool)              -- ^ parent node editable?
           -> (ref -> node ref -> node ref)   -- ^ edit value of parent node
@@ -235,7 +235,8 @@ mkDirNode :: (MonadError String m, Ord ref, Show ref)
           -> ref                             -- ^ parent node
           -> node ref                        -- ^ node value
           -> DirTree node ref                -- ^ tree
-          -> m (ref, DirTree node ref)       -- ^ new ref and modified tree
+          -> Except String
+                    (ref, DirTree node ref)  -- ^ new ref and modified tree
 
 mkDirNode genRef isParentDir updateParent n p v t = do
   -- check entry already there
@@ -259,12 +260,13 @@ mkDirNode genRef isParentDir updateParent n p v t = do
       rp = pp `snocPath` n    -- append name and
       r  = genRef rp          -- make reference
 
-remDirNode :: (MonadError String m, Ord ref, Show ref)
+remDirNode :: (Ord ref, Show ref)
            => (node ref -> Bool)             -- ^ node removable?
            -> (ref -> node ref -> node ref)  -- ^ update the parent node
            -> ref                            -- ^ node to be removed
            -> DirTree node ref               -- ^ input tree
-           -> m (DirTree node ref)           -- ^ new tree
+           -> Except String
+                     (DirTree node ref)      -- ^ new tree
 
 remDirNode removable updateParent r t = do
   -- check whether node exists?

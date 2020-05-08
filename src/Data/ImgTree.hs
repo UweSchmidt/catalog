@@ -27,11 +27,11 @@ type ImgTreeP   = DirTree ImgNode' Path
 
 -- the tree for the image hierachy
 
-mkEmptyImgRoot :: (MonadError String m)
-               => Name          -- ^ name of root node
-               -> Name          -- ^ name of topmost image dir
-               -> Name          -- ^ name of topmost collection
-               -> m ImgTree     -- ^ an empty catalog, no images, no collections
+mkEmptyImgRoot :: Name           -- ^ name of root node
+               -> Name           -- ^ name of topmost image dir
+               -> Name           -- ^ name of topmost collection
+               -> Except String
+                         ImgTree -- ^ an empty catalog, no images, no collections
 mkEmptyImgRoot rootName imgName colName =
   do (_r1,t1) <- mkDirNode mkObjId isROOT addImgArchive imgName r emptyImgDir t0
      (_r2,t2) <- mkDirNode mkObjId isROOT addImgCol     colName r emptyImgCol t1
@@ -47,13 +47,13 @@ mkImgRoot :: Name -> ImgNode -> ImgTree
 mkImgRoot = mkDirRoot mkObjId
 {-# INLINE mkImgRoot #-}
 
-mkNode :: (MonadError String m)
-       => (ImgNode -> Bool)
-       -> Name                  -- ^ name of the node
-       -> ObjId                 -- ^ parent node of the tree
-       -> ImgNode               -- ^ node value
-       -> ImgTree               -- ^ the tree into which the node is added
-       -> m (ObjId, ImgTree)    -- ^ new ref of node and extended tree
+mkNode :: (ImgNode -> Bool)
+       -> Name                    -- ^ name of the node
+       -> ObjId                   -- ^ parent node of the tree
+       -> ImgNode                 -- ^ node value
+       -> ImgTree                 -- ^ the tree into which the node is added
+       -> Except String
+                 (ObjId, ImgTree) -- ^ new ref of node and extended tree
 mkNode isN =
   mkDirNode mkObjId isN addChildRef
 {-# INLINE mkNode #-}
@@ -64,9 +64,9 @@ lookupImgPath =
 {-# INLINE lookupImgPath #-}
 
 -- | remove an image node or a dir node without entries
-removeImgNode :: (MonadError String m)
-              => ObjId
-              -> ImgTree -> m ImgTree
+removeImgNode :: ObjId
+              -> ImgTree
+              -> Except String ImgTree
 removeImgNode =
   remDirNode isempty removeChildRef
 {-# INLINE removeImgNode #-}
