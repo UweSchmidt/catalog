@@ -244,7 +244,7 @@ mkDirNode genRef isParentDir updateParent n p v t = do
 
   -- check parent, must be a dir
   -- unless (t ^. theNodeVal p . to isParentDir) $
-  unless (hasn't (entryAt p . traverse . nodeVal . filtered isParentDir) t) $
+  unless (has (entryAt p . traverse . nodeVal . filtered isParentDir) t) $
     throwError $ "mkDirNode: parent node not a dir: " ++ show pp
 
   return
@@ -276,7 +276,7 @@ remDirNode removable updateParent r t = do
     throwError "remDirNode: root ref can't be removed"
 
   -- node allowed to be removed (application specific check)?
-  unless (hasn't (entryAt r . traverse . nodeVal . filtered removable) t) $
+  unless (has (entryAt r . traverse . nodeVal . filtered removable) t) $
     throwError $ "remDirNode: node value not removable, entry: "
                  <> show (refPath r t)
 
