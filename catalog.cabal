@@ -42,7 +42,7 @@ library
                      Catalog.Cmd.ArchiveCollection
                      Catalog.Cmd.Basic
                      Catalog.Cmd.CopyRemove
-                     Catalog.Cmd.CWN
+                     -- Catalog.Cmd.CWN
                      Catalog.Cmd.Fold
                      Catalog.Cmd.Invariant
                      Catalog.Cmd.List

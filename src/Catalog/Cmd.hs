@@ -13,7 +13,6 @@ module Catalog.Cmd
        , module Catalog.Cmd.Invariant
        , module Catalog.Cmd.List
        , module Catalog.Cmd.CopyRemove
-       , module Catalog.Cmd.CWN
        , module Catalog.Cmd.ArchiveCollection
        , module Catalog.System.CatalogIO
        , module Catalog.System.IO
@@ -24,7 +23,6 @@ where
 import           Catalog.Cmd.ArchiveCollection
 import           Catalog.Cmd.Basic
 import           Catalog.Cmd.CopyRemove
-import           Catalog.Cmd.CWN
 import           Catalog.Cmd.Fold
 import           Catalog.Cmd.Invariant
 import           Catalog.Cmd.List
@@ -44,7 +42,7 @@ initImgStore :: Name -> Name -> SysPath -> Cmd ()
 initImgStore rootName colName mountPath = do
   r <- liftE $
     mkEmptyImgRoot rootName dirName colName
-  put $ mkImgStore r mPath (r ^. rootRef)
+  put $ mkImgStore r mPath
   journalChange $ InitImgStore rootName colName mountPath
   where
     dirName  = mkName (takeFileName $ mountPath ^. isoFilePath)

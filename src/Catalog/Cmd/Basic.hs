@@ -7,7 +7,8 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Catalog.Cmd.Basic
-  ( dt
+  ( -- basic Cmd's
+    dt
   , getTreeAt
   , getImgName
   , getImgParent
@@ -54,8 +55,8 @@ module Catalog.Cmd.Basic
   , colEntryAt
   , processColEntryAt
   , processColImgEntryAt
-    -- basic combinators
-  , fromJustCmd
+
+    -- * basic combinators
   , liftE
   , catchAll
   , runDry
@@ -66,11 +67,13 @@ module Catalog.Cmd.Basic
   , journalChange
   , buildImgPath0
   , buildImgPath
-  -- file system path
+
+    -- * file system path
   , toSysPath
   , path2SysPath
   , path2ExifSysPath
-  -- ObjIds
+
+    -- * ObjIds
   , filterObjIds
   , foldObjIds
   )
@@ -95,11 +98,11 @@ dt :: Cmd ImgTree
 dt = use theImgTree
 {-# INLINE dt #-}
 
-getTreeAt :: ObjId -> Cmd (Maybe (UpLink ImgNode' ObjId))
+getTreeAt :: ObjId -> Cmd (Maybe UplNode)
 getTreeAt i = use (theImgTree . entryAt i)
 {-# INLINE getTreeAt #-}
 
-getTree' :: Getting a (UpLink ImgNode' ObjId) a -> ObjId -> Cmd a
+getTree' :: Getting a UplNode a -> ObjId -> Cmd a
 getTree' l i = do
   t <- use theImgTree
   case t ^. entryAt i of
@@ -248,9 +251,7 @@ mapImgStore2Path = do
 
 -- get the mapping from internal keys, ObjId, to paths as keys
 objid2pathMap :: Cmd (ObjId -> Path)
-objid2pathMap = dt >>= go
-  where
-    go t = return (`refPath` t)
+objid2pathMap = dt >>= return . flip refPath
 
 mapPath2ObjId :: Functor f => f Path -> f ObjId
 mapPath2ObjId = fmap mkObjId
@@ -486,10 +487,6 @@ processColImgEntryAt imgRef =
 -- ----------------------------------------
 --
 -- basic Cmd combinators
-
-fromJustCmd :: String -> Maybe a -> Cmd a
-fromJustCmd _   (Just x) = return x
-fromJustCmd msg Nothing  = abort msg
 
 liftE :: Except String a -> Cmd a
 liftE cmd =

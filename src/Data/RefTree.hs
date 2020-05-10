@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Data.RefTree
        ( RefTree
@@ -89,11 +90,11 @@ mapRefTree f (RT r t) =
 
 -- ----------------------------------------
 
--- An UpLink take a node and adds two components,
+-- An UpLink takes a node and adds two components,
 -- .1 a ref to the parent node,
 -- .2 second a name.
 --
--- The root node has the root and a parent ref
+-- The root node has the root itself as parent ref
 
 data UpLink node ref = UL !ref !Name !(node ref)
 
@@ -147,10 +148,11 @@ type DirTree node ref = RefTree (UpLink node) ref
 
 -- transform a ref into the path from root to node
 
-refPath :: (Ord ref) => ref -> DirTree node ref -> Path
+refPath :: forall ref node . (Ord ref) => ref -> DirTree node ref -> Path
 refPath r00 t =
   fromMaybe mempty $ refPath' r00
   where
+    refPath' :: ref -> Maybe Path
     refPath' r0 = do
       let theName'   r = t ^? entryAt r . traverse . nodeName
       let theParent' r = t ^? entryAt r . traverse . parentRef
@@ -162,6 +164,7 @@ refPath r00 t =
               else do
                    acc' <- (`consPath` acc) <$> theName' par
                    path par acc'
+
       acc0 <- mkPath <$> theName' r0
       path r0 acc0
 

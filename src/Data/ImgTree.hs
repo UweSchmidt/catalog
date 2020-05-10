@@ -15,6 +15,7 @@ import Data.RefTree
 -- ----------------------------------------
 
 type ImgTree    = DirTree ImgNode' ObjId
+type UplNode    = UpLink  ImgNode' ObjId
 type ImgNode    = ImgNode'    ObjId
 type ColEntry   = ColEntry'   ObjId
 type ColEntries = ColEntries' ObjId

@@ -10,7 +10,6 @@ module Data.ImageStore
        , ImgStore'
        , theImgTree
        , theMountPath
-       , theWE
        , mkImgStore
        , emptyImgStore
        , mapImgStore
@@ -25,17 +24,16 @@ import qualified Data.Aeson as J
 
 -- ----------------------------------------
 
-data ImgStore' ref = IS !(DirTree ImgNode' ref) !SysPath !ref
+data ImgStore' ref = IS !(DirTree ImgNode' ref) !SysPath
 
 type ImgStore  = ImgStore' ObjId
 
 deriving instance (Show ref) => Show (ImgStore' ref)
 
 instance (ToJSON ref) => ToJSON (ImgStore' ref) where
-  toJSON (IS i mp wd) = J.object
+  toJSON (IS i mp) = J.object
     [ "ImgTree"   J..= i
     , "MountPath" J..= mp
-    , "CWD"       J..= wd
     ]
 
 instance (FromJSON ref, Ord ref) => FromJSON (ImgStore' ref) where
@@ -43,35 +41,30 @@ instance (FromJSON ref, Ord ref) => FromJSON (ImgStore' ref) where
     IS
     <$> o J..: "ImgTree"
     <*> o J..: "MountPath"
-    <*> o J..: "CWD"
 
 theImgTree :: Lens' (ImgStore' ref) (DirTree ImgNode' ref)
-theImgTree k (IS t p w) = (\new -> IS new p w) <$> k t
+theImgTree k (IS t p) = (\new -> IS new p) <$> k t
 {-# INLINE theImgTree #-}
 
 theMountPath :: Lens' (ImgStore' ref) SysPath
-theMountPath k (IS t p w) = (\new -> IS t new w) <$> k p
+theMountPath k (IS t p) = (\new -> IS t new) <$> k p
 {-# INLINE theMountPath #-}
-
-theWE :: Lens' (ImgStore' ref) ref
-theWE k (IS t p w) = (\new -> IS t p new) <$> k w
-{-# INLINE theWE #-}
 
 -- almost a functor, the Ord constraint is the problem
 mapImgStore :: (Ord ref') => (ref -> ref') -> ImgStore' ref -> ImgStore' ref'
-mapImgStore f (IS i mp wd) =
-  IS (mapRefTree f i) mp (f wd)
+mapImgStore f (IS i mp) =
+  IS (mapRefTree f i) mp
 {-# INLINE mapImgStore #-}
 
 -- ----------------------------------------
 
-mkImgStore :: ImgTree -> SysPath -> ObjId -> ImgStore
+mkImgStore :: ImgTree -> SysPath -> ImgStore
 mkImgStore = IS
 {-# INLINE mkImgStore #-}
 
 emptyImgStore :: ImgStore
 emptyImgStore =
-  IS r emptySysPath (r ^. rootRef)
+  IS r emptySysPath
   where
     r = mkDirRoot mkObjId "" emptyImgRoot
 {-# INLINE emptyImgStore #-}

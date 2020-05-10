@@ -36,6 +36,7 @@ deriving instance Functor     Journal'
 deriving instance Foldable    Journal'
 deriving instance Traversable Journal'
 
-type Journal = Journal' ObjId
+type Journal  = Journal' ObjId
+type JournalP = Journal' Path
 
 -- ----------------------------------------
