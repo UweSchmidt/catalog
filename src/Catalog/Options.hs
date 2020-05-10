@@ -3,19 +3,11 @@ where
 
 import Catalog.Cmd.Types
 import Catalog.System.Convert (selectFont)
+import Catalog.Version
 import Data.Prim
 import Options.Applicative
 
 -- ----------------------------------------
---
--- version of the software
--- version number is updated automatically
-
-version :: String
-version = "0.2.10.1"
-
-date :: String
-date = "2020-05-08"
 
 mainWithArgs :: String -> (Env -> IO ()) -> IO ()
 mainWithArgs theAppName theAppMain = do

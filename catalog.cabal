@@ -57,6 +57,7 @@ library
                      Catalog.System.Convert
                      Catalog.System.ExifTool
                      Catalog.System.IO
+                     Catalog.Version
                      Catalog.Workflow
                      Text.SimpleParser
                      

@@ -15,7 +15,9 @@ module Catalog.System.Convert
   )
 where
 
-import           Catalog.Cmd
+import           Catalog.Cmd.Types
+import           Catalog.Cmd.Basic
+import           Catalog.System.IO
 import           Catalog.System.ExifTool (getExifTool)
 import           Data.Prim
 import           Data.MetaData           (getOrientation)

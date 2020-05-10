@@ -39,7 +39,7 @@ bump catalog-client/app/Main.hs
 bump client-polysemy/client-polysemy.cabal
 bump client-polysemy/app/Client/Options.hs
 
-bump src/Catalog/Options.hs
+bump src/Catalog/Version.hs
 bump src/Catalog/Html/Templates/Blaze2.hs
 bump data/assets/html/edit.html
 bump data/assets/javascript/rpc-servant.js

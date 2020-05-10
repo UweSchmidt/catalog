@@ -26,27 +26,25 @@ import           Catalog.Cmd.CopyRemove
 import           Catalog.Cmd.Fold
 import           Catalog.Cmd.Invariant
 import           Catalog.Cmd.List
-import           Catalog.Journal
 import           Catalog.Cmd.Types
+import           Catalog.Journal
 import           Catalog.System.IO
 import           Catalog.System.CatalogIO
 import           Control.Lens
 import           Control.Monad.ReaderStateErrIO
 import           Data.ImageStore
 import           Data.ImgTree
+import           Data.MetaData
 import           Data.Prim
 
 -- ----------------------------------------
 
-initImgStore :: Name -> Name -> SysPath -> Cmd ()
-initImgStore rootName colName mountPath = do
+initImgStore :: Name -> Name -> Name -> Cmd ()
+initImgStore rootName colName dirName = do
   r <- liftE $
     mkEmptyImgRoot rootName dirName colName
-  put $ mkImgStore r mPath
-  journalChange $ InitImgStore rootName colName mountPath
-  where
-    dirName  = mkName (takeFileName $ mountPath ^. isoFilePath)
-    mPath    = takeDirectory <$> mountPath
+  put $ mkImgStore r mempty
+  journalChange $ InitImgStore rootName colName dirName
 
 -- ----------------------------------------
 
@@ -67,11 +65,11 @@ initEnv =
 initState :: Env -> IO (Either String ImgStore)
 initState env = do
   (res, store) <- runCmd' env $ do
-    mp' <- toSysPath s'photos
     jp' <- view envJsonArchive
-    initImgStore n'archive n'collections mp'
+    initImgStore n'archive n'collections n'photos
     loadImgStore jp'
     genSysCollections
+    setCatMetaData
   case res of
     Left msg ->
       return (Left $ show msg)

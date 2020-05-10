@@ -8,12 +8,30 @@ import           Catalog.Cmd.Invariant    (checkImgStore)
 import           Catalog.Cmd.Types
 import           Catalog.Journal
 import           Catalog.System.IO
+import           Catalog.Version          (version, date)
 import qualified Data.Aeson               as J
 import qualified Data.Aeson.Encode.Pretty as J
+import           Data.ImageStore          (theCatMetaData)
+import           Data.MetaData
 import           Data.Prim
 import qualified System.FilePath          as FP
 
 -- ----------------------------------------
+--
+-- catalog metadata
+
+setCatMetaData :: Cmd ()
+setCatMetaData = do
+  let catVer  = unwords [version, date] ^. isoText
+  catWrt     <- (^. isoText) <$> nowAsIso8601
+
+  let catMeta = mempty
+              & metaDataAt descrCatalogVersion .~ catVer
+              & metaDataAt descrCatalogWrite   .~ catWrt
+
+  theCatMetaData %= (catMeta <>)
+
+-- --------------------
 
 encodeJSON :: ToJSON a => a -> LazyByteString
 encodeJSON = J.encodePretty' conf
@@ -52,6 +70,7 @@ snapshotImgStore cmt = do
   pt <- view envJsonArchive
 
   verbose $ "snapshotImgStore: make a snapshot into " ++ show pt
+  setCatMetaData
   saveImgStore pt
   checkinImgStore cmt pt
 

@@ -147,6 +147,8 @@ module Data.MetaData
   , descrDuration
   , descrRating
   , descrGPSPosition
+  , descrCatalogVersion
+  , descrCatalogWrite
 
   , imgRating
   , imgEXIFUpdate
@@ -971,6 +973,8 @@ attrCol =
     , "Duration"
     , "Rating"
     , "GPSPosition"
+    , "CatalogVersion"
+    , "CatalogWrite"
     ]
   )
 
@@ -989,7 +993,9 @@ descrTitle
   , descrAccess
   , descrDuration
   , descrRating
-  , descrGPSPosition :: Name
+  , descrGPSPosition
+  , descrCatalogVersion
+  , descrCatalogWrite :: Name
 
 keysAttrCol :: [Name]
 keysAttrCol@
@@ -1009,6 +1015,8 @@ keysAttrCol@
   , descrDuration
   , descrRating
   , descrGPSPosition
+  , descrCatalogVersion
+  , descrCatalogWrite
   ] = attrGroup2attrName attrCol
 
 

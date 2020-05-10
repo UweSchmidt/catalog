@@ -24,7 +24,7 @@ data Journal' ref = MkIMG         ref Name
                   | AdjColBlog    ref (Maybe (ImgRef' ref))
                   | AdjColEntries ref (ColEntries' ref)
                   | SetSyncTime   ref TimeStamp
-                  | InitImgStore  Name Name SysPath
+                  | InitImgStore  Name Name Name
                   | LoadImgStore  FilePath
                   | SaveImgStore  FilePath
                   | SaveBlogText  ref Name Text
