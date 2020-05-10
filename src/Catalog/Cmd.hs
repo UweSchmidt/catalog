@@ -34,7 +34,6 @@ import           Control.Lens
 import           Control.Monad.ReaderStateErrIO
 import           Data.ImageStore
 import           Data.ImgTree
-import           Data.MetaData
 import           Data.Prim
 
 -- ----------------------------------------
@@ -45,13 +44,6 @@ initImgStore rootName colName dirName = do
     mkEmptyImgRoot rootName dirName colName
   put $ mkImgStore r mempty
   journalChange $ InitImgStore rootName colName dirName
-
--- ----------------------------------------
-
-invImages :: Cmd ()
-invImages = do  -- TODO
-  _r <- use (theImgTree . rootRef)
-  return ()
 
 -- ----------------------------------------
 --
