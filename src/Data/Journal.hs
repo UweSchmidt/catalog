@@ -7,7 +7,7 @@
 {-# LANGUAGE DeriveFoldable    #-}
 {-# LANGUAGE DeriveTraversable #-}
 
-module Catalog.Journal where
+module Data.Journal where
 
 import Data.ImgTree
 import Data.MetaData

@@ -18,7 +18,8 @@ library
   exposed-modules:    Catalog.CatEnv
                       Catalog.Effects
                       Catalog.ImgStore
-
+                      Catalog.Run
+                      
                       Paths_catalog_polysemy
 
   hs-source-dirs:     src
@@ -53,6 +54,7 @@ library
                , polysemy             >= 1.2.3
                , process
                , text
+               , transformers
                , unix
                , unordered-containers >= 0.2
                , utf8-string          >= 1

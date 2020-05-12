@@ -17,8 +17,9 @@ library
   exposed-modules:   Data.MetaData
                      Data.ImgNode
                      Data.ImgTree
-                     Data.RefTree
                      Data.ImageStore
+                     Data.Journal
+                     Data.RefTree
                      Data.Prim
                      Data.Prim.CheckSum
                      Data.Prim.Constants
@@ -42,7 +43,6 @@ library
                      Catalog.Cmd.ArchiveCollection
                      Catalog.Cmd.Basic
                      Catalog.Cmd.CopyRemove
-                     -- Catalog.Cmd.CWN
                      Catalog.Cmd.Fold
                      Catalog.Cmd.Invariant
                      Catalog.Cmd.List
@@ -51,7 +51,6 @@ library
                      Catalog.Html.Templates.Blaze2
                      Catalog.InitState
                      Catalog.JsonCommands
-                     Catalog.Journal
                      Catalog.Options
                      Catalog.Sync
                      Catalog.System.CatalogIO

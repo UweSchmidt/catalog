@@ -30,7 +30,7 @@ import Catalog.Effects
 
 import Data.ImageStore
 import Data.ImgTree
-import Catalog.Journal
+import Data.Journal
 import Data.MetaData
 import Data.Prim
 

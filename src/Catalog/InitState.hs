@@ -12,11 +12,13 @@ where
 import           Catalog.Cmd.ArchiveCollection
 import           Catalog.Cmd.Basic
 import           Catalog.Cmd.Types
-import           Catalog.Journal
 import           Catalog.System.CatalogIO
+
 import           Control.Lens
+
 import           Data.ImageStore
 import           Data.ImgTree
+import           Data.Journal
 import           Data.Prim
 
 -- ----------------------------------------

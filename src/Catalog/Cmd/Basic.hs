@@ -81,7 +81,7 @@ where
 
 import           Catalog.Cmd.Types
 import           Catalog.FilePath  (addJpg)
-import           Catalog.Journal
+import           Data.Journal
 import           Data.ImageStore
 import           Data.ImgTree
 import           Data.MetaData

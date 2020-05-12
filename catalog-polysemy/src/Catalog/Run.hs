@@ -28,7 +28,7 @@ import Catalog.CatEnv
 import Catalog.Effects
 
 import Data.ImageStore
-import Catalog.Journal
+import Data.Journal
 import Data.Prim
 
 import Catalog.ImgStore (journalToStdout, journalToDevNull)

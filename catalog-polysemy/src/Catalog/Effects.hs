@@ -62,7 +62,7 @@ import Polysemy.Reader
 import Polysemy.State
 
 import Data.ImageStore (ImgStore)
-import Catalog.Journal (JournalP)
+import Data.Journal    (JournalP)
 import Data.Prim       (Text, isoText, (^.))
 import Catalog.CatEnv  (CatEnv)
 

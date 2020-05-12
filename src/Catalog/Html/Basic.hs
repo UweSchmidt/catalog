@@ -19,7 +19,7 @@ import Data.Prim
 
 import Catalog.Cmd
 import Catalog.FilePath       ( addJpg )
-import Catalog.Journal        ( Journal'(SaveBlogText) )
+import Data.Journal        ( Journal'(SaveBlogText) )
 import Catalog.System.Convert ( genAssetIcon
                               , genBlogText
                               , genBlogHtml

@@ -6,7 +6,7 @@ where
 import           Catalog.Cmd.Basic
 import           Catalog.Cmd.Invariant    (checkImgStore)
 import           Catalog.Cmd.Types
-import           Catalog.Journal
+import           Data.Journal
 import           Catalog.System.IO
 import           Catalog.Version          (version, date)
 import qualified Data.Aeson               as J
