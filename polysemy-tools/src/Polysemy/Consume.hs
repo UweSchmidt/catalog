@@ -26,6 +26,7 @@ module Polysemy.Consume
   , consumeIO          -- perform an arbitrary IO cmd to process value
   , writelnToStdout    -- writeln a Text to stdout
   , runConsumeMonoid   -- collect values in a monoid
+  , consumeNull        -- ignore everything
   )
 where
 
@@ -87,5 +88,17 @@ runConsumeMonoid f =
     )
 
 {-# INLINE runConsumeMonoid #-}
+
+
+-- | Run a 'Consume' effect by applying an IO cmd.
+
+consumeNull :: InterpreterFor (Consume v) r
+consumeNull =
+  interpret
+    (\ c -> case c of
+        Consume _v -> return ()
+        )
+
+{-# INLINE consumeNull #-}
 
 ------------------------------------------------------------------------------

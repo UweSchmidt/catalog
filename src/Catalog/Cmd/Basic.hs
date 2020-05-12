@@ -104,8 +104,8 @@ getTreeAt i = use (theImgTree . entryAt i)
 
 getTree' :: Getting a UplNode a -> ObjId -> Cmd a
 getTree' l i = do
-  t <- use theImgTree
-  case t ^. entryAt i of
+  mn <- getTreeAt i
+  case mn of
     Just n  -> return (n ^. l)
     Nothing -> abort $ "getTree: illegal ObjId: " ++ show i
 
@@ -184,7 +184,7 @@ alreadyTherePath msg p = do
     abort $ msg ++ " " ++ quotePath p
 
 -- ----------------------------------------
-
+--
 -- | ref to path
 objid2path :: ObjId -> Cmd Path
 objid2path i = dt >>= return . refPath i

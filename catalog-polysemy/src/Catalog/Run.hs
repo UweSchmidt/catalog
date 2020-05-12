@@ -1,0 +1,65 @@
+{-# LANGUAGE
+    ConstraintKinds,
+    DataKinds,
+    FlexibleContexts,
+    GADTs,
+    PolyKinds,
+    RankNTypes,
+    ScopedTypeVariables,
+    TypeApplications,
+    TypeOperators,
+    TypeFamilies
+#-} -- default extensions (only for emacs)
+
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StandaloneDeriving #-}
+
+-- {-# LANGUAGE TemplateHaskell #-}
+
+------------------------------------------------------------------------------
+
+module Catalog.Run
+where
+
+import Catalog.CatEnv
+import Catalog.Effects
+
+import Data.ImageStore
+import Catalog.Journal
+import Data.Prim
+
+import Catalog.ImgStore (journalToStdout, journalToDevNull)
+
+------------------------------------------------------------------------------
+
+type CatApp a = Sem '[ Reader CatEnv
+                     , Consume JournalP
+                     , Logging
+                     , Consume LogMsg
+                     , Error Text
+                     , State ImgStore
+                     , Embed IO
+                     ] a
+
+runApp :: AppEnv -> CatApp a -> IO a
+runApp env cmd = do
+  let runJournal
+        | env ^. appEnvJournal = journalToStdout
+        | otherwise            = journalToDevNull
+
+  (_imgStore, Right res) <-
+    runM
+    . runState    @ImgStore emptyImgStore
+    . runError    @Text
+    . logToStdErr
+    . logWithLevel (env ^. appEnvLogLevel)
+    . runJournal
+    . runReader   @CatEnv (env ^. appEnvCat)
+    $ cmd
+
+  return res
+
+------------------------------------------------------------------------------

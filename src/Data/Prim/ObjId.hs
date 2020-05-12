@@ -91,6 +91,8 @@ instance IsoString ObjId where
   isoString = objId2integer . isoString
   {-# INLINE isoString #-}
 
+instance IsoText ObjId
+
 instance IsoHex ObjId where
   isoHex = objId2Int . isoHex
 

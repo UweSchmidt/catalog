@@ -49,6 +49,7 @@ library
                      Catalog.Cmd.Types
                      Catalog.Html.Basic
                      Catalog.Html.Templates.Blaze2
+                     Catalog.InitState
                      Catalog.JsonCommands
                      Catalog.Journal
                      Catalog.Options

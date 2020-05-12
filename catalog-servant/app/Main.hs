@@ -50,8 +50,8 @@ import Catalog.Cmd             ( Env
                                , envMountPath
                                , envPort
                                , envSyncDir
-                               , initState
                                )
+import Catalog.InitState       ( initState )
 import Catalog.EvalCmd         ( Cmd'(..)
                                , evalCmd
                                )
