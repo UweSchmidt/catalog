@@ -39,6 +39,7 @@ module Catalog.Effects
   , EffLogging
 
     -- action types
+  , SemCE
   , SemE
   , SemIS
   , SemISE
@@ -74,6 +75,9 @@ type EffFileSys r = Member FileSystem         r
 type EffIStore  r = Member (State ImgStore)   r
 type EffJournal r = Member (Consume JournalP) r
 type EffLogging r = Member Logging            r
+
+type SemCE    r a = ( EffCatEnv r
+                    ) => Sem r a
 
 type SemE     r a = ( EffError r
                     ) => Sem r a

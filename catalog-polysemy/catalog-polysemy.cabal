@@ -21,6 +21,7 @@ library
                       Catalog.ImgTreeModify
                       Catalog.Journal
                       Catalog.Run
+                      Catalog.TextPath
                       
                       Paths_catalog_polysemy
 
