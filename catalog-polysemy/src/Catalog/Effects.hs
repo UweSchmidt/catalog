@@ -38,17 +38,27 @@ module Catalog.Effects
   , EffJournal
   , EffLogging
 
-    -- action types
+    -- * action types
   , SemCE
   , SemE
   , SemIS
   , SemISE
   , SemISJ
   , SemISEJ
+  , SemISEL
   , SemISEJL
 
-  -- lifting functions
+  , SemMB
+
+    -- * lifting functions
   , liftExcept
+
+    -- * Maybe monad on top of Sem r
+  , pureMB
+  , failMB
+  , liftMB
+  , bindMB
+  , filterMB
   )
 where
 
@@ -98,11 +108,18 @@ type SemISEJ  r a = ( EffIStore  r
                     , EffJournal r
                     ) => Sem r a
 
+type SemISEL  r a = ( EffIStore  r
+                    , EffError   r
+                    , EffLogging r
+                    ) => Sem r a
+
 type SemISEJL r a = ( EffIStore  r
                     , EffError   r
                     , EffJournal r
                     , EffLogging r
                     ) => Sem r a
+
+type SemMB r a = Sem r (Maybe a)
 
 -- ----------------------------------------
 --
@@ -115,3 +132,31 @@ liftExcept cmd =
     Right res -> return res
 
 -- ----------------------------------------
+
+pureMB :: a -> Sem r (Maybe a)
+pureMB x = pure (Just x)
+
+failMB :: Sem r (Maybe a)
+failMB = pure Nothing
+
+liftMB :: Maybe a -> Sem r (Maybe a)
+liftMB mx = pure mx
+
+bindMB :: Sem r (Maybe a) -> (a -> Sem r (Maybe b)) -> Sem r (Maybe b)
+bindMB m f = do
+  ma <- m
+  case ma of
+    Nothing -> return Nothing
+    Just x  -> f x
+
+filterMB :: (a -> Sem r Bool) -> Sem r (Maybe a) -> Sem r (Maybe a)
+filterMB mp ma = do
+  ma `bindMB`
+    (\ x -> do b <- mp x
+               return $
+                 if b
+                 then Just x
+                 else Nothing
+    )
+
+------------------------------------------------------------------------------

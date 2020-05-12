@@ -20,7 +20,9 @@ library
                       Catalog.Fold
                       Catalog.ImgTreeAccess
                       Catalog.ImgTreeModify
+                      Catalog.Invariant
                       Catalog.Journal
+                      Catalog.Logging
                       Catalog.Run
                       Catalog.TextPath
                       
