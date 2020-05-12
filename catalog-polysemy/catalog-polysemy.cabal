@@ -17,7 +17,9 @@ source-repository head
 library
   exposed-modules:    Catalog.CatEnv
                       Catalog.Effects
-                      Catalog.ImgStore
+                      Catalog.ImgTreeAccess
+                      Catalog.ImgTreeModify
+                      Catalog.Journal
                       Catalog.Run
                       
                       Paths_catalog_polysemy

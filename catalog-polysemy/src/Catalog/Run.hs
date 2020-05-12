@@ -26,12 +26,11 @@ where
 
 import Catalog.CatEnv
 import Catalog.Effects
+import Catalog.Journal (journalToStdout, journalToDevNull)
 
-import Data.ImageStore
-import Data.Journal
 import Data.Prim
-
-import Catalog.ImgStore (journalToStdout, journalToDevNull)
+import Data.Journal    (JournalP)
+import Data.ImageStore (ImgStore, emptyImgStore)
 
 ------------------------------------------------------------------------------
 
