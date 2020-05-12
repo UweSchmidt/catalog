@@ -348,7 +348,7 @@ adjustNodeVal mkj theComp f i = do
             log'warn $ "adjustNodeVal: mulitple components have been changed in "
                        <> i ^. isoText
                        <> ": "
-                       <> show vs ^. isoText
+                       <> toText vs
 
 adjustImg :: (ImgParts -> ImgParts) -> ObjId -> SemISEJL r ()
 adjustImg = adjustNodeVal AdjImgParts theParts
@@ -514,7 +514,7 @@ journal jc = do
 
 journalToStdout :: Member (Embed IO) r
                 => InterpreterFor (Consume JournalP) r
-journalToStdout = consumeIO $ T.putStrLn . ("journal: " <>) . (^. isoText) . show
+journalToStdout = consumeIO $ T.putStrLn . ("journal: " <>) . toText
 
 journalToDevNull :: InterpreterFor (Consume JournalP) r
 journalToDevNull = consumeNull

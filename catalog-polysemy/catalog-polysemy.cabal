@@ -16,6 +16,7 @@ source-repository head
 
 library
   exposed-modules:    Catalog.CatEnv
+                      Catalog.CopyRemove
                       Catalog.Effects
                       Catalog.Fold
                       Catalog.ImgTreeAccess

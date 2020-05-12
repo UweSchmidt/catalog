@@ -55,7 +55,7 @@ foldMT' undefId imgA dirA' rootA' colA' i0 = do
     go i  = do
       -- trcObj i $ "foldMT"
       mn <- getTreeAt i
-      -- trc $ "foldMT: " ++ show mn
+      -- log'trc $ "foldMT: " <> toText mn
       case mn of
         Nothing ->
           undefId i

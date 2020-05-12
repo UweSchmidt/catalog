@@ -15,20 +15,24 @@ module Data.Prim.Prelude
        , Vector
        , IsEmpty(..)
        , IsString(..)
-         -- Data.Aeson
+
+         -- * Data.Aeson
        , ToJSON(..)
        , FromJSON(..)
        , (.=?!)
        , (.:?!)
-         -- Data.Maybe
+
+         -- * Data.Maybe
        , fromMaybe
        , isNothing
        , isJust
        , listToMaybe
-         -- Control.Monad
+
+         -- * Control.Monad
        , module Control.Applicative
        , module Control.Monad
-         -- Data.List
+
+         -- * Data.List
        , intercalate
        , isPrefixOf
        , isSuffixOf
@@ -41,27 +45,35 @@ module Data.Prim.Prelude
        , zip4
        , zip5
        , zip6
-         -- Data.Char
+
+         -- * Data.Char
        , module Data.Char
        , module Data.Foldable
        , module Data.Semigroup
-         -- Data.Function
+
+         -- * Data.Function
        , on
-         -- Data.Read
+
+         -- * Data.Read
        , readMaybe
-         -- System.FilePath
+
+         -- * System.FilePath
        , FilePath
        , (</>)
        , takeFileName
        , takeDirectory
-         -- Control.Arrow
+
+         -- * Control.Arrow
        , first, second, (&&&), (***)
-         -- this module
+
+         -- * this module
        , compareBy
        , compareJust
        , compareJust'
        , partBy
-         -- lens stuff
+       , toText
+
+         -- * lens stuff
        , module Control.Lens
        , IsoString(..)
        , IsoText(..)
@@ -76,15 +88,18 @@ module Data.Prim.Prelude
        , isoSetList
        , isoSeqList
        , isA
-         -- utilities
+
+         -- * utilities
        , (.||.)
        , partitionBy
        , divideAt
-         -- Monad ops
+
+         -- * Monad ops
        , whenM
        , unlessM
        , filterSeqM
-         -- pretty printing helper
+
+         -- * pretty printing helper
        , fillLeft
        , fillRight
        , fillLeftList
@@ -241,6 +256,10 @@ instance IsoText String where
 -- unsafe conversions
 instance IsoText Int
 instance IsoText Integer
+
+toText :: Show a => a -> Text
+toText x = show x ^. isoText
+{-# INLINE toText #-}
 
 -- ----------------------------------------
 

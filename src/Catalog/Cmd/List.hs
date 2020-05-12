@@ -1,9 +1,12 @@
+-- not really used
+
 module Catalog.Cmd.List
 where
 
 import           Catalog.Cmd.Basic
 import           Catalog.Cmd.Fold
 import           Catalog.Cmd.Types
+
 import           Data.ImageStore
 import           Data.ImgTree
 import           Data.MetaData

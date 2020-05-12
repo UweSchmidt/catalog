@@ -184,12 +184,12 @@ quotePath = show . showPath
 
 msgPath :: Path -> Text -> Text
 msgPath p msg =
-  T.unwords [msg, "\"" <> toText p <> "\""]
+  T.unwords [msg, "\"" <> toText' p <> "\""]
   where
-    toText (BN n)
-      | isempty n = mempty
-      | otherwise = "/" <> n ^. isoText
-    toText (DN n p') = "/" <> n ^. isoText <> toText p'
+    toText' (BN n)
+      | isempty n     = mempty
+      | otherwise     = "/" <> n ^. isoText
+    toText' (DN n p') = "/" <> n ^. isoText <> toText' p'
 
 checkExtPath :: Text -> Path -> Bool
 checkExtPath ext p

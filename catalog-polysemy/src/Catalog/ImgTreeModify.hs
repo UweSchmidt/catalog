@@ -182,7 +182,7 @@ adjustNodeVal mkj theComp f i = do
             log'warn $ "adjustNodeVal: mulitple components have been changed in "
                        <> i ^. isoText
                        <> ": "
-                       <> show vs ^. isoText
+                       <> toText vs
 
 adjustImg :: (ImgParts -> ImgParts) -> ObjId -> SemISEJL r ()
 adjustImg = adjustNodeVal AdjImgParts theParts

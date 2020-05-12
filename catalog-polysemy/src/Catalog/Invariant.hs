@@ -55,7 +55,7 @@ cleanupImgRefs i0 = do
       when (Seq.length es' < Seq.length es) $ do
         warn'Obj i $
           "cleanupImgRefs: dir entries removed "
-          <> show (es, es') ^. isoText
+          <> toText (es, es')
           <> " in "
         adjustDirEntries (const $ isoDirEntries # es') i
 
@@ -72,7 +72,7 @@ cleanupImgRefs i0 = do
       when (im /= im') $ do
         warn'Obj i $
           "cleanupImgRefs: col img ref "
-          <> show (im, im') ^. isoText
+          <> toText (im, im')
           <> " removed in "
         adjustColImg (const im') i
 
@@ -80,7 +80,7 @@ cleanupImgRefs i0 = do
       when (be /= be') $ do
         warn'Obj i $
           "cleanupImgRefs: col blog ref"
-          <> show (be, be') ^. isoText
+          <> toText (be, be')
           <> " removed in "
         adjustColBlog (const be') i
 
@@ -88,7 +88,7 @@ cleanupImgRefs i0 = do
       when (Seq.length es' < Seq.length es) $ do
         warn'Obj i $
           "cleanupImgRefs: col enties "
-          <> show (es, es') ^. isoText
+          <> toText (es, es')
           <> " removed in "
         adjustColEntries (const es') i
 
@@ -175,7 +175,7 @@ checkUndefObjIds =
           "checkUndefObjIds: inconsistent catalog\n"
           <> n ^. isoText
           <> " undefined ObjIds found\n"
-          <> show (toList os) ^. isoText
+          <> toText (toList os)
       where
         n = S.size os
 
@@ -203,7 +203,7 @@ checkDeadObjIds = do
           "checkDeadObjIds: "
           <> n ^. isoText
           <> " undefined ObjIds found\n"
-          <> show (toList os) ^. isoText
+          <> toText (toList os)
       where
         n = S.size os
 
@@ -248,12 +248,12 @@ checkUsedImgObjIds = do
         (False, True ) ->
           log'warn $
           "checkUsedImgObjIds: orphan image ids: "
-          <> show (toList ds) ^. isoText
+          <> toText (toList ds)
 
         (True,  False) ->
           log'warn $
           "checkUsedImgObjIds: undefined image ids: "
-          <> show (toList cs) ^. isoText
+          <> toText (toList cs)
 
         (False, False) -> do
           showRes mempty cs
@@ -330,7 +330,7 @@ checkUpLinkObjIds =
             "checkUpLinkObjIds: inconsistent catalog\n"
             <> S.size os ^. isoText
             <> " undefined ObjIds found\n"
-            <> show (toList os) ^. isoText
+            <> toText (toList os)
 
           foldObjIds showObj os
             where
@@ -340,7 +340,7 @@ checkUpLinkObjIds =
                   msg n = do
                     warn'Obj i $
                       "checkUpLinkObjIds: node "
-                      <> show n ^. isoText
+                      <> toText n
                       <> " contains element not pointing back to "
 
 -- ----------------------------------------
