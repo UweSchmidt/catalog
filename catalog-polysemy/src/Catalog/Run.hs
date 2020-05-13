@@ -34,7 +34,9 @@ import Data.ImageStore (ImgStore, emptyImgStore)
 
 ------------------------------------------------------------------------------
 
-type CatApp a = Sem '[ Reader CatEnv
+type CatApp a = Sem '[ FileSystem
+                     , Time
+                     , Reader CatEnv
                      , Consume JournalP
                      , Logging
                      , Consume LogMsg
@@ -51,12 +53,14 @@ runApp env cmd = do
 
   (_imgStore, Right res) <-
     runM
-    . runState    @ImgStore emptyImgStore
-    . runError    @Text
+    . runState        @ImgStore emptyImgStore
+    . runError        @Text
     . logToStdErr
-    . logWithLevel (env ^. appEnvLogLevel)
+    . logWithLevel    (env ^. appEnvLogLevel)
     . runJournal
-    . runReader   @CatEnv (env ^. appEnvCat)
+    . runReader       @CatEnv (env ^. appEnvCat)
+    . posixTime       ioExcToText
+    . basicFileSystem ioExcToText
     $ cmd
 
   return res

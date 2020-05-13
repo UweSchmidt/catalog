@@ -43,8 +43,10 @@ import qualified Data.Sequence   as Seq
 import qualified Data.Text       as T
 
 -- ----------------------------------------
+--
+-- SemISEJLT: EffIStore, EffError, EffJournal, EffLogging, EffTime
 
-genSysCollections :: SemISEJLFS r ()
+genSysCollections :: SemISEJLT r ()
 genSysCollections = do
   log'verb $
     "genSysCollections: create/update system collections"
@@ -69,22 +71,22 @@ genCollectionRootMeta = do
 
 -- create the special collections for clipboard and trash
 
-genClipboardCollection :: SemISEJLFS r ()
+genClipboardCollection :: SemISEJLT r ()
 genClipboardCollection = genSysCollection no'delete n'clipboard tt'clipboard
 
-genPhotoCollection :: SemISEJLFS r ()
+genPhotoCollection :: SemISEJLT r ()
 genPhotoCollection = genSysCollection no'change n'photos tt'photos
 
--- genAlbumsCollection :: SemISEJLFS r ()
+-- genAlbumsCollection :: SemISEJLT r ()
 -- genAlbumsCollection = genSysCollection no'restr n'albums tt'albums
 
-genImportsCollection :: SemISEJLFS r ()
+genImportsCollection :: SemISEJLT r ()
 genImportsCollection = genSysCollection no'change n'imports tt'imports
 
-genByDateCollection :: SemISEJLFS r ()
+genByDateCollection :: SemISEJLT r ()
 genByDateCollection = genSysCollection no'change n'bycreatedate tt'bydate
 
-genSysCollection :: Text -> Name -> Text -> SemISEJLFS r ()
+genSysCollection :: Text -> Name -> Text -> SemISEJLT r ()
 genSysCollection a n'sys tt'sys = do
   ic <- getRootImgColId
   pc <- objid2path ic
@@ -105,7 +107,7 @@ genSysCollection a n'sys tt'sys = do
         o = ""
 
 -- create directory hierachy for Y/M/D
-mkDateCol :: (String, String, String) -> Path -> SemISEJLFS r (ObjId, ObjId, ObjId)
+mkDateCol :: (String, String, String) -> Path -> SemISEJLT r (ObjId, ObjId, ObjId)
 mkDateCol (y, m, d) pc = do
   yc <- mkColByPath insertColByName (setupYearCol  y    ) py
   mc <- mkColByPath insertColByName (setupMonthCol y m  ) pm
@@ -159,12 +161,12 @@ img2colPath = do
 
   return $ substPathPrefix old'px new'px
 
-genAllCollectionsByDir :: SemISEJLFS r ()
+genAllCollectionsByDir :: SemISEJLT r ()
 genAllCollectionsByDir =
   getRootImgDirId >>= genCollectionsByDir
 
 
-genCollectionsByDir' :: Path -> SemISEJLFS r ()
+genCollectionsByDir' :: Path -> SemISEJLT r ()
 genCollectionsByDir' p = do
   mbi <- lookupByPath p
   maybe (return ())
@@ -172,7 +174,7 @@ genCollectionsByDir' p = do
         mbi
 
 
-genCollectionsByDir :: ObjId -> SemISEJLFS r ()
+genCollectionsByDir :: ObjId -> SemISEJLT r ()
 genCollectionsByDir di = do
   img2col <- img2colPath
   dp      <- objid2path di
@@ -181,7 +183,7 @@ genCollectionsByDir di = do
   where
 
     -- meta data for generated collections
-    setupDirCol :: ObjId -> SemISEJLFS r MetaData
+    setupDirCol :: ObjId -> SemISEJLT r MetaData
     setupDirCol i = do
       p  <- tailPath . tailPath <$> objid2path i
       let t = path2Title p
@@ -203,13 +205,13 @@ genCollectionsByDir di = do
     path2Subtitle = T.intercalate " \8594 " . listFromPath
     -- path names separated by right arrow
 
-    genCol :: (Path -> Path) -> ObjId -> SemISEJLFS r ColEntries
+    genCol :: (Path -> Path) -> ObjId -> SemISEJLT r ColEntries
     genCol fp =
       foldImgDirs imgA dirA
       where
         -- collect all processed jpg images for a single img
 
-        imgA :: ObjId -> ImgParts -> MetaData -> SemISEJLFS r ColEntries
+        imgA :: ObjId -> ImgParts -> MetaData -> SemISEJLT r ColEntries
         imgA i pts _md = do
           trc'Obj i $ "genCol img: " <> toText res
           return $ isoSeqList # res
@@ -219,8 +221,8 @@ genCollectionsByDir di = do
         -- generate a coresponding collection with all entries
         -- entries are sorted by name
 
-        dirA :: (ObjId -> SemISEJLFS r ColEntries) ->
-                ObjId -> DirEntries -> TimeStamp -> SemISEJLFS r ColEntries
+        dirA :: (ObjId -> SemISEJLT r ColEntries) ->
+                ObjId -> DirEntries -> TimeStamp -> SemISEJLT r ColEntries
         dirA go i es _ts = do
           p  <- objid2path i
           let cp = fp p
@@ -300,7 +302,7 @@ insertColByAppend i = adjustColEntries (<> Seq.singleton (mkColColRef i))
 insertColByName :: ObjId -> ObjId -> SemISEJL r ()
 insertColByName i = adjustColByName $ Seq.singleton $ mkColColRef i
 
--- insertColByDate :: ObjId -> ObjId -> SemISEJLFS r ()
+-- insertColByDate :: ObjId -> ObjId -> SemISEJLT r ()
 -- insertColByDate i = adjustColByDate [mkColColRef i]
 
 adjustColByName :: ColEntries -> ObjId -> SemISEJL r ()
@@ -354,10 +356,10 @@ setColBlogToFstTxtEntry rm i = do
 
 -- ----------------------------------------
 
-mkColMeta :: Text -> Text -> Text -> Text -> Text -> SemISEJLFS r MetaData
+mkColMeta :: Text -> Text -> Text -> Text -> Text -> SemISEJLT r MetaData
 mkColMeta t s c o a = mkColMeta' $ defaultColMeta t s c o a
 
-mkColMeta' :: MetaData -> SemISEJLFS r MetaData
+mkColMeta' :: MetaData -> SemISEJLT r MetaData
 mkColMeta' md0 = do
   tm <- timeStampToText <$> whatTimeIsIt
   let md = md0 & metaDataAt descrCreateDate .~ tm
@@ -375,8 +377,8 @@ defaultColMeta t s c o a =
 
 
 -- create collections recursively, similar to 'mkdir -p'
-mkColByPath :: (ObjId -> ObjId -> SemISEJLFS r ()) ->
-               (ObjId -> SemISEJLFS r MetaData) -> Path -> SemISEJLFS r ObjId
+mkColByPath :: (ObjId -> ObjId -> SemISEJLT r ()) ->
+               (ObjId -> SemISEJLT r MetaData) -> Path -> SemISEJLT r ObjId
 mkColByPath insertCol setupCol p = do
   log'trc $ msgPath p "mkColByPath "
 
@@ -390,8 +392,8 @@ mkColByPath insertCol setupCol p = do
   return cid
 
 
-mkColByPath' :: (ObjId -> ObjId -> SemISEJLFS r ()) ->
-                Path -> SemISEJLFS r ObjId
+mkColByPath' :: (ObjId -> ObjId -> SemISEJLT r ()) ->
+                Path -> SemISEJLT r ObjId
 mkColByPath' insertCol p = do
   log'trc $ msgPath p "mkColByPath' "
   -- check for legal path
@@ -429,7 +431,7 @@ mkColByPath' insertCol p = do
 
 type DateMap = IM.IntMap ColEntrySet
 
-updateCollectionsByDate :: ColEntrySet -> SemISEJLFS r ()
+updateCollectionsByDate :: ColEntrySet -> SemISEJLT r ()
 updateCollectionsByDate rs =
   unless (isempty rs) $ do
     log'verb $
@@ -465,7 +467,7 @@ colEntries2dateMap rs = do
 -- create/update day collection with a col entry sets
 -- pc is the path to the y/m/d collection hierachy
 
-dateMap2Collections :: Path -> DateMap -> SemISEJLFS r ()
+dateMap2Collections :: Path -> DateMap -> SemISEJLT r ()
 dateMap2Collections pc dm =
   traverse_ insCol $ IM.toList dm
   where
@@ -481,7 +483,7 @@ dateMap2Collections pc dm =
 
 -- ----------------------------------------
 
-updateImportsDir :: TimeStamp -> ColEntrySet -> SemISEJLFS r ()
+updateImportsDir :: TimeStamp -> ColEntrySet -> SemISEJLT r ()
 updateImportsDir ts ces =
   unless (isempty ces) $ do
     genImportsCollection
@@ -491,7 +493,7 @@ updateImportsDir ts ces =
 
 -- create import collection, if dir not yet there
 
-mkImportCol :: TimeStamp -> Path -> SemISEJLFS r ObjId
+mkImportCol :: TimeStamp -> Path -> SemISEJLT r ObjId
 mkImportCol ts pc = do
   mid <- lookupByPath tsp
   case mid of

@@ -27,7 +27,7 @@ import Data.Prim
 --
 -- read the wall clock
 
-whatTimeIsIt :: EffFileSys r => Sem r TimeStamp
+whatTimeIsIt :: EffTime r => Sem r TimeStamp
 whatTimeIsIt = (isoEpochTime #) <$> currentTime
 
 lastModified :: EffFileSys r => TextPath -> Sem r TimeStamp

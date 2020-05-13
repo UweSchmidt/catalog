@@ -40,7 +40,6 @@ module Polysemy.FileSystem
   , renameFile
   , linkFile
   , getWorkDir
-  , currentTime
 
   , fileNotEmpty
   , getModiTime
@@ -112,7 +111,6 @@ data FileSystem m a where
   RenameFile   :: TextPath  -> TextPath ->      FileSystem m ()
   LinkFile     :: TextPath  -> TextPath ->      FileSystem m ()
   GetWorkDir   ::                               FileSystem m TextPath
-  CurrentTime  ::                               FileSystem m EpochTime
 
 makeSem ''FileSystem
 
@@ -193,9 +191,6 @@ basicFileSystem ef = do
 
       GetWorkDir -> embedExc ef $
         T.pack <$> X.getWorkingDirectory
-
-      CurrentTime -> embedExc ef $
-        X.epochTime
 
 --------------------
 --

@@ -27,7 +27,8 @@ library
                       Polysemy.FileSystem
                       Polysemy.HttpRequest
                       Polysemy.Logging
-
+                      Polysemy.Time
+                      
                       Paths_polysemy_tools
 
   hs-source-dirs:     src

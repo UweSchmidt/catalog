@@ -29,6 +29,7 @@ module Catalog.Effects
   , module Polysemy.Logging
   , module Polysemy.Reader
   , module Polysemy.State
+  , module Polysemy.Time
 
     -- effect constraints
   , EffCatEnv
@@ -37,6 +38,7 @@ module Catalog.Effects
   , EffIStore
   , EffJournal
   , EffLogging
+  , EffTime
 
     -- * action types
   , SemCE
@@ -48,6 +50,7 @@ module Catalog.Effects
   , SemISEL
   , SemISEJL
   , SemISEJLFS
+  , SemISEJLT
 
   , SemMB
 
@@ -72,6 +75,7 @@ import Polysemy.FileSystem
 import Polysemy.Logging
 import Polysemy.Reader
 import Polysemy.State
+import Polysemy.Time
 
 import Data.ImageStore (ImgStore)
 import Data.Journal    (JournalP)
@@ -86,45 +90,53 @@ type EffFileSys r = Member FileSystem         r
 type EffIStore  r = Member (State ImgStore)   r
 type EffJournal r = Member (Consume JournalP) r
 type EffLogging r = Member Logging            r
+type EffTime    r = Member Time               r
 
-type SemCE    r a = ( EffCatEnv r
-                    ) => Sem r a
+type SemCE      r a = ( EffCatEnv r
+                      ) => Sem r a
 
-type SemE     r a = ( EffError r
-                    ) => Sem r a
+type SemE       r a = ( EffError r
+                      ) => Sem r a
 
-type SemIS    r a = ( EffIStore r
-                    ) => Sem r a
+type SemIS      r a = ( EffIStore r
+                      ) => Sem r a
 
-type SemISE   r a = ( EffIStore r
-                    , EffError  r
-                    ) => Sem r a
+type SemISE     r a = ( EffIStore r
+                      , EffError  r
+                      ) => Sem r a
 
-type SemISJ   r a = ( EffIStore  r
-                    , EffJournal r
-                    ) => Sem r a
+type SemISJ     r a = ( EffIStore  r
+                      , EffJournal r
+                      ) => Sem r a
 
-type SemISEJ  r a = ( EffIStore  r
-                    , EffError   r
-                    , EffJournal r
-                    ) => Sem r a
+type SemISEJ    r a = ( EffIStore  r
+                      , EffError   r
+                      , EffJournal r
+                      ) => Sem r a
 
-type SemISEL  r a = ( EffIStore  r
-                    , EffError   r
-                    , EffLogging r
-                    ) => Sem r a
+type SemISEL    r a = ( EffIStore  r
+                      , EffError   r
+                      , EffLogging r
+                      ) => Sem r a
 
-type SemISEJL r a = ( EffIStore  r
-                    , EffError   r
-                    , EffJournal r
-                    , EffLogging r
-                    ) => Sem r a
+type SemISEJL   r a = ( EffIStore  r
+                      , EffError   r
+                      , EffJournal r
+                      , EffLogging r
+                      ) => Sem r a
 
 type SemISEJLFS r a = ( EffIStore  r
                       , EffError   r
                       , EffJournal r
                       , EffLogging r
                       , EffFileSys r
+                      ) => Sem r a
+
+type SemISEJLT  r a = ( EffIStore  r
+                      , EffError   r
+                      , EffJournal r
+                      , EffLogging r
+                      , EffTime r
                       ) => Sem r a
 
 type SemMB r a = Sem r (Maybe a)
