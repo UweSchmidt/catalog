@@ -24,6 +24,8 @@
 module Catalog.Run
 where
 
+import Polysemy.NonDet
+
 import Catalog.CatEnv
 import Catalog.Effects
 import Catalog.Journal (journalToStdout, journalToDevNull)
@@ -64,5 +66,35 @@ runApp env cmd = do
     $ cmd
 
   return res
+
+type Test a = Sem '[ NonDet, Embed IO] a
+
+runTest :: Test a -> IO (Maybe a)
+runTest cmd = do
+  runM
+  . runNonDetMaybe
+  $ cmd
+
+c1 :: Test ()
+c1 = embed $ putStrLn "emil"
+
+c2 :: Test Int
+c2 = do
+  c1
+  return 42
+
+c3 :: Int -> Test Int
+c3 i = do
+  if i == 44
+    then return i
+    else empty
+
+c4 :: Test (Maybe Int)
+c4 = c1 >> c2 >>= return . Just
+
+liftMaybe :: Member NonDet r => Sem r (Maybe Int) -> Sem r Int
+liftMaybe cmd = do
+  mx <- cmd
+  maybe empty (return . (1+)) mx
 
 ------------------------------------------------------------------------------

@@ -27,6 +27,7 @@ module Catalog.Effects
   , module Polysemy.Error
   , module Polysemy.FileSystem
   , module Polysemy.Logging
+  , module Polysemy.NonDet
   , module Polysemy.Reader
   , module Polysemy.State
   , module Polysemy.Time
@@ -38,6 +39,7 @@ module Catalog.Effects
   , EffIStore
   , EffJournal
   , EffLogging
+  , EffNonDet
   , EffTime
 
     -- * action types
@@ -56,6 +58,8 @@ module Catalog.Effects
 
     -- * lifting functions
   , liftExcept
+  , liftMaybe
+  , pureMaybe
 
     -- * Maybe monad on top of Sem r
   , pureMB
@@ -73,13 +77,15 @@ import Polysemy.Consume
 import Polysemy.Error
 import Polysemy.FileSystem
 import Polysemy.Logging
+import Polysemy.NonDet
 import Polysemy.Reader
 import Polysemy.State
 import Polysemy.Time
 
 import Data.ImageStore (ImgStore)
 import Data.Journal    (JournalP)
-import Data.Prim       (Text, isoText, (^.))
+import Data.Prim
+
 import Catalog.CatEnv  (CatEnv)
 
 ------------------------------------------------------------------------------
@@ -90,6 +96,7 @@ type EffFileSys r = Member FileSystem         r
 type EffIStore  r = Member (State ImgStore)   r
 type EffJournal r = Member (Consume JournalP) r
 type EffLogging r = Member Logging            r
+type EffNonDet  r = Member NonDet             r
 type EffTime    r = Member Time               r
 
 type SemCE      r a = ( EffCatEnv r
@@ -178,5 +185,13 @@ filterMB mp ma = do
                  then Just x
                  else Nothing
     )
+
+liftMaybe :: Member NonDet r => Sem r (Maybe a) -> Sem r a
+liftMaybe cmd = cmd >>= maybe empty return
+{-# INLINE liftMaybe #-}
+
+pureMaybe :: Member NonDet r => Maybe a -> Sem r a
+pureMaybe = maybe empty return
+{-# INLINE pureMaybe #-}
 
 ------------------------------------------------------------------------------

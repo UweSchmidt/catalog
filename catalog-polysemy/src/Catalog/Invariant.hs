@@ -344,3 +344,54 @@ checkUpLinkObjIds =
                       <> " contains element not pointing back to "
 
 -- ----------------------------------------
+{-  NonDet test
+
+type SemND r a = Sem (NonDet ': r) a
+
+checkRef' :: (EffIStore r, EffError r)
+         => ObjId -> SemND r ImgNode
+checkRef' i = do
+  n <- liftMaybe $ getTreeAt i
+  return $ n ^. nodeVal
+
+
+checkDirRef' :: (EffIStore r, EffError r)
+            => ObjId -> SemND r ImgNode
+checkDirRef' i = do
+  n <- checkRef' i
+  if isIMG n || isDIR n
+    then return n
+    else empty
+
+checkImgRef' :: (EffIStore r, EffError r)
+            => ObjId -> SemND r ImgNode
+checkImgRef' i = do
+  n <- checkRef' i
+  if isIMG n
+    then return n
+    else empty
+
+-- check whether both the ref and the part in an ImgRef exist
+checkImgPart' :: (EffIStore r, EffError r)
+             => ImgRef -> SemND r ImgNode
+checkImgPart' (ImgRef i nm) = do
+  n <- checkImgRef' i
+  if isJust (n ^? theParts . isoImgPartsMap . at nm)
+     then return n
+     else empty
+
+-- check a ColEntry ref for existence
+-- only the ImgRef's are checked, not the ColRef's
+checkColEntry' :: (EffIStore r, EffError r)
+              => ColEntry -> SemND r ColEntry
+checkColEntry' ce =
+  colEntry' imgRef colRef ce
+  where
+    colRef _  = return ce
+    imgRef ir = checkImgPart' ir >> return ce
+
+isOK :: (EffIStore r, EffError r)
+     => (b -> SemND r a) -> b -> Sem r Bool
+isOK cmd i = isJust <$> runNonDetMaybe (cmd i)
+-}
+------------------------------------------------------------------------
