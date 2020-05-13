@@ -26,6 +26,8 @@ module Data.Prim.Path
        , quotePath
        , msgPath
        , listToPath
+       , listFromPath
+       , isoPathList
        , checkExtPath
        )
 where
@@ -74,6 +76,15 @@ emptyPath = mkPath mempty
 
 listToPath :: [Text] -> Path
 listToPath = foldr (consPath . (isoText #)) emptyPath
+
+listFromPath :: Path -> [Text]
+listFromPath (BN n)
+  | n == mempty       = []
+  | otherwise         = [n ^. isoText]
+listFromPath (DN n p) = n ^. isoText : listFromPath p
+
+isoPathList :: Iso' Path [Text]
+isoPathList = iso listFromPath listToPath
 
 nullPath :: (Monoid n, Eq n) => Path' n -> Bool
 nullPath (BN n)

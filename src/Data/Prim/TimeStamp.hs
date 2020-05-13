@@ -2,10 +2,12 @@
 
 module Data.Prim.TimeStamp
        ( TimeStamp
-       , now
-       , fsTimeStamp
+       , now            -- TODO mv now and fsTimeStamp into extra module
+       , fsTimeStamp    -- TODO
        , isoEpochTime
        , formatTimeStamp
+       , formatTimeStamp'
+       , timeStampToText
        )
 where
 
@@ -64,6 +66,8 @@ zeroTimeStamp :: TimeStamp
 zeroTimeStamp = TS 0
 {-# INLINE zeroTimeStamp #-}
 
+-- TODO: move IO actions into extra module
+
 now :: MonadIO m => m TimeStamp
 now = liftIO (TS <$> X.epochTime)
 
@@ -72,13 +76,19 @@ fsTimeStamp = TS . X.modificationTime
 {-# INLINE fsTimeStamp #-}
 
 formatTimeStamp :: TimeStamp -> String
-formatTimeStamp (TS t) =
-  formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
+formatTimeStamp = formatTimeStamp' "%Y-%m-%d %H:%M:%S"
+
+formatTimeStamp' :: String -> TimeStamp -> String
+formatTimeStamp' fmt (TS t) =
+  formatTime defaultTimeLocale fmt
   . posixSecondsToUTCTime
   . fromIntegral
   $ secs
   where
     secs :: Int
     secs = round . toRational $ t
+
+timeStampToText :: TimeStamp -> Text
+timeStampToText ts = formatTimeStamp ts ^. isoText
 
 -- ----------------------------------------

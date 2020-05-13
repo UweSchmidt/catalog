@@ -47,6 +47,7 @@ module Catalog.Effects
   , SemISEJ
   , SemISEL
   , SemISEJL
+  , SemISEJLFS
 
   , SemMB
 
@@ -118,6 +119,13 @@ type SemISEJL r a = ( EffIStore  r
                     , EffJournal r
                     , EffLogging r
                     ) => Sem r a
+
+type SemISEJLFS r a = ( EffIStore  r
+                      , EffError   r
+                      , EffJournal r
+                      , EffLogging r
+                      , EffFileSys r
+                      ) => Sem r a
 
 type SemMB r a = Sem r (Maybe a)
 

@@ -15,7 +15,7 @@
 ------------------------------------------------------------------------------
 
 module Catalog.Invariant
-  -- ( checkImgStore )
+  ( checkImgStore )
 where
 
 import Catalog.Effects
