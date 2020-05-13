@@ -19,6 +19,7 @@ library
                       Catalog.CopyRemove
                       Catalog.Effects
                       Catalog.Fold
+                      Catalog.GenCollections
                       Catalog.ImgTreeAccess
                       Catalog.ImgTreeModify
                       Catalog.Invariant
@@ -26,7 +27,8 @@ library
                       Catalog.Logging
                       Catalog.Run
                       Catalog.TextPath
-                      
+                      Catalog.TimeStamp
+                                            
                       Paths_catalog_polysemy
 
   hs-source-dirs:     src

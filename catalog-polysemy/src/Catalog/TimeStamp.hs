@@ -23,8 +23,6 @@ import Catalog.Effects
 
 import Data.Prim
 
-import qualified Data.Text  as T
-
 ------------------------------------------------------------------------------
 --
 -- read the wall clock
