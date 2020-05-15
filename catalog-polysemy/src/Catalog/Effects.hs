@@ -32,7 +32,7 @@ module Catalog.Effects
   , module Polysemy.State
   , module Polysemy.Time
 
-    -- effect constraints
+    -- * effect constraints
   , EffCatEnv
   , EffError
   , EffFileSys
@@ -41,6 +41,13 @@ module Catalog.Effects
   , EffLogging
   , EffNonDet
   , EffTime
+  , EffExecProg
+
+  , Eff'ISE     -- combined effect constraints
+  , Eff'ISEL
+  , Eff'ISEJL
+  , Eff'ISEJLT
+  , Eff'ISEJLFS
 
     -- * action types
   , SemCE
@@ -88,16 +95,48 @@ import Data.Prim
 
 import Catalog.CatEnv  (CatEnv)
 
+import System.ExecProg (ExecProg)
+
 ------------------------------------------------------------------------------
 
-type EffCatEnv  r = Member (Reader CatEnv)    r
-type EffError   r = Member (Error Text)       r
-type EffFileSys r = Member FileSystem         r
-type EffIStore  r = Member (State ImgStore)   r
-type EffJournal r = Member (Consume JournalP) r
-type EffLogging r = Member Logging            r
-type EffNonDet  r = Member NonDet             r
-type EffTime    r = Member Time               r
+type EffCatEnv   r = Member (Reader CatEnv)    r
+type EffError    r = Member (Error Text)       r
+type EffFileSys  r = Member FileSystem         r
+type EffIStore   r = Member (State ImgStore)   r
+type EffJournal  r = Member (Consume JournalP) r
+type EffLogging  r = Member Logging            r
+type EffNonDet   r = Member NonDet             r
+type EffTime     r = Member Time               r
+type EffExecProg r = Member ExecProg           r
+
+type Eff'ISE     r = ( EffIStore  r
+                     , EffError   r
+                     )
+
+type Eff'ISEL    r = ( EffIStore  r
+                     , EffError   r
+                     , EffLogging r
+                     )
+
+type Eff'ISEJL   r = ( EffIStore  r
+                     , EffError   r
+                     , EffJournal r
+                     , EffLogging r
+                     )
+
+type Eff'ISEJLFS  r = ( EffIStore  r
+                     , EffError   r
+                     , EffJournal r
+                     , EffLogging r
+                     , EffFileSys r
+                     )
+
+type Eff'ISEJLT  r = ( EffIStore  r
+                     , EffError   r
+                     , EffJournal r
+                     , EffLogging r
+                     , EffTime r
+                     )
 
 type SemCE      r a = ( EffCatEnv r
                       ) => Sem r a

@@ -14,8 +14,8 @@
 
 ------------------------------------------------------------------------------
 
-module Catalog.RunExifTool
-  -- ( getExifMetaData )
+module Catalog.MetaData.ExifTool
+  ( getExifMetaData )
 where
 
 import Catalog.Effects
@@ -23,18 +23,10 @@ import Catalog.Effects
 import Data.MetaData
 import Data.Prim
 
-import System.ExecProg
+import System.ExecProg (execProg)
 
 import qualified Data.Aeson as J
 import qualified Data.Text  as T
-
--- ----------------------------------------
-
-type EffExecProg r = Member ExecProg r
-
-type SemFSEX   r a = ( EffFileSys r
-                     , EffExecProg r
-                     ) => Sem r a
 
 -- ----------------------------------------
 
