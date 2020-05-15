@@ -18,6 +18,7 @@
 module Catalog.TextPath
 where
 
+import Catalog.Data.TextPath (addExt)
 import Catalog.CatEnv        (CatEnv, catMountPath)
 import Catalog.Effects
 import Catalog.ImgTreeAccess (objid2path)
@@ -29,7 +30,7 @@ import qualified Data.Text     as T
 
 ------------------------------------------------------------------------------
 --
--- path to/from file path operations
+-- monadic path to/from file path operations
 
 
 buildImgPath0 :: ImgRef -> SemIS r TextPath
@@ -39,11 +40,6 @@ buildImgPath0 (ImgRef i n) = do
 
 buildImgPath :: ImgRef -> SemIS r TextPath
 buildImgPath ir = addExt ".jpg" <$> buildImgPath0 ir
-
-addExt :: Text -> TextPath -> TextPath
-addExt ext fn
-  | ext `T.isSuffixOf` fn = fn
-  | otherwise             = fn <> ext
 
 -- ----------------------------------------
 --

@@ -26,6 +26,7 @@ library
                       Catalog.Journal
                       Catalog.Logging
                       Catalog.Run
+                      Catalog.RunExifTool
                       Catalog.TextPath
                       Catalog.TimeStamp
                       Catalog.Data.TextPath
