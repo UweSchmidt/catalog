@@ -19,9 +19,9 @@ module Catalog.Invariant
 where
 
 import Catalog.Effects
-import Catalog.Fold
-import Catalog.ImgTreeAccess
-import Catalog.ImgTreeModify
+import Catalog.ImgTree.Fold
+import Catalog.ImgTree.Access
+import Catalog.ImgTree.Modify
 import Catalog.Logging
 
 import Data.ImageStore

@@ -21,8 +21,8 @@ module Catalog.MetaData.Exif
 where
 
 import Catalog.Effects
-import Catalog.ImgTreeAccess
-import Catalog.ImgTreeModify
+import Catalog.ImgTree.Access
+import Catalog.ImgTree.Modify
 import Catalog.MetaData.ExifTool (getExifMetaData)
 import Catalog.TextPath
 import Catalog.TimeStamp

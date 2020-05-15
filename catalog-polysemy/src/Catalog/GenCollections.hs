@@ -27,9 +27,9 @@ module Catalog.GenCollections
 where
 
 import Catalog.Effects
-import Catalog.Fold
-import Catalog.ImgTreeAccess
-import Catalog.ImgTreeModify
+import Catalog.ImgTree.Fold
+import Catalog.ImgTree.Access
+import Catalog.ImgTree.Modify
 import Catalog.Logging
 import Catalog.CopyRemove     (removeEmptyColls)
 import Catalog.TimeStamp      (whatTimeIsIt)

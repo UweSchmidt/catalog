@@ -31,7 +31,7 @@ where
 -- import Control.Monad.Trans.Except (Except, runExcept)
 
 import Catalog.Effects
-import Catalog.ImgTreeAccess (objid2path)
+import Catalog.ImgTree.Access (objid2path)
 
 import Data.Prim
 

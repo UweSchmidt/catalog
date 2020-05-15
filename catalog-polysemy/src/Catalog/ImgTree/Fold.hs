@@ -14,11 +14,11 @@
 
 ------------------------------------------------------------------------------
 
-module Catalog.Fold
+module Catalog.ImgTree.Fold
 where
 
 import Catalog.Effects
-import Catalog.ImgTreeAccess
+import Catalog.ImgTree.Access
 
 import Data.ImgTree
 import Data.MetaData

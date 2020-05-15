@@ -15,7 +15,7 @@
 
 ------------------------------------------------------------------------------
 
-module Catalog.ImgTreeAccess
+module Catalog.ImgTree.Access
   ( -- * basic image tree access
     dt
   , getTreeAt

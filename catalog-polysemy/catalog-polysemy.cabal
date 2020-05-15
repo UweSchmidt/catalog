@@ -18,10 +18,11 @@ library
   exposed-modules:    Catalog.CatEnv
                       Catalog.CopyRemove
                       Catalog.Effects
-                      Catalog.Fold
                       Catalog.GenCollections
-                      Catalog.ImgTreeAccess
-                      Catalog.ImgTreeModify
+                      Catalog.ImgTree.Access
+                      Catalog.ImgTree.Fold
+                      Catalog.ImgTree.ImgStore
+                      Catalog.ImgTree.Modify
                       Catalog.Invariant
                       Catalog.Journal
                       Catalog.Logging

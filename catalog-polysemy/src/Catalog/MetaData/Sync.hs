@@ -23,8 +23,8 @@ where
 
 import Catalog.CatEnv
 import Catalog.Effects
-import Catalog.Fold
-import Catalog.ImgTreeAccess
+import Catalog.ImgTree.Fold
+import Catalog.ImgTree.Access
 import Catalog.MetaData.Exif (setMD)
 
 import Data.ImgNode

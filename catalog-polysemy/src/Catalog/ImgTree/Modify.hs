@@ -20,7 +20,7 @@
 
 ------------------------------------------------------------------------------
 
-module Catalog.ImgTreeModify
+module Catalog.ImgTree.Modify
   (
     mkImgDir
   , mkImgCol
@@ -43,7 +43,7 @@ where
 -- import Control.Monad.Trans.Except (Except, runExcept)
 
 import Catalog.Effects
-import Catalog.ImgTreeAccess
+import Catalog.ImgTree.Access
 import Catalog.Journal
 
 import Data.ImageStore

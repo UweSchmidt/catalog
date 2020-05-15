@@ -21,7 +21,7 @@ where
 import Catalog.Data.TextPath (addExt)
 import Catalog.CatEnv        (CatEnv, catMountPath)
 import Catalog.Effects
-import Catalog.ImgTreeAccess (objid2path)
+import Catalog.ImgTree.Access (objid2path)
 
 import Data.ImgTree
 import Data.Prim

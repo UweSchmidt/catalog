@@ -21,7 +21,7 @@
 
 ------------------------------------------------------------------------------
 
-module Catalog.ImgStore
+module Catalog.ImgTree.ImgStore
 where
 
 -- import Control.Monad.Trans.Except (Except, runExcept)
