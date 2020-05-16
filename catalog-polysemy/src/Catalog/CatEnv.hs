@@ -40,6 +40,7 @@ data AppEnv = AppEnv
 
 data CatEnv = CatEnv
   { _catMountPath :: TextPath
+  , _catSyncDir   :: Path
   , _catForceMDU  :: Bool        -- force metadata update
   }
 
@@ -47,7 +48,7 @@ $(makeLenses ''CatEnv)
 $(makeLenses ''AppEnv)
 
 defaultCatEnv :: CatEnv
-defaultCatEnv = CatEnv "." False
+defaultCatEnv = CatEnv "." (n'photos `consPath` mempty) False
 
 defaultAppEnv :: AppEnv
 defaultAppEnv = AppEnv LogErr True defaultCatEnv

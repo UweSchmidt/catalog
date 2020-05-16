@@ -30,6 +30,7 @@ library
                       Catalog.MetaData.Exif
                       Catalog.MetaData.Sync
                       Catalog.Run
+                      Catalog.SyncWithFileSys
                       Catalog.TextPath
                       Catalog.TimeStamp
                       Catalog.Data.TextPath
@@ -47,6 +48,7 @@ library
                       PolyKinds
                       RankNTypes
                       ScopedTypeVariables
+                      TupleSections
                       TypeApplications
                       TypeFamilies
                       TypeOperators

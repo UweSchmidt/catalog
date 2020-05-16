@@ -66,6 +66,8 @@ module Catalog.Data.TextPath
 
   , F.splitLast
   , F.joinLast
+
+  , (<//>)
   )
 where
 
@@ -77,7 +79,6 @@ import qualified Data.Text        as T
 ------------------------------------------------------------------------------
 
 type TextPath = Text
-
 
 -- ----------------------------------------
 --
@@ -219,5 +220,12 @@ addExt :: Text -> TextPath -> TextPath
 addExt ext fn
   | ext `T.isSuffixOf` fn = fn
   | otherwise             = fn <> ext
+
+-- ----------------------------------------
+
+infixr 5 <//>
+
+(<//>) :: TextPath -> TextPath -> TextPath
+p1 <//> p2 = p1 <> "/" <> p2
 
 ------------------------------------------------------------------------------
