@@ -39,16 +39,24 @@ data AppEnv = AppEnv
   }
 
 data CatEnv = CatEnv
-  { _catMountPath :: TextPath
-  , _catSyncDir   :: Path
-  , _catForceMDU  :: Bool        -- force metadata update
+  { _catMountPath   :: TextPath
+  , _catJsonArchive :: TextPath
+  , _catSyncDir     :: Path
+  , _catForceMDU    :: Bool        -- force metadata update
+  , _catSaveBothIx  :: Bool
   }
 
 $(makeLenses ''CatEnv)
 $(makeLenses ''AppEnv)
 
 defaultCatEnv :: CatEnv
-defaultCatEnv = CatEnv "." (n'photos `consPath` mempty) False
+defaultCatEnv = CatEnv
+                { _catMountPath   = "."
+                , _catJsonArchive = "catalog.json"
+                , _catSyncDir     = n'photos `consPath` mempty
+                , _catForceMDU    = False
+                , _catSaveBothIx  = False
+                }
 
 defaultAppEnv :: AppEnv
 defaultAppEnv = AppEnv LogErr True defaultCatEnv

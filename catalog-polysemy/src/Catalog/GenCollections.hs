@@ -509,8 +509,8 @@ mkImportCol ts pc = do
       return ip
 
   where
-    tsn   = formatTimeStamp ts                     -- 2020-05-13 12:50:42
-    tsn'  = mkName $ intercalate "T" $ words tsn   -- 2020-05-13T12:50:42
+    tsn   = formatTimeStamp  ts                    -- 2020-05-13 12:50:42
+    tsn'  = mkName $ iso8601TimeStamp ts           -- 2020-05-13T12:50:42
     tsn'' = ("Import " <> tsn) ^. isoText          -- Import 2020-05-13 12:50:42
     tsp   = pc `snocPath` tsn'
 

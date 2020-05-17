@@ -2,10 +2,11 @@
 
 module Data.Prim.TimeStamp
        ( TimeStamp
-       , now            -- TODO mv now and fsTimeStamp into extra module
-       , fsTimeStamp    -- TODO
+       , now            -- TODO mv now into extra module
+       , fsTimeStamp
        , isoEpochTime
        , formatTimeStamp
+       , iso8601TimeStamp
        , formatTimeStamp'
        , timeStampToText
        )
@@ -77,6 +78,9 @@ fsTimeStamp = TS . X.modificationTime
 
 formatTimeStamp :: TimeStamp -> String
 formatTimeStamp = formatTimeStamp' "%Y-%m-%d %H:%M:%S"
+
+iso8601TimeStamp :: TimeStamp -> String
+iso8601TimeStamp = formatTimeStamp' "%Y-%m-%dT%H:%M:%S"
 
 formatTimeStamp' :: String -> TimeStamp -> String
 formatTimeStamp' fmt (TS t) =

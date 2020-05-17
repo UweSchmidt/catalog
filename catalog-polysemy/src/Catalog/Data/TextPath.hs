@@ -64,6 +64,10 @@ module Catalog.Data.TextPath
   , pathName2ImgType
   , addExt
 
+  -- Text versions of System.FilePath functions
+  , splitExtension
+  , takeDir
+
   , F.splitLast
   , F.joinLast
 
@@ -74,7 +78,9 @@ where
 import Data.Prim
 
 import qualified Catalog.FilePath as F
+
 import qualified Data.Text        as T
+import qualified System.FilePath  as FP
 
 ------------------------------------------------------------------------------
 
@@ -227,5 +233,14 @@ infixr 5 <//>
 
 (<//>) :: TextPath -> TextPath -> TextPath
 p1 <//> p2 = p1 <> "/" <> p2
+
+splitExtension :: TextPath -> (TextPath, Text)
+splitExtension p =
+  FP.splitExtension (p ^. isoString)
+     & both %~ (isoString #)
+
+takeDir :: TextPath -> TextPath
+takeDir p =
+   p & isoString %~ FP.takeDirectory
 
 ------------------------------------------------------------------------------

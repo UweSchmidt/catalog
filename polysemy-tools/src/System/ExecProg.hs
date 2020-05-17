@@ -23,6 +23,7 @@ module System.ExecProg
 
     -- * Actions
   , execProg
+  , execScript
 
     -- * Derived Actions
   , execProg0
@@ -37,9 +38,10 @@ import Polysemy.EmbedExc
 import Polysemy.Error
 import Polysemy.Logging
 
-import Control.Monad   (unless)
-import Data.ByteString (ByteString)
-import Data.Text       (Text)
+import Control.Monad      (unless)
+import Data.ByteString    (ByteString)
+import Data.Text          (Text)
+import Data.Text.Encoding (encodeUtf8, decodeUtf8')
 import System.Exit
 
 
@@ -55,7 +57,8 @@ import qualified System.Process        as X
 type ProgPath = Text
 
 data ExecProg m a where
-  ExecProg :: ProgPath -> [Text] -> ByteString -> ExecProg m ByteString
+  ExecProg   :: ProgPath -> [Text] -> ByteString -> ExecProg m ByteString
+  ExecScript ::                       Text       -> ExecProg m Text
 
 makeSem ''ExecProg
 
@@ -88,33 +91,56 @@ systemProcess mkExc =
   interpret $
   \ c -> case c of
     ExecProg prg args inp -> do
-      let prg'  =     T.unpack prg
-          args' = map T.unpack args
-          inp'  =     BS.unpack inp
+      exec mkExc prg args inp
 
-      log'trc $
-         untext $ ["exec:", prg]
-                  <> args
-                  <> if null inp'
-                     then mempty
-                     else [", stdin: " <> T.pack inp']
-
-      (rc, out', err') <-
-         embedExc mkExc $
-         X.readProcessWithExitCode prg' args' inp'
-
-      let out = BS.pack out'
-          err = T.pack err'
-
-      case rc of
-        ExitSuccess -> do
-          unless (T.null err) $
-            log'warn err
-          return out
-
-        ExitFailure rcn -> do
-          log'err err
+    -- exec bash script with Text input and Text as output
+    -- UTF8 decoding errors raise an exception
+    ExecScript script -> do
+      res <- exec mkExc "bash" [] (encodeUtf8 script)
+      case decodeUtf8' res of
+        Left  e -> do
           throw @exc $
-            mkExc (EX.userError $ "exec: rc = " ++ show rcn)
+            mkExc (EX.userError $ "exec: unicode decode error " ++ show e)
+
+        Right t -> return t
+
+{-# INLINE systemProcess #-}
+
+exec :: forall exc r.
+        ( Member (Embed IO) r
+        , Member (Error exc) r
+        , Member Logging r
+        )
+     => (IOException -> exc)
+     -> ProgPath -> [Text] -> ByteString -> Sem r ByteString
+exec mkExc prg args inp = do
+  let prg'  =     T.unpack prg
+      args' = map T.unpack args
+      inp'  =     BS.unpack inp
+
+  log'trc $
+    untext $ ["exec:", prg]
+             <> args
+             <> if null inp'
+                then mempty
+                else [", stdin: " <> T.pack inp']
+
+  (rc, out', err') <-
+    embedExc mkExc $
+    X.readProcessWithExitCode prg' args' inp'
+
+  let out = BS.pack out'
+      err = T.pack err'
+
+  case rc of
+    ExitSuccess -> do
+      unless (T.null err) $
+        log'warn err
+      return out
+
+    ExitFailure rcn -> do
+      log'err err
+      throw @exc $
+        mkExc (EX.userError $ "exec: rc = " ++ show rcn)
 
 ------------------------------------------------------------------------------

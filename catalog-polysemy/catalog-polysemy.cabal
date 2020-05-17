@@ -16,6 +16,7 @@ source-repository head
 
 library
   exposed-modules:    Catalog.CatEnv
+                      Catalog.CatalogIO
                       Catalog.CopyRemove
                       Catalog.Effects
                       Catalog.GenCollections
@@ -59,11 +60,13 @@ library
                -fspecialise-aggressively
 
   build-depends: aeson                >= 0.8
+               , aeson-pretty
                , base                 >= 4.7 && <5
                , bytestring
                , containers           >= 0.4
                , directory
                , exceptions
+               , filepath
                , http-client
                , http-types
                , lens                 >= 4.12
