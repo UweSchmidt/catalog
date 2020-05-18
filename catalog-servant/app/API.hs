@@ -18,9 +18,8 @@ import Servant
 import Data.Prim
 import Data.ImgTree (ImgNodeP)
 import Data.MetaData
-import Catalog.CheckSum (CheckSumRes)
-import qualified Data.Text as T
 
+import qualified Data.Text as T
 
 -- ----------------------------------------
 -- the complete API

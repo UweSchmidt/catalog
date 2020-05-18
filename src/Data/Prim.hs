@@ -1,5 +1,6 @@
 module Data.Prim
        ( module Data.Prim.CheckSum
+       , module Data.Prim.CheckSumRes
        , module Data.Prim.Constants
        , module Data.Prim.GPS
        , module Data.Prim.Geometry
@@ -17,6 +18,7 @@ module Data.Prim
 where
 
 import Data.Prim.CheckSum
+import Data.Prim.CheckSumRes
 import Data.Prim.Constants
 import Data.Prim.Geometry
 import Data.Prim.GPS

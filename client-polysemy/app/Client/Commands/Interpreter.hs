@@ -47,11 +47,6 @@ import Data.Prim
 import Data.ImgNode hiding (theMetaData)
 import Data.MetaData
 
-import Catalog.CheckSum
-       ( CheckSumRes(..)
-       , prettyCSR
-       )
-
 ------------------------------------------------------------------------------
 
 type CCmdEffects r =

@@ -23,6 +23,7 @@ module Catalog.Html
   )
 where
 
+-- catalog-polysemy
 import Catalog.Effects
 import Catalog.ImgTree.Access
 import Catalog.Journal        (journal)
@@ -32,13 +33,15 @@ import Catalog.GenImages      (genAssetIcon
                               ,genBlogHtml
                               ,writeBlogText
                               )
-
 import Catalog.Data.TextPath  ((<//>), addJpg, ymdNameMb, baseNameMb)
+
+-- catalog
 import Data.ImgTree
 import Data.Journal           (Journal'(SaveBlogText))
 import Data.MetaData          (metaDataAt, descrTitle)
 import Data.Prim
 
+-- libraries
 import qualified Data.Text       as T
 
 -- ----------------------------------------

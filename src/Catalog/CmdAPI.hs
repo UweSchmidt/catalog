@@ -21,7 +21,6 @@ import Data.ImgTree     ( ImgNodeP )
 import Data.MetaData    ( MetaData
                         , Rating
                         )
-import Catalog.CheckSum ( CheckSumRes )
 
 -- ----------------------------------------
 --

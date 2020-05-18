@@ -45,8 +45,7 @@ import Catalog.Html.Basic ( getColBlogSource
                           , putColBlogSource
                           , getColBlogCont
                           )
-import Catalog.CheckSum   ( CheckSumRes
-                          , checkImgPart
+import Catalog.CheckSum   ( checkImgPart
                           , updateCheckSum
                           , updateTimeStamp
                           )

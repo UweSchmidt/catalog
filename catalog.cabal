@@ -22,6 +22,7 @@ library
                      Data.RefTree
                      Data.Prim
                      Data.Prim.CheckSum
+                     Data.Prim.CheckSumRes
                      Data.Prim.Constants
                      Data.Prim.GPS
                      Data.Prim.Geometry

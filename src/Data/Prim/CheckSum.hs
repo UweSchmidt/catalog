@@ -46,9 +46,13 @@ instance Monoid CheckSum where
 
 instance IsoInteger CheckSum where
   isoInteger = iso fromCheckSum toCheckSum
+  {-# INLINE isoInteger #-}
 
 instance IsoString CheckSum where
   isoString = iso showCheckSum readCheckSum
+  {-# INLINE isoString #-}
+
+instance IsoText CheckSum
 
 instance Show CheckSum where
   show = ("0x" ++) . showCheckSum
@@ -69,12 +73,15 @@ readCheckSum s =
 
 instance IsoHex CheckSum where
   isoHex = iso showCheckSum readCheckSum
+  {-# INLINE isoHex #-}
 
 instance ToJSON CheckSum where
   toJSON = toJSON . showCheckSum
+  {-# INLINE toJSON #-}
 
 instance FromJSON CheckSum where
   parseJSON o = readCheckSum <$> parseJSON o
+  {-# INLINE parseJSON #-}
 
 -- ----------------------------------------
 

@@ -8,9 +8,7 @@ where
 
 import           Catalog.CmdAPI
 import           Catalog.System.IO
-import           Catalog.CheckSum          ( CheckSumRes(..)
-                                           , prettyCSR
-                                           )
+
 import           Data.Prim          hiding ( argument )
 import           Data.ImgNode
 import           Data.MetaData             ( metaDataAt
