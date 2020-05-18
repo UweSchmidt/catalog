@@ -15,7 +15,9 @@
 ------------------------------------------------------------------------------
 
 module Catalog.MetaData.ExifTool
-  ( getExifMetaData )
+  ( getExifMetaData
+  , callExifProg
+  )
 where
 
 import Catalog.Effects

@@ -44,6 +44,7 @@ data CatEnv = CatEnv
   , _catSyncDir     :: Path
   , _catForceMDU    :: Bool        -- force metadata update
   , _catSaveBothIx  :: Bool
+  , _catFontName    :: Text
   }
 
 $(makeLenses ''CatEnv)
@@ -56,6 +57,7 @@ defaultCatEnv = CatEnv
                 , _catSyncDir     = n'photos `consPath` mempty
                 , _catForceMDU    = False
                 , _catSaveBothIx  = False
+                , _catFontName    = mempty
                 }
 
 defaultAppEnv :: AppEnv

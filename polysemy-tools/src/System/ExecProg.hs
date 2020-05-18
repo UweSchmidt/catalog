@@ -22,7 +22,8 @@ module System.ExecProg
     ExecProg (..)
 
     -- * Actions
-  , execProg
+  , execProg        -- stdin and stdout as ByteString
+  , execProgText    -- stdin and stdout as Text
   , execScript
 
     -- * Derived Actions
@@ -57,8 +58,9 @@ import qualified System.Process        as X
 type ProgPath = Text
 
 data ExecProg m a where
-  ExecProg   :: ProgPath -> [Text] -> ByteString -> ExecProg m ByteString
-  ExecScript ::                       Text       -> ExecProg m Text
+  ExecProg     :: ProgPath -> [Text] -> ByteString -> ExecProg m ByteString
+  ExecProgText :: ProgPath -> [Text] -> Text       -> ExecProg m Text
+  ExecScript   ::                       Text       -> ExecProg m Text
 
 makeSem ''ExecProg
 
@@ -93,18 +95,16 @@ systemProcess mkExc =
     ExecProg prg args inp -> do
       exec mkExc prg args inp
 
+    ExecProgText prg args inp -> do
+      execText mkExc prg args inp
+
     -- exec bash script with Text input and Text as output
     -- UTF8 decoding errors raise an exception
     ExecScript script -> do
-      res <- exec mkExc "bash" [] (encodeUtf8 script)
-      case decodeUtf8' res of
-        Left  e -> do
-          throw @exc $
-            mkExc (EX.userError $ "exec: unicode decode error " ++ show e)
-
-        Right t -> return t
+      execText mkExc "bash" [] script
 
 {-# INLINE systemProcess #-}
+
 
 exec :: forall exc r.
         ( Member (Embed IO) r
@@ -142,5 +142,22 @@ exec mkExc prg args inp = do
       log'err err
       throw @exc $
         mkExc (EX.userError $ "exec: rc = " ++ show rcn)
+
+
+execText :: forall exc r.
+            ( Member (Embed IO) r
+            , Member (Error exc) r
+            , Member Logging r
+            )
+         => (IOException -> exc)
+         -> ProgPath -> [Text] -> Text -> Sem r Text
+execText mkExc prog args inp = do
+  res <- exec mkExc prog args (encodeUtf8 inp)
+  case decodeUtf8' res of
+    Left  e -> do
+      throw @exc $
+        mkExc (EX.userError $ "exec: unicode decode error " ++ show e)
+
+    Right t -> return t
 
 ------------------------------------------------------------------------------
