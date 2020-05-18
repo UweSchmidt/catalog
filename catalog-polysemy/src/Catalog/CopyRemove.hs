@@ -15,14 +15,24 @@
 ------------------------------------------------------------------------------
 
 module Catalog.CopyRemove
-  -- ( checkImgStore )
+  ( copyCollection
+  , removeEntry
+  , rmRec
+  , removeEmptyColls
+  , cleanupColByPath
+  , cleanupAllCollections
+  , cleanupCollections
+  , cleanupAllRefs
+  , selectCollections
+  , filterCols
+  , filterDirs
+  )
 where
 
 import Catalog.Effects
 import Catalog.ImgTree.Fold
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
--- import Catalog.Logging
 
 import Data.ImgTree
 import Data.MetaData
@@ -78,6 +88,7 @@ dupColRec src dstParent dstName = do
 -- ----------------------------------------
 --
 -- create a copy of a collection src'id at target'path
+
 createColCopy :: Path -> ObjId -> SemISEJL r ObjId
 createColCopy target'path src'id = do
   col'id <- mkCollection target'path
@@ -92,6 +103,7 @@ createColCopy target'path src'id = do
 
 -- create a copy of all collection entries at path
 -- computed by path edit function pf and source path
+
 copyColEntries :: (Path -> Path) -> ObjId -> SemISEJL r ()
 copyColEntries pf =
       foldMT ignoreImg ignoreDir ignoreRoot colA
