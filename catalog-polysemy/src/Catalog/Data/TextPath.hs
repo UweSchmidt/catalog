@@ -63,11 +63,15 @@ module Catalog.Data.TextPath
   , jsonFiles
   , pathName2ImgType
   , addExt
+  , addJpg
 
   -- Text versions of System.FilePath functions
   , splitExtension
   , takeDir
   , takeBaseName
+
+  , ymdNameMb
+  , baseNameMb
 
   , F.splitLast
   , F.joinLast
@@ -247,5 +251,19 @@ takeDir p =
 takeBaseName :: TextPath -> TextPath
 takeBaseName p =
   p & isoString %~ FP.takeFileName
+
+------------------------------------------------------------------------------
+
+addJpg :: TextPath -> TextPath
+addJpg p =
+  p & isoString %~ F.addJpg
+
+ymdNameMb :: TextPath -> Maybe (Text, Maybe (Text, Maybe Text))
+ymdNameMb p =
+  fmap (T.pack *** fmap (T.pack *** fmap T.pack)) $ (F.ymdNameMb (T.unpack p))
+
+baseNameMb :: Text -> Maybe Text
+baseNameMb p =
+  fmap T.pack $ F.baseNameMb (T.unpack p)
 
 ------------------------------------------------------------------------------

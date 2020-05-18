@@ -62,7 +62,14 @@ type Eff'Img r = ( EffIStore   r   -- any effects missing?
 
 -- ----------------------------------------
 
-genAssetIcon :: Eff'Img r => Text -> Text -> Sem r (Maybe TextPath)
+genAssetIcon :: ( EffIStore   r
+                , EffError    r
+                , EffLogging  r
+                , EffCatEnv   r
+                , EffExecProg r
+                , EffFileSys  r
+                )
+             => Text -> Text -> Sem r (Maybe TextPath)
 genAssetIcon px s = do
   log'trc $ "genAssetIcon: " <> f <> " " <> s
   genIcon f s   -- call convert with string s, please no "/"-es in s
@@ -70,7 +77,14 @@ genAssetIcon px s = do
   where
     f = ps'iconsgen ^. isoText <//> px <> ".jpg"
 
-genIcon :: Eff'Img r => TextPath -> Text -> Sem r ()
+genIcon :: ( EffIStore   r
+           , EffError    r
+           , EffLogging  r
+           , EffCatEnv   r
+           , EffExecProg r
+           , EffFileSys  r
+           )
+        => TextPath -> Text -> Sem r ()
 genIcon path t = do
   dst  <- (^. isoTextPath) <$> toSysPath path
   dx   <- fileExist dst
@@ -377,7 +391,13 @@ fontList = T.lines <$> execScript shellCmd
 
 -- ----------------------------------------
 
-genBlogText :: Eff'Img r => TextPath -> Sem r Text
+genBlogText :: ( EffIStore   r
+               , EffError    r
+               , EffJournal  r
+               , EffLogging  r
+               , EffCatEnv   r
+               , EffFileSys  r
+               ) => TextPath -> Sem r Text
 genBlogText src = do
   sp  <- (^. isoTextPath) <$> toSysPath src
   dx  <- fileExist sp
@@ -386,7 +406,15 @@ genBlogText src = do
     then readFileT sp
     else return $ "no file found for blog text: " <> src
 
-genBlogHtml :: Eff'Img r => TextPath -> Sem r Text
+genBlogHtml :: ( EffIStore   r
+               , EffError    r
+               , EffJournal  r
+               , EffLogging  r
+               , EffCatEnv   r
+               , EffExecProg r
+               , EffFileSys  r
+               )
+            => TextPath -> Sem r Text
 genBlogHtml src = do
   sp  <- (^. isoTextPath) <$> toSysPath src
   dx  <- fileExist sp
@@ -395,11 +423,20 @@ genBlogHtml src = do
     then formatBlogText sp
     else return $ "no file found for blog text: " <> src
 
-formatBlogText :: Eff'Img r => TextPath -> Sem r Text
+formatBlogText :: ( EffError    r
+                  , EffLogging  r
+                  , EffExecProg r
+                  )
+               => TextPath -> Sem r Text
 formatBlogText sp =
     execProgText "pandoc" ["-f", "markdown", "-t", "html", sp] ""
 
-writeBlogText :: Eff'Img r => Text -> TextPath -> Sem r ()
+writeBlogText :: ( EffIStore   r
+                 , EffError    r
+                 , EffCatEnv   r
+                 , EffFileSys  r
+                 )
+              => Text -> TextPath -> Sem r ()
 writeBlogText t dst = do
   dp <- (^. isoTextPath) <$> toSysPath dst
   writeFileT dp t

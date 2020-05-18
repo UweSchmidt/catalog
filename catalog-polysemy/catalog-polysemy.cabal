@@ -20,6 +20,8 @@ library
                       Catalog.CopyRemove
                       Catalog.Effects
                       Catalog.GenCollections
+                      Catalog.GenImages
+                      Catalog.Html
                       Catalog.ImgTree.Access
                       Catalog.ImgTree.Fold
                       Catalog.ImgTree.ImgStore
