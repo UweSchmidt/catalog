@@ -15,50 +15,51 @@ module Catalog.Html.Templates.Blaze2
   )
 where
 
-import           Data.MetaData ( MetaData
-                               , metaDataAt
+import Data.MetaData ( MetaData
+                     , metaDataAt
 
-                               , compositeDOF
-                               , compositeGPSAltitude
-                               , compositeGPSPosition
-                               , compositeImageSize
-                               , compositeLensID
-                               , compositeLensSpec
+                     , compositeDOF
+                     , compositeGPSAltitude
+                     , compositeGPSPosition
+                     , compositeImageSize
+                     , compositeLensID
+                     , compositeLensSpec
 
-                               , descrComment
-                               , descrLocation
-                               , descrSubtitle
-                               , descrTitle
-                               , descrTitleEnglish
-                               , descrTitleLatin
-                               , descrWeb
-                               , descrWikipedia
+                     , descrComment
+                     , descrLocation
+                     , descrSubtitle
+                     , descrTitle
+                     , descrTitleEnglish
+                     , descrTitleLatin
+                     , descrWeb
+                     , descrWikipedia
 
-                               , exifCreateDate
-                               , exifExposureCompensation
-                               , exifExposureMode
-                               , exifExposureProgram
-                               , exifExposureTime
-                               , exifFNumber
-                               , exifFocalLength
-                               , exifFocalLengthIn35mmFormat
-                               , exifISO
-                               , exifModel
-                               , exifWhiteBalance
+                     , exifCreateDate
+                     , exifExposureCompensation
+                     , exifExposureMode
+                     , exifExposureProgram
+                     , exifExposureTime
+                     , exifFNumber
+                     , exifFocalLength
+                     , exifFocalLengthIn35mmFormat
+                     , exifISO
+                     , exifModel
+                     , exifWhiteBalance
 
-                               , fileDirectory
-                               , fileFileModifyDate
-                               , fileFileName
-                               , fileRefJpg
+                     , fileDirectory
+                     , fileFileModifyDate
+                     , fileFileName
+                     , fileRefJpg
 
-                               , getGPSposDeg
+                     , getGPSposDeg
 
-                               , imgRating
+                     , imgRating
 
-                               , makerNotesFocusDistance
-                               , makerNotesShootingMode
-                               , makerNotesShutterCount
-                               )
+                     , makerNotesFocusDistance
+                     , makerNotesShootingMode
+                     , makerNotesShutterCount
+                     )
+
 import           Data.Prim
 import qualified Data.Text                       as T
 import           Text.Blaze.Html5                hiding (map, head)
@@ -67,7 +68,6 @@ import           Text.Blaze.Html5.Attributes     hiding (title, rows, accept)
 import qualified Text.Blaze.Html5.Attributes     as A
 import qualified Text.Blaze.Html.Renderer.Pretty as R
 import qualified Text.Blaze.Html.Renderer.Text   as T
-import qualified Text.SimpleParser               as SP
 
 renderPage' :: Html -> LazyText
 renderPage' p = T.renderHtml p
@@ -806,8 +806,8 @@ gpsToHtml val =
     -- subst " deg" by degree char '\176'
 
     formatDegree :: Text -> Text
-    formatDegree t =
-      t & isoString %~ SP.sedP (const "\176") (SP.string " deg")
+    formatDegree = T.replace " deg" "\176"
+      -- t & isoString %~ SP.sedP (const "\176") (SP.string " deg")
 
 -- ----------------------------------------
 
