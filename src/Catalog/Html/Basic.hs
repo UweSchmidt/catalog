@@ -25,23 +25,14 @@ import Catalog.System.Convert ( genAssetIcon
                               )
 
 -- ----------------------------------------
-
-type ColRef' a   = (a, Maybe Int)
-type ColRef      = ColRef' ObjId
-
--- ----------------------------------------
-
-maybeColRef :: (ObjId -> a) -> (ObjId -> Int -> a) -> ColRef -> a
-maybeColRef cref iref (i, p) =
-  case p of
-    Nothing  -> cref i
-    Just pos -> iref i pos
+--
+-- process a ColRef, an ObjId with optionally a position
 
 colImgOp :: Monoid a =>
             (ObjId -> Name -> Cmd a) ->
             (ObjId ->         Cmd a) ->
             ColRef -> Cmd a
-colImgOp iop cop = maybeColRef cop iref
+colImgOp iop cop = cColRef cop iref
   where
     iref i pos = do
       cs <- getImgVals i theColEntries

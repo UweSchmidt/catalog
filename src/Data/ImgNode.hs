@@ -80,6 +80,9 @@ module Data.ImgNode
        , isWriteableCol
        , isSortableCol
        , isRemovableCol
+       , ColRef'
+       , ColRef
+       , cColRef
        )
 where
 
@@ -640,5 +643,22 @@ isWriteableCol
 isWriteableCol = hasAccessRights isWriteable
 isSortableCol  = hasAccessRights isSortable
 isRemovableCol = hasAccessRights isRemovable
+
+-- ----------------------------------------
+--
+-- a ref into a collection
+-- Nothing: the collection itself is referenced
+-- Just i: the i-th entry is referenced
+
+type ColRef' a   = (a, Maybe Int)
+type ColRef      = ColRef' ObjId
+
+-- ----------------------------------------
+
+cColRef :: (ObjId -> a) -> (ObjId -> Int -> a) -> ColRef -> a
+cColRef cref iref (i, p) =
+  case p of
+    Nothing  -> cref i
+    Just pos -> iref i pos
 
 -- ----------------------------------------
