@@ -4,8 +4,6 @@
 
 module Catalog.Html.Basic
   ( isPano
-  , baseNameParser
-  , ymdParser
   , colImgRef
   , getColBlogSource
   , putColBlogSource
@@ -18,15 +16,13 @@ import Data.MetaData
 import Data.Prim
 
 import Catalog.Cmd
-import Catalog.FilePath       ( addJpg )
-import Data.Journal        ( Journal'(SaveBlogText) )
+import Catalog.FilePath       ( addJpg, baseNameMb, ymdNameMb )
+import Data.Journal           ( Journal'(SaveBlogText) )
 import Catalog.System.Convert ( genAssetIcon
                               , genBlogText
                               , genBlogHtml
                               , writeBlogText
                               )
-
-import Text.SimpleParser
 
 -- ----------------------------------------
 
@@ -168,36 +164,14 @@ path2img f
   | otherwise =
       return Nothing
   where
-    ymd = parseMaybe ymdParser f
-    nm  = parseMaybe baseNameParser f
+    ymd = ymdNameMb  f
+    nm  = baseNameMb f
 
     toN :: String -> String
     toN s = show i   -- remove leading 0's
       where
         i :: Int
         i = read s
-
--- "/archive/collections/byCreateDate/2000/12/24" -> "2000", "12", "24"
--- "/archive/collections/byCreateDate/2000/12"    -> "2000", "12"
--- "/archive/collections/byCreateDate/2000"       -> "2000"
-
-ymdParser :: SP (String, Maybe (String, Maybe String))
-ymdParser = do
-  y  <- string ps'bycreatedate *>
-        char '/' *>
-        count 4 digitChar
-  md <- optional $ do
-        m <- char '/' *>
-             count 2 digitChar
-        d <- optional $ char '/' *>
-                        count 2 digitChar
-        return (m, d)
-  return (y, md)
-
--- "/archive/collections/photos" -> "photos"
-baseNameParser :: SP String
-baseNameParser =
-  char '/' *> many (try $ anyStringThen' (char '/')) *> someChars
 
 -- ----------------------------------------
 

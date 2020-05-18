@@ -24,11 +24,10 @@ import Data.MetaData                  ( MetaData
 
 import Catalog.Cmd
 import Catalog.FilePath               ( fileName2ImgType
+                                      , baseNameMb
+                                      , ymdNameMb
                                       )
-import Catalog.Html.Basic             ( baseNameParser
-                                      , ymdParser
-                                      , isPano
-                                      )
+import Catalog.Html.Basic             ( isPano )
 import Catalog.Html.Templates.Blaze2  ( colPage'
                                       , txtPage'
                                       , picPage'
@@ -41,7 +40,6 @@ import Catalog.System.Convert         ( createResizedImage
                                       , getThumbnailImage
                                       , resizeGeo'
                                       )
-import Text.SimpleParser              ( parseMaybe )
 
 import qualified Data.Sequence        as Seq
 import qualified Data.Text            as T
@@ -538,8 +536,8 @@ createIconFromObj r dp = do
         | Just n <- nm                       = n
         | otherwise                          = "?"
         where
-          ymd = parseMaybe ymdParser      f
-          nm  = parseMaybe baseNameParser f
+          ymd = ymdNameMb  f
+          nm  = baseNameMb f
 
           toN :: String -> String
           toN s = show i   -- remove leading 0's

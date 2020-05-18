@@ -67,6 +67,7 @@ module Catalog.Data.TextPath
   -- Text versions of System.FilePath functions
   , splitExtension
   , takeDir
+  , takeBaseName
 
   , F.splitLast
   , F.joinLast
@@ -242,5 +243,9 @@ splitExtension p =
 takeDir :: TextPath -> TextPath
 takeDir p =
    p & isoString %~ FP.takeDirectory
+
+takeBaseName :: TextPath -> TextPath
+takeBaseName p =
+  p & isoString %~ FP.takeFileName
 
 ------------------------------------------------------------------------------

@@ -225,6 +225,34 @@ blazePath' =
 fileName' :: SP String
 fileName' = snd <$> anyStringThen' (some (noneOf' "/") <* eof)
 
+-- "/archive/collections/photos" -> "photos"
+baseNameParser :: SP String
+baseNameParser =
+  char '/' *> many (try $ anyStringThen' (char '/')) *> someChars
+
+baseNameMb :: String -> Maybe String
+baseNameMb = parseMaybe baseNameParser
+
+-- "/archive/collections/byCreateDate/2000/12/24" -> "2000", "12", "24"
+-- "/archive/collections/byCreateDate/2000/12"    -> "2000", "12"
+-- "/archive/collections/byCreateDate/2000"       -> "2000"
+
+ymdParser :: SP (String, Maybe (String, Maybe String))
+ymdParser = do
+  y  <- string ps'bycreatedate *>
+        char '/' *>
+        count 4 digitChar
+  md <- optional $ do
+        m <- char '/' *>
+             count 2 digitChar
+        d <- optional $ char '/' *>
+                        count 2 digitChar
+        return (m, d)
+  return (y, md)
+
+ymdNameMb :: String -> Maybe (String, Maybe (String, Maybe String))
+ymdNameMb = parseMaybe ymdParser
+
 -- --------------------
 --
 -- file path parsing combinators
