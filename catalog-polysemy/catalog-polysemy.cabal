@@ -74,6 +74,7 @@ library
                , http-types
                , lens                 >= 4.12
                , polysemy             >= 1.2.3
+               , polysemy-tools
                , process
                , text
                , transformers

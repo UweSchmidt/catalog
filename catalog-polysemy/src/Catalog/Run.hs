@@ -25,7 +25,7 @@ module Catalog.Run
 where
 
 import Polysemy.NonDet
-
+import Polysemy.State.RunTMVar
 import Catalog.CatEnv
 import Catalog.Effects
 import Catalog.Journal (journalToStdout, journalToDevNull)
@@ -33,6 +33,10 @@ import Catalog.Journal (journalToStdout, journalToDevNull)
 import Data.Prim
 import Data.Journal    (JournalP)
 import Data.ImageStore (ImgStore, emptyImgStore)
+
+import Control.Concurrent.STM (atomically)
+import Control.Concurrent.STM.TMVar
+import qualified Control.Exception as Ex
 
 ------------------------------------------------------------------------------
 
@@ -47,15 +51,19 @@ type CatApp a = Sem '[ FileSystem
                      , Embed IO
                      ] a
 
-runApp :: AppEnv -> CatApp a -> IO a
-runApp env cmd = do
+runApp :: (Sem '[Embed IO] (Either Text a) -> IO (Either Text a))
+       -> (forall r a . Member (Embed IO) r => Sem (State ImgStore ': r) a -> Sem r a)
+       -> AppEnv
+       -> CatApp a
+       -> IO (Either Text a)
+runApp runM' runState' env cmd = do
   let runJournal
         | env ^. appEnvJournal = journalToStdout
         | otherwise            = journalToDevNull
 
-  (_imgStore, Right res) <-
-    runM
-    . runState        @ImgStore emptyImgStore
+  res <-
+    runM'
+    . runState'
     . runError        @Text
     . logToStdErr
     . logWithLevel    (env ^. appEnvLogLevel)
@@ -66,6 +74,107 @@ runApp env cmd = do
     $ cmd
 
   return res
+
+----------------------------------------
+--
+-- run on server side: catalog reading command
+
+runRead :: TMVar ImgStore
+        -> AppEnv
+        -> CatApp a
+        -> IO (Either Text a)
+runRead var env =
+  runM
+  . evalStateTMVar  var
+  . runError        @Text
+  . runLogEnvFS     env
+
+{-# INLINE runRead #-}
+
+--------------------
+--
+-- run on server side: catalog modifying command
+
+runMody :: TMVar ImgStore
+        -> TMVar ImgStore
+        -> AppEnv
+        -> CatApp a
+        -> IO (Either Text a)
+runMody rvar mvar env =
+  runM' mvar
+  . modifyStateTMVar rvar mvar
+  . runError        @Text
+  . runLogEnvFS     env
+
+{-# INLINE runMody #-}
+
+-- a save version of runM, which restores the TMVar
+-- with the initial state, if an exception has been thrown
+-- in the IO monad and not been caught in the cmd
+
+runM' :: TMVar s -> Sem '[Embed IO] a -> IO a
+runM' var cmd =
+  bracketOnErrorTMVar (runM cmd)
+  where
+    -- bracketOnErrorTMVar :: TMVar s -> IO a -> IO a
+    bracketOnErrorTMVar cmd' = do
+      Ex.bracketOnError
+        (atomically $ readTMVar var)
+        (\ v -> atomically $ do
+                  em <- isEmptyTMVar var
+                  when em (putTMVar var v)
+        )
+        (\ _ -> cmd')
+
+--------------------
+--
+-- common run parts
+
+runLogEnvFS :: (EffError r, EffIStore r, Member (Embed IO) r)
+            => AppEnv
+            -> Sem (FileSystem : Time : Reader CatEnv
+                    : Consume JournalP : Logging
+                    : Consume LogMsg : r) a
+            -> Sem r a
+runLogEnvFS env =
+  logToStdErr
+  . logWithLevel    (env ^. appEnvLogLevel)
+  . runJournal      (env ^. appEnvJournal)
+  . runReader       @CatEnv (env ^. appEnvCat)
+  . posixTime       ioExcToText
+  . basicFileSystem ioExcToText
+
+{-# INLINE runLogEnvFS #-}
+
+runJournal :: (Member (Embed IO) r)
+           => Bool -> Sem (Consume JournalP : r) a -> Sem r a
+runJournal withJournal
+  | withJournal = journalToStdout
+  | otherwise   = journalToDevNull
+
+{-# INLINE runJournal #-}
+
+----------------------------------------
+
+main' :: IO ()
+main' = do
+  rvar  <- newTMVarIO emptyImgStore
+  mvar  <- newTMVarIO emptyImgStore
+
+  let env  = defaultAppEnv
+
+  let runRC = runRead rvar env
+  let runMC = runMody rvar mvar env
+
+  Right _ <- runRC $
+             return ()
+
+  Right x <- runMC $
+             return ()
+
+  return ()
+
+------------------------------------------------------------------------
 
 type Test a = Sem '[ NonDet, Embed IO] a
 
