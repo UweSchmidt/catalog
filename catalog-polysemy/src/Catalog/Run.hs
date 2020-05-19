@@ -20,6 +20,9 @@
 -- {-# LANGUAGE TemplateHaskell #-}
 
 ------------------------------------------------------------------------------
+--
+-- the preliminary main module for testing
+-- should be moved to an app
 
 module Catalog.Run
 where
@@ -36,7 +39,12 @@ import Data.ImageStore (ImgStore, emptyImgStore)
 
 import Control.Concurrent.STM (atomically)
 import Control.Concurrent.STM.TMVar
+import Control.Monad.IO.Class (liftIO)
 import qualified Control.Exception as Ex
+
+
+import Servant(throwError)
+import Servant.Server
 
 ------------------------------------------------------------------------------
 
@@ -52,22 +60,22 @@ type CatApp a = Sem '[ FileSystem
                      ] a
 
 runApp :: (Sem '[Embed IO] (Either Text a) -> IO (Either Text a))
-       -> (forall r a . Member (Embed IO) r => Sem (State ImgStore ': r) a -> Sem r a)
+       -> (forall r b . Member (Embed IO) r => Sem (State ImgStore ': r) b -> Sem r b)
        -> AppEnv
        -> CatApp a
        -> IO (Either Text a)
-runApp runM' runState' env cmd = do
-  let runJournal
+runApp runM'' runState' env cmd = do
+  let runJournal'
         | env ^. appEnvJournal = journalToStdout
         | otherwise            = journalToDevNull
 
   res <-
-    runM'
+    runM''
     . runState'
     . runError        @Text
     . logToStdErr
     . logWithLevel    (env ^. appEnvLogLevel)
-    . runJournal
+    . runJournal'
     . runReader       @CatEnv (env ^. appEnvCat)
     . posixTime       ioExcToText
     . basicFileSystem ioExcToText
@@ -163,16 +171,29 @@ main' = do
 
   let env  = defaultAppEnv
 
-  let runRC = runRead rvar env
-  let runMC = runMody rvar mvar env
+  let runRC :: CatApp a -> Handler a
+      runRC = ioeither2Handler . runRead rvar env
 
-  Right _ <- runRC $
+  let runMC :: CatApp a -> Handler a
+      runMC = ioeither2Handler . runMody rvar mvar env
+
+  Right _ <- runHandler $ runRC $
              return ()
 
-  Right x <- runMC $
+  Right _ <- runHandler $ runMC $
              return ()
 
   return ()
+
+ioeither2Handler :: IO (Either Text a) -> Handler a
+ioeither2Handler cmd = do
+  res <- liftIO cmd
+  either raise500 return res
+  where
+    raise500 :: Text -> Handler a
+    raise500 msg =
+      throwError $ err500 { errBody = msg ^. isoString . from isoString }
+
 
 ------------------------------------------------------------------------
 

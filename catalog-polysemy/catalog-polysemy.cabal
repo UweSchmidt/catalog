@@ -74,7 +74,6 @@ library
                , http-types
                , lens                 >= 4.12
                , polysemy             >= 1.2.3
-               , polysemy-tools
                , process
                , text
                , transformers
@@ -82,7 +81,17 @@ library
                , unordered-containers >= 0.2
                , utf8-string          >= 1
                , vector               >= 0.10
-               
+                                    , wai
+                 -- server stuff, preliminary, to be moved to an app
+               , async
+               , stm
+               , servant
+               , servant-blaze
+               , servant-server
+               , wai-app-static
+               , wai-logger
+               , warp
+
                -- local libraries
                , catalog
                , polysemy-tools
