@@ -23,6 +23,7 @@ library
                       Catalog.GenCheckSum
                       Catalog.GenCollections
                       Catalog.GenImages
+                      Catalog.GenPages
                       Catalog.Html
                       Catalog.ImgTree.Access
                       Catalog.ImgTree.Fold
@@ -65,6 +66,7 @@ library
   build-depends: aeson                >= 0.8
                , aeson-pretty
                , base                 >= 4.7 && <5
+               , blaze-html
                , bytestring
                , containers           >= 0.4
                , directory
@@ -81,13 +83,14 @@ library
                , unordered-containers >= 0.2
                , utf8-string          >= 1
                , vector               >= 0.10
-                                    , wai
+
                  -- server stuff, preliminary, to be moved to an app
                , async
                , stm
                , servant
                , servant-blaze
                , servant-server
+               , wai
                , wai-app-static
                , wai-logger
                , warp

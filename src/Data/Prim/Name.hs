@@ -5,13 +5,14 @@ module Data.Prim.Name
        ( Name
        , mkName
        , isNameSuffix
+       , addNameSuffix
        , substNameSuffix
        )
 where
 
 import           Data.Prim.Prelude
+
 import qualified Data.Aeson as J
-import qualified Data.List as L
 import qualified Data.Text as T
 
 -- ----------------------------------------
@@ -39,16 +40,17 @@ fromName (Name fsn) = T.unpack $ fsn
 isNameSuffix :: Name -> Name -> Bool
 isNameSuffix (Name sx) (Name n) = sx `T.isSuffixOf` n
 
-substNameSuffix :: Name -> Name -> Name -> Name
-substNameSuffix os' ns' n'
-  | os `L.isSuffixOf` n =
-      mkName . reverse . ((reverse ns) ++) . drop (length os) . reverse $ n
+addNameSuffix :: Text -> Name -> Name
+addNameSuffix sx n = n & isoText %~ (<> sx)
+
+substNameSuffix :: Text -> Text -> Name -> Name
+substNameSuffix os ns n'
+  | os `T.isSuffixOf` n =
+      n' & isoText %~ T.dropEnd (T.length os) . (<> ns)
   | otherwise =
       n'
   where
-    os = fromName os'
-    ns = fromName ns'
-    n  = fromName n'
+    n  = n'  ^. isoText
 
 deriving instance Eq   Name
 deriving instance Ord  Name

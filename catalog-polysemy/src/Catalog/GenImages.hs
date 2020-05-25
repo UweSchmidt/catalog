@@ -16,7 +16,9 @@
 ------------------------------------------------------------------------------
 
 module Catalog.GenImages
-  ( getImageSize
+  ( Eff'Img
+
+  , getImageSize
   , getThumbnailImage
   , createResizedImage
   , genIcon
@@ -51,8 +53,7 @@ import qualified Data.Text                as T
 -- ----------------------------------------
 
 type Eff'Img r = ( EffIStore   r   -- any effects missing?
-                 , EffError    r
-                 , EffJournal  r
+                 , EffError    r   -- yes, EffJournal
                  , EffLogging  r
                  , EffCatEnv   r
                  , EffTime     r
@@ -176,14 +177,14 @@ getThumbnailImage src dst = do
 
 -- ----------------------------------------
 
-getImageSize    :: Eff'Img r => TextPath -> Sem r Geo
+getImageSize    :: (Eff'ISEL r, EffCatEnv r, EffExecProg r) => TextPath -> Sem r Geo
 getImageSize fp = do
   sp <- (^. isoTextPath) <$> toSysPath fp
   sz <- execImageSize sp
   return $ fromMaybe geo'org (readGeo'' $ sz ^. isoString)
     where
 
-      execImageSize :: Eff'Img r => TextPath -> Sem r Text
+      execImageSize :: (Eff'ISEL r, EffExecProg r) => TextPath -> Sem r Text
       execImageSize sp =
         catch @Text
         ( execProgText "exiftool" ["-s", "-ImageSize", sp] mempty )
@@ -393,7 +394,6 @@ fontList = T.lines <$> execScript shellCmd
 
 genBlogText :: ( EffIStore   r
                , EffError    r
-               , EffJournal  r
                , EffLogging  r
                , EffCatEnv   r
                , EffFileSys  r
@@ -408,7 +408,6 @@ genBlogText src = do
 
 genBlogHtml :: ( EffIStore   r
                , EffError    r
-               , EffJournal  r
                , EffLogging  r
                , EffCatEnv   r
                , EffExecProg r

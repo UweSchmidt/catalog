@@ -47,7 +47,7 @@ import Servant(throwError)
 import Servant.Server
 
 ------------------------------------------------------------------------------
-
+{-
 type CatApp a = Sem '[ FileSystem
                      , Time
                      , Reader CatEnv
@@ -58,7 +58,7 @@ type CatApp a = Sem '[ FileSystem
                      , State ImgStore
                      , Embed IO
                      ] a
-
+-}
 runApp :: (Sem '[Embed IO] (Either Text a) -> IO (Either Text a))
        -> (forall r b . Member (Embed IO) r => Sem (State ImgStore ': r) b -> Sem r b)
        -> AppEnv

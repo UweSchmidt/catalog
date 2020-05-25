@@ -48,6 +48,7 @@ module Catalog.Effects
   , Eff'ISEJL
   , Eff'ISEJLT
   , Eff'ISEJLFS
+  , Eff'ALL
 
     -- * action types
   , SemCE
@@ -61,12 +62,16 @@ module Catalog.Effects
   , SemISEJLFS
   , SemISEJLT
 
+  , CatApp      -- application type
+
   , SemMB
 
     -- * lifting functions
   , liftExcept
   , liftMaybe
   , pureMaybe
+  , runMaybe
+  , runMaybeEmpty
 
     -- * Maybe monad on top of Sem r
   , pureMB
@@ -98,6 +103,21 @@ import Catalog.CatEnv  (CatEnv)
 import System.ExecProg (ExecProg)
 
 ------------------------------------------------------------------------------
+--
+-- all effects of the catalog server
+
+type CatApp a = Sem '[ FileSystem
+                     , Time
+                     , Reader CatEnv
+                     , Consume JournalP
+                     , Logging
+                     , Consume LogMsg
+                     , Error Text
+                     , State ImgStore
+                     , Embed IO
+                     ] a
+
+----------------------------------------
 
 type EffCatEnv   r = Member (Reader CatEnv)    r
 type EffError    r = Member (Error Text)       r
@@ -125,11 +145,11 @@ type Eff'ISEJL   r = ( EffIStore  r
                      )
 
 type Eff'ISEJLFS  r = ( EffIStore  r
-                     , EffError   r
-                     , EffJournal r
-                     , EffLogging r
-                     , EffFileSys r
-                     )
+                      , EffError   r
+                      , EffJournal r
+                      , EffLogging r
+                      , EffFileSys r
+                      )
 
 type Eff'ISEJLT  r = ( EffIStore  r
                      , EffError   r
@@ -137,6 +157,17 @@ type Eff'ISEJLT  r = ( EffIStore  r
                      , EffLogging r
                      , EffTime r
                      )
+
+type Eff'ALL  r  = ( EffCatEnv   r
+                   , EffError    r
+                   , EffFileSys  r
+                   , EffIStore   r
+                   , EffJournal  r
+                   , EffLogging  r
+                   , EffTime     r
+                   , EffExecProg r
+                   )
+
 
 type SemCE      r a = ( EffCatEnv r
                       ) => Sem r a
@@ -234,5 +265,12 @@ liftMaybe cmd = cmd >>= maybe empty return
 pureMaybe :: Member NonDet r => Maybe a -> Sem r a
 pureMaybe = maybe empty return
 {-# INLINE pureMaybe #-}
+
+runMaybe :: Sem (NonDet ': r) a -> Sem r (Maybe a)
+runMaybe = runNonDetMaybe
+{-# INLINE runMaybe #-}
+
+runMaybeEmpty :: (Monoid a) => Sem (NonDet ': r) a -> Sem r a
+runMaybeEmpty cmd = fromMaybe mempty <$> runMaybe cmd
 
 ------------------------------------------------------------------------------

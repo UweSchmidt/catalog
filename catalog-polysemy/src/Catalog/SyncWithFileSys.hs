@@ -7,11 +7,11 @@
     PolyKinds,
     RankNTypes,
     ScopedTypeVariables,
+    TupleSections,
     TypeApplications,
     TypeOperators,
     TypeFamilies
 #-} -- default extensions (only for emacs)
-{-# LANGUAGE TupleSections #-}
 
 ------------------------------------------------------------------------------
 
