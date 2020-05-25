@@ -26,7 +26,7 @@
 -- Catalog.FilePath containing all parsing ops with FileName
 -- as input
 
-module Catalog.Data.TextPath
+module Data.TextPath
   ( textPathToImgType
   , textPathToExt
   , dropVirtualCopyNo

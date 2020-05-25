@@ -24,7 +24,6 @@ import Catalog.CopyRemove      ( cleanupColByPath
                                , cleanupAllRefs
                                , rmRec
                                )
-import Catalog.Data.TextPath
 import Catalog.Effects
 import Catalog.GenCollections  ( img2colPath
                                , genSysCollections
@@ -44,6 +43,7 @@ import Catalog.TimeStamp       ( whatTimeIsIt, lastModified )
 import Data.ImgTree
 import Data.MetaData
 import Data.Prim
+import Data.TextPath
 
 -- ----------------------------------------
 

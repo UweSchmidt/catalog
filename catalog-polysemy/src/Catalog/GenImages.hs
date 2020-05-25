@@ -33,7 +33,6 @@ where
 -- catalog-polysemy modules
 import Catalog.Effects
 import Catalog.CatEnv            (CatEnv, catFontName)
-import Catalog.Data.TextPath     ((<//>), takeDir)
 import Catalog.MetaData.ExifTool (getExifMetaData)
 import Catalog.TextPath          (toSysPath)
 
@@ -43,6 +42,7 @@ import System.ExecProg           (execProgText, execScript)
 -- catalog modules
 import Data.MetaData             (getOrientation)
 import Data.Prim
+import Data.TextPath             ((<//>), takeDir)
 
 -- libraries
 

@@ -25,7 +25,6 @@ where
 -- catalog-polysemy modules
 import Catalog.Effects
 import Catalog.CatEnv         (CatEnv, catJsonArchive, catSaveBothIx)
-import Catalog.Data.TextPath  (takeDir, splitExtension)
 import Catalog.ImgTree.Access (mapImgStore2Path, mapImgStore2ObjId)
 import Catalog.Invariant      (checkImgStore)
 import Catalog.Journal        (journal)
@@ -42,6 +41,7 @@ import Data.ImageStore        (ImgStore, theCatMetaData)
 import Data.Journal           (Journal'(LoadImgStore, SaveImgStore))
 import Data.MetaData          (metaDataAt, descrCatalogWrite, descrCatalogVersion)
 import Data.Prim
+import Data.TextPath          (takeDir, splitExtension)
 
 -- libraries
 

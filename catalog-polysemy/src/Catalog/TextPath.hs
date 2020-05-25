@@ -22,11 +22,11 @@ where
 import Catalog.Effects
 import Catalog.CatEnv         (CatEnv, catMountPath)
 import Catalog.ImgTree.Access (objid2path)
-import Catalog.Data.TextPath  (addExt)
 
 -- catalog
 import Data.ImgTree
 import Data.Prim
+import Data.TextPath          (addExt)
 
 -- libraries
 import qualified Data.Text     as T

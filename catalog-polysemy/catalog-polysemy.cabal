@@ -37,7 +37,6 @@ library
                       Catalog.SyncWithFileSys
                       Catalog.TextPath
                       Catalog.TimeStamp
-                      Catalog.Data.TextPath
                                             
                       Paths_catalog_polysemy
 

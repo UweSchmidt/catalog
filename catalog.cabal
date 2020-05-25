@@ -20,6 +20,7 @@ library
                      Data.ImageStore
                      Data.Journal
                      Data.RefTree
+                     Data.TextPath
                      Data.Prim
                      Data.Prim.CheckSum
                      Data.Prim.CheckSumRes
