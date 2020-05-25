@@ -16,7 +16,13 @@
 ------------------------------------------------------------------------------
 
 module Catalog.SyncWithFileSys
-  -- ( )
+  ( syncDir
+  , syncDirP
+  , syncDirPath
+  , syncFS
+  , syncNode
+  , syncNewDirs
+  )
 where
 
 import Catalog.CatEnv          ( catSyncDir )
@@ -111,6 +117,9 @@ allColEntries =
     -- do nothing for img nodes, just to get a complete definition
     imgA  _     _pts _md = return mempty
 
+
+{- currently not used
+
 trcColEntrySet :: EffIStore r
                => ColEntrySet -> Sem r [(Path, Name)]
 trcColEntrySet cs =
@@ -120,7 +129,7 @@ trcColEntrySet cs =
       where
         ir i n = (, n)      <$> objid2path i
         cr i   = (, mempty) <$> objid2path i
-
+-}
 -- ----------------------------------------
 
 -- sync the whole photo archive with disk contents
