@@ -198,6 +198,8 @@ liftExcept cmd =
     Right res -> return res
 
 -- ----------------------------------------
+--
+-- TODO: really neccesary ???
 
 pureMB :: a -> Sem r (Maybe a)
 pureMB x = pure (Just x)

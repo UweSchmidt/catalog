@@ -13,20 +13,16 @@
     TypeFamilies
 #-} -- default extensions (only for emacs)
 
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
-
-module Server.Commands.ClientInterpreter
+module Catalog.Effects.CatCmd.ClientInterpreter
   ( -- * Interpreter
-    evalSCommands
+    evalClientCatCmd
   )
 where
 
+-- polysemy
 import Polysemy
 
-import Data.Prim
-
-import Server.Commands
+-- polysemy-tools
 import System.HttpRequest
        ( HttpEffects
        , getReq
@@ -34,10 +30,16 @@ import System.HttpRequest
        , simpleJSONReq
        )
 
+-- catalog
+import Data.Prim
+
+-- catalog-polysemy
+import Catalog.Effects.CatCmd
+
 ------------------------------------------------------------------------------
 
-evalSCommands :: HttpEffects r => InterpreterFor SCommand r
-evalSCommands =
+evalClientCatCmd :: HttpEffects r => InterpreterFor CatCmd r
+evalClientCatCmd =
   interpret $
   \ c -> case c of
 
@@ -85,8 +87,8 @@ evalSCommands =
 
     -- JSON reading commands
     TheEntry p ->
-      simpleJSONget "collection" p
-    IsWriteable p ->
+      simpleJSONget "collection" p   -- TODO: rename to entry
+    IsWriteable p ->                 -- but: this must also be changed in JavaScript
       simpleJSONget "isWritable" p
     IsRemovable p ->
       simpleJSONget "isRemovable" p

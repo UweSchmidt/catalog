@@ -21,11 +21,12 @@ import Polysemy.Consume
 import Polysemy.FileSystem
 import Polysemy.HttpRequest
 import Polysemy.Logging
-
-import Client.Commands
-import Client.Commands.Interpreter
-import Server.Commands.ClientInterpreter
 import System.HttpRequest
+
+-- client-polysemy
+import Catalog.Effects.CatCmd.ClientInterpreter
+import Client.Effects.ClientCmd
+import Client.Effects.ClientCmd.Interpreter
 import Client.Options
 
 import System.Exit
@@ -58,8 +59,8 @@ main = do
          . basicHttpRequests        -- HttpRequest
              httpExcToText
              man
-         . evalSCommands            -- SCommand   (server calls)
-         . evalCCommands            -- CCommand   (client commands)
+         . evalClientCatCmd         -- CatCmd     (server calls)
+         . evalClientCmd            -- ClientCmd  (client commands)
          $ do
              send cmd                    -- start action
                `catch`

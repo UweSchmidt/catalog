@@ -19,6 +19,7 @@ library
                       Catalog.CatalogIO
                       Catalog.CopyRemove
                       Catalog.Effects
+                      Catalog.Effects.CatCmd
                       Catalog.GenCheckSum
                       Catalog.GenCollections
                       Catalog.GenImages

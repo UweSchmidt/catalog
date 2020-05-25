@@ -5,8 +5,8 @@ import Options.Applicative
 import Options.Applicative.HostPort
 import Options.Applicative.LogLevel
 
-import Client.Commands
-import Client.Commands.Interpreter
+import Client.Effects.ClientCmd
+import Client.Effects.ClientCmd.Interpreter
        ( defaultPath )
 
 
@@ -31,9 +31,8 @@ import Text.SimpleParser
 type Host = Text
 type Port = Int
 
-type ClientAct r = (ClientOpts, ClientCmd r)
+type ClientAct r = (ClientOpts, ClientCmd r ())
 type ClientOpts  = ((Host,Port), LogLevel)
-type ClientCmd r = CCommand r ()
 
 version :: String
 version = "0.2.11.0"
@@ -61,7 +60,7 @@ withInfo opts desc = info (helper <*> opts) $ progDesc desc
 optClient :: Parser ClientOpts
 optClient = (,) <$> optHostPort <*> optLogLevel
 
-type CmdParser r = Parser (ClientCmd r)
+type CmdParser r = Parser (ClientCmd r ())
 
 cmdClient :: CmdParser r
 cmdClient = subparser $

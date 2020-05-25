@@ -1,5 +1,5 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE
+    ConstraintKinds,
     DataKinds,
     FlexibleContexts,
     GADTs,
@@ -13,12 +13,9 @@
     TypeFamilies
 #-} -- default extensions (only for emacs)
 
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
-
-module Client.Commands.Interpreter
+module Client.Effects.ClientCmd.Interpreter
   ( -- * Interpreter
-    evalCCommands
+    evalClientCmd
 
     -- derived commands
   , checksumFile
@@ -28,6 +25,7 @@ module Client.Commands.Interpreter
   )
 where
 
+-- polysemy and polysemy-tool
 import Polysemy
 import Polysemy.Consume
 import Polysemy.FileSystem
@@ -36,24 +34,24 @@ import Polysemy.Logging
 import Polysemy.Reader
 import Polysemy.State
 
--- import System.HttpRequest
-
-import Client.Commands
-
-import Server.Commands
--- import Server.Commands.ClientInterpreter
-
+-- catalog
 import Data.Prim
 import Data.ImgNode hiding (theMetaData)
 import Data.MetaData
 
+-- catalog-polysemy
+import Catalog.Effects.CatCmd
+
+-- client-polysemy
+import Client.Effects.ClientCmd
+
 ------------------------------------------------------------------------------
 
 type CCmdEffects r =
-  (Members '[Consume Text, Error Text, SCommand, Logging, FileSystem] r)
+  (Members '[Consume Text, Error Text, CatCmd, Logging, FileSystem] r)
 
-evalCCommands :: CCmdEffects r => InterpreterFor CCommand r
-evalCCommands =
+evalClientCmd :: CCmdEffects r => InterpreterFor ClientCmd r
+evalClientCmd =
   interpret $
   \ c -> case c of
     CcEntry p -> do
@@ -88,7 +86,7 @@ evalCCommands =
       runReader (CSEnv onlyUpdate True forceUpdate) $
          evalCheckSum updateCheckSumRes p part
 
-{-# INLINE evalCCommands #-}
+{-# INLINE evalClientCmd #-}
 
 ------------------------------------------------------------------------------
 
@@ -250,7 +248,7 @@ data CSEnv = CSEnv { csOnlyUpdate  :: Bool
 type CSEffects r = ( Member (Reader CSEnv) r
                    , Member (Consume Text) r
                    , Member Logging r
-                   , Member SCommand r
+                   , Member CatCmd r
                    )
 
 type CSCmd r a  = Path -> Name -> CheckSumRes -> Sem r a

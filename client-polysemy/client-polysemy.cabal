@@ -16,12 +16,10 @@ source-repository head
 
 executable client-polysemy
   main-is:            Main.hs
-  other-modules:      Client.Commands
-                      Client.Commands.Interpreter
+  other-modules:      Client.Effects.ClientCmd
+                      Client.Effects.ClientCmd.Interpreter
                       Client.Options
-                      Server.Commands
-                      Server.Commands.ClientInterpreter
-
+                      Catalog.Effects.CatCmd.ClientInterpreter
                       -- options for Polysemy.Logging
                       -- and         System.HttpRequest
                       Options.Applicative.HostPort
@@ -56,7 +54,6 @@ executable client-polysemy
                , aeson                >= 0.8
                , base                 >= 4.7 && <5
                , bytestring
-               , catalog
                , directory
                , exceptions
                , http-client
@@ -68,5 +65,8 @@ executable client-polysemy
                , stm
                , text
                , unix
+               -- local libs
+               , catalog
+               , catalog-polysemy
                
   default-language: Haskell2010

@@ -15,9 +15,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Client.Commands
+module Client.Effects.ClientCmd
   ( -- * Effects
-    CCommand (..)
+    ClientCmd (..)
 
     -- * Actions
   , ccEntry
@@ -53,20 +53,20 @@ import Data.Prim
 
 ------------------------------------------------------------------------------
 
-data CCommand m a where
-  CcEntry    :: Path                       -> CCommand m ()
-  CcLs       :: Path                       -> CCommand m ()
-  CcLsmd     :: PathPos -> [Name]          -> CCommand m ()
-  CcSetmd1   :: PathPos ->  Name   -> Text -> CCommand m ()
-  CcDelmd1   :: PathPos ->  Name           -> CCommand m ()
+data ClientCmd m a where
+  CcEntry    :: Path                       -> ClientCmd m ()
+  CcLs       :: Path                       -> ClientCmd m ()
+  CcLsmd     :: PathPos -> [Name]          -> ClientCmd m ()
+  CcSetmd1   :: PathPos ->  Name   -> Text -> ClientCmd m ()
+  CcDelmd1   :: PathPos ->  Name           -> ClientCmd m ()
   CcDownload :: Path    -> ReqType -> Geo
-             -> Text    -> Bool    -> Bool -> CCommand m ()
-  CcSnapshot :: Text                       -> CCommand m ()
+             -> Text    -> Bool    -> Bool -> ClientCmd m ()
+  CcSnapshot :: Text                       -> ClientCmd m ()
   CcCheckSum :: Path    -> Name
-             -> Bool    -> Bool            -> CCommand m ()
+             -> Bool    -> Bool            -> ClientCmd m ()
   CcUpdCSum  :: Path    -> Name
-             -> Bool    -> Bool            -> CCommand m ()
+             -> Bool    -> Bool            -> ClientCmd m ()
 
-makeSem ''CCommand
+makeSem ''ClientCmd
 
 ------------------------------------------------------------------------------
