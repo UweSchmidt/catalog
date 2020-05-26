@@ -70,16 +70,18 @@ module Catalog.Effects.CatCmd
   , Rating
   , ReqType(..)
   , Text
+  , TextPath
   )
 where
 
 import Polysemy
+import Polysemy.FileSystem ( TextPath )
 
 import Data.Prim
-import Data.ImgTree     ( ImgNodeP )
-import Data.MetaData    ( MetaData
-                        , Rating
-                        )
+import Data.ImgTree        ( ImgNodeP )
+import Data.MetaData       ( MetaData
+                           , Rating
+                           )
 
 -- ----------------------------------------
 --
@@ -122,7 +124,7 @@ data CatCmd m a where
   CheckImgPart         :: Bool ->  Name     -> Path -> CatCmd m CheckSumRes
 
   -- catalog get commands
-  StaticFile           ::          FilePath -> Text -> CatCmd m LazyByteString
+  StaticFile           ::          TextPath -> Text -> CatCmd m LazyByteString
   JpgImgCopy           ::    ReqType -> Geo -> Path -> CatCmd m LazyByteString
   HtmlPage             ::    ReqType -> Geo -> Path -> CatCmd m LazyByteString
 

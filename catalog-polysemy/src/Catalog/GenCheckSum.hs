@@ -16,7 +16,8 @@
 ------------------------------------------------------------------------------
 
 module Catalog.GenCheckSum
-  ( checkImgPart
+  ( Eff'CheckSum
+  , checkImgPart
   , updateCheckSum
   , updateTimeStamp
   )
@@ -34,13 +35,13 @@ import Data.Prim
 
 -- ----------------------------------------
 
-type Eff'All r = ( EffIStore   r
-                 , EffError    r
-                 , EffJournal  r
-                 , EffLogging  r
-                 , EffCatEnv   r
-                 , EffFileSys  r
-                 )
+type Eff'CheckSum r = ( EffIStore   r
+                      , EffError    r
+                      , EffJournal  r
+                      , EffLogging  r
+                      , EffCatEnv   r
+                      , EffFileSys  r
+                      )
 
 -- ----------------------------------------
 
@@ -57,10 +58,10 @@ processImgPart cmd p nm n = do
     (cmd p)
     (n ^? theImgPart nm)
 
-checkImgPart :: Eff'All r => Bool -> Path -> Name -> ImgNode -> Sem r CheckSumRes
+checkImgPart :: Eff'CheckSum r => Bool -> Path -> Name -> ImgNode -> Sem r CheckSumRes
 checkImgPart onlyUpdate = processImgPart (checkImgPart' onlyUpdate)
 
-checkImgPart' :: Eff'All r => Bool -> Path -> ImgPart -> Sem r CheckSumRes
+checkImgPart' :: Eff'CheckSum r => Bool -> Path -> ImgPart -> Sem r CheckSumRes
 checkImgPart' onlyUpdate p ip = do
   fsp <- (^. isoTextPath) <$> path2SysPath (substPathName (ip ^. theImgName) p)
   fex <- fileExist fsp

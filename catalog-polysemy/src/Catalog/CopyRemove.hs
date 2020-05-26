@@ -18,6 +18,7 @@ module Catalog.CopyRemove
   ( copyCollection
   , removeEntry
   , rmRec
+  , dupColRec
   , removeEmptyColls
   , cleanupColByPath
   , cleanupAllCollections

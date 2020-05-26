@@ -15,7 +15,8 @@
 ------------------------------------------------------------------------------
 
 module Catalog.MetaData.Sync
-  ( forceSyncAllMetaData
+  ( Eff'MDSync
+  , forceSyncAllMetaData
   , syncAllMetaData
   , syncMetaData
   )
@@ -33,21 +34,21 @@ import Data.Prim
 
 -- ----------------------------------------
 
-type Eff'Sync r = ( EffIStore   r   -- any effects missing?
-                  , EffError    r
-                  , EffJournal  r
-                  , EffLogging  r
-                  , EffTime     r
-                  , EffCatEnv   r
-                  , EffExecProg r
-                  , EffFileSys  r
-                  )
+type Eff'MDSync r = ( EffIStore   r
+                    , EffError    r
+                    , EffJournal  r
+                    , EffLogging  r
+                    , EffTime     r
+                    , EffCatEnv   r
+                    , EffExecProg r
+                    , EffFileSys  r
+                    )
 
-forceSyncAllMetaData :: Eff'Sync r => ObjId -> Sem r ()
+forceSyncAllMetaData :: Eff'MDSync r => ObjId -> Sem r ()
 forceSyncAllMetaData i =
   local @CatEnv (catForceMDU .~ True) (syncAllMetaData i)
 
-syncAllMetaData :: Eff'Sync r => ObjId -> Sem r ()
+syncAllMetaData :: Eff'MDSync r => ObjId -> Sem r ()
 syncAllMetaData i0 = do
   p <- objid2path i0
   log'trc $ "syncAllMetaData for: " <> toText (i0, p)
@@ -72,14 +73,14 @@ syncAllMetaData i0 = do
 -- i must be an objid pointing to am ImgNode
 -- else this becomes a noop
 
-syncMetaData :: Eff'Sync r => ObjId -> Sem r ()
+syncMetaData :: Eff'MDSync r => ObjId -> Sem r ()
 syncMetaData i = do
   ps <- getImgVals i (theParts . isoImgParts)
   unless (null ps) $ do
     syncMetaData' i ps
 
 
-syncMetaData' :: Eff'Sync r => ObjId -> [ImgPart] -> Sem r ()
+syncMetaData' :: Eff'MDSync r => ObjId -> [ImgPart] -> Sem r ()
 syncMetaData' i ps = do
   ts <- getEXIFUpdateTime <$> getMetaData i
   fu <- (^. catForceMDU) <$> ask

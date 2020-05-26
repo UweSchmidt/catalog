@@ -15,7 +15,8 @@
 ------------------------------------------------------------------------------
 
 module Catalog.Html
-  ( isPano
+  ( Eff'Html
+  , isPano
   , colImgRef
   , getColBlogSource
   , putColBlogSource

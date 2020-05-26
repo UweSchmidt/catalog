@@ -20,6 +20,7 @@ library
                       Catalog.CopyRemove
                       Catalog.Effects
                       Catalog.Effects.CatCmd
+                      Catalog.Effects.CatCmd.Interpreter
                       Catalog.GenCheckSum
                       Catalog.GenCollections
                       Catalog.GenImages

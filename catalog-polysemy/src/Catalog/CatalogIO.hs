@@ -16,7 +16,8 @@
 ------------------------------------------------------------------------------
 
 module Catalog.CatalogIO
-  ( loadImgStore
+  ( Eff'CatIO
+  , loadImgStore
   , snapshotImgStore
   , saveImgStore
   )

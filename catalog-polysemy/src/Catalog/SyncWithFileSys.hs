@@ -16,7 +16,8 @@
 ------------------------------------------------------------------------------
 
 module Catalog.SyncWithFileSys
-  ( syncDir
+  ( Eff'Sync
+  , syncDir
   , syncDirP
   , syncDirPath
   , syncFS
