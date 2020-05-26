@@ -208,7 +208,11 @@ path2img f
     nm  = baseNameMb f
 
     toN :: Text -> Text
-    toN = T.dropWhile (== '0')   -- remove leading 0's
+    toN = add0 . T.dropWhile (== '0')
+      where
+        add0 t
+          | T.null t  = "0"
+          | otherwise = t
 
 -- ----------------------------------------
 

@@ -73,7 +73,7 @@ module Catalog.Effects
   , runMaybe
   , runMaybeEmpty
 
-    -- * Maybe monad on top of Sem r
+    -- * Maybe monad on top of Sem r (TODO: refactor with NonDet effect)
   , pureMB
   , failMB
   , liftMB

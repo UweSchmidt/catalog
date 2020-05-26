@@ -478,7 +478,8 @@ toMediaReq r =
 
 -- dispatch icon generation over media type (jpg, txt, md, mp4)
 
-genReqImg :: (Eff'Img r) => Req'IdNode'ImgRef a -> Sem r TextPath
+genReqImg :: Eff'Img r
+          => Req'IdNode'ImgRef a -> Sem r TextPath
 genReqImg r = do
   sp <- toSourcePath r
   log'trc $ "genReqIcon sp=" <> sp
@@ -523,7 +524,8 @@ genReqImg r = do
 
 -- read text from a file (blog entry) to generate an icon
 
-getTxtFromFile :: (EffError r, EffFileSys r, EffCatEnv r) => TextPath -> Sem r Text
+getTxtFromFile :: (EffError r, EffFileSys r, EffCatEnv r)
+               => TextPath -> Sem r Text
 getTxtFromFile sp = do
   txt <- cut 32 . T.concat . take 1 .
          filter (not . T.null) . map cleanup . T.lines <$>
@@ -543,7 +545,8 @@ getTxtFromFile sp = do
 
 -- create an icon from the title of the path of a collection
 
-createIconFromObj :: Eff'Img r => Req'IdNode a -> TextPath -> Sem r TextPath
+createIconFromObj :: Eff'Img r
+                  => Req'IdNode a -> TextPath -> Sem r TextPath
 createIconFromObj r dp = do
   log'trc $ "createIconFromObj: " <> dp
 
@@ -590,7 +593,8 @@ createIconFromObj r dp = do
 --
 -- the copy is stored under the path of the image
 
-createCopyFromImg :: Eff'Img r => GeoAR -> TextPath -> TextPath -> Sem r TextPath
+createCopyFromImg :: Eff'Img r
+                  => GeoAR -> TextPath -> TextPath -> Sem r TextPath
 createCopyFromImg geo sp ip =
   catch @Text
   ( do withCache (createResizedImage geo) sp ip
@@ -600,13 +604,15 @@ createCopyFromImg geo sp ip =
 
 -- --------------------
 
-createIconFromString :: Eff'Img r => GeoAR -> Text -> TextPath -> Sem r TextPath
+createIconFromString :: Eff'Img r
+                     => GeoAR -> Text -> TextPath -> Sem r TextPath
 createIconFromString geo t dp = do
   sp <- createRawIconFromString t
   withCache (createResizedImage geo) sp dp
   return dp
 
-createRawIconFromString :: Eff'Img r => Text -> Sem r TextPath
+createRawIconFromString :: Eff'Img r
+                        => Text -> Sem r TextPath
 createRawIconFromString t = do
   log'trc $ "createRawIconFromString: " <> toText (fp, t)
   genIcon fp t
