@@ -62,8 +62,6 @@ module Catalog.Effects
   , SemISEJLFS
   , SemISEJLT
 
-  , CatApp      -- application type
-
   , SemMB
 
     -- * lifting functions
@@ -103,21 +101,6 @@ import Catalog.CatEnv  (CatEnv)
 import System.ExecProg (ExecProg)
 
 ------------------------------------------------------------------------------
---
--- all effects of the catalog server
-
-type CatApp a = Sem '[ FileSystem
-                     , Time
-                     , Reader CatEnv
-                     , Consume JournalP
-                     , Logging
-                     , Consume LogMsg
-                     , Error Text
-                     , State ImgStore
-                     , Embed IO
-                     ] a
-
-----------------------------------------
 
 type EffCatEnv   r = Member (Reader CatEnv)    r
 type EffError    r = Member (Error Text)       r

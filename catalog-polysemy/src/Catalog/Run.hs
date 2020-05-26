@@ -27,28 +27,39 @@
 module Catalog.Run
 where
 
+-- polysemy and polysemy-tools
 import Polysemy.NonDet
 import Polysemy.State.RunTMVar
+import System.ExecProg
+
+-- catalog-polysemy
 import Catalog.CatEnv
 import Catalog.Effects
+import Catalog.Effects.CatCmd
+import Catalog.Effects.CatCmd.Interpreter
 import Catalog.Journal (journalToStdout, journalToDevNull)
 
+-- catalog
 import Data.Prim
 import Data.Journal    (JournalP)
 import Data.ImageStore (ImgStore, emptyImgStore)
 
+-- libs
 import Control.Concurrent.STM (atomically)
 import Control.Concurrent.STM.TMVar
+import Control.Concurrent.STM.TChan
 import Control.Monad.IO.Class (liftIO)
 import qualified Control.Exception as Ex
 
-
+-- servant
 import Servant(throwError)
 import Servant.Server
 
 ------------------------------------------------------------------------------
-{-
-type CatApp a = Sem '[ FileSystem
+
+type CatApp a = Sem '[ CatCmd
+                     , ExecProg
+                     , FileSystem
                      , Time
                      , Reader CatEnv
                      , Consume JournalP
@@ -58,7 +69,7 @@ type CatApp a = Sem '[ FileSystem
                      , State ImgStore
                      , Embed IO
                      ] a
--}
+
 runApp :: (Sem '[Embed IO] (Either Text a) -> IO (Either Text a))
        -> (forall r b . Member (Embed IO) r => Sem (State ImgStore ': r) b -> Sem r b)
        -> AppEnv
@@ -79,6 +90,8 @@ runApp runM'' runState' env cmd = do
     . runReader       @CatEnv (env ^. appEnvCat)
     . posixTime       ioExcToText
     . basicFileSystem ioExcToText
+    . systemProcess   ioExcToText
+    . evalCatCmd
     $ cmd
 
   return res
@@ -130,9 +143,22 @@ runM' var cmd =
         (atomically $ readTMVar var)
         (\ v -> atomically $ do
                   em <- isEmptyTMVar var
-                  when em (putTMVar var v)
+                  when em (putTMVar var v)   -- refill empty TMVar
         )
         (\ _ -> cmd')
+
+--------------------
+
+runBG :: TMVar ImgStore
+      -> TChan Job
+      -> AppEnv
+      -> CatApp a
+      -> IO ()
+runBG var qu env =
+  runM
+  . evalStateTChan var qu
+  . runError       @Text
+  . runLogEnvFS    env
 
 --------------------
 --
@@ -140,9 +166,16 @@ runM' var cmd =
 
 runLogEnvFS :: (EffError r, EffIStore r, Member (Embed IO) r)
             => AppEnv
-            -> Sem (FileSystem : Time : Reader CatEnv
-                    : Consume JournalP : Logging
-                    : Consume LogMsg : r) a
+            -> Sem (CatCmd
+                    : ExecProg
+                    : FileSystem
+                    : Time
+                    : Reader CatEnv
+                    : Consume JournalP
+                    : Logging
+                    : Consume LogMsg
+                    : r
+                   ) a
             -> Sem r a
 runLogEnvFS env =
   logToStdErr
@@ -151,6 +184,8 @@ runLogEnvFS env =
   . runReader       @CatEnv (env ^. appEnvCat)
   . posixTime       ioExcToText
   . basicFileSystem ioExcToText
+  . systemProcess   ioExcToText
+  . evalCatCmd
 
 {-# INLINE runLogEnvFS #-}
 
@@ -168,6 +203,7 @@ main' :: IO ()
 main' = do
   rvar  <- newTMVarIO emptyImgStore
   mvar  <- newTMVarIO emptyImgStore
+  qu    <- createJobQueue
 
   let env  = defaultAppEnv
 
@@ -177,12 +213,17 @@ main' = do
   let runMC :: CatApp a -> Handler a
       runMC = ioeither2Handler . runMody rvar mvar env
 
+  let runBQ :: CatApp a -> Handler ()
+      runBQ = liftIO . runBG rvar qu env
+
   Right _ <- runHandler $ runRC $
              return ()
 
   Right _ <- runHandler $ runMC $
              return ()
 
+  _       <- runHandler $ runBQ $
+             return ()
   return ()
 
 ioeither2Handler :: IO (Either Text a) -> Handler a

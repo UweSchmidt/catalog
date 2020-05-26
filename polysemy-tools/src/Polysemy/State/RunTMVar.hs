@@ -13,13 +13,25 @@
 #-} -- default extensions (only for emacs)
 
 module Polysemy.State.RunTMVar
+  ( Job
+  , runStateTMVar
+  , evalStateTMVar
+  , modifyStateTMVar
+  , evalStateTChan
+  , createJobQueue
+  )
 where
 
 import Polysemy
 import Polysemy.State
 
-import Control.Concurrent.STM       (atomically)
+import Control.Concurrent.Async     ( async
+                                    , link
+                                    )
+import Control.Concurrent.STM       ( atomically )
 import Control.Concurrent.STM.TMVar
+import Control.Concurrent.STM.TChan
+import Control.Monad                ( forever )
 
 ----------------------------------------
 --
@@ -86,5 +98,42 @@ modifyStateTMVar rvar mvar stateCmd = do
   return res
 
 {-# INLINE modifyStateTMVar #-}
+
+-- run a stateful action as background job
+--
+-- the initial state is read from a TMVar
+-- the final state is discarded
+
+evalStateTChan
+    :: forall s a
+     . TMVar s
+    -> TChan Job
+    -> Sem (State s ': Embed IO ': '[]) a
+    -> Sem (Embed IO ': '[]) ()
+
+evalStateTChan ref queue cmd = do
+  embed $ atomically $ writeTChan queue runc
+  where
+    runc :: Job
+    runc = do
+      store <- atomically $ readTMVar ref
+      _ <- runM . runState store $ cmd
+      return ()
+
+type Job = IO ()
+
+createJobQueue :: IO (TChan Job)
+createJobQueue = do
+  qu <- newTChanIO
+  bgq <- async $ jobQueue qu
+  link bgq
+  return qu
+
+jobQueue :: TChan Job -> IO ()
+jobQueue q = forever $ do
+  job <- atomically $ readTChan q
+  job
+
+{-# INLINE evalStateTChan #-}
 
 ------------------------------------------------------------------------
