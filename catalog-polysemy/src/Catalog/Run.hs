@@ -64,7 +64,6 @@ type CatApp a = Sem '[ CatCmd
                      , Reader CatEnv
                      , Consume JournalP
                      , Logging
-                     , Consume LogMsg
                      , Error Text
                      , State ImgStore
                      , Embed IO
@@ -84,13 +83,10 @@ runApp runM'' runState' env cmd = do
     runM''
     . runState'
     . runError        @Text
-    . logToStdErr
-    . logWithLevel    (env ^. appEnvLogLevel)
+    . runLogging      (env ^. appEnvLogLevel)
     . runJournal'
     . runReader       @CatEnv (env ^. appEnvCat)
-    . posixTime       ioExcToText
-    . basicFileSystem ioExcToText
-    . systemProcess   ioExcToText
+    . runOS
     . evalCatCmd
     $ cmd
 
@@ -173,29 +169,53 @@ runLogEnvFS :: (EffError r, EffIStore r, Member (Embed IO) r)
                     : Reader CatEnv
                     : Consume JournalP
                     : Logging
-                    : Consume LogMsg
                     : r
                    ) a
             -> Sem r a
 runLogEnvFS env =
-  logToStdErr
-  . logWithLevel    (env ^. appEnvLogLevel)
+  runLogging        (env ^. appEnvLogLevel)
   . runJournal      (env ^. appEnvJournal)
   . runReader       @CatEnv (env ^. appEnvCat)
-  . posixTime       ioExcToText
-  . basicFileSystem ioExcToText
-  . systemProcess   ioExcToText
+  . runOS
   . evalCatCmd
 
 {-# INLINE runLogEnvFS #-}
 
+
+runLogging :: (Member (Embed IO) r)
+           => LogLevel
+           -> Sem (Logging ': r) a
+           -> Sem r a
+runLogging lev =
+  logToStdErr
+  . logWithLevel lev
+
+{-# INLINE runLogging #-}
+
+
 runJournal :: (Member (Embed IO) r)
-           => Bool -> Sem (Consume JournalP : r) a -> Sem r a
+           => Bool
+           -> Sem (Consume JournalP ': r) a
+           -> Sem r a
 runJournal withJournal
   | withJournal = journalToStdout
   | otherwise   = journalToDevNull
 
 {-# INLINE runJournal #-}
+
+runOS :: ( Member (Embed IO) r
+         , Member (Error Text) r
+         , Member Logging r
+         )
+       => Sem (ExecProg : FileSystem : Time : r) a
+       -> Sem r a
+runOS =
+  posixTime         ioExcToText
+  . basicFileSystem ioExcToText
+  . systemProcess   ioExcToText
+
+
+{-# INLINE runOS #-}
 
 ----------------------------------------
 

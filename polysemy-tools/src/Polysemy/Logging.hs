@@ -85,35 +85,42 @@ makeSem ''Logging
 ------------------------------------------------------------------------------
 
 -- | log messages with priority >= given logLevel
+--
+-- Logging effect reinterpreted with Consume LogMsg effect
 
-logWithLevel :: Member (Consume LogMsg) r
-             => LogLevel
-             -> InterpreterFor Logging r
+logWithLevel :: LogLevel
+             -> Sem (Logging ': r) a
+             -> Sem (Consume LogMsg ': r) a
 logWithLevel LogNull =    -- disable all logging
-  interpret $
+  reinterpret $
   \ c -> case c of
     Log' _l _msg -> pure ()
 
 logWithLevel logLevel =
-  interpret $
+  reinterpret $
   \ c -> case c of
     Log' l (LogMsg msg) -> do
       if LogNull < l && l <= logLevel
         then consume $ LogMsg (prettyLogLevel l <> msg)
         else pure ()
 
--- | log all messages, ignore any levels
 
-logWithoutLevel :: Member (Consume LogMsg) r
-                => InterpreterFor Logging r
+-- | log all messages, ignore any levels
+--
+-- Logging effect reinterpreted with Consume LogMsg effect
+
+logWithoutLevel :: Sem (Logging ': r) a
+                -> Sem (Consume LogMsg ': r) a
 logWithoutLevel =
-  interpret $
+  reinterpret $
   \ c -> case c of
     Log' _l msg -> consume msg
 
--- | remove logging effect code by inlining
 
-noLoggingAtAll :: InterpreterFor Logging r
+-- | ignore all log messages
+
+noLoggingAtAll ::  Sem (Logging ': r) a
+                -> Sem r a
 noLoggingAtAll =
   interpret $
   \ c -> case c of
