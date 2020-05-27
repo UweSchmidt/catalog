@@ -25,14 +25,21 @@
 -- should be moved to an app
 
 module Catalog.Run
+  ( CatApp
+  , runApp
+  , runRead
+  , runMody
+  , runBG
+  , r
+  )
 where
 
 -- polysemy and polysemy-tools
+import Polysemy
 import Polysemy.State.RunTMVar
 import System.ExecProg
 
 -- catalog-polysemy
-import Catalog.CatalogIO
 import Catalog.CatEnv
 import Catalog.Effects
 import Catalog.Effects.CatCmd
@@ -48,21 +55,8 @@ import Data.ImageStore (ImgStore, emptyImgStore)
 import Control.Concurrent.STM (atomically)
 import Control.Concurrent.STM.TMVar
 import Control.Concurrent.STM.TChan
-import Control.Monad.IO.Class (liftIO)
+
 import qualified Control.Exception as Ex
-
--- servant
-import Servant
-import Servant.Server ()
-
-import Network.Wai.Handler.Warp( setPort
-                               , setLogger
-                               , defaultSettings
-                               , runSettings
-                               )
-import Network.Wai.Logger      ( withStdoutLogger )
-
-import System.Exit             ( die )
 
 ------------------------------------------------------------------------------
 
@@ -217,91 +211,4 @@ runOS =
 
 {-# INLINE runOS #-}
 
-----------------------------------------
-
-catalogServer :: CatEnv
-              -> (forall a . CatApp a -> Handler a)
-              -> (forall a . CatApp a -> Handler a)
-              -> (forall a . CatApp a -> Handler ())
-              -> Server CatalogAPI
-catalogServer _env _runReadC _runModyC _runBGC =
-  undefined
-
-type CatalogAPI  = "bootstrap" :> Raw
-
-----------------------------------------
-
-main' :: IO ()
-main' = do
-  let env  = defaultAppEnv
-
-  rvar  <- newTMVarIO emptyImgStore
-  mvar  <- newTMVarIO emptyImgStore
-  qu    <- createJobQueue
-
-  let runRC :: CatApp a -> Handler a
-      runRC = ioeither2Handler . runRead rvar env
-
-  let runMC :: CatApp a -> Handler a
-      runMC = ioeither2Handler . runMody rvar mvar env
-
-  let runBQ :: CatApp a -> Handler ()
-      runBQ = liftIO . runBG rvar qu env
-
-  runMody rvar mvar env initImgStore >>=
-    either (die . (^. isoString) ) return
-
-  -- start servant server
-  withStdoutLogger $ \logger -> do
-    let settings =
-          defaultSettings & setPort   (env ^. appEnvPort)
-                          & setLogger logger
-
-    runSettings settings $
-      serve (Proxy :: Proxy CatalogAPI) $
-      catalogServer (env ^. appEnvCat) runRC runMC runBQ
-
-
-ioeither2Handler :: IO (Either Text a) -> Handler a
-ioeither2Handler cmd = do
-  res <- liftIO cmd
-  either raise500 return res
-  where
-    raise500 :: Text -> Handler a
-    raise500 msg =
-      throwError $ err500 { errBody = msg ^. isoString . from isoString }
-
-
-------------------------------------------------------------------------
-{-
-type Test a = Sem '[ NonDet, Embed IO] a
-
-runTest :: Test a -> IO (Maybe a)
-runTest cmd = do
-  runM
-  . runNonDetMaybe
-  $ cmd
-
-c1 :: Test ()
-c1 = embed $ putStrLn "emil"
-
-c2 :: Test Int
-c2 = do
-  c1
-  return 42
-
-c3 :: Int -> Test Int
-c3 i = do
-  if i == 44
-    then return i
-    else empty
-
-c4 :: Test (Maybe Int)
-c4 = c1 >> c2 >>= return . Just
-
-liftMaybe :: Member NonDet r => Sem r (Maybe Int) -> Sem r Int
-liftMaybe cmd = do
-  mx <- cmd
-  maybe empty (return . (1+)) mx
--}
 ------------------------------------------------------------------------------

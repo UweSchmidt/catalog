@@ -18,6 +18,7 @@ packages:
 - './polysemy-tools'
 - './catalog-polysemy'
 - './client-polysemy'
+- './servant-polysemy'
 
 # old stuff
 # - './catalog-server'
