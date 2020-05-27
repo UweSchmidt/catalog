@@ -28,11 +28,11 @@ module Catalog.Run
 where
 
 -- polysemy and polysemy-tools
-import Polysemy.NonDet
 import Polysemy.State.RunTMVar
 import System.ExecProg
 
 -- catalog-polysemy
+import Catalog.CatalogIO
 import Catalog.CatEnv
 import Catalog.Effects
 import Catalog.Effects.CatCmd
@@ -52,8 +52,17 @@ import Control.Monad.IO.Class (liftIO)
 import qualified Control.Exception as Ex
 
 -- servant
-import Servant(throwError)
-import Servant.Server
+import Servant
+import Servant.Server ()
+
+import Network.Wai.Handler.Warp( setPort
+                               , setLogger
+                               , defaultSettings
+                               , runSettings
+                               )
+import Network.Wai.Logger      ( withStdoutLogger )
+
+import System.Exit             ( die )
 
 ------------------------------------------------------------------------------
 
@@ -69,28 +78,19 @@ type CatApp a = Sem '[ CatCmd
                      , Embed IO
                      ] a
 
-runApp :: (Sem '[Embed IO] (Either Text a) -> IO (Either Text a))
-       -> (forall r b . Member (Embed IO) r => Sem (State ImgStore ': r) b -> Sem r b)
-       -> AppEnv
-       -> CatApp a
-       -> IO (Either Text a)
-runApp runM'' runState' env cmd = do
-  let runJournal'
-        | env ^. appEnvJournal = journalToStdout
-        | otherwise            = journalToDevNull
+----------------------------------------
+--
+-- run a single command
 
-  res <-
-    runM''
-    . runState'
-    . runError        @Text
-    . runLogging      (env ^. appEnvLogLevel)
-    . runJournal'
-    . runReader       @CatEnv (env ^. appEnvCat)
-    . runOS
-    . evalCatCmd
-    $ cmd
+runApp :: ImgStore -> AppEnv -> CatApp a -> IO (ImgStore, Either Text a)
+runApp ims env =
+  runM
+  . runState ims
+  . runError @Text
+  . runLogEnvFS env
 
-  return res
+r :: CatApp a -> IO (ImgStore, Either Text a)
+r = runApp emptyImgStore defaultAppEnv
 
 ----------------------------------------
 --
@@ -219,13 +219,25 @@ runOS =
 
 ----------------------------------------
 
+catalogServer :: CatEnv
+              -> (forall a . CatApp a -> Handler a)
+              -> (forall a . CatApp a -> Handler a)
+              -> (forall a . CatApp a -> Handler ())
+              -> Server CatalogAPI
+catalogServer _env _runReadC _runModyC _runBGC =
+  undefined
+
+type CatalogAPI  = "bootstrap" :> Raw
+
+----------------------------------------
+
 main' :: IO ()
 main' = do
+  let env  = defaultAppEnv
+
   rvar  <- newTMVarIO emptyImgStore
   mvar  <- newTMVarIO emptyImgStore
   qu    <- createJobQueue
-
-  let env  = defaultAppEnv
 
   let runRC :: CatApp a -> Handler a
       runRC = ioeither2Handler . runRead rvar env
@@ -236,15 +248,19 @@ main' = do
   let runBQ :: CatApp a -> Handler ()
       runBQ = liftIO . runBG rvar qu env
 
-  Right _ <- runHandler $ runRC $
-             return ()
+  runMody rvar mvar env initImgStore >>=
+    either (die . (^. isoString) ) return
 
-  Right _ <- runHandler $ runMC $
-             return ()
+  -- start servant server
+  withStdoutLogger $ \logger -> do
+    let settings =
+          defaultSettings & setPort   (env ^. appEnvPort)
+                          & setLogger logger
 
-  _       <- runHandler $ runBQ $
-             return ()
-  return ()
+    runSettings settings $
+      serve (Proxy :: Proxy CatalogAPI) $
+      catalogServer (env ^. appEnvCat) runRC runMC runBQ
+
 
 ioeither2Handler :: IO (Either Text a) -> Handler a
 ioeither2Handler cmd = do
@@ -257,7 +273,7 @@ ioeither2Handler cmd = do
 
 
 ------------------------------------------------------------------------
-
+{-
 type Test a = Sem '[ NonDet, Embed IO] a
 
 runTest :: Test a -> IO (Maybe a)
@@ -287,5 +303,5 @@ liftMaybe :: Member NonDet r => Sem r (Maybe Int) -> Sem r Int
 liftMaybe cmd = do
   mx <- cmd
   maybe empty (return . (1+)) mx
-
+-}
 ------------------------------------------------------------------------------

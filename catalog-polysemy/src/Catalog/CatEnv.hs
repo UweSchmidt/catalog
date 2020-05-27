@@ -35,6 +35,7 @@ import Data.Prim
 data AppEnv = AppEnv
   { _appEnvLogLevel :: LogLevel
   , _appEnvJournal  :: Bool
+  , _appEnvPort     :: Int
   , _appEnvCat      :: CatEnv
   }
 
@@ -53,7 +54,7 @@ $(makeLenses ''AppEnv)
 defaultCatEnv :: CatEnv
 defaultCatEnv = CatEnv
                 { _catMountPath   = "."
-                , _catJsonArchive = "catalog.json"
+                , _catJsonArchive = "photos.pathid.json"
                 , _catSyncDir     = n'photos `consPath` mempty
                 , _catForceMDU    = False
                 , _catSaveBothIx  = False
@@ -61,6 +62,6 @@ defaultCatEnv = CatEnv
                 }
 
 defaultAppEnv :: AppEnv
-defaultAppEnv = AppEnv LogErr True defaultCatEnv
+defaultAppEnv = AppEnv LogErr True 3001 defaultCatEnv
 
 ------------------------------------------------------------------------------

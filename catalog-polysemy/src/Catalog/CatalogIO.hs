@@ -17,6 +17,7 @@
 
 module Catalog.CatalogIO
   ( Eff'CatIO
+  , initImgStore
   , loadImgStore
   , snapshotImgStore
   , saveImgStore
@@ -26,6 +27,7 @@ where
 -- catalog-polysemy modules
 import Catalog.Effects
 import Catalog.CatEnv         (CatEnv, catJsonArchive, catSaveBothIx)
+import Catalog.GenCollections (genSysCollections)
 import Catalog.ImgTree.Access (mapImgStore2Path, mapImgStore2ObjId)
 import Catalog.Invariant      (checkImgStore)
 import Catalog.Journal        (journal)
@@ -38,8 +40,9 @@ import System.ExecProg        (execScript)
 -- catalog modules
 import Catalog.Version        (version, date)
 
-import Data.ImageStore        (ImgStore, theCatMetaData)
-import Data.Journal           (Journal'(LoadImgStore, SaveImgStore))
+import Data.ImageStore        (ImgStore, theCatMetaData, mkImgStore)
+import Data.ImgTree           (mkEmptyImgRoot)
+import Data.Journal           (Journal'(LoadImgStore, SaveImgStore, InitImgStore))
 import Data.MetaData          (metaDataAt, descrCatalogWrite, descrCatalogVersion)
 import Data.Prim
 import Data.TextPath          (takeDir, splitExtension)
@@ -85,6 +88,8 @@ encodeJSON = J.encodePretty' conf
     conf = J.defConfig
            { J.confIndent  = J.Spaces 2 }
 
+----------------------------------------
+--
 -- save the whole image store
 -- file path must be a relative path
 -- to the mount path
@@ -107,6 +112,8 @@ saveImgStore p = do
       | otherwise =
           throw @Text $ "saveImgStore: wrong archive extension in " <> toText p
 
+----------------------------------------
+--
 -- take a snapshot of the catalog and store it in a git archive
 -- Test: save 2 versions of the catalog
 -- with ObjId (hashes) as keys and (more readable) with Path as keys
@@ -156,6 +163,10 @@ checkinImgStore cmt f = do
         "git commit -a -m " <> qt ("catalog-server: " <> ts <> ", " <> pt <> cmt')
       ]
 
+----------------------------------------
+--
+-- load the image store from a .json file
+
 loadImgStore :: Eff'CatIO r => TextPath -> Sem r ()
 loadImgStore f = do
   sp <- (^. isoTextPath) <$> toSysPath f
@@ -177,6 +188,24 @@ loadImgStore f = do
     fromBS
       | isPathIdArchive f = fmap mapImgStore2ObjId . J.decode'
       | otherwise         = J.decode'
+
+----------------------------------------
+
+initImgRoot :: Eff'ISEJL r => Name -> Name -> Name -> Sem r ()
+initImgRoot rootName colName dirName = do
+  root <- liftExcept $ mkEmptyImgRoot rootName dirName colName
+  put $ mkImgStore root mempty
+  journal $ InitImgStore rootName colName dirName
+
+initImgStore :: Eff'CatIO r => Sem r ()
+initImgStore = do
+  env <- ask
+  initImgRoot n'archive n'collections n'photos
+  loadImgStore (env ^. catJsonArchive)
+  genSysCollections
+  setCatMetaData
+
+----------------------------------------
 
 archiveName :: TextPath -> (TextPath, Text, Text)
 archiveName p = (p', e1, e2)
