@@ -40,7 +40,10 @@ library
                       Catalog.SyncWithFileSys
                       Catalog.TextPath
                       Catalog.TimeStamp
-                                            
+
+                      Options.Applicative.HostPort
+                      Options.Applicative.LogLevel
+                      
                       Paths_catalog_polysemy
 
   hs-source-dirs:     src
@@ -76,6 +79,7 @@ library
                , http-client
                , http-types
                , lens                 >= 4.12
+               , optparse-applicative
                , polysemy             >= 1.2.3
                , process
                , text

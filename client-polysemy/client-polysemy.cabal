@@ -20,10 +20,6 @@ executable client-polysemy
                       Client.Effects.ClientCmd.Interpreter
                       Client.Options
                       Catalog.Effects.CatCmd.ClientInterpreter
-                      -- options for Polysemy.Logging
-                      -- and         System.HttpRequest
-                      Options.Applicative.HostPort
-                      Options.Applicative.LogLevel
 
                       Paths_client_polysemy
 

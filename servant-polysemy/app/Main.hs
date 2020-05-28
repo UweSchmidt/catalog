@@ -27,32 +27,39 @@
 module Main
 where
 
+import Prelude ()
+import Prelude.Compat
+
 -- polysemy and polysemy-tools
-import Polysemy.State.RunTMVar
-import System.ExecProg
+import Polysemy.State.RunTMVar (createJobQueue)
 
 -- catalog-polysemy
-import Catalog.CatalogIO
-import Catalog.CatEnv
+import Catalog.CatalogIO       (initImgStore)
+import Catalog.CatEnv          ( CatEnv
+                               , defaultAppEnv
+                               , appEnvCat
+                               , appEnvPort
+                               , catMountPath
+                               , catSyncDir
+                               )
 import Catalog.Effects
 import Catalog.Effects.CatCmd
-import Catalog.Effects.CatCmd.Interpreter
-import Catalog.Journal (journalToStdout, journalToDevNull)
-import Catalog.Run
+import Catalog.Run             ( CatApp
+                               , runRead
+                               , runMody
+                               , runBG
+                               )
 
 -- catalog
 import Data.Prim
-import Data.Journal    (JournalP)
-import Data.ImageStore (ImgStore, emptyImgStore)
+import Data.ImageStore         (emptyImgStore)
 
 -- libs
-import Control.Concurrent.STM (atomically)
-import Control.Concurrent.STM.TMVar
-import Control.Concurrent.STM.TChan
-import Control.Monad.IO.Class (liftIO)
-import qualified Control.Exception as Ex
+import Control.Concurrent.STM.TMVar (newTMVarIO)
+import Control.Monad.IO.Class       (liftIO)
+import System.Exit                  (die)
 
--- servant
+-- servant libs
 import Servant
 import Servant.Server ()
 
@@ -63,7 +70,9 @@ import Network.Wai.Handler.Warp( setPort
                                )
 import Network.Wai.Logger      ( withStdoutLogger )
 
-import System.Exit             ( die )
+
+-- servant interface
+import API
 
 ------------------------------------------------------------------------------
 
@@ -72,8 +81,45 @@ catalogServer :: CatEnv
               -> (forall a . CatApp a -> Handler a)
               -> (forall a . CatApp a -> Handler ())
               -> Server CatalogAPI
-catalogServer env runReadC _runModyC _runBGC =
-  bootstrap
+catalogServer env runReadC runModyC runBGC =
+  ( bootstrap
+    :<|>
+    ( assets'css
+      :<|>
+      assets'icons
+      :<|>
+      assets'javascript
+    )
+    :<|>
+    ( root'html
+      :<|>
+      favicon'ico
+      :<|>
+      rpc'js
+    )
+  )
+  :<|>
+  ( json'read
+    :<|>
+    json'modify
+  )
+  :<|>
+  ( get'icon
+    :<|>
+    get'iconp
+    :<|>
+    get'img
+    :<|>
+    get'imgfx
+    :<|>
+    ( get'html
+      :<|>
+      get'html1
+    )
+    :<|>
+    get'movie
+  )
+
   where
     mountPath :: FilePath
     mountPath = env ^. catMountPath . isoString
@@ -82,19 +128,189 @@ catalogServer env runReadC _runModyC _runBGC =
       serveDirectoryWebApp (mountPath ++ p)
 
     bootstrap         = static ps'bootstrap
+    assets'css        = static ps'css
+    assets'icons      = static ps'icons
+    assets'javascript = static ps'javascript
 
-    runR1 :: forall a . (Path -> CatApp a) -> [Text] -> Handler a
+    -- movies are served statically to enable streaming
+    -- the original .mp4 movies are accessed
+    -- by a path prefix "/docs/movies/archive/<syncdir>/" ++ <path-to-mp4>
+    -- image object
+    -- <syncdir> default is "photos"
+
+    get'movie         = static $ "/" ++ env ^. catSyncDir . isoString
+
+    -- root html files are located under /assets/html
+
+    root'html :: BaseName HTMLStatic -> Handler LazyByteString
+    root'html bn = staticDoc (ps'html ^. isoText) bn
+
+    favicon'ico :: Handler LazyByteString
+    favicon'ico = staticDoc (ps'icons ^. isoText) bn
+      where
+        bn :: BaseName ICO
+        bn = BaseName "favicon.ico"
+
+    rpc'js :: Handler LazyByteString
+    rpc'js = staticDoc (ps'javascript ^. isoText) bn
+      where
+        bn :: BaseName JSStatic
+        bn = BaseName "rpc-servant.js"
+
+    staticDoc :: TextPath -> BaseName a -> Handler LazyByteString
+    staticDoc dirPath (BaseName n) =
+      runReadC $ staticFile dirPath n
+
+    -- --------------------
+
+    cachedResponse :: Maybe Text -> LazyByteString -> CachedByteString
+    cachedResponse mbref bs =
+      addHeader (cval ^. isoText) bs
+      where
+        cval
+          | isEditRef = "no-store"
+          | otherwise = "public, max-age=" ++ show aDay
+
+        ref = fromMaybe mempty mbref ^. isoString
+
+        isEditRef = "/edit.html" `isSuffixOf` ref
+
+        aDay :: Int
+        aDay = 24 * 60 * 60
+
+    -- --------------------
+    -- handle icon request
+
+    get'icon  :: Geo' -> [Text] -> Maybe Text -> Handler CachedByteString
+    get'icon  = get'img' RIcon
+
+    get'iconp :: Geo' -> [Text] -> Maybe Text -> Handler CachedByteString
+    get'iconp = get'img' RIconp
+
+    get'img  :: Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
+    get'img  = get'img' RImg
+
+    get'imgfx  :: Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
+    get'imgfx  = get'img' RImgfx
+
+    get'img' :: ReqType
+             -> Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
+    get'img' rt (Geo' geo) ts referer = do
+      res <- runReadC . jpgImgCopy rt geo . listToPath $ ts
+      return $ cachedResponse referer res
+
+     -- --------------------
+    -- handle html pages
+
+    get'html :: Geo' -> [Text] -> Handler LazyByteString
+    get'html = get'html' RPage
+
+    get'html1 :: Geo' -> [Text] -> Handler LazyByteString
+    get'html1 = get'html' RPage1
+
+    get'html' :: ReqType -> Geo' -> [Text] -> Handler LazyByteString
+    get'html' rt (Geo' geo) =
+      runReadC . htmlPage rt geo . listToPath
+
+    -- --------------------
+
+    runR1 :: forall a .
+             (Path -> CatApp a) -> [Text] -> Handler a
     runR1 cmd' = runReadC  . cmd' . listToPath
 
+    runR2 :: forall a1 a.
+             (a1 -> Path -> CatApp a) -> [Text] -> a1 -> Handler a
+    runR2 cmd' ts args = runReadC  . cmd' args . listToPath $ ts
 
-type CatalogAPI  =
-  "bootstrap" :> Raw
+    runR3 :: forall a1 a2 a.
+             (a1 -> a2 -> Path -> CatApp a) -> [Text] -> (a1, a2) -> Handler a
+    runR3 = runR2 . uncurry
+
+    json'read =
+      runR1 theEntry
+      :<|>
+      runR1 isWriteable
+      :<|>
+      runR1 isRemovable
+      :<|>
+      runR1 isSortable
+      :<|>
+      runR1 isCollection
+      :<|>
+      runR2 theBlogContents
+      :<|>
+      runR2 theBlogSource
+      :<|>
+      runR2 theMetaData
+      :<|>
+      runR2 theRating
+      :<|>
+      runR1 theRatings
+      :<|>
+      runR3 checkImgPart
+
+    runM1 :: forall a.
+             (Path -> CatApp a) -> [Text] -> Handler a
+    runM1 cmd' = runModyC . cmd' . listToPath
+
+    runM2 :: forall a1 a.
+             (a1 -> Path -> CatApp a) -> [Text] -> a1 -> Handler a
+    runM2 cmd' ts args = runModyC . cmd' args . listToPath $ ts
+
+    runM3 :: forall a1 a2 a.
+             (a1 -> a2 -> Path -> CatApp a) -> [Text] -> (a1, a2) -> Handler a
+    runM3 = runM2 . uncurry
+
+    runB2 :: forall a1 a.
+             (a1 -> Path -> CatApp a) -> [Text] -> a1 -> Handler ()
+    runB2 cmd' ts args = runBGC . cmd' args . listToPath $ ts
+
+    json'modify =
+      runM3 saveBlogSource
+      :<|>
+      runM3 changeWriteProtected
+      :<|>
+      runM2 sortCollection
+      :<|>
+      runM2 removeFromCollection
+      :<|>
+      runM3 copyToCollection
+      :<|>
+      runM3 moveToCollection
+      :<|>
+      runM3 setCollectionImg
+      :<|>
+      runM3 setCollectionBlog
+      :<|>
+      runM2 newCollection
+      :<|>
+      runM2 renameCollection
+      :<|>
+      runM3 setMetaData
+      :<|>
+      runM3 setMetaData1
+      :<|>
+      runM3 setRating
+      :<|>
+      runM3 setRating1
+      :<|>
+      runB2 snapshot          -- background action: save catalog
+      :<|>
+      runM1 syncCollection
+      :<|>
+      runM1 syncExif
+      :<|>
+      runM1 newSubCollections
+      :<|>
+      runM3 updateCheckSum
+      :<|>
+      runM3 updateTimeStamp
 
 ----------------------------------------
 
 main :: IO ()
 main = do
-  let env  = defaultAppEnv
+  let env  = defaultAppEnv  -- TODO dummy
 
   rvar  <- newTMVarIO emptyImgStore
   mvar  <- newTMVarIO emptyImgStore
@@ -109,6 +325,7 @@ main = do
   let runBQ :: CatApp a -> Handler ()
       runBQ = liftIO . runBG rvar qu env
 
+  -- load the catalog from json file
   runMody rvar mvar env initImgStore >>=
     either (die . (^. isoString) ) return
 

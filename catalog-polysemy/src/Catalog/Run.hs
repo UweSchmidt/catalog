@@ -3,6 +3,7 @@
     DataKinds,
     FlexibleContexts,
     GADTs,
+    OverloadedStrings,
     PolyKinds,
     RankNTypes,
     ScopedTypeVariables,
@@ -10,14 +11,6 @@
     TypeOperators,
     TypeFamilies
 #-} -- default extensions (only for emacs)
-
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
--- {-# LANGUAGE TemplateHaskell #-}
 
 ------------------------------------------------------------------------------
 --
