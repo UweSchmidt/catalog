@@ -16,6 +16,11 @@
 ------------------------------------------------------------------------------
 
 module Catalog.TextPath
+  ( buildImgPath
+  , buildImgPath0
+  , toSysPath
+  , path2SysPath
+  )
 where
 
 -- catalog-polysemy
@@ -63,15 +68,5 @@ toSysPath tp
 path2SysPath :: Path -> SemCE r SysTextPath
 path2SysPath p =
   toSysPath $ tailPath p ^. isoText
-
--- build a file system path from an internal image path
---
--- "/archive/photos/2016/emil"
--- -->
--- "<mountpath>/docs/exif-meta/photos/2016/emil.json"
-
-path2ExifSysPath :: Path -> SemCE r SysTextPath
-path2ExifSysPath ip =
-  toSysPath $ ps'exifcache ^. isoText <> tailPath ip ^. isoText <> ".json"
 
 ------------------------------------------------------------------------------

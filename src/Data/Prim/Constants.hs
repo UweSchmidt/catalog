@@ -65,6 +65,20 @@ p'photos       = p'collections `snocPath` n'photos
 p'clipboard    = p'collections `snocPath` n'clipboard
 p'trash        = p'collections `snocPath` n'trash
 
+p'assets
+  , p'html
+  , p'icons
+  , p'javascript
+  , p'css
+  , p'blank :: Path
+
+p'assets       = mkPath "/assets"
+p'html         = p'assets  `snocPath` "html"
+p'icons        = p'assets  `snocPath` "icons"
+p'javascript   = p'assets  `snocPath` "javascript"
+p'css          = p'assets  `snocPath` "css"
+p'blank        = p'icons   `snocPath` "blank.jpg"
+
 ps'archive
   , ps'collections
   , ps'bycreatedate
@@ -83,8 +97,7 @@ ps'archive
   , ps'docroot
   , ps'exifcache
   , ps'zipcache
-  , ps'gen'icon
-  , ps'movies :: FilePath
+  , ps'gen'icon :: FilePath
 
 ps'archive      = p'archive      ^. isoString
 ps'clipboard    = p'clipboard    ^. isoString
@@ -97,18 +110,17 @@ ps'bootstrap    = "/bootstrap"
 ps'cache        = "/cache"                               -- old url scheme
 ps'iconsgen     = ps'cache ++ ps'icons  </> "generated"  -- old url scheme
 
-ps'assets       = "/assets"
-ps'html         = ps'assets  </> "html"
-ps'icons        = ps'assets  </> "icons"
-ps'javascript   = ps'assets  </> "javascript"
-ps'css          = ps'assets  </> "css"
-ps'blank        = ps'icons   </> "blank.jpg"
+ps'assets       = p'assets     ^. isoString
+ps'html         = p'html       ^. isoString
+ps'icons        = p'icons      ^. isoString
+ps'javascript   = p'javascript ^. isoString
+ps'css          = p'css        ^. isoString
+ps'blank        = p'blank      ^. isoString
 
 ps'docroot      = "/docs"
 ps'exifcache    = ps'docroot </> "exif-meta"
 ps'zipcache     = ps'docroot </> "zip-cache"
 ps'gen'icon     = ps'docroot </> "generated/icon"
-ps'movies       = ps'docroot </> "movies/archive"
 
 -- ----------------------------------------
 

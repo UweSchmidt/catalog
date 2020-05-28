@@ -40,9 +40,8 @@ import Catalog.CatEnv          ( CatEnv
                                , appEnvCat
                                , appEnvPort
                                , catMountPath
-                               , catSyncDir
                                )
-import Catalog.Effects
+
 import Catalog.Effects.CatCmd
 import Catalog.Run             ( CatApp
                                , runRead
@@ -125,7 +124,7 @@ catalogServer env runReadC runModyC runBGC =
     mountPath = env ^. catMountPath . isoString
 
     static p = do
-      serveDirectoryWebApp (mountPath ++ p)
+      serveDirectoryWebApp (mountPath ++ p ^. isoString)
 
     bootstrap         = static ps'bootstrap
     assets'css        = static ps'css
@@ -138,28 +137,28 @@ catalogServer env runReadC runModyC runBGC =
     -- image object
     -- <syncdir> default is "photos"
 
-    get'movie         = static $ "/" ++ env ^. catSyncDir . isoString
+    get'movie         = static p'arch'photos
 
     -- root html files are located under /assets/html
 
     root'html :: BaseName HTMLStatic -> Handler LazyByteString
-    root'html bn = staticDoc (ps'html ^. isoText) bn
+    root'html bn = staticDoc p'html bn
 
     favicon'ico :: Handler LazyByteString
-    favicon'ico = staticDoc (ps'icons ^. isoText) bn
+    favicon'ico = staticDoc p'icons bn
       where
         bn :: BaseName ICO
         bn = BaseName "favicon.ico"
 
     rpc'js :: Handler LazyByteString
-    rpc'js = staticDoc (ps'javascript ^. isoText) bn
+    rpc'js = staticDoc p'javascript bn
       where
         bn :: BaseName JSStatic
         bn = BaseName "rpc-servant.js"
 
-    staticDoc :: TextPath -> BaseName a -> Handler LazyByteString
+    staticDoc :: Path -> BaseName a -> Handler LazyByteString
     staticDoc dirPath (BaseName n) =
-      runReadC $ staticFile dirPath n
+      runReadC $ staticFile (dirPath ^. isoText) n
 
     -- --------------------
 

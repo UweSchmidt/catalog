@@ -19,14 +19,12 @@ module Catalog.SyncWithFileSys
   ( Eff'Sync
   , syncDir
   , syncDirP
-  , syncDirPath
   , syncFS
   , syncNode
   , syncNewDirs
   )
 where
 
-import Catalog.CatEnv          ( catSyncDir )
 import Catalog.CopyRemove      ( cleanupColByPath
                                , cleanupAllRefs
                                , rmRec
@@ -65,11 +63,6 @@ type Eff'Sync r = ( EffIStore   r   -- any effects missing?
                   )
 
 -- ----------------------------------------
-
-syncDirPath :: Eff'Sync r => Sem r Path
-syncDirPath = do
-  p <- (^. catSyncDir) <$> ask
-  return (n'archive `consPath` p)
 
 allColEntries' :: Eff'ISEL r
                => Path -> Sem r ColEntrySet
@@ -119,18 +112,6 @@ allColEntries =
     imgA  _     _pts _md = return mempty
 
 
-{- currently not used
-
-trcColEntrySet :: EffIStore r
-               => ColEntrySet -> Sem r [(Path, Name)]
-trcColEntrySet cs =
-  traverse trcCE $ toListColEntrySet cs
-  where
-    trcCE = colEntry ir cr
-      where
-        ir i n = (, n)      <$> objid2path i
-        cr i   = (, mempty) <$> objid2path i
--}
 -- ----------------------------------------
 
 -- sync the whole photo archive with disk contents
@@ -154,7 +135,7 @@ syncDir = do
 
   -- get the dir path for the (sub-)dir to be synchronized
   -- and start sync
-  syncDirPath >>= syncDirP ts
+  syncDirP ts p'arch'photos
 
 syncDirP :: Eff'Sync r => TimeStamp -> Path -> Sem r ()
 syncDirP ts p = do

@@ -71,7 +71,6 @@ module Catalog.Cmd.Basic
     -- * file system path
   , toSysPath
   , path2SysPath
-  , path2ExifSysPath
 
     -- * ObjIds
   , filterObjIds
@@ -556,16 +555,6 @@ toSysPath fp           = toSysPath ('/' : fp)
 path2SysPath :: Path -> Cmd SysPath
 path2SysPath p =
   toSysPath $ tailPath p ^. isoString
-
--- build a file system path from an internal image path
---
--- "/archive/photos/2016/emil"
--- -->
--- "<mountpath>/docs/exif-meta/photos/2016/emil.json"
-
-path2ExifSysPath :: Path -> Cmd SysPath
-path2ExifSysPath ip =
-  toSysPath $ ps'exifcache ++ tailPath ip ^. isoString ++ ".json"
 
 -- --------------------
 
