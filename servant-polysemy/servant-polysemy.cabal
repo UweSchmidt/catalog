@@ -13,7 +13,8 @@ cabal-version:       >=1.10
 executable servant-polysemy
   hs-source-dirs:      app
   main-is:             Main.hs
-  other-modules:       API
+  other-modules:       APIf
+                       Options
 
   build-depends:       base >= 4.7
                      , async
@@ -25,6 +26,7 @@ executable servant-polysemy
                      , ghc-prim
                      , http-api-data
                      , http-media
+                     , optparse-applicative
                      , polysemy
                      , servant
                      , servant-blaze
@@ -35,6 +37,7 @@ executable servant-polysemy
                      , wai-app-static
                      , wai-logger
                      , warp
+                     
                      -- local libs
                      , catalog
                      , catalog-polysemy

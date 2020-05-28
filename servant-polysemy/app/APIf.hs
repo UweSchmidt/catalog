@@ -7,7 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 
-module API where
+module APIf where
 
 import Prelude ()
 import Prelude.Compat

@@ -13,9 +13,7 @@
     TypeFamilies
 #-} -- default extensions (only for emacs)
 
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
-
+------------------------------------------------------------------------
 
 module System.ExecProg
   ( -- Effect
@@ -42,7 +40,7 @@ import Polysemy.Logging
 import Control.Monad      (unless)
 import Data.ByteString    (ByteString)
 import Data.Text          (Text)
-import Data.Text.Encoding (encodeUtf8, decodeUtf8')
+import Data.Text.Encoding (encodeUtf8) -- , decodeUtf8')
 import System.Exit
 
 
@@ -93,7 +91,7 @@ systemProcess mkExc =
   interpret $
   \ c -> case c of
     ExecProg prg args inp -> do
-      exec mkExc prg args inp
+      BS.pack <$> exec mkExc prg args inp
 
     ExecProgText prg args inp -> do
       execText mkExc prg args inp
@@ -112,7 +110,7 @@ exec :: forall exc r.
         , Member Logging r
         )
      => (IOException -> exc)
-     -> ProgPath -> [Text] -> ByteString -> Sem r ByteString
+     -> ProgPath -> [Text] -> ByteString -> Sem r String
 exec mkExc prg args inp = do
   let prg'  =     T.unpack prg
       args' = map T.unpack args
@@ -129,8 +127,10 @@ exec mkExc prg args inp = do
     embedExc mkExc $
     X.readProcessWithExitCode prg' args' inp'
 
-  let out = BS.pack out'
-      err = T.pack err'
+  log'dbg $ T.pack out'
+
+  let out = out' -- BS.pack out'
+  let err = T.pack err'
 
   case rc of
     ExitSuccess -> do
@@ -153,11 +153,14 @@ execText :: forall exc r.
          -> ProgPath -> [Text] -> Text -> Sem r Text
 execText mkExc prog args inp = do
   res <- exec mkExc prog args (encodeUtf8 inp)
+  return $ T.pack res
+
+{-
   case decodeUtf8' res of
     Left  e -> do
       throw @exc $
         mkExc (EX.userError $ "exec: unicode decode error " ++ show e)
 
     Right t -> return t
-
+-}
 ------------------------------------------------------------------------------

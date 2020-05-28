@@ -45,7 +45,7 @@ optVerb =
   flag' LogVerb
   ( long "verbose"
     <> short 'v'
-    <> help "verbose output"
+    <> help "Verbose output"
   )
 
 optTrc :: Parser LogLevel
@@ -53,14 +53,14 @@ optTrc =
   flag' LogTrc
   ( long "trace"
     <> short 't'
-    <> help "verbose and trace output"
+    <> help "Verbose and trace output"
   )
 
 optDbg :: Parser LogLevel
 optDbg =
   flag' LogDbg
   ( long "debug"
-    <> help "verbose, trace and debug output"
+    <> help "Verbose, trace and debug output"
   )
 
 optLogLevel :: Parser LogLevel

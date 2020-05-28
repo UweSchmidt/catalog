@@ -29,6 +29,7 @@ where
 
 -- polysemy and polysemy-tools
 import Polysemy
+import Polysemy.Consume.BGQueue
 import Polysemy.State.RunTMVar
 import System.ExecProg
 
@@ -48,8 +49,11 @@ import Data.ImageStore (ImgStore, emptyImgStore)
 import Control.Concurrent.STM (atomically)
 import Control.Concurrent.STM.TMVar
 import Control.Concurrent.STM.TChan
+import System.IO (stderr, hFlush)
 
 import qualified Control.Exception as Ex
+import qualified Data.Text         as T
+import qualified Data.Text.IO      as T
 
 ------------------------------------------------------------------------------
 
@@ -74,6 +78,8 @@ runApp ims env =
   runM
   . runState ims
   . runError @Text
+  . logToStdErr
+  . logWithLevel (env ^. appEnvLogLevel)
   . runLogEnvFS env
 
 r :: CatApp a -> IO (ImgStore, Either Text a)
@@ -84,13 +90,15 @@ r = runApp emptyImgStore defaultAppEnv
 -- run on server side: catalog reading command
 
 runRead :: TMVar ImgStore
+        -> TChan Job
         -> AppEnv
         -> CatApp a
         -> IO (Either Text a)
-runRead var env =
+runRead var logQ env =
   runM
   . evalStateTMVar  var
   . runError        @Text
+  . runLogging      logQ (env ^. appEnvLogLevel)
   . runLogEnvFS     env
 
 {-# INLINE runRead #-}
@@ -101,13 +109,15 @@ runRead var env =
 
 runMody :: TMVar ImgStore
         -> TMVar ImgStore
+        -> TChan Job
         -> AppEnv
         -> CatApp a
         -> IO (Either Text a)
-runMody rvar mvar env =
+runMody rvar mvar logQ env =
   runM' mvar
   . modifyStateTMVar rvar mvar
   . runError        @Text
+  . runLogging      logQ (env ^. appEnvLogLevel)
   . runLogEnvFS     env
 
 {-# INLINE runMody #-}
@@ -134,20 +144,22 @@ runM' var cmd =
 
 runBG :: TMVar ImgStore
       -> TChan Job
+      -> TChan Job
       -> AppEnv
       -> CatApp a
       -> IO ()
-runBG var qu env =
+runBG var qu logQ env =
   runM
   . evalStateTChan var qu
   . runError       @Text
+  . runLogging     logQ (env ^. appEnvLogLevel)
   . runLogEnvFS    env
 
 --------------------
 --
 -- common run parts
 
-runLogEnvFS :: (EffError r, EffIStore r, Member (Embed IO) r)
+runLogEnvFS :: (EffError r, EffIStore r, EffLogging r, Member (Embed IO) r)
             => AppEnv
             -> Sem (CatCmd
                     : ExecProg
@@ -155,13 +167,11 @@ runLogEnvFS :: (EffError r, EffIStore r, Member (Embed IO) r)
                     : Time
                     : Reader CatEnv
                     : Consume JournalP
-                    : Logging
                     : r
                    ) a
-            -> Sem r a
+            -> Sem  r a
 runLogEnvFS env =
-  runLogging        (env ^. appEnvLogLevel)
-  . runJournal      (env ^. appEnvJournal)
+  runJournal        (env ^. appEnvJournal)
   . runReader       @CatEnv (env ^. appEnvCat)
   . runOS
   . evalCatCmd
@@ -170,11 +180,15 @@ runLogEnvFS env =
 
 
 runLogging :: (Member (Embed IO) r)
-           => LogLevel
+           => BGQueue
+           -> LogLevel
            -> Sem (Logging ': r) a
            -> Sem r a
-runLogging lev =
-  logToStdErr
+runLogging logQ lev =
+  writeToBGQueue logQ
+     (\ t -> do T.hPutStrLn stderr $ logMsgToText t
+                hFlush stderr
+     )
   . logWithLevel lev
 
 {-# INLINE runLogging #-}

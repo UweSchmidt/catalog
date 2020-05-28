@@ -36,13 +36,14 @@ import Polysemy.State.RunTMVar (createJobQueue)
 -- catalog-polysemy
 import Catalog.CatalogIO       (initImgStore)
 import Catalog.CatEnv          ( CatEnv
-                               , defaultAppEnv
                                , appEnvCat
                                , appEnvPort
                                , catMountPath
+                               , catFontName
                                )
 
 import Catalog.Effects.CatCmd
+import Catalog.GenImages       ( selectFont )
 import Catalog.Run             ( CatApp
                                , runRead
                                , runMody
@@ -71,7 +72,8 @@ import Network.Wai.Logger      ( withStdoutLogger )
 
 
 -- servant interface
-import API
+import APIf
+import Options
 
 ------------------------------------------------------------------------------
 
@@ -309,24 +311,40 @@ catalogServer env runReadC runModyC runBGC =
 
 main :: IO ()
 main = do
-  let env  = defaultAppEnv  -- TODO dummy
+  env   <- serverOptions
+  logQ  <- createJobQueue
 
   rvar  <- newTMVarIO emptyImgStore
   mvar  <- newTMVarIO emptyImgStore
   qu    <- createJobQueue
 
   let runRC :: CatApp a -> Handler a
-      runRC = ioeither2Handler . runRead rvar env
+      runRC = ioeither2Handler . runRead rvar logQ env
 
   let runMC :: CatApp a -> Handler a
-      runMC = ioeither2Handler . runMody rvar mvar env
+      runMC = ioeither2Handler . runMody rvar mvar logQ env
 
   let runBQ :: CatApp a -> Handler ()
-      runBQ = liftIO . runBG rvar qu env
+      runBQ = liftIO . runBG rvar qu logQ env
+
+  -- set the fontname to be used when
+  -- generating icons from text
+
+  env1 <- do
+    efn <- runRead rvar logQ env selectFont
+    return $
+      either
+      (const env)
+      (\ fn -> env & appEnvCat . catFontName .~ fn)
+      efn
 
   -- load the catalog from json file
-  runMody rvar mvar env initImgStore >>=
-    either (die . (^. isoString) ) return
+  do
+    eres <-runMody rvar mvar logQ env1 initImgStore
+    either
+      (die . (^. isoString))    -- no catalog loaded
+      return
+      eres
 
   -- start servant server
   withStdoutLogger $ \logger -> do
@@ -336,7 +354,7 @@ main = do
 
     runSettings settings $
       serve (Proxy :: Proxy CatalogAPI) $
-      catalogServer (env ^. appEnvCat) runRC runMC runBQ
+      catalogServer (env1 ^. appEnvCat) runRC runMC runBQ
 
 
 ioeither2Handler :: IO (Either Text a) -> Handler a

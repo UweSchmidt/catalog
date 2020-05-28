@@ -23,7 +23,7 @@ optJournal =
   switch
   ( long "journal"
     <> short 'j'
-    <> help "Turn on journaling archive changes"
+    <> help "Turn on journaling of archive changes"
   )
 
 optMountPath :: Parser Text

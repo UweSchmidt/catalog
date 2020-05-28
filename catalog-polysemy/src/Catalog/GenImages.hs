@@ -377,14 +377,22 @@ similarAspectRatio (Geo sw sh) (Geo dw dh) =
 
 -- ----------------------------------------
 
-selectFont :: Eff'Img r => Sem r Text
+selectFont :: ( EffExecProg r
+              , EffError r
+              , EffLogging r
+              )
+           => Sem r Text
 selectFont =
   catch @Text (sel <$> fontList) (const $ return mempty)
   where
     sel flist = head $ filter (`elem` flist) fs <> mempty
     fs        = ["ComicSans", "Helvetica"]
 
-fontList :: Eff'Img r => Sem r [Text]
+fontList :: ( EffExecProg r
+            , EffError r
+            , EffLogging r
+            )
+         => Sem r [Text]
 fontList = T.lines <$> execScript shellCmd
   where
     shellCmd =

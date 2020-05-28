@@ -33,7 +33,9 @@ where
 import Polysemy
 import Polysemy.State
 
-import           Data.Text    (Text)
+import System.IO    (stdout, hFlush)
+import Data.Text    (Text)
+
 import qualified Data.Text.IO as T
 
 ------------------------------------------------------------------------------
@@ -66,7 +68,7 @@ consumeIO toIO =
 
 writelnToStdout :: Member (Embed IO) r
                 => InterpreterFor (Consume Text) r
-writelnToStdout = consumeIO T.putStrLn
+writelnToStdout = consumeIO (\ t -> T.putStrLn t >> hFlush stdout)
 
 {-# INLINE consumeIO #-}
 {-# INLINE writelnToStdout #-}
