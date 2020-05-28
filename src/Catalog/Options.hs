@@ -67,7 +67,8 @@ envp = mkEnv
         <> help "The port listened at by the catalog server"
         <> showDefault
         <> value 3001
-        <> metavar "PORT" )
+        <> metavar "PORT"
+      )
   <*> strOption
       ( long "archive"
         <> short 'a'

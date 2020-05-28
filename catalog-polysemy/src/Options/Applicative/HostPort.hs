@@ -1,3 +1,7 @@
+----------------------------------------
+--
+-- option parsers for Host and Port
+
 module Options.Applicative.HostPort
   ( optHost
   , optPort

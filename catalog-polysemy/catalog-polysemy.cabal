@@ -43,6 +43,7 @@ library
 
                       Options.Applicative.HostPort
                       Options.Applicative.LogLevel
+                      Options.Applicative.CatEnv
                       
                       Paths_catalog_polysemy
 
