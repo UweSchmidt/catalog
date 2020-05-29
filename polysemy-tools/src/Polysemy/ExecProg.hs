@@ -15,7 +15,7 @@
 
 ------------------------------------------------------------------------
 
-module System.ExecProg
+module Polysemy.ExecProg
   ( -- Effect
     ExecProg (..)
 

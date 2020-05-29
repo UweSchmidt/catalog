@@ -23,7 +23,7 @@ where
 import Polysemy
 
 -- polysemy-tools
-import System.HttpRequest
+import Polysemy.HttpRequest.SimpleRequests
        ( HttpEffects
        , getReq
        , argJSONReq

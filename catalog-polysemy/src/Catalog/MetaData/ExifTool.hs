@@ -25,7 +25,7 @@ import Catalog.Effects
 import Data.MetaData
 import Data.Prim
 
-import System.ExecProg (execProg)
+import Polysemy.ExecProg (execProg)
 
 import qualified Data.Aeson as J
 import qualified Data.Text  as T

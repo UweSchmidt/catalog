@@ -98,7 +98,7 @@ import Data.Prim
 
 import Catalog.CatEnv  (CatEnv)
 
-import System.ExecProg (ExecProg)
+import Polysemy.ExecProg (ExecProg)
 
 ------------------------------------------------------------------------------
 

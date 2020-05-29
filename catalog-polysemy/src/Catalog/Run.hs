@@ -31,28 +31,28 @@ where
 import Polysemy
 import Polysemy.Consume.BGQueue
 import Polysemy.State.RunTMVar
-import System.ExecProg
+import Polysemy.ExecProg
 
 -- catalog-polysemy
 import Catalog.CatEnv
 import Catalog.Effects
 import Catalog.Effects.CatCmd
 import Catalog.Effects.CatCmd.Interpreter
-import Catalog.Journal (journalToStdout, journalToDevNull)
+import Catalog.Journal              (journalToStdout, journalToDevNull)
 
 -- catalog
 import Data.Prim
-import Data.Journal    (JournalP)
-import Data.ImageStore (ImgStore, emptyImgStore)
+import Data.Journal                 (JournalP)
+import Data.ImageStore              (ImgStore, emptyImgStore)
 
 -- libs
-import Control.Concurrent.STM (atomically)
+import Control.Concurrent.STM       (atomically)
 import Control.Concurrent.STM.TMVar
 import Control.Concurrent.STM.TChan
-import System.IO (stderr, hFlush)
+import System.IO                    (stderr, hFlush)
 
 import qualified Control.Exception as Ex
-import qualified Data.Text         as T
+import qualified Data.Text         as T ()
 import qualified Data.Text.IO      as T
 
 ------------------------------------------------------------------------------

@@ -39,7 +39,7 @@ import Catalog.MetaData.ExifTool (getExifMetaData)
 import Catalog.TextPath          (toSysPath)
 
 -- polysemy-tools
-import System.ExecProg           (execProgText, execScript)
+import Polysemy.ExecProg           (execProgText, execScript)
 
 -- catalog modules
 import Data.MetaData             (getOrientation)

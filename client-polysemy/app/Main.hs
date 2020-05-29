@@ -21,7 +21,7 @@ import Polysemy.Consume
 import Polysemy.FileSystem
 import Polysemy.HttpRequest
 import Polysemy.Logging
-import System.HttpRequest
+import Polysemy.HttpRequest.SimpleRequests
 
 -- client-polysemy
 import Catalog.Effects.CatCmd.ClientInterpreter

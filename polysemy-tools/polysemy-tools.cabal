@@ -16,19 +16,16 @@ source-repository head
 
 library
   exposed-modules:
-                      -- effexts for system functions
-                  System.ExecProg
-                  System.HttpRequest
-                      
                       -- own Polysemy effects
                   Polysemy.Consume
                   Polysemy.Consume.BGQueue
                   Polysemy.EmbedExc
+                  Polysemy.ExecProg
                   Polysemy.FileSystem
                   Polysemy.HttpRequest
+                  Polysemy.HttpRequest.SimpleRequests
                   Polysemy.Logging
                   Polysemy.State.RunTMVar
-                  
                   Polysemy.Time
                       
                   Paths_polysemy_tools

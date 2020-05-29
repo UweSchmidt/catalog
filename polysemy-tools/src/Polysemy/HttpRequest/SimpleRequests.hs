@@ -13,10 +13,9 @@
     TypeFamilies
 #-} -- default extensions (only for emacs)
 
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
+------------------------------------------------------------------------
 
-module System.HttpRequest
+module Polysemy.HttpRequest.SimpleRequests
   (
     -- * common HTTP request variants
     basicReq

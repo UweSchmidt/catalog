@@ -35,7 +35,7 @@ import Catalog.TextPath       (toSysPath)
 import Catalog.TimeStamp      (nowAsIso8601)
 
 -- polysemy-tools
-import System.ExecProg        (execScript)
+import Polysemy.ExecProg        (execScript)
 
 -- catalog modules
 import Catalog.Version        (version, date)
