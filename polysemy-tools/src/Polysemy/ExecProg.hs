@@ -40,14 +40,13 @@ import Polysemy.Logging
 import Control.Monad      (unless)
 import Data.ByteString    (ByteString)
 import Data.Text          (Text)
-import Data.Text.Encoding (encodeUtf8) -- , decodeUtf8')
 import System.Exit
 
-
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.Text             as T
-import qualified System.IO.Error       as EX
-import qualified System.Process        as X
+import qualified Data.ByteString.Char8     as BS
+import qualified Data.Text                 as T
+import qualified System.IO.Error           as EX
+import qualified System.Process.ByteString as XBS
+import qualified System.Process.Text       as XT
 
 ------------------------------------------------------------------------------
 --
@@ -91,7 +90,7 @@ systemProcess mkExc =
   interpret $
   \ c -> case c of
     ExecProg prg args inp -> do
-      BS.pack <$> exec mkExc prg args inp
+      execByteString mkExc prg args inp
 
     ExecProgText prg args inp -> do
       execText mkExc prg args inp
@@ -103,46 +102,48 @@ systemProcess mkExc =
 
 {-# INLINE systemProcess #-}
 
+-- run process with binary IO, stdin and stdout as ByteString
 
-exec :: forall exc r.
-        ( Member (Embed IO) r
-        , Member (Error exc) r
-        , Member Logging r
-        )
-     => (IOException -> exc)
-     -> ProgPath -> [Text] -> ByteString -> Sem r String
-exec mkExc prg args inp = do
+execByteString :: forall exc r.
+                  ( Member (Embed IO) r
+                  , Member (Error exc) r
+                  , Member Logging r
+                  )
+               => (IOException -> exc)
+               -> ProgPath
+               -> [Text]
+               -> ByteString
+               -> Sem r ByteString
+execByteString mkExc prg args inp = do
   let prg'  =     T.unpack prg
       args' = map T.unpack args
-      inp'  =     BS.unpack inp
 
   log'trc $
     untext $ ["exec:", prg]
              <> args
-             <> if null inp'
+             <> if BS.null inp
                 then mempty
-                else [", stdin: " <> T.pack inp']
+                else [", stdin: " <> bs2text inp]
 
-  (rc, out', err') <-
+  (rc, out, err) <-
     embedExc mkExc $
-    X.readProcessWithExitCode prg' args' inp'
+    XBS.readProcessWithExitCode prg' args' inp
 
-  log'dbg $ T.pack out'
+  log'dbg $ bs2text out
 
-  let out = out' -- BS.pack out'
-  let err = T.pack err'
-
+  let err' = bs2text err
   case rc of
     ExitSuccess -> do
-      unless (T.null err) $
-        log'warn err
+      unless (BS.null err) $
+        log'warn $ err'
       return out
 
     ExitFailure rcn -> do
-      log'err err
+      log'err err'
       throw @exc $
         mkExc (EX.userError $ "exec: rc = " ++ show rcn)
 
+----------------------------------------
 
 execText :: forall exc r.
             ( Member (Embed IO) r
@@ -150,17 +151,41 @@ execText :: forall exc r.
             , Member Logging r
             )
          => (IOException -> exc)
-         -> ProgPath -> [Text] -> Text -> Sem r Text
-execText mkExc prog args inp = do
-  res <- exec mkExc prog args (encodeUtf8 inp)
-  return $ T.pack res
+         -> ProgPath
+         -> [Text]
+         -> Text
+         -> Sem r Text
+execText mkExc prg args inp = do
+  let prg'  =     T.unpack prg
+      args' = map T.unpack args
 
-{-
-  case decodeUtf8' res of
-    Left  e -> do
+  log'trc $
+    untext $ ["exec:", prg]
+             <> args
+             <> if T.null inp
+                then mempty
+                else [", stdin: " <> inp]
+
+  (rc, out, err) <-
+    embedExc mkExc $
+    XT.readProcessWithExitCode prg' args' inp
+
+  log'dbg out
+
+  case rc of
+    ExitSuccess -> do
+      unless (T.null err) $
+        log'warn $ err
+      return out
+
+    ExitFailure rcn -> do
+      log'err err
       throw @exc $
-        mkExc (EX.userError $ "exec: unicode decode error " ++ show e)
+        mkExc (EX.userError $ "exec: rc = " ++ show rcn)
 
-    Right t -> return t
--}
+----------------------------------------
+
+bs2text :: ByteString -> Text
+bs2text = T.pack . BS.unpack
+
 ------------------------------------------------------------------------------

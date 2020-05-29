@@ -482,7 +482,7 @@ genReqImg :: Eff'Img r
           => Req'IdNode'ImgRef a -> Sem r TextPath
 genReqImg r = do
   sp <- toSourcePath r
-  log'trc $ "genReqIcon sp=" <> sp
+  log'trc $ "genReqImg sp=" <> sp
 
   ip <- toCachedImgPath r
   case ity of

@@ -59,7 +59,7 @@ library
                , http-client
                , http-types
                , polysemy             >= 1.2.3
-               , process
+               , process-extras
                , stm
                , text
                , unix

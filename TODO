@@ -1,0 +1,14 @@
+!! TODO
+
+* reimplement Path as reversed list of dir and file names
+
+* cleanup TextPath and substitute TextPath with Path
+  toSysPath :: Path -> Cmd TextPath
+  with mountPath as prefix
+
+* store blog entry data in catalog instead of external files
+  => remove .md and .txt files from catalog, simplifies sync
+
+* getOrientation eliminieren oder einfacher machen,
+  z.B. mit getImgSize zusammen fassen
+  
