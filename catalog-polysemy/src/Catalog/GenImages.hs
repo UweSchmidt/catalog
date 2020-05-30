@@ -21,7 +21,6 @@ module Catalog.GenImages
   , getThumbnailImage
   , createResizedImage
   , genIcon
-  , genAssetIcon
   , genBlogText
   , genBlogHtml
   , writeBlogText
@@ -60,22 +59,6 @@ type Eff'Img r = ( EffIStore   r   -- any effects missing?
                  )
 
 -- ----------------------------------------
-
-genAssetIcon :: ( EffIStore   r
-                , EffError    r
-                , EffLogging  r
-                , EffCatEnv   r
-                , EffExecProg r
-                , EffFileSys  r
-                )
-             => Text -> Text -> Sem r (Maybe TextPath)
-genAssetIcon px s = do
-  log'trc $ msgPath dstPath "genAssetIcon: text=" <> s <> ", path="
-  genIcon dstPath s   -- call convert with string s, please no "/"-es in s
-  return $ Just (dstPath ^. isoText)
-  where
-    dstPath :: Path
-    dstPath = p'gen'icon `snocPath` (isoText # (px <> ".jpg"))
 
 genIcon :: ( EffIStore   r
            , EffError    r
