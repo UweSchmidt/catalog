@@ -21,7 +21,7 @@ module Catalog.MetaData.ExifTool
 where
 
 import Catalog.Effects
-
+import Catalog.TextPath  (toFileSysPath)
 import Data.MetaData
 import Data.Prim
 
@@ -33,13 +33,15 @@ import qualified Data.Text  as T
 -- ----------------------------------------
 
 getExifMetaData :: ( EffExecProg r
+                   , EffCatEnv   r
                    , EffFileSys  r
                    , EffLogging  r
                    , EffError    r
                    )
-                => SysTextPath
+                => Path
                 -> Sem r MetaData
-getExifMetaData sp = do
+getExifMetaData srcPath = do
+  p <- toFileSysPath srcPath
   ex <- fileExist p
   if ex
     then do
@@ -49,7 +51,7 @@ getExifMetaData sp = do
       log'warn $ "exiftool: file not found: " <> p
       return mempty
   where
-    p = sp ^. isoTextPath
+    -- p = sp ^. isoTextPath
 
 callExifProg :: ( EffExecProg r
                 , EffError    r

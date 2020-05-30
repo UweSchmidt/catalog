@@ -24,7 +24,6 @@ import Catalog.Effects
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
 import Catalog.MetaData.ExifTool (getExifMetaData)
-import Catalog.TextPath
 import Catalog.TimeStamp
 
 import Data.ImgNode
@@ -52,19 +51,16 @@ getMDpart :: ( EffCatEnv   r
           -> Path
           -> ImgPart
           -> Sem r MetaData
-getMDpart p ip pt
-  | p $ pt ^. theImgType  = do
-      sp <- path2SysPath (substPathName tn ip)
-      log'trc $ "getMDpart: update metadata with " <> toText sp
-      m2 <- filterMetaData ty <$> getExifMetaData sp
-      log'trc $ "getMDpart: metadata= " <> toText m2
-      return m2
+getMDpart p imgPath pt
+  | p $ pt ^. theImgType =
+      filterMetaData ty <$> getExifMetaData partPath
+
   | otherwise =
       return mempty
   where
-    ty = pt ^. theImgType
-    tn = pt ^. theImgName
-
+    ty       = pt ^. theImgType
+    tn       = pt ^. theImgName
+    partPath = substPathName tn . tailPath $ imgPath
 
 setMD :: ( EffIStore   r   -- any effects missing?
          , EffError    r

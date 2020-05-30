@@ -31,8 +31,10 @@ module Data.MetaData
 
   , getCreateMeta
   , getFileName
-  , getOrientation
   , getGPSposDeg
+  , getImageGeoOri
+  , getImageGeo
+  , getOrientation
 
   , Rating
   , mkRating
@@ -447,9 +449,18 @@ getFileName md =
   md ^. metaDataAt fileFileName . isoMaybe
 {-# INLINE getFileName #-}
 
+getImageGeoOri :: MetaData -> (Geo, Int)
+getImageGeoOri = getImageGeo &&& getOrientation
+
+getImageGeo :: MetaData -> Geo
+getImageGeo md =
+  md ^. metaDataAt compositeImageSize . to toGeo
+  where
+    toGeo sz = fromMaybe geo'org (readGeo'' $ sz ^. isoString)
+
 getOrientation :: MetaData -> Int
 getOrientation md =
-  md ^. metaDataAt "EXIF:Orientation" . to toOri
+  md ^. metaDataAt exifOrientation . to toOri
   where
     toOri :: Text -> Int
     toOri t

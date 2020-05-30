@@ -12,3 +12,4 @@
 * getOrientation eliminieren oder einfacher machen,
   z.B. mit getImgSize zusammen fassen
   
+* StaticFile: change type to:  Path -> StaticFile m LazyByteString 

@@ -18,7 +18,6 @@
 module Catalog.GenImages
   ( Eff'Img
 
-  , getImageSize
   , getThumbnailImage
   , createResizedImage
   , genIcon
@@ -36,15 +35,14 @@ where
 import Catalog.Effects
 import Catalog.CatEnv            (CatEnv, catFontName)
 import Catalog.MetaData.ExifTool (getExifMetaData)
-import Catalog.TextPath          (toSysPath)
+import Catalog.TextPath          (toFileSysPath)
 
 -- polysemy-tools
-import Polysemy.ExecProg           (execProgText, execScript)
+import Polysemy.ExecProg         (execProgText, execScript)
 
 -- catalog modules
-import Data.MetaData             (getOrientation)
+import Data.MetaData             (getImageGeoOri)
 import Data.Prim
-import Data.TextPath             ((<//>), takeDir)
 
 -- libraries
 
@@ -72,11 +70,12 @@ genAssetIcon :: ( EffIStore   r
                 )
              => Text -> Text -> Sem r (Maybe TextPath)
 genAssetIcon px s = do
-  log'trc $ "genAssetIcon: " <> f <> " " <> s
-  genIcon f s   -- call convert with string s, please no "/"-es in s
-  return $ Just f
+  log'trc $ msgPath dstPath "genAssetIcon: text=" <> s <> ", path="
+  genIcon dstPath s   -- call convert with string s, please no "/"-es in s
+  return $ Just (dstPath ^. isoText)
   where
-    f = ps'iconsgen ^. isoText <//> px <> ".jpg"
+    dstPath :: Path
+    dstPath = p'gen'icon `snocPath` (isoText # (px <> ".jpg"))
 
 genIcon :: ( EffIStore   r
            , EffError    r
@@ -85,9 +84,9 @@ genIcon :: ( EffIStore   r
            , EffExecProg r
            , EffFileSys  r
            )
-        => TextPath -> Text -> Sem r ()
+        => Path -> Text -> Sem r ()
 genIcon path t = do
-  dst  <- (^. isoTextPath) <$> toSysPath path
+  dst  <- toFileSysPath path
   dx   <- fileExist dst
   env  <- ask @CatEnv
   let fontOpt f
@@ -95,10 +94,11 @@ genIcon path t = do
         | otherwise = "-font " <> f
   let fopt = fontOpt (env ^. catFontName)
 
-  log'trc $ T.unwords ["genIcon", path, t, dst, toText dx]
+  log'trc $ T.unwords ["genIcon", path ^. isoText, t, dst, toText dx]
 
   unless dx $ do
-    createDir (takeDir dst)
+    dir <- toFileSysPath (path ^. viewBase . _1)
+    createDir dir
     log'verb $ shellCmd dst fopt
     void $ execScript (shellCmd dst fopt)
 
@@ -146,10 +146,10 @@ genIcon path t = do
 
 -- ----------------------------------------
 
-getThumbnailImage :: Eff'Img r => TextPath -> TextPath -> Sem r ()
+getThumbnailImage :: Eff'Img r => Path -> Path -> Sem r ()
 getThumbnailImage src dst = do
-  sp <- (^. isoTextPath) <$> toSysPath src
-  dp <- (^. isoTextPath) <$> toSysPath dst
+  sp <- toFileSysPath src
+  dp <- toFileSysPath dst
   extractImage sp dp
     `catch`
     ( \ e -> do
@@ -177,33 +177,14 @@ getThumbnailImage src dst = do
 
 -- ----------------------------------------
 
-getImageSize    :: (Eff'ISEL r, EffCatEnv r, EffExecProg r) => TextPath -> Sem r Geo
-getImageSize fp = do
-  sp <- (^. isoTextPath) <$> toSysPath fp
-  sz <- execImageSize sp
-  return $ fromMaybe geo'org (readGeo'' $ sz ^. isoString)
-    where
-
-      execImageSize :: (Eff'ISEL r, EffExecProg r) => TextPath -> Sem r Text
-      execImageSize sp =
-        catch @Text
-        ( execProgText "exiftool" ["-s", "-ImageSize", sp] mempty )
-        ( const $ do
-            log'warn $ "getImageSize: size couldn't be determined for image " <> sp
-            return ""
-        )
-
--- ----------------------------------------
-
-createResizedImage :: Eff'Img r => GeoAR -> TextPath -> TextPath -> Sem r ()
+createResizedImage :: Eff'Img r => GeoAR -> Path -> Path -> Sem r ()
 createResizedImage d'geo src dst = do
-  sp0   <-  toSysPath src
-  let sp = sp0 ^. isoTextPath
-  dp    <- (^. isoTextPath) <$> toSysPath dst
-  ori   <- getOrientation   <$> getExifMetaData sp0
-  s'geo <- getImageSize src
+  sp           <- toFileSysPath src
+  dp           <- toFileSysPath dst
+  (s'geo, ori) <- getImageGeoOri <$> getExifMetaData src
   createResized ori s'geo sp dp
   where
+
     createResized :: Eff'Img r => Int -> Geo -> TextPath -> TextPath -> Sem r ()
     createResized rot s'geo sp dp
 
@@ -405,14 +386,14 @@ genBlogText :: ( EffIStore   r
                , EffLogging  r
                , EffCatEnv   r
                , EffFileSys  r
-               ) => TextPath -> Sem r Text
+               ) => Path -> Sem r Text
 genBlogText src = do
-  sp  <- (^. isoTextPath) <$> toSysPath src
+  sp  <- toFileSysPath src
   dx  <- fileExist sp
-  log'trc $ T.unwords ["genBlogText", src, toText dx]
+  log'trc $ T.unwords ["genBlogText", sp, toText dx]
   if dx
     then readFileT sp
-    else return $ "no file found for blog text: " <> src
+    else return $ "no file found for blog text: " <> src ^. isoText
 
 genBlogHtml :: ( EffIStore   r
                , EffError    r
@@ -421,14 +402,14 @@ genBlogHtml :: ( EffIStore   r
                , EffExecProg r
                , EffFileSys  r
                )
-            => TextPath -> Sem r Text
+            => Path -> Sem r Text
 genBlogHtml src = do
-  sp  <- (^. isoTextPath) <$> toSysPath src
+  sp  <- toFileSysPath src
   dx  <- fileExist sp
-  log'trc $ T.unwords ["genBlogText", src, toText dx]
+  log'trc $ T.unwords ["genBlogText", sp, toText dx]
   if dx
     then formatBlogText sp
-    else return $ "no file found for blog text: " <> src
+    else return $ "no file found for blog text: " <> src ^. isoText
 
 formatBlogText :: ( EffError    r
                   , EffLogging  r
@@ -443,9 +424,9 @@ writeBlogText :: ( EffIStore   r
                  , EffCatEnv   r
                  , EffFileSys  r
                  )
-              => Text -> TextPath -> Sem r ()
+              => Text -> Path -> Sem r ()
 writeBlogText t dst = do
-  dp <- (^. isoTextPath) <$> toSysPath dst
+  dp <- toFileSysPath dst
   writeFileT dp t
 
 ------------------------------------------------------------------------

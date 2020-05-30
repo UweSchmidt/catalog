@@ -38,6 +38,7 @@ import Data.MetaData                  ( MetaData
                                       , descrSubtitle
                                       , descrTitle
                                       , fileRefJpg
+                                      , getImageGeo
                                       , getRating
                                       , imgRating
                                       )
@@ -59,13 +60,13 @@ import Catalog.GenImages              ( Eff'Img
                                       , createResizedImage
                                       , genIcon
                                       , genBlogHtml
-                                      , getImageSize
                                       , getThumbnailImage
                                       , resizeGeo'
                                       )
 import Catalog.Html                   ( isPano )
 import Catalog.ImgTree.Access
-import Catalog.TextPath               ( toSysPath )
+import Catalog.MetaData.ExifTool      ( getExifMetaData )
+import Catalog.TextPath               ( toFileSysPath )
 import Catalog.TimeStamp              ( nowAsIso8601 )
 
 -- libraries
@@ -277,11 +278,13 @@ toImgMeta r =
 -- handle an img/icon request
 
 processReqImg' :: (Eff'Img r, EffNonDet r)
-               => Req' a -> Sem r TextPath
+               => Req' a -> Sem r Path
 processReqImg' r0 = do
   r1 <- normAndSetIdNode r0
-  let dp = toUrlPath r1
-  log'trc $ "processReqImg: " <> dp
+
+  let dstPath = toUrlPath'' r1
+
+  log'trc $ msgPath dstPath "processReqImg: "
 
   case r1 ^. rPos of
     -- create an icon from a media file
@@ -297,8 +300,8 @@ processReqImg' r0 = do
            genReqImg r2
       )
       <|>
-      ( do _ <- createIconFromObj r1 dp
-           return dp
+      ( do _ <- createIconFromObj r1 dstPath
+           return $ dstPath
       )
 
 -- ----------------------------------------
@@ -326,7 +329,7 @@ processReqPage' r0 = do
 -- main entry points
 
 processReqImg  :: (Eff'Img r)
-               => Req' a -> Sem r TextPath
+               => Req' a -> Sem r Path
 processReqImg  = processReq processReqImg'
 
 processReqPage :: (Eff'Img r)
@@ -371,8 +374,11 @@ toRawPath r =
 --          /page/1920x1200/archive/pictures/abc.html
 
 toUrlPath :: Req' a -> TextPath
-toUrlPath r0 =
-  (dr `concPath` px `consPath` fp) ^. isoText  --  ^. isoText <> toUrlExt ty
+toUrlPath r0 = toUrlPath'' r0 ^. isoText
+
+toUrlPath'' :: Req' a -> Path
+toUrlPath'' r0 =
+  dr `concPath` px `consPath` fp
   where
     r   = unifyIconPath r0
     ty  = r ^. rType
@@ -402,10 +408,8 @@ toUrlPath' r
 toUrlImgPath :: EffIStore r => Req'IdNode'ImgRef a -> Sem r TextPath
 toUrlImgPath r = do
   ip <- toSourcePath r
-  return $ (dr `concPath` px `consPath` ar) ^. isoText <> ip
+  return $ (p'docroot `concPath` px `consPath` p'archive `concPath` ip) ^. isoText
   where
-    ar  = readPath ps'archive
-    dr  = readPath ps'docroot
     px  = r ^. rType . isoText . from isoText
 
 toUrlExt :: ReqType -> Text
@@ -428,21 +432,17 @@ toUrlExt _      = ""
 -- example usage: genImage    r (toSourcePath r) (toUrlPath r)
 --                genBlogPage r (toSourcePath r) (toUrlPath r)
 
-toSourcePath' :: EffIStore r => Req'IdNode'ImgRef a -> Sem r Path
-toSourcePath' r = do
+toSourcePath :: EffIStore r => Req'IdNode'ImgRef a -> Sem r Path
+toSourcePath r = do
   p <- objid2path i
-  return $ (tailPath $ substPathName nm p)
+  return $ (tailPath . substPathName nm $ p)
   where
     ImgRef i nm = r ^. rImgRef
 
-toSourcePath :: EffIStore r => Req'IdNode'ImgRef a -> Sem r TextPath
-toSourcePath r = (^. isoText) <$> toSourcePath' r
-
-
-toCachedImgPath :: EffIStore r => Req'IdNode'ImgRef a -> Sem r TextPath
+toCachedImgPath :: EffIStore r => Req'IdNode'ImgRef a -> Sem r Path
 toCachedImgPath r = do
-  p <- toSourcePath' r
-  return $ addP p ^. isoText
+  p <- toSourcePath r
+  return $ addP p
   where
     addP p =
       dr `concPath` ty `consPath` geo `consPath` ar `concPath` p'
@@ -479,42 +479,43 @@ toMediaReq r =
 -- dispatch icon generation over media type (jpg, txt, md, mp4)
 
 genReqImg :: Eff'Img r
-          => Req'IdNode'ImgRef a -> Sem r TextPath
+          => Req'IdNode'ImgRef a -> Sem r Path
 genReqImg r = do
-  sp <- toSourcePath r
-  log'trc $ "genReqImg sp=" <> sp
+  srcPath <- toSourcePath    r
+  imgPath <- toCachedImgPath r
 
-  ip <- toCachedImgPath r
+  log'trc $ msgPath srcPath "genReqImg sp="
+
   case ity of
     IMGjpg ->
-      createCopyFromImg geo sp ip
+      createCopyFromImg geo srcPath imgPath
 
     IMGimg ->
-      createCopyFromImg geo sp ip
+      createCopyFromImg geo srcPath imgPath
 
     IMGmovie -> do
       catch @Text
         ( do
-            tp <- toCachedImgPath
-                  ( r & rType .~ RMovie
-                      & rGeo  .~ geo'org
-                  )
+            tmpPath <- toCachedImgPath
+                       ( r & rType .~ RMovie
+                           & rGeo  .~ geo'org
+                       )
             -- extract thumbnail from mp4
-            withCache  getThumbnailImage       sp tp
-            withCache (createResizedImage geo) tp ip
-            return ip
+            withCache  getThumbnailImage       srcPath tmpPath
+            withCache (createResizedImage geo) tmpPath imgPath
+            return imgPath
         )
-        (\ _e -> createIconFromString geo "movie" ip)
+        (\ _e -> createIconFromString geo "movie" imgPath)
 
     IMGtxt -> do
       -- read text from source file
       -- if no text there,
       -- fall back to create icon from object path
 
-      str <- getTxtFromFile sp
+      str <- getTxtFromFile srcPath
       if isempty str
-        then createIconFromObj    r       ip
-        else createIconFromString geo str ip
+        then createIconFromObj    r       imgPath
+        else createIconFromString geo str imgPath
 
     _ ->
       abortR "genReqIcon: no icon for image type" r
@@ -525,13 +526,16 @@ genReqImg r = do
 -- read text from a file (blog entry) to generate an icon
 
 getTxtFromFile :: (EffError r, EffFileSys r, EffCatEnv r)
-               => TextPath -> Sem r Text
-getTxtFromFile sp = do
-  txt <- cut 32 . T.concat . take 1 .
-         filter (not . T.null) . map cleanup . T.lines <$>
-         ( do fp <- toSysPath sp
-              readFileT (fp ^. isoTextPath)
-         )
+               => Path -> Sem r Text
+getTxtFromFile srcPath = do
+  txt <- cut 32
+         . T.concat
+         . take 1
+         . filter (not . T.null)
+         . map cleanup
+         . T.lines
+         <$>
+         ( toFileSysPath srcPath >>= readFileT )
   return txt
   where
     cleanup :: Text -> Text
@@ -546,9 +550,9 @@ getTxtFromFile sp = do
 -- create an icon from the title of the path of a collection
 
 createIconFromObj :: Eff'Img r
-                  => Req'IdNode a -> TextPath -> Sem r TextPath
-createIconFromObj r dp = do
-  log'trc $ "createIconFromObj: " <> dp
+                  => Req'IdNode a -> Path -> Sem r Path
+createIconFromObj r dstPath = do
+  log'trc $ msgPath dstPath "createIconFromObj: "
 
   -- read the collection title
   txt1 <- getImgVals
@@ -560,11 +564,11 @@ createIconFromObj r dp = do
           -- if no title there, extract text from path
           then do
                p <- objid2path (r ^. rColId)
-               return $ path2txt (p ^. isoText)
+               return $ p ^. isoText . to path2txt
           else return txt1
   log'trc $ "createIconFromObj: " <> txt2
 
-  createIconFromString geo txt2 dp
+  createIconFromString geo txt2 dstPath
     where
       geo = mkGeoAR (r ^. rGeo) (reqType2AR $ r ^. rType)
 
@@ -594,7 +598,7 @@ createIconFromObj r dp = do
 -- the copy is stored under the path of the image
 
 createCopyFromImg :: Eff'Img r
-                  => GeoAR -> TextPath -> TextPath -> Sem r TextPath
+                  => GeoAR -> Path -> Path -> Sem r Path
 createCopyFromImg geo sp ip =
   catch @Text
   ( do withCache (createResizedImage geo) sp ip
@@ -605,21 +609,27 @@ createCopyFromImg geo sp ip =
 -- --------------------
 
 createIconFromString :: Eff'Img r
-                     => GeoAR -> Text -> TextPath -> Sem r TextPath
+                     => GeoAR -> Text -> Path -> Sem r Path
 createIconFromString geo t dp = do
   sp <- createRawIconFromString t
   withCache (createResizedImage geo) sp dp
   return dp
 
 createRawIconFromString :: Eff'Img r
-                        => Text -> Sem r TextPath
+                        => Text -> Sem r Path
 createRawIconFromString t = do
-  log'trc $ "createRawIconFromString: " <> toText (fp, t)
-  genIcon fp t
-  return fp
+  log'trc $ "createRawIconFromString: " <> toText (imgPath, t)
+  genIcon imgPath t
+  return imgPath
     where
-      fp = ps'gen'icon ^. isoText <> "/" <> (t & isoString %~ str2fn) <> ".jpg"
+      imgPath :: Path
+      imgPath =
+        p'gen'icon `snocPath` (isoText # t')
 
+      t' :: Text
+      t' = (t & isoString %~ str2fn) <> ".jpg"
+
+      str2fn :: String -> String
       str2fn = concatMap urlEnc
         where
           urlEnc c
@@ -636,11 +646,11 @@ createRawIconFromString t = do
 -- cache hit only when both time stamps are the same
 
 withCache :: (Eff'ISEL r, EffFileSys r, EffCatEnv r)
-          => (TextPath -> TextPath -> Sem r ())
-          ->  TextPath -> TextPath -> Sem r ()
+          => (Path -> Path -> Sem r ())
+          ->  Path -> Path -> Sem r ()
 withCache cmd sp dp = do
-  sp' <- (^. isoTextPath) <$> toSysPath sp
-  dp' <- (^. isoTextPath) <$> toSysPath dp
+  sp' <- toFileSysPath sp
+  dp' <- toFileSysPath dp
   sw  <- (isoEpochTime #) <$> getModiTime sp'
   dw  <- (isoEpochTime #) <$> getModiTime dp'
 
@@ -844,7 +854,7 @@ genReqImgPage' r = do
           this'duration <- collectImgAttr r
   this'pos              <- thePos r
 
-  let     this'url       = toUrlPath r ^. isoText  -- !!! no toUrlPath' due to RPage
+  let     this'url       = toUrlPath r  -- !!! no toUrlPath' due to RPage
   let     this'geo       = r ^. rGeo
   let     base'ref       = "/"  -- will be changed when working with relative urls
 
@@ -881,7 +891,7 @@ genReqImgPage' r = do
     --image page
     RImg -> do
       org'imgpath       <- toSourcePath r
-      org'geo           <- getImageSize org'imgpath
+      org'geo           <- getImageGeo <$> getExifMetaData org'imgpath
 
       -- .jpg images may be shown in original size
       let org'mediaUrl   = toUrlPath
@@ -928,7 +938,7 @@ genReqImgPage' r = do
     -- mp4 video
     RMovie -> do
       org'imgpath       <- toSourcePath r
-      org'geo           <- getImageSize org'imgpath
+      org'geo           <- getImageGeo <$> getExifMetaData org'imgpath
 
       return $
         movPage'
@@ -987,10 +997,10 @@ type IconDescr3 = (Text, Text, Text)
 
 toIconDescr :: (Eff'ISE r) => Geo -> Req'IdNode a -> Sem r IconDescr3
 toIconDescr icon'geo r = do
-  let r'url         = toUrlPath  r ^. isoText
+  let r'url         = toUrlPath  r
   let r'iconurl     = toUrlPath (r & rType %~ iType
                                    & rGeo  .~ icon'geo
-                                )  ^. isoText
+                                )
   r'meta           <- runMaybeEmpty (toImgMeta r)
   let r'title       = r'meta ^. metaDataAt descrTitle
 

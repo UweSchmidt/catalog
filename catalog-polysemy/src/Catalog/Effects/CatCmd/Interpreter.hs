@@ -28,7 +28,7 @@ import Catalog.ImgTree.Modify
 import Catalog.ImgTree.Fold
 import Catalog.MetaData.Sync   ( Eff'MDSync )
 import Catalog.SyncWithFileSys ( Eff'Sync )
-import Catalog.TextPath
+import Catalog.TextPath        ( toFileSysPath )
 import Catalog.TimeStamp
 import Catalog.GenPages        ( Req'
                                , emptyReq'
@@ -51,7 +51,6 @@ import Data.Prim
 import Data.ImgNode
 import Data.MetaData
 import Data.ImgTree
-import Data.TextPath
 
 -- libraries
 import qualified Data.Sequence   as Seq
@@ -163,13 +162,12 @@ evalCatCmd =
     -- eval get commands
 
     StaticFile dp bn -> do
-      tp <- (^. isoTextPath) <$> toSysPath (dp <//> bn)
-      readStaticFile tp
+      readStaticFile ((isoText # dp) `snocPath` (isoText # bn))
 
     JpgImgCopy rt geo path
       | Just ppos <- path2colPath ".jpg" path -> do
           p' <- processReqImg (mkReq rt geo ppos)
-          fp <- (^. isoTextPath) <$> toSysPath p'
+          fp <- toFileSysPath p'
           readFileLB fp
 
       | otherwise ->
@@ -206,8 +204,10 @@ path2colPath :: String -> Path -> Maybe PathPos
 path2colPath ext p =
   (^. isoPathPos) <$> checkAndRemExt ext p
 
-readStaticFile :: (EffError r, EffFileSys r) => TextPath -> Sem r LazyByteString
-readStaticFile tp = do
+readStaticFile :: (EffError r, EffFileSys r, EffCatEnv r)
+               => Path -> Sem r LazyByteString
+readStaticFile srcPath = do
+  tp <- toFileSysPath srcPath
   ex <- fileExist tp
   if ex
     then readFileLB tp

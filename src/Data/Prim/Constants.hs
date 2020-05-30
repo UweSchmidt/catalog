@@ -79,6 +79,17 @@ p'javascript   = p'assets  `snocPath` "javascript"
 p'css          = p'assets  `snocPath` "css"
 p'blank        = p'icons   `snocPath` "blank.jpg"
 
+p'docroot
+  , p'exifcache
+  , p'zipcache
+  , p'gen'icon :: Path
+
+p'docroot      = mkPath "/docs"
+p'exifcache    = p'docroot `snocPath` "exif-meta"
+p'zipcache     = p'docroot `snocPath` "zip-cache"
+p'gen'icon     = p'docroot `snocPath` "generated/icon"
+
+
 ps'archive
   , ps'collections
   , ps'bycreatedate
@@ -117,10 +128,10 @@ ps'javascript   = p'javascript ^. isoString
 ps'css          = p'css        ^. isoString
 ps'blank        = p'blank      ^. isoString
 
-ps'docroot      = "/docs"
-ps'exifcache    = ps'docroot </> "exif-meta"
-ps'zipcache     = ps'docroot </> "zip-cache"
-ps'gen'icon     = ps'docroot </> "generated/icon"
+ps'docroot      = p'docroot    ^. isoString
+ps'exifcache    = p'exifcache  ^. isoString
+ps'zipcache     = p'zipcache   ^. isoString
+ps'gen'icon     = p'gen'icon   ^. isoString
 
 -- ----------------------------------------
 

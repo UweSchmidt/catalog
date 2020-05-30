@@ -20,6 +20,7 @@ module Catalog.TextPath
   , buildImgPath0
   , toSysPath
   , path2SysPath
+  , toFileSysPath
   )
 where
 
@@ -68,5 +69,16 @@ toSysPath tp
 path2SysPath :: Path -> SemCE r SysTextPath
 path2SysPath p =
   toSysPath $ tailPath p ^. isoText
+{-# DEPRECATED toSysPath, path2SysPath "use toFileSysPath instead" #-}
+----------------------------------------
+--
+-- convert a catalog Path into a TextPath representing
+-- the file system path of the referenced catalog entry
+-- mount path of the catalog
+
+toFileSysPath :: Path -> SemCE r TextPath
+toFileSysPath p = do
+  env <- ask @CatEnv
+  return $ env ^. catMountPath <> p ^. isoText
 
 ------------------------------------------------------------------------------
