@@ -4,12 +4,9 @@
 
 module Data.Prim.SysPath
   ( SysPath
-  , SysTextPath
   , isoFilePath
-  , isoTextPath
   , emptySysPath
   , mkSysPath
-  , mkSysTextPath
   )
 where
 
@@ -22,13 +19,9 @@ newtype SysPath' a = SP {_unSP :: a}
   deriving (Eq, Ord, Show, Functor)
 
 type SysPath     = SysPath' FilePath
-type SysTextPath = SysPath' Text
 
 isoFilePath :: Iso' SysPath FilePath
 isoFilePath = iso _unSP SP
-
-isoTextPath :: Iso' SysTextPath Text
-isoTextPath = iso _unSP SP
 
 instance ToJSON a => ToJSON (SysPath' a) where
   toJSON = toJSON . _unSP
@@ -44,8 +37,5 @@ emptySysPath = SP mempty
 
 mkSysPath :: FilePath -> SysPath
 mkSysPath = SP
-
-mkSysTextPath :: Text -> SysTextPath
-mkSysTextPath = SP
 
 -- ----------------------------------------
