@@ -15,13 +15,15 @@ executable servant-polysemy
   main-is:             Main.hs
   other-modules:       APIf
                        Options
+                       Logger
 
-  build-depends:       base >= 4.7
-                     , async
+  build-depends:       async
+                     , base >= 4.7
                      , base-compat
                      , blaze-html
                      , bytestring
                      , directory
+                     , fast-logger >= 3.0.1
                      , filepath
                      , ghc-prim
                      , http-api-data

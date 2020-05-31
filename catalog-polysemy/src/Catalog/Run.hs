@@ -23,6 +23,7 @@ module Catalog.Run
   , runRead
   , runMody
   , runBG
+  , runLogQ
   , r
   )
 where
@@ -32,6 +33,7 @@ import Polysemy
 import Polysemy.Consume.BGQueue
 import Polysemy.State.RunTMVar
 import Polysemy.ExecProg
+import Polysemy.Logging
 
 -- catalog-polysemy
 import Catalog.CatEnv
@@ -154,6 +156,18 @@ runBG var qu logQ env =
   . runError       @Text
   . runLogging     logQ (env ^. appEnvLogLevel)
   . runLogEnvFS    env
+
+--------------------
+
+runLogQ :: BGQueue
+        -> Text -- Sem '[Consume LogMsg, Embed IO] ()
+        -> IO ()
+runLogQ qu t =
+  runM
+  . logToBGQueue qu
+  $ consume (LogMsg t)
+
+{-# INLINE runLogQ #-}
 
 --------------------
 --

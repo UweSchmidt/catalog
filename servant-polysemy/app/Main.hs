@@ -48,6 +48,7 @@ import Catalog.Run             ( CatApp
                                , runRead
                                , runMody
                                , runBG
+                               , runLogQ
                                )
 
 -- catalog
@@ -61,19 +62,17 @@ import System.Exit                  (die)
 
 -- servant libs
 import Servant
-import Servant.Server ()
 
-import Network.Wai.Handler.Warp( setPort
-                               , setLogger
-                               , defaultSettings
-                               , runSettings
-                               )
-import Network.Wai.Logger      ( withStdoutLogger )
-
+import Network.Wai.Handler.Warp     ( setPort
+                                    , setLogger
+                                    , defaultSettings
+                                    , runSettings
+                                    )
 
 -- servant interface
 import APIf
 import Options
+import Logger
 
 ------------------------------------------------------------------------------
 
@@ -347,14 +346,15 @@ main = do
       eres
 
   -- start servant server
-  withStdoutLogger $ \logger -> do
-    let settings =
-          defaultSettings & setPort   (env ^. appEnvPort)
-                          & setLogger logger
+  withCatLogger (runLogQ logQ) $
+    \logger -> do
+      let settings =
+            defaultSettings & setPort   (env ^. appEnvPort)
+                            & setLogger logger
 
-    runSettings settings $
-      serve (Proxy :: Proxy CatalogAPI) $
-      catalogServer (env1 ^. appEnvCat) runRC runMC runBQ
+      runSettings settings $
+        serve (Proxy :: Proxy CatalogAPI) $
+        catalogServer (env1 ^. appEnvCat) runRC runMC runBQ
 
 
 ioeither2Handler :: IO (Either Text a) -> Handler a

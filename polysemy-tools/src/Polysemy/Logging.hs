@@ -39,9 +39,8 @@ module Polysemy.Logging
   , logToBGQueue
 
     -- * Data types
-  , LogMsg
+  , LogMsg (..)
   , LogLevel (..)
-  , logMsgToText
 
     -- * aux functions
   , untext
