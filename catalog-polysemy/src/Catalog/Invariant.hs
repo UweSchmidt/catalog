@@ -68,21 +68,23 @@ cleanupImgRefs i0 = do
     colA go i md im be es = do
       -- trcObj i $ "cleanupImgRefs: process collection "
 
-      im' <- filterMB (isOK checkImgPart) (pure im)
-      when (im /= im') $ do
+      b1 <- maybe (return True) (isOK checkImgPart) im
+
+      unless b1 $ do
         warn'Obj i $
           "cleanupImgRefs: col img ref "
-          <> toText (im, im')
+          <> toText im
           <> " removed in "
-        adjustColImg (const im') i
+        adjustColImg (const Nothing) i
 
-      be' <- filterMB (isOK checkImgPart) (pure be)
-      when (be /= be') $ do
+      b2 <- maybe (return True) (isOK checkImgPart) be
+
+      unless b2 $ do
         warn'Obj i $
           "cleanupImgRefs: col blog ref"
-          <> toText (be, be')
+          <> toText be
           <> " removed in "
-        adjustColBlog (const be') i
+        adjustColBlog (const Nothing) i
 
       es' <- filterSeqM (isOK checkColEntry) es
       when (Seq.length es' < Seq.length es) $ do
@@ -95,57 +97,56 @@ cleanupImgRefs i0 = do
       -- recurse into subcollections
       foldColEntries go i md im be es
 
+----------------------------------------
 
-    checkRef :: (EffIStore r, EffError r)
-             => ObjId -> SemMB r ImgNode
-    checkRef i =
-      getTreeAt i
-      `bindMB`
-      (\ n -> pureMB $ n ^. nodeVal)
+    checkRef :: (EffIStore r, EffError r, Member NonDet r)
+             => ObjId -> Sem r ImgNode
+    checkRef i = do
+      (^. nodeVal) <$> liftMaybe (getTreeAt i)
 
-
-    checkDirRef :: (EffIStore r, EffError r)
-                => ObjId -> SemMB r ImgNode
+    checkDirRef :: (EffIStore r, EffError r, Member NonDet r)
+                => ObjId -> Sem r ImgNode
     checkDirRef i =
-      filterMB (\ n -> return $ isIMG n || isDIR n) (checkRef i)
+      filterM' (\ n -> return $ isIMG n || isDIR n) (checkRef i)
 
-
-    checkImgRef :: (EffIStore r, EffError r)
-                => ObjId -> SemMB r ImgNode
+    checkImgRef :: (EffIStore r, EffError r, Member NonDet r)
+                => ObjId -> Sem r ImgNode
     checkImgRef i =
-      filterMB (\ n -> return $ isIMG n) (checkRef i)
-
+      filterM' (\ n -> return $ isIMG n) (checkRef i)
 
     -- check whether both the ref and the part in an ImgRef exist
-    checkImgPart :: (EffIStore r, EffError r)
-                 => ImgRef -> SemMB r ImgNode
-    checkImgPart (ImgRef i nm) =
-      checkImgRef i
-      `bindMB`
-      (\ n -> (liftMB $ n ^? theParts . isoImgPartsMap . at nm)
-              `bindMB`
-              (\ _p -> pureMB n)
-      )
-
+    checkImgPart :: (EffIStore r, EffError r, Member NonDet r)
+                 => ImgRef -> Sem r ImgNode
+    checkImgPart (ImgRef i nm) = do
+      n1 <- checkImgRef i
+      _r <- pureMaybe (n1 ^? theParts . isoImgPartsMap . at nm)
+      return n1
 
     -- check a ColEntry ref for existence
     -- only the ImgRef's are checked, not the ColRef's
-    checkColEntry :: (EffIStore r, EffError r)
-                  => ColEntry -> SemMB r ColEntry
+    checkColEntry :: (EffIStore r, EffError r, Member NonDet r)
+                   => ColEntry -> Sem r ColEntry
     checkColEntry ce =
       colEntry' imgRef colRef ce
       where
         colRef _ =
-          pureMB ce
-        imgRef ir =
-          checkImgPart ir
-          `bindMB`
-          (\ _n -> pureMB ce)
+          return ce
+        imgRef ir = do
+          _n <- checkImgPart ir
+          return ce
 
-    isOK :: (b -> SemMB r a) -> b -> Sem r Bool
-    isOK cmd i = do
-      mr <- cmd i
-      return $ isJust mr
+    isOK :: (b -> Sem (NonDet ': r) a) -> b -> Sem r Bool
+    isOK cmd i =
+      isJust <$> runMaybe (cmd i)
+
+    filterM' :: (EffIStore r, EffError r, Member NonDet r)
+             => (a -> Sem r Bool) -> Sem r a -> Sem r a
+    filterM' pr cmd = do
+      x <- cmd
+      b <- pr x
+      if b
+        then return x
+        else empty
 
 -- ----------------------------------------
 
@@ -343,55 +344,4 @@ checkUpLinkObjIds =
                       <> toText n
                       <> " contains element not pointing back to "
 
--- ----------------------------------------
-{-  NonDet test
-
-type SemND r a = Sem (NonDet ': r) a
-
-checkRef' :: (EffIStore r, EffError r)
-         => ObjId -> SemND r ImgNode
-checkRef' i = do
-  n <- liftMaybe $ getTreeAt i
-  return $ n ^. nodeVal
-
-
-checkDirRef' :: (EffIStore r, EffError r)
-            => ObjId -> SemND r ImgNode
-checkDirRef' i = do
-  n <- checkRef' i
-  if isIMG n || isDIR n
-    then return n
-    else empty
-
-checkImgRef' :: (EffIStore r, EffError r)
-            => ObjId -> SemND r ImgNode
-checkImgRef' i = do
-  n <- checkRef' i
-  if isIMG n
-    then return n
-    else empty
-
--- check whether both the ref and the part in an ImgRef exist
-checkImgPart' :: (EffIStore r, EffError r)
-             => ImgRef -> SemND r ImgNode
-checkImgPart' (ImgRef i nm) = do
-  n <- checkImgRef' i
-  if isJust (n ^? theParts . isoImgPartsMap . at nm)
-     then return n
-     else empty
-
--- check a ColEntry ref for existence
--- only the ImgRef's are checked, not the ColRef's
-checkColEntry' :: (EffIStore r, EffError r)
-              => ColEntry -> SemND r ColEntry
-checkColEntry' ce =
-  colEntry' imgRef colRef ce
-  where
-    colRef _  = return ce
-    imgRef ir = checkImgPart' ir >> return ce
-
-isOK :: (EffIStore r, EffError r)
-     => (b -> SemND r a) -> b -> Sem r Bool
-isOK cmd i = isJust <$> runNonDetMaybe (cmd i)
--}
 ------------------------------------------------------------------------

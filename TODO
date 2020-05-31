@@ -10,4 +10,5 @@
 * split von catalog in catalog-prim und catalog-mtl
   mit catalog-prim: Data/... und Text/...
   und catalog-mtl: Catalog/... modules
-  
+
+* new effects for exiftool and convert

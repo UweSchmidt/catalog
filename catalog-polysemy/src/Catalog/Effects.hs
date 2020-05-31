@@ -62,21 +62,12 @@ module Catalog.Effects
   , SemISEJLFS
   , SemISEJLT
 
-  , SemMB
-
     -- * lifting functions
   , liftExcept
   , liftMaybe
   , pureMaybe
   , runMaybe
   , runMaybeEmpty
-
-    -- * Maybe monad on top of Sem r (TODO: refactor with NonDet effect)
-  , pureMB
-  , failMB
-  , liftMB
-  , bindMB
-  , filterMB
   )
 where
 
@@ -199,8 +190,6 @@ type SemISEJLT  r a = ( EffIStore  r
                       , EffTime r
                       ) => Sem r a
 
-type SemMB r a = Sem r (Maybe a)
-
 -- ----------------------------------------
 --
 -- basic Cmd combinators
@@ -212,34 +201,6 @@ liftExcept cmd =
     Right res -> return res
 
 -- ----------------------------------------
---
--- TODO: really neccesary ???
-
-pureMB :: a -> Sem r (Maybe a)
-pureMB x = pure (Just x)
-
-failMB :: Sem r (Maybe a)
-failMB = pure Nothing
-
-liftMB :: Maybe a -> Sem r (Maybe a)
-liftMB mx = pure mx
-
-bindMB :: Sem r (Maybe a) -> (a -> Sem r (Maybe b)) -> Sem r (Maybe b)
-bindMB m f = do
-  ma <- m
-  case ma of
-    Nothing -> return Nothing
-    Just x  -> f x
-
-filterMB :: (a -> Sem r Bool) -> Sem r (Maybe a) -> Sem r (Maybe a)
-filterMB mp ma = do
-  ma `bindMB`
-    (\ x -> do b <- mp x
-               return $
-                 if b
-                 then Just x
-                 else Nothing
-    )
 
 liftMaybe :: Member NonDet r => Sem r (Maybe a) -> Sem r a
 liftMaybe cmd = cmd >>= maybe empty return
