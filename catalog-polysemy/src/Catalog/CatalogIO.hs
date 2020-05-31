@@ -143,7 +143,6 @@ checkinImgStore :: Eff'CatIO r => Text -> TextPath -> Sem r ()
 checkinImgStore cmt f = do
   pt <- pxMountPath f
   ts <- nowAsIso8601
-  log'verb $ T.unwords ["bash  []", checkinScript pt ts]
   void $ execScript (checkinScript pt ts)
   where
     qt s = "'" <> s <> "'"

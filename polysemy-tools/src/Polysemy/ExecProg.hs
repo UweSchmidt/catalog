@@ -118,7 +118,7 @@ execByteString mkExc prg args inp = do
   let prg'  =     T.unpack prg
       args' = map T.unpack args
 
-  log'trc $
+  log'dbg $
     untext $ ["exec:", prg]
              <> args
              <> if BS.null inp
@@ -135,11 +135,11 @@ execByteString mkExc prg args inp = do
   case rc of
     ExitSuccess -> do
       unless (BS.null err) $
-        log'warn $ err'
+        log'warn $ "exec: stderr=" <> err'
       return out
 
     ExitFailure rcn -> do
-      log'err err'
+      log'err $ "exec: stderr=" <> err'
       throw @exc $
         mkExc (EX.userError $ "exec: rc = " ++ show rcn)
 
@@ -159,7 +159,7 @@ execText mkExc prg args inp = do
   let prg'  =     T.unpack prg
       args' = map T.unpack args
 
-  log'trc $
+  log'dbg $
     untext $ ["exec:", prg]
              <> args
              <> if T.null inp
@@ -175,11 +175,11 @@ execText mkExc prg args inp = do
   case rc of
     ExitSuccess -> do
       unless (T.null err) $
-        log'warn $ err
+        log'warn $ "exec: stderr=" <> err
       return out
 
     ExitFailure rcn -> do
-      log'err err
+      log'err $ "exec: stderr=" <> err
       throw @exc $
         mkExc (EX.userError $ "exec: rc = " ++ show rcn)
 
