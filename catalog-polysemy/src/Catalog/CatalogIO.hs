@@ -31,7 +31,7 @@ import Catalog.GenCollections (genSysCollections)
 import Catalog.ImgTree.Access (mapImgStore2Path, mapImgStore2ObjId)
 import Catalog.Invariant      (checkImgStore)
 import Catalog.Journal        (journal)
-import Catalog.TextPath       (toSysPath)
+import Catalog.TextPath       (pxMountPath)
 import Catalog.TimeStamp      (nowAsIso8601)
 
 -- polysemy-tools
@@ -96,10 +96,11 @@ encodeJSON = J.encodePretty' conf
 
 saveImgStore :: Eff'CatIO r => TextPath -> Sem r ()
 saveImgStore p = do
-  bs <- toBS
-  sp <- toSysPath p
+  sp <- pxMountPath p
   log'verb $ "saveImgStore: save state to " <> toText sp
-  writeFileLB (sp ^. isoTextPath) bs
+
+  bs <- toBS
+  writeFileLB sp bs
   journal $ SaveImgStore (p ^. isoString)   -- FilePath in Journal def
   where
     toBS
@@ -140,7 +141,7 @@ snapshotImgStore cmt = do
 
 checkinImgStore :: Eff'CatIO r => Text -> TextPath -> Sem r ()
 checkinImgStore cmt f = do
-  pt <- (^. isoTextPath) <$> toSysPath f
+  pt <- pxMountPath f
   ts <- nowAsIso8601
   log'verb $ T.unwords ["bash  []", checkinScript pt ts]
   void $ execScript (checkinScript pt ts)
@@ -169,7 +170,7 @@ checkinImgStore cmt f = do
 
 loadImgStore :: Eff'CatIO r => TextPath -> Sem r ()
 loadImgStore f = do
-  sp <- (^. isoTextPath) <$> toSysPath f
+  sp <- pxMountPath f
   log'verb $ "loadImgStore: load State from " <> sp
   bs <- readFileLB sp
 

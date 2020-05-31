@@ -18,9 +18,11 @@
 module Catalog.TextPath
   ( buildImgPath
   , buildImgPath0
-  , toSysPath
-  , path2SysPath
+--  , toSysPath
+--  , path2SysPath
   , toFileSysPath
+  , toFileSysTailPath
+  , pxMountPath
   )
 where
 
@@ -32,10 +34,7 @@ import Catalog.ImgTree.Access (objid2path)
 -- catalog
 import Data.ImgTree
 import Data.Prim
-import Data.TextPath          (addExt)
-
--- libraries
-import qualified Data.Text     as T
+import Data.TextPath          (addExt, (<//>))
 
 ------------------------------------------------------------------------------
 --
@@ -50,26 +49,6 @@ buildImgPath0 (ImgRef i n) = do
 buildImgPath :: ImgRef -> SemIS r TextPath
 buildImgPath ir = addExt ".jpg" <$> buildImgPath0 ir
 
--- ----------------------------------------
---
--- basic ops for files system paths
-
-toSysPath :: TextPath -> SemCE r SysTextPath
-toSysPath tp
-  | hasSlash tp = do
-      mp <- (^. catMountPath) <$> ask @CatEnv
-      return $ isoTextPath # (mp <> tp)
-  | otherwise = toSysPath ("/" <> tp)
-  where
-    hasSlash = ("/" `T.isPrefixOf`)
-
--- build a file system path from an internal path
--- remove the redundant "/archive" top level dir
-
-path2SysPath :: Path -> SemCE r SysTextPath
-path2SysPath p =
-  toSysPath $ tailPath p ^. isoText
-{-# DEPRECATED toSysPath, path2SysPath "use toFileSysPath instead" #-}
 ----------------------------------------
 --
 -- convert a catalog Path into a TextPath representing
@@ -80,5 +59,14 @@ toFileSysPath :: Path -> SemCE r TextPath
 toFileSysPath p = do
   env <- ask @CatEnv
   return $ env ^. catMountPath <> p ^. isoText
+
+toFileSysTailPath :: Path -> SemCE r TextPath
+toFileSysTailPath = toFileSysPath . tailPath
+
+pxMountPath :: TextPath -> SemCE r TextPath
+pxMountPath tp = do
+  env <- ask @CatEnv
+  return $ env ^. catMountPath <//> tp
+
 
 ------------------------------------------------------------------------------

@@ -26,7 +26,7 @@ where
 -- catalog-polysemy modules
 import Catalog.Effects
 import Catalog.ImgTree.Modify
-import Catalog.TextPath
+import Catalog.TextPath       (toFileSysTailPath)
 
 -- catalog modules
 import Data.ImgNode
@@ -62,8 +62,8 @@ checkImgPart :: Eff'CheckSum r => Bool -> Path -> Name -> ImgNode -> Sem r Check
 checkImgPart onlyUpdate = processImgPart (checkImgPart' onlyUpdate)
 
 checkImgPart' :: Eff'CheckSum r => Bool -> Path -> ImgPart -> Sem r CheckSumRes
-checkImgPart' onlyUpdate p ip = do
-  fsp <- (^. isoTextPath) <$> path2SysPath (substPathName (ip ^. theImgName) p)
+checkImgPart' onlyUpdate path ip = do
+  fsp <- toFileSysTailPath (substPathName (ip ^. theImgName) path)
   fex <- fileExist fsp
   if not fex
     then return CSlost

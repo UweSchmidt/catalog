@@ -42,7 +42,7 @@ import Catalog.ImgTree.Modify
 import Catalog.Invariant       ( checkImgStore )
 import Catalog.Logging         ( trc'Obj )
 import Catalog.MetaData.Sync   ( syncMetaData )
-import Catalog.TextPath        ( path2SysPath )
+import Catalog.TextPath        ( toFileSysTailPath )
 import Catalog.TimeStamp       ( whatTimeIsIt, lastModified )
 
 import Data.ImgTree
@@ -224,8 +224,8 @@ syncNewDirs p = do
         throw @Text $ msgPath p "syncNewDirs: path isn't an image dir: "
 
       whenM ( do pp <- objid2path i'
-                 sp <- path2SysPath pp
-                 dirExist (sp ^. isoTextPath)
+                 sp <- toFileSysTailPath pp
+                 dirExist sp
             ) $
         syncNewDirsCont i'
 
@@ -254,8 +254,9 @@ idSyncFS recursive i = getImgVal i >>= go
 
       | isDIR e = do
           trc'Obj i "idSyncFS: syncing directory"
-          sp <- objid2path i >>= path2SysPath
-          ex <- dirExist (sp ^. isoTextPath)
+          p' <- objid2path i
+          sp <- toFileSysTailPath p'
+          ex <- dirExist sp
           if ex
             then do
               syncDirCont recursive i
@@ -326,8 +327,8 @@ collectDirCont :: (EffLogging r, EffCatEnv r, EffIStore r, EffFileSys r)
                => ObjId -> Sem r ([Name], [ClassifiedNames])
 collectDirCont i = do
   -- trc'Obj i "collectDirCont: group entries in dir "
-  sp <- objid2path i >>= path2SysPath
-  es <- parseDirCont sp
+  p' <- objid2path i
+  es <- parseDirCont p'
   log'trc $ "collectDirCont: entries found " <> toText es
 
   let (others, rest) =
@@ -341,7 +342,7 @@ collectDirCont i = do
     (\ n -> log'verb $ "sync: fs entry ignored " <> toText (fst n))
     others
 
-  realsubdirs <- filterM (isSubDir sp) subdirs
+  realsubdirs <- filterM (isSubDir p') subdirs
 
   unless (null rest3) $
     log'trc $ "collectDirCont: files ignored " <> toText rest3
@@ -354,12 +355,11 @@ collectDirCont i = do
          , partClassifiedNames imgfiles
          )
   where
-    isSubDir :: EffFileSys r
-             => SysTextPath -> (Name, (Name, ImgType)) -> Sem r Bool
-    isSubDir sp n =
-      dirExist tp
-      where
-        tp = sp ^. isoTextPath <//> n ^. _1 . isoText
+    isSubDir :: (EffFileSys r, EffCatEnv r)
+             => Path -> (Name, (Name, ImgType)) -> Sem r Bool
+    isSubDir p' (n, _) = do
+      sp <- toFileSysTailPath (p' `snocPath` n)
+      dirExist sp
 
 -- ----------------------------------------
 
@@ -411,8 +411,8 @@ syncParts i pp = do
   syncMetaData i
   where
     syncPart p = do
-      sp <- path2SysPath (pp `snocPath` (p ^. theImgName))
-      ts <- lastModified (sp ^. isoTextPath)
+      sp <- toFileSysTailPath (pp `snocPath` (p ^. theImgName))
+      ts <- lastModified sp
 
       -- if file has changed, update timestamp and reset checksum
       return $
@@ -433,19 +433,24 @@ checkEmptyDir i =
 --
 -- low level directory and file ops
 
-parseDirCont :: (EffFileSys r, EffLogging r)
-             => SysTextPath -> Sem r ClassifiedNames
+parseDirCont :: (EffFileSys r, EffLogging r, EffCatEnv r)
+             => Path -> Sem r ClassifiedNames
 parseDirCont p = do
-  (es, jpgdirs)  <- classifyNames <$> readDir (p ^. isoTextPath)
+  sp <- toFileSysTailPath p
+  (es, jpgdirs)  <- classifyNames <$> readDir sp
+
   log'trc $ "parseDirCont: " <> toText (es, jpgdirs)
+
   jss <- traverse
          (parseImgSubDirCont p)                       -- process jpg subdirs
-         (jpgdirs ^.. traverse . _1 . isoText)
+         (jpgdirs ^.. traverse . _1)
+
   log'trc $ "parseDirCont: " <> toText jss
+
   return $ es <> mconcat jss
   where
 
-    classifyNames :: [TextPath] -> (ClassifiedNames, ClassifiedNames)
+    classifyNames :: [Text] -> (ClassifiedNames, ClassifiedNames)
     classifyNames =
       partition (hasImgType (not . isJpgSubDir)) -- select jpg img subdirs
       .
@@ -454,9 +459,10 @@ parseDirCont p = do
       map ((isoText #) &&& textPathToImgType)
 
 
-parseImgSubDirCont :: (EffFileSys r, EffLogging r)
-                   => SysTextPath -> TextPath -> Sem r ClassifiedNames
-parseImgSubDirCont p d = do
+parseImgSubDirCont :: (EffFileSys r, EffLogging r, EffCatEnv r)
+                   => Path -> Name -> Sem r ClassifiedNames
+parseImgSubDirCont p nm = do
+  sp <- toFileSysTailPath (p `snocPath` nm)
   ex <- dirExist sp
   if ex
     then
@@ -465,13 +471,11 @@ parseImgSubDirCont p d = do
       log'verb $ "parseImgSubDirCont: not a directory: " <> toText sp
       return []
   where
-    sp :: TextPath
-    sp = p ^. isoTextPath <//> d
 
     classifyNames =
       filter (\ n -> isShowablePart (n ^. _2 . _2))
       .
-      map (\ n -> let dn = d <//> n
+      map (\ n -> let dn = nm ^. isoText <> "/" <> n
                   in (isoText # dn, textPathToImgType dn)
           )
 

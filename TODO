@@ -13,3 +13,5 @@
   z.B. mit getImgSize zusammen fassen
   
 * StaticFile: change type to:  Path -> StaticFile m LazyByteString 
+
+* servant logger: log Ausgabe auf gleichen stream wie trace meldungen
