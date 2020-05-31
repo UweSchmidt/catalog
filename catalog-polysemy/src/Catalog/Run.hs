@@ -159,13 +159,15 @@ runBG var qu logQ env =
 
 --------------------
 
-runLogQ :: BGQueue
+runLogQ :: LogLevel
+        -> BGQueue
         -> Text -- Sem '[Consume LogMsg, Embed IO] ()
         -> IO ()
-runLogQ qu t =
+runLogQ lev qu t =
   runM
   . logToBGQueue qu
-  $ consume (LogMsg t)
+  . logWithLevel lev
+  $ log'log t
 
 {-# INLINE runLogQ #-}
 

@@ -37,6 +37,7 @@ import Polysemy.State.RunTMVar (createJobQueue)
 import Catalog.CatalogIO       (initImgStore)
 import Catalog.CatEnv          ( CatEnv
                                , appEnvCat
+                               , appEnvLogLevel
                                , appEnvPort
                                , catMountPath
                                , catFontName
@@ -346,7 +347,7 @@ main = do
       eres
 
   -- start servant server
-  withCatLogger (runLogQ logQ) $
+  withCatLogger (runLogQ (env1 ^. appEnvLogLevel) logQ) $
     \logger -> do
       let settings =
             defaultSettings & setPort   (env ^. appEnvPort)

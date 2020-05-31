@@ -40,6 +40,14 @@ optWarn =
     <> help "Only errors and warnings"
   )
 
+optLog :: Parser LogLevel
+optLog =
+  flag' LogLog
+  ( long "log-messages"
+    <> short 'l'
+    <> help "Only errors and warnings"
+  )
+
 optVerb :: Parser LogLevel
 optVerb =
   flag' LogVerb
@@ -65,7 +73,7 @@ optDbg =
 
 optLogLevel :: Parser LogLevel
 optLogLevel =
-  optDbg <|> optTrc <|> optVerb <|> optWarn <|> optErr <|> optQuiet
+  optDbg <|> optTrc <|> optVerb <|> optLog <|> optWarn <|> optErr <|> optQuiet
   <|>
   pure LogErr
 
