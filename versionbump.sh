@@ -31,16 +31,22 @@ bump () {
     fi
 }
 
-bump catalog.cabal
+bump catalog-data/catalog-data.cabal
+
+# polysemy based libs/execs
+bump polysemy-tools/polysemy-tools.cabal
+bump catalog-polysemy/catalog-polysemy.cabal
+bump client-polysemy/client-polysemy.cabal
+bump servant-polysemy/servant-polysemy.cabal
+
+# mtl based libs/execs
+bump catalog-mtl/catalog-mtl.cabal
 bump catalog-servant/catalog-servant.cabal
 bump catalog-client/catalog-client.cabal
 bump catalog-client/app/Main.hs
 
-bump client-polysemy/client-polysemy.cabal
-bump client-polysemy/app/Client/Options.hs
 
-bump src/Catalog/Version.hs
-bump src/Catalog/Html/Templates/Blaze2.hs
+bump catalog-data/src/Catalog/Version.hs
 bump data/assets/html/edit.html
 bump data/assets/javascript/rpc-servant.js
 

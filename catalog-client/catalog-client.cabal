@@ -17,22 +17,22 @@ executable catalog-client
   build-depends:       base >= 4.7
                      , aeson
                      , bytestring
-                     , catalog
                      , directory
                      , filepath
                      , http-client
---                     , http-api-data
---                     , http-media
                      , http-types
                      , monad-reader-state-err-io
                      , mtl
                      , optparse-applicative
                      , text
 
+                     -- local libs
+                     , catalog-data
+                     , catalog-mtl
 
   default-language:    Haskell2010
 
-  GHC-Options: -Wall -fwarn-tabs -funbox-strict-fields -threaded
+  GHC-Options: -Wall -fwarn-tabs -funbox-strict-fields -O2 -threaded
 
 source-repository head
   type:     git

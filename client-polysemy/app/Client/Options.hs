@@ -28,6 +28,8 @@ import Text.SimpleParser
        , parseGlob
        )
 
+import Catalog.Version (version, date)
+
 ------------------------------------------------------------------------------
 
 type Host = Text
@@ -35,12 +37,6 @@ type Port = Int
 
 type ClientAct r = (ClientOpts, ClientCmd r ())
 type ClientOpts  = ((Host,Port), LogLevel)
-
-version :: String
-version = "0.2.12.0"
-
-date :: String
-date = "2020-05-31"
 
 appname :: String
 appname = "client-polysemy"

@@ -13,6 +13,7 @@ resolver: lts-15.1
 # Local packages, usually specified by relative directory name
 packages:
 - './catalog-data'
+- './catalog-mtl'
 - '.'
 - './catalog-servant'
 - './catalog-client'

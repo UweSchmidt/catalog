@@ -61,13 +61,19 @@ import Data.MetaData ( MetaData
                      )
 
 import           Data.Prim
+import           Catalog.Version (date, version)
+
 import qualified Data.Text                       as T
+
+
 import           Text.Blaze.Html5                hiding (map, head)
 import qualified Text.Blaze.Html5                as H
 import           Text.Blaze.Html5.Attributes     hiding (title, rows, accept)
 import qualified Text.Blaze.Html5.Attributes     as A
 import qualified Text.Blaze.Html.Renderer.Pretty as R
 import qualified Text.Blaze.Html.Renderer.Text   as T
+
+-- ----------------------------------------
 
 renderPage' :: Html -> LazyText
 renderPage' p = T.renderHtml p
@@ -391,15 +397,6 @@ colPage theBaseRef theHeadTitle theDate theImgGeo
 
 -- ----------------------------------------
 
--- don't change format of vers and dats
--- these are updated automatically by versionbump.sh
-
-vers :: Text
-vers = "0.2.12.0"
-
-dats :: Text
-dats = "2020-05-31"
-
 headPage :: Text -> Text -> Text -> Html -> Html
 headPage theBaseRef theHeadTitle theDate theJS
   = H.head $ do
@@ -408,7 +405,7 @@ headPage theBaseRef theHeadTitle theDate theJS
   meta ! name "author"      ! content "Uwe Schmidt"
   meta ! name "generator"   ! content ( toValue $
                                         "catalog-servant version " <>
-                                        vers <> " from " <> dats
+                                        version <> " from " <> date
                                       )
   meta ! name "date"        ! content (toValue theDate)
   base ! href (toValue theBaseRef)
