@@ -140,6 +140,12 @@ basicReq method' setBody path' = do
         , path   = T.encodeUtf8 path'
         , responseTimeout = responseTimeoutNone
         }
+
+  let ppBody b = case b of
+        RequestBodyLBS lbs -> " " <> (T.pack . LCS.unpack $ lbs)
+        _others            -> mempty
+
+
   let ppReq = T.unwords
         [ T.pack . show $ method'
         , "http://"
@@ -148,6 +154,8 @@ basicReq method' setBody path' = do
           <> (T.pack . show $ port')
           <> path'
         ]
+        <>
+        ppBody (requestBody request)
 
   log'verb ppReq
 
