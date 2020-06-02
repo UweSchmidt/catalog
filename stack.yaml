@@ -14,7 +14,6 @@ resolver: lts-15.1
 packages:
 - './catalog-data'
 - './catalog-mtl'
-- '.'
 - './catalog-servant'
 - './catalog-client'
 - './polysemy-tools'

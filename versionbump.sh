@@ -2,7 +2,7 @@
 
 # set -x
 
-version="0.2.12.0"
+version="0.3.0.0"
 dat=$(date "+%Y-%m-%d")
 
 LANG="en_US.UTF-8"
@@ -31,6 +31,7 @@ bump () {
     fi
 }
 
+# common lib
 bump catalog-data/catalog-data.cabal
 
 # polysemy based libs/execs
