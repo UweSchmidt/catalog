@@ -62,7 +62,7 @@ executable client-polysemy
                , text
                , unix
                -- local libs
-               , catalog
+               , catalog-data
                , catalog-polysemy
                
   default-language: Haskell2010

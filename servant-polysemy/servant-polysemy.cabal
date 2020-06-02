@@ -41,7 +41,7 @@ executable servant-polysemy
                      , warp
                      
                      -- local libs
-                     , catalog
+                     , catalog-data
                      , catalog-polysemy
                      , polysemy-tools
                      
