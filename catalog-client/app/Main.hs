@@ -51,7 +51,7 @@ import           System.Exit
 -- version number is updated automatically
 
 version :: String
-version = "0.3.1.0"
+version = "0.3.0.0"
 
 date :: String
 date = "2020-06-02"
