@@ -427,15 +427,55 @@ function isKey(e, c, s) {
     return false;
 }
 
+function keyUp(e) {
+    if (! e)
+        e = window.event;
+
+    console.log("keyUp: KeyCode=" + e.keyCode + " which=" + e.which);
+
+    if ( (e.keyCode == 39)   /* right arrow */
+         ||
+         (e.keyCode == 34)   /* page down, presenter: right arrow */
+       ) {
+        stopSlideShow();
+        nextPage();
+        return false;
+    }
+    if ( (e.keyCode == 37)   /* left arrow */
+         ||
+         (e.keyCode == 33)   /* page up, presenter: left arrow */
+         ||
+         (e.keyCode == 8)    /* backspace*/
+       ) {
+        stopSlideShow();
+        prevPage();
+        return false;
+    }
+    if ( (e.keyCode == 27)     /* escape, presenter: left screen icon */
+         ||
+         (e.keyCode == 38)     /* up arrow */
+       ) {
+        stopSlideShow();
+        parentPage();
+        return false;
+    }
+    if ( (e.keyCode == 40)     /* down arrow */
+         ||
+         (e.keyCode == 190)    /* '.' , presenter right screen icon */
+       ) {
+        stopSlideShow();
+        child1Page();
+        return false;
+    }
+}
+
 function keyPressed (e) {
     if (! e)
         e = window.event;
 
-    console.log("KeyCode=" + e.keyCode + " which=" + e.which);
+    console.log("keyPressed: KeyCode=" + e.keyCode + " which=" + e.which);
 
-    if ( e.keyCode == 39    /* right arrow */
-         ||
-         isKey(e, 32, " ")
+    if ( isKey(e, 32, " ")
          ||
          isKey(e, 62, ">")
          ||
@@ -446,11 +486,7 @@ function keyPressed (e) {
         return false;
     }
 
-    if ( e.keyCode   == 37    /* left arrow */
-         ||
-         e.keyCode   == 8
-         ||    /* backspace */
-         isKey(e, 60, "<")
+    if ( isKey(e, 60, "<")
          ||
          isKey(e, 112, "p")
        ) {
@@ -459,9 +495,7 @@ function keyPressed (e) {
         return false;
     }
 
-    if ( e.keyCode   == 38    /* up arrow */
-         ||
-         isKey(e, 94, "^")
+    if ( isKey(e, 94, "^")
          ||
          isKey(e, 117, "u")
        ) {
@@ -470,9 +504,7 @@ function keyPressed (e) {
         return false;
     }
 
-    if ( e.keyCode   == 40     /* down arrow */
-         ||
-         isKey(e, 118, "v")
+    if ( isKey(e, 118, "v")
          ||
          isKey(e, 100, "d")
        ) {
@@ -605,3 +637,4 @@ function initAlbum() {
 }
 
 document.onkeypress = keyPressed;
+document.onkeyup    = keyUp;
