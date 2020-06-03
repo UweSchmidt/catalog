@@ -452,6 +452,8 @@ function keyUp(e) {
         return false;
     }
     if ( (e.keyCode == 27)     /* escape, presenter: left screen icon */
+         ||                    /* presenter: left screen: 116, 27, 116, 27, ... */
+         (e.keyCode == 116)    /* F5, presenter: left screen icon */
          ||
          (e.keyCode == 38)     /* up arrow */
        ) {
