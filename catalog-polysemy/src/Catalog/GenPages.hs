@@ -558,7 +558,7 @@ createIconFromObj r dstPath = do
   txt1 <- getImgVals
           (r ^. rColId)
           (theMetaData . metaDataAt descrTitle)
-  log'trc $ "createIconFromObj: " <> txt1
+  log'dbg $ "createIconFromObj: " <> txt1
 
   txt2 <- if isempty txt1
           -- if no title there, extract text from path
@@ -566,7 +566,7 @@ createIconFromObj r dstPath = do
                p <- objid2path (r ^. rColId)
                return $ p ^. isoText . to path2txt
           else return txt1
-  log'trc $ "createIconFromObj: " <> txt2
+  log'dbg $ "createIconFromObj: " <> txt2
 
   createIconFromString geo txt2 dstPath
     where

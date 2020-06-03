@@ -72,7 +72,7 @@ p'assets
   , p'css
   , p'blank :: Path
 
-p'assets       = mkPath "/assets"
+p'assets       = mkPath "assets"
 p'html         = p'assets  `snocPath` "html"
 p'icons        = p'assets  `snocPath` "icons"
 p'javascript   = p'assets  `snocPath` "javascript"
@@ -84,10 +84,10 @@ p'docroot
   , p'zipcache
   , p'gen'icon :: Path
 
-p'docroot      = mkPath "/docs"
+p'docroot      = mkPath "docs"
 p'exifcache    = p'docroot `snocPath` "exif-meta"
 p'zipcache     = p'docroot `snocPath` "zip-cache"
-p'gen'icon     = p'docroot `snocPath` "generated/icon"
+p'gen'icon     = (p'docroot `snocPath` "generated") `snocPath` "icon"
 
 
 ps'archive

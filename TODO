@@ -7,8 +7,6 @@
 
 * StaticFile: change type to:  Path -> StaticFile m LazyByteString 
 
-* split von catalog in catalog-prim und catalog-mtl
-  mit catalog-prim: Data/... und Text/...
-  und catalog-mtl: Catalog/... modules
-
 * new effects for exiftool and convert
+
+* implement undo history for edit.html

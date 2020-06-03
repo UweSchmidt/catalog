@@ -77,7 +77,7 @@ genIcon path t = do
         | otherwise = "-font " <> f
   let fopt = fontOpt (env ^. catFontName)
 
-  log'trc $ T.unwords ["genIcon", path ^. isoText, t, dst, toText dx]
+  log'trc $ msgPath path ("genIcon " <> toText (t, dx))
 
   unless dx $ do
     dir <- toFileSysPath (path ^. viewBase . _1)
