@@ -257,6 +257,7 @@ syncDirCont recursive i = do
   mapM_ (syncImg i p) imgfiles
   where
 
+    syncSubDir :: Path -> Name -> Cmd ()
     syncSubDir p n = do
       -- trc $ "syncSubDir: " ++ show p ++ "/" ++ show n
       whenM (isNothing <$> getTreeAt new'i) $
@@ -266,6 +267,7 @@ syncDirCont recursive i = do
       where
         new'i = mkObjId (p `snocPath` n)
 
+    remDirCont :: Path -> Name -> Cmd ()
     remDirCont p n = do
       trcObj i $ "remDirCont: remove entry " ++ show n ++ " from dir"
       rmRec new'i
