@@ -96,6 +96,9 @@ textFromPath :: Path -> Text
 textFromPath = foldMap (\ n -> "/" <> n ^. isoText)
 {-# INLINE textFromPath #-}
 
+textToPath :: Text -> Path
+textToPath = listToPath . filter (not . isempty) . T.split (== '/')
+
 isoPathList :: Iso' Path [Text]
 isoPathList = iso listFromPath listToPath
 {-# INLINE isoPathList #-}
@@ -227,6 +230,10 @@ checkExtPath ext p
     bn   = (p ^. viewBase . _2) ^. isoText
     ext' = T.toLower . T.takeEnd ln $ bn
 
+----------------------------------------
+--
+-- instances for Path
+
 deriving instance Functor Path'
 deriving instance Eq  n => Eq  (Path' n)
 deriving instance Ord n => Ord (Path' n)
@@ -266,8 +273,6 @@ instance IsoString Path where
 
 instance IsoText Path where
   isoText = iso textFromPath textToPath
-    where
-      textToPath t = (t ^. isoString . to readPath)
 
 instance Show n => Show (Path' n) where
   show = showPath
@@ -278,7 +283,7 @@ instance ToJSON Path where
   {-# INLINE toJSON #-}
 
 instance FromJSON Path where
-  parseJSON o = readPath <$> parseJSON o
+  parseJSON o = textToPath <$> parseJSON o
 
 instance IsString Path where
   fromString = readPath
