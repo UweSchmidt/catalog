@@ -150,25 +150,34 @@ type DirTree node ref = RefTree (UpLink node) ref
 
 refPath :: forall ref node . (Ord ref) => ref -> DirTree node ref -> Path
 refPath r00 t =
+  -- in case of an error (a ref was not found)
+  -- the empty path is returned
   fromMaybe mempty $ refPath' r00
   where
     refPath' :: ref -> Maybe Path
     refPath' r0 = do
-      let theName'   r = t ^? entryAt r . traverse . nodeName
-      let theParent' r = t ^? entryAt r . traverse . parentRef
+      n0 <- t ^. entryAt r0
+      path r0 n0
+      where
 
-      let path ref acc = do
-            par <- theParent' ref
-            if par == ref
-              then return acc
-              else do
-                   acc' <- (`consPath` acc) <$> theName' par
-                   path par acc'
+        -- with the new Path impl
+        -- conversion to Path is more efficient
+        -- by using snocPath instead of consPath (old version)
 
-      acc0 <- mkPath <$> theName' r0
-      path r0 acc0
+        path :: ref -> UpLink node ref -> Maybe Path
+        path r n
+          | par == r   = return (n ^. nodeName . to mkPath)
+
+          | otherwise  = do
+              n'     <- t ^. entryAt par
+              res'   <- path par n'
+              return $ (res' `snocPath` n ^. nodeName)
+
+          where
+            par = n ^. parentRef
 
 {-# INLINE refPath #-}
+
 
 -- compute all ancestors of a ref
 -- list is never empty,
