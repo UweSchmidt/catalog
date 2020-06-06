@@ -235,6 +235,10 @@ checkUsedImgObjIds = do
   log'trc $
     "checkUsedImgObjIds: undef  ids in cols: " <> S.size undefIds ^. isoText
 
+  bits <- bitsUsedInImgTreeMap
+  log'trc $
+    "checkUsedImgObjids: # bits used in ImgTree ObjIds: " <> toText bits
+
   showRes orphanIds undefIds
   cleanupOrphanIds orphanIds
   where
@@ -244,7 +248,7 @@ checkUsedImgObjIds = do
       case (nds, ncs) of
         (True,  True ) ->
           log'trc
-          "checkUsedImgObjIds: image refs in collections and dir are the same"
+          "checkUsedImgObjIds: ok, image refs in collections and dir are the same"
 
         (False, True ) ->
           log'warn $

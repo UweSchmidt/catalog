@@ -12,6 +12,8 @@ import Data.ImgNode
 import Data.Prim
 import Data.RefTree
 
+import Data.Map as M
+
 -- ----------------------------------------
 
 type ImgTree    = DirTree ImgNode' ObjId
@@ -83,5 +85,10 @@ removeChildRef r n =
   n & theDirEntries %~ delDirEntry r
     & theColEntries %~ delColEntry r
 {-# INLINE removeChildRef #-}
+
+-- ----------------------------------------
+
+keysImgTree :: ImgTree -> [ObjId]
+keysImgTree t = t ^. entries . to M.keys
 
 -- ----------------------------------------

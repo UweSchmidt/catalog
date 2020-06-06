@@ -52,6 +52,7 @@ module Catalog.ImgTree.Access
   , processColImgEntryAt
   , foldObjIds
   , filterObjIds
+  , bitsUsedInImgTreeMap
   )
 where
 
@@ -343,5 +344,12 @@ filterObjIds p =
         if p v
         then S.singleton i
         else S.empty
+
+-- ----------------------------------------
+
+bitsUsedInImgTreeMap :: SemIS r Int
+bitsUsedInImgTreeMap = do
+  t <- dt
+  return (noOfBitsUsedInKeys . keysImgTree $ t)
 
 -- ----------------------------------------
