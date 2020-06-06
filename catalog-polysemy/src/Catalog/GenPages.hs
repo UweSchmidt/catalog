@@ -357,13 +357,14 @@ processReq cmd r0 = do
 
 toRawPath :: Req' a -> Path
 toRawPath r =
-  geo' `consPath` path' `snocPath` pos'
+  geo' `consPath` path' `concPath` pos'
   where
     path' = r ^. rPath
     geo'  = r ^. rGeo  . isoText . from isoText
     pos'  = maybe mempty mk1 $ r ^. rPos
       where
-        mk1 x = x ^. isoPicNo . isoText . from isoText
+        mk1 :: Int -> Path
+        mk1 x = x ^. isoPicNo . isoText . from isoText . to mkPath
 
 -- --------------------
 --
