@@ -73,8 +73,13 @@ readPath = fromMaybe emptyPath <$> parseMaybe ppath
     pstring :: SP String
     pstring = some (noneOf' "/") <* many (single '/')
 
-mkPath :: n -> Path' n
-mkPath n = PSnoc PNil n
+
+-- empty Name -> empty Path
+
+mkPath :: Name -> Path
+mkPath n
+  | isempty n = PNil
+  | otherwise = PSnoc PNil n
 {-# INLINE mkPath #-}
 
 emptyPath :: Path' n
@@ -82,7 +87,7 @@ emptyPath = PNil
 {-# INLINE emptyPath #-}
 
 listToPath :: [Text] -> Path
-listToPath = foldl' (\ p' t' -> p' `snocPath` (isoText # t')) emptyPath
+listToPath = foldl' (\ p' t' -> p' `concPath` mkPath (isoText # t')) emptyPath
 {-# INLINE listToPath #-}
 
 listFromPath :: Path -> [Text]
@@ -97,7 +102,7 @@ textFromPath = foldMap (\ n -> "/" <> n ^. isoText)
 {-# INLINE textFromPath #-}
 
 textToPath :: Text -> Path
-textToPath = listToPath . filter (not . isempty) . T.split (== '/')
+textToPath = listToPath . T.split (== '/')
 
 isoPathList :: Iso' Path [Text]
 isoPathList = iso listFromPath listToPath
@@ -112,55 +117,55 @@ infixr 5 `consPath`
 infixr 5 `snocPath`
 infixr 5 `concPath`
 
-consPath :: n -> Path' n -> Path' n
+consPath :: Name -> Path -> Path
 consPath n p = mkPath n `concPath` p
 {-# INLINE consPath #-}
 
-snocPath :: Path' n -> n -> Path' n
-snocPath = PSnoc
+snocPath :: Path -> Name -> Path
+snocPath p n = p `concPath` mkPath n
 {-# INLINE snocPath #-}
 
-concPath :: Path' n -> Path' n -> Path' n
+concPath :: Path -> Path -> Path
+concPath PNil p2 = p2
 concPath p1 PNil = p1
-concPath p1 (PSnoc p2 n) = concPath p1 p2 `snocPath` n
+concPath p1 (PSnoc p2 n) = concPath p1 p2 `PSnoc` n
 
-viewBase :: Monoid n => Iso' (Path' n) (Path' n, n)
+viewBase :: Iso' Path (Path, Name)
 viewBase = iso toPair (uncurry snocPath)
   where
     toPair (PSnoc p n) = (p, n)
     toPair PNil        = (PNil, mempty)
 {-# INLINE viewBase #-}
 
-viewTop :: Monoid n => Iso' (Path' n) (n, Path' n)
+viewTop :: Iso' Path (Name, Path)
 viewTop = iso toPair (uncurry consPath)
   where
     toPair (PSnoc PNil n) = (n, PNil)
     toPair (PSnoc p n)    = (n', PSnoc p' n)
       where
-        (n', p') = toPair p
+        (n', p')          = toPair p
     toPair PNil           = (mempty, PNil)
 {-# INLINE viewTop #-}
 
-headPath :: Monoid n => Path' n -> n
+headPath :: Path -> Name
 headPath = (^. viewTop . _1)
 {-# INLINE headPath #-}
 
-tailPath :: Monoid n => Path' n -> Path' n
+tailPath :: Path -> Path
 tailPath = (^. viewTop . _2)
 {-# INLINE tailPath #-}
 
-initPath :: Monoid n => Path' n -> Path' n
+initPath :: Path -> Path
 initPath = (^. viewBase . _1)
 
-lastPath :: Monoid n => Path' n -> n
+lastPath :: Path -> Name
 lastPath = (^. viewBase . _2)
 
-substPathName :: Monoid n => n -> Path' n -> Path' n
+substPathName :: Name -> Path -> Path
 substPathName n p = p & viewBase . _2 .~ n
 {-# INLINE substPathName #-}
 
-
-isPathPrefix :: (Eq n, Monoid n) => Path' n -> Path' n -> Bool
+isPathPrefix :: Path -> Path -> Bool
 isPathPrefix p1 p2 =
   p1 == p2
   ||
@@ -169,8 +174,7 @@ isPathPrefix p1 p2 =
     isPathPrefix p1 (initPath p2)
   )
 
-substPathPrefix :: (Monoid n, Eq n) =>
-                   Path' n -> Path' n -> (Path' n -> Path' n)
+substPathPrefix :: Path -> Path -> (Path -> Path)
 substPathPrefix old'px new'px p0 =
   go p0
   where
@@ -182,7 +186,7 @@ substPathPrefix old'px new'px p0 =
           (p2, n2) = p1 ^. viewBase
 
 
-remCommonPathPrefix :: (Monoid n, Eq n) => Path' n -> Path' n -> (Path' n, Path' n)
+remCommonPathPrefix :: Path -> Path -> (Path, Path)
 remCommonPathPrefix p1 p2
   | n1 /= n2 = (p1, p2)
   | nullPath p1' = (p1', p2')
@@ -206,14 +210,14 @@ checkAndRemExt ext p
       nm   = p ^. viewBase . _2 . isoText
       res  = p &  viewBase . _2 . isoText %~ T.dropEnd (T.length ext')
 
-showPath' :: Show n => String -> Path' n -> String
+showPath' :: String -> Path -> String
 showPath' acc PNil        = acc
 showPath' acc (PSnoc p n) = showPath' ("/" ++ show n ++ acc) p
 
-showPath :: Show n => Path' n -> String
+showPath :: Path -> String
 showPath = showPath' ""
 
-quotePath :: Show n => Path' n -> String
+quotePath :: Path -> String
 quotePath p = '"' : showPath' "\"" p
 
 msgPath :: Path -> Text -> Text
@@ -254,16 +258,16 @@ instance Foldable Path' where
       go acc (PSnoc p1 n) = go (n `f` acc) p1
   {-# INLINE foldr #-}
 
-instance Semigroup (Path' n) where
+instance Semigroup Path where
   (<>) = concPath
 
-instance Monoid (Path' n) where
+instance Monoid Path where
   mempty = PNil
   mappend = (<>)
   {-# INLINE mappend #-}
   {-# INLINE mempty #-}
 
-instance IsEmpty (Path' n) where
+instance IsEmpty Path where
   isempty = nullPath
   {-# INLINE isempty #-}
 
@@ -274,7 +278,7 @@ instance IsoString Path where
 instance IsoText Path where
   isoText = iso textFromPath textToPath
 
-instance Show n => Show (Path' n) where
+instance Show Path where
   show = showPath
   {-# INLINE show #-}
 

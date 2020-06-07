@@ -19,6 +19,7 @@ import System.Log.FastLogger ( LogStr
                              , fromLogStr
                              )
 
+import qualified Data.Text as T
 
 ----------------------------------------------------------------
 
@@ -42,7 +43,8 @@ withCatLogger out app = bracket setup teardown $ \(aplogger, _) ->
 ----------------------------------------------------------------
 
 logStrToText :: (Text -> IO ()) -> LogStr -> IO ()
-logStrToText out ls = out $ fromLogStr ls ^. isoString . isoText
+logStrToText out ls =
+  out $ fromLogStr ls ^. isoString . isoText . to (T.dropEnd 1) -- rem \n
 
 logFlush :: IO ()
 logFlush = return ()

@@ -17,17 +17,30 @@ import qualified Data.Text as T
 
 -- ----------------------------------------
 --
--- names as UTF8 encoded strict bytestrings
--- Text may be a good alternative
+-- names are wrapped Text's
+-- names don't start with a '.'
+-- so ".", ".." and dot files are are all mapped to the empty name
 
 newtype Name = Name Text
 
 emptyName :: Name
 emptyName = mkName ""
 
+-- illegal string -> empty Name
+-- dot files  -> empty Name
+-- empty text -> empty Name
+
 mkName :: String -> Name
-mkName = Name . T.pack
+mkName ('.' : _) = emptyName
+mkName xs        = Name . T.pack $ xs
 {-# INLINE mkName #-}
+
+toName :: Text -> Name
+toName t
+  | not (isempty t)
+    &&
+    T.head t /= '.' = Name t
+  | otherwise       = emptyName
 
 instance IsEmpty Name where
   isempty (Name n) = isempty n
@@ -60,7 +73,7 @@ instance IsoString Name where
   {-# INLINE isoString #-}
 
 instance IsoText Name where
-  isoText = iso (\ (Name n) -> n) Name
+  isoText = iso (\ (Name n) -> n) toName
   {-# INLINE isoText #-}
 
 instance Semigroup Name where
@@ -79,7 +92,7 @@ instance Show Name where
   {-# INLINE show #-}
 
 instance ToJSON Name where
-  toJSON = toJSON . fromName
+  toJSON = toJSON . (^. isoText)
   {-# INLINE toJSON #-}
 
 instance FromJSON Name where
