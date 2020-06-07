@@ -2,7 +2,6 @@
 TAGS
 tmp.*
 .stack-work/
-old.catalog-server/
 data/catalog-servant
 stack.yaml.lock
 .DS_Store
