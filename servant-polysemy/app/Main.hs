@@ -139,7 +139,7 @@ catalogServer env runReadC runModyC runBGC =
     -- image object
     -- <syncdir> default is "photos"
 
-    get'movie         = static p'arch'photos
+    get'movie         = static (tailPath p'arch'photos)
 
     -- root html files are located under /assets/html
 
