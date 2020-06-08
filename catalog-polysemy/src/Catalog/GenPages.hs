@@ -379,14 +379,14 @@ toUrlPath r0 = toUrlPath'' r0 ^. isoText
 
 toUrlPath'' :: Req' a -> Path
 toUrlPath'' r0 =
-  dr `concPath` px `consPath` fp
+  p'docroot `concPath` px `consPath` fp
   where
     r   = unifyIconPath r0
     ty  = r ^. rType
     fp' = toRawPath r
     fp  = fp' & viewBase . _2 %~ addNameSuffix (toUrlExt ty)
     px  = ty ^. isoText . from isoText
-    dr  = readPath ps'docroot
+
     -- scaling of icons smaller than 160x120 with fixed aspect ratio
     -- is done in browser, so the # of generated icons
     -- is reduced
@@ -495,18 +495,31 @@ genReqImg r = do
       createCopyFromImg geo srcPath imgPath
 
     IMGmovie -> do
-      catch @Text
-        ( do
-            tmpPath <- toCachedImgPath
-                       ( r & rType .~ RMovie
-                           & rGeo  .~ geo'org
-                       )
-            -- extract thumbnail from mp4
-            withCache  getThumbnailImage       srcPath tmpPath
-            withCache (createResizedImage geo) tmpPath imgPath
-            return imgPath
-        )
-        (\ _e -> createIconFromString geo "movie" imgPath)
+      mir <- toMovieIconReq r
+      case mir of
+        -- rule .1
+        Just r' -> do
+          srcPath' <- toSourcePath r'
+          log'trc $ msgPath srcPath' "genReqImg: icon for movie sp="
+          createCopyFromImg geo srcPath' imgPath
+
+        Nothing -> do
+        -- rule .2
+          let thumbNail :: Eff'Img r => Sem r Path
+              thumbNail = do
+                tmpPath <- toCachedImgPath
+                           ( r & rType .~ RMovie
+                               & rGeo  .~ geo'org
+                           )
+                -- extract thumbnail from mp4
+                withCache  getThumbnailImage       srcPath tmpPath
+                withCache (createResizedImage geo) tmpPath imgPath
+                return imgPath
+
+          let fallBack :: Eff'Img r => Text -> Sem r Path
+              fallBack _e = createIconFromString geo "movie" imgPath
+
+          catch @Text thumbNail fallBack
 
     IMGtxt -> do
       -- read text from source file
@@ -524,6 +537,31 @@ genReqImg r = do
     geo = mkGeoAR (r ^. rGeo) (reqType2AR $ r ^. rType)
     ity = pathName2ImgType (r ^. rImgRef . to _iname . isoText)
 
+----------------------------------------
+--
+-- How to get an icon out of a movie?
+-- There are 3 steps
+-- .1 look for an .jpg or other image in the parts of the image referenced by i
+--    if an image exists, take that
+-- .2 try to extract a thumnail out of the movie file with exiftool
+--    success -> take the thumnail
+-- .3 fallback: generate an icon from text "movie"
+--    boring but works
+--
+-- to MovieIconPath checks the first posibility
+
+toMovieIconReq :: Eff'ISE r
+               => Req'IdNode'ImgRef a -> Sem r (Maybe (Req'IdNode'ImgRef a))
+toMovieIconReq r = do
+  n <- getImgVal i
+  let nms = n ^.. theParts
+               .  thePartNames' (\ ty -> isJpg ty || isImg ty)
+  return (fmap (\ nm -> r & rImgRef .~ ImgRef i nm) $ listToMaybe nms)
+  where
+    ImgRef i _nm = r ^. rImgRef
+
+----------------------------------------
+--
 -- read text from a file (blog entry) to generate an icon
 
 getTxtFromFile :: (EffError r, EffFileSys r, EffCatEnv r)

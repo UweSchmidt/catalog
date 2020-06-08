@@ -71,7 +71,10 @@ bsToMetaData :: ( EffError r
                 , EffLogging r )
              => ByteString -> Sem r MetaData
 bsToMetaData =
-  either (throw @Text . ("getExifTool: " <>) . T.pack) return
+  either (\ e -> do
+             log'warn $ ("getExifTool: " <> T.pack e)
+             return mempty
+         ) return
   .
   J.eitherDecodeStrict'
 
