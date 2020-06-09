@@ -464,11 +464,11 @@ getOrientation md =
   where
     toOri :: Text -> Int
     toOri t
-      | t == "Rotate 90 CW"  = 1
-      | t == "Rotate 180 CW" = 2
-      | t == "Rotate 90 CCW" = 3
-      | t == "Rotate 270 CW" = 3
-      | otherwise            = 0
+      | t == "Rotate 90 CW"           = 1
+      | "Rotate 180" `T.isPrefixOf` t = 2
+      | t == "Rotate 90 CCW"          = 3
+      | t == "Rotate 270 CW"          = 3
+      | otherwise                     = 0
 
 type Rating = Int -- 0 .. 5
 
