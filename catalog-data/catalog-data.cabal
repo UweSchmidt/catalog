@@ -39,6 +39,8 @@ library
                      Data.Prim.SysPath
                      Data.Prim.TimeStamp
 
+                     Data.CT
+                     
                      Catalog.Html.Templates.Blaze2
                      Catalog.Version
 
