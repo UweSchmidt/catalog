@@ -20,6 +20,7 @@ module Catalog.GenImages
 
   , getThumbnailImage
   , createResizedImage
+  , createVideoIcon
   , genIcon
   , genBlogText
   , genBlogHtml
@@ -37,11 +38,12 @@ import Catalog.MetaData.ExifTool (getExifMetaData)
 import Catalog.TextPath          (toFileSysPath)
 
 -- polysemy-tools
-import Polysemy.ExecProg         (execProgText, execScript)
+import Polysemy.ExecProg         (execScript)
 
 -- catalog modules
 import Data.MetaData             (getImageGeoOri)
 import Data.Prim
+import Data.CT
 
 -- libraries
 
@@ -72,6 +74,7 @@ genIcon path t = do
   dst  <- toFileSysPath path
   dx   <- fileExist dst
   env  <- ask @CatEnv
+
   let fontOpt f
         | T.null f  = mempty
         | otherwise = "-font " <> f
@@ -82,50 +85,10 @@ genIcon path t = do
   unless dx $ do
     dir <- toFileSysPath (path ^. viewBase . _1)
     createDir dir
-    log'verb $ shellCmd dst fopt
-    void $ execScript (shellCmd dst fopt)
 
-  where
-    shellCmd :: TextPath -> Text -> Text
-    shellCmd dst fopt =
-      T.unwords $
-      [ "convert"
-      , "-background 'rgb(255,255,255)'"
-      , "-fill 'rgb(192,64,64)'"
-      ]
-      <>
-      [ fopt ]
-      <>
-      [ "-size 600x400"
-      , "-pointsize " <> ps'
-      , "-gravity center"
-      , "label:'" <> t' <> "'"
-      , "-background 'rgb(128,128,128)'"
-      , "-vignette 0x40"
-      , dst
-      ]
-
-    (t', ps')
-      | multiline = (t0, ps0)
-      | len <= 10 = (t, "92")
-      | len <= 20 = (t1 <> "\\n" <> t2, "80")
-      | otherwise = (s1 <> "\\n" <> s2 <> "\\n" <> s3, "60")
-      where
-        ls        = T.lines t
-        lsn       = length ls
-        multiline = lsn > 1
-        t0        = T.intercalate "\\n" ls
-        ps0
-          | lsn == 2  = "80"
-          | lsn == 3  = "60"
-          | lsn == 4  = "50"
-          | otherwise = "40"
-        len       = T.length t
-        len2      = len `div` 2
-        len3      = len `div` 3
-        (t1, t2)  = T.splitAt len2 t
-        (s1, r2)  = T.splitAt len3 t
-        (s2, s3)  = T.splitAt len3 r2
+    let script = buildIconScript dst fopt t
+    log'verb $ script
+    void $ execScript script
 
 -- ----------------------------------------
 
@@ -146,14 +109,8 @@ getThumbnailImage src dst = do
   where
     extractImage :: Eff'Img r => TextPath -> TextPath -> Sem r ()
     extractImage sp dp = do
-      void $ execScript $
-        T.unwords [ "exiftool"
-                  , "'-b'"
-                  , "'-ThumbnailImage'"
-                  , "'" <> sp <> "'"
-                  , ">"
-                  , "'" <> dp <> "'"
-                  ]
+      void $ execScript $ extractThumbnailScript sp dp
+
       unlessM (fileNotEmpty dp) $
         throw @Text $ "empty thumbnail file " <> dp
       return ()
@@ -161,136 +118,38 @@ getThumbnailImage src dst = do
 -- ----------------------------------------
 
 createResizedImage :: Eff'Img r => GeoAR -> Path -> Path -> Sem r ()
-createResizedImage d'geo src dst = do
+createResizedImage = createResizedImage' mempty
+
+createVideoIcon :: Eff'Img r => GeoAR -> Path -> Path -> Sem r ()
+createVideoIcon = createResizedImage' p'vico
+
+createResizedImage' :: Eff'Img r => Path -> GeoAR -> Path -> Path -> Sem r ()
+createResizedImage' vico d'geo src dst = do
+  vc           <- if isempty vico
+                  then return mempty
+                  else toFileSysPath vico
   sp           <- toFileSysPath src
   dp           <- toFileSysPath dst
   (s'geo, ori) <- getImageGeoOri <$> getExifMetaData src
-  createResized ori s'geo sp dp
+  createResized vc ori s'geo sp dp
   where
 
-    createResized :: Eff'Img r => Int -> Geo -> TextPath -> TextPath -> Sem r ()
-    createResized rot s'geo sp dp
+    createResized :: Eff'Img r
+                  => TextPath -> Int -> Geo -> TextPath -> TextPath -> Sem r ()
+    createResized vc rot s'geo sp dp
 
       -- resize is a noop so a link is sufficient
-      | "#" `T.isPrefixOf` shellCmd = do
+      | isempty shellCmd = do
           log'trc "createResizedImage: make link to src"
           linkFile sp dp
 
       -- resize done with external prog convert
       | otherwise = do
-          log'trc $ "createResizedImage: " <> shellCmd
-          void $ execScript shellCmd
+          log'trc $ "createResizedImage: " <> shellScript
+          void $ execScript shellScript
       where
-        shellCmd =
-          buildCmd rot d'geo s'geo dp sp
-
-buildCmd :: Int -> GeoAR -> Geo -> TextPath -> TextPath -> Text
-buildCmd rot d'g s'geo d s =
-  buildCmd2 rot d'g' s'geo d s
-  where
-    d'geo = d'g ^. theGeo
-    d'g'
-      | d'geo == geo'org = d'g & theGeo .~ s'geo  -- orgiginal size demaned
-                               & theAR  .~ Pad
-      | otherwise        = d'g
-
-buildCmd2 :: Int -> GeoAR -> Geo -> TextPath -> TextPath -> Text
-buildCmd2 rot d'g s'geo d s =
-  buildCmd3 os d'g s'geo' d s
-  where
-    os
-      | rot' /= 0 = ["-rotate", toText (rot' * 90)]
-      | otherwise = []
-
-    s'geo'
-      | odd rot   = flipGeo s'geo
-      | otherwise =         s'geo
-
-    rot' = rot `mod` 4
-
-buildCmd3 :: [Text] -> GeoAR -> Geo -> TextPath -> TextPath -> Text
-buildCmd3 rotate d'g s'geo d' s'
-  | d'geo == s'geo
-    &&
-    null rotate
-    &&
-    ".jpg" `T.isSuffixOf` s = "# nothing to do for " <> s'
-  | otherwise = shellCmd
-  where
-    s           = tiffLayer s'
-    d           = d'
-    d'geo       = d'g ^. theGeo
-    aspect      = d'g ^. theAR
-    (Geo cw ch, Geo xoff yoff)
-                = crGeo aspect
-    r           = rGeo  aspect
-
-    rGeo Fix    = d'geo
-    rGeo Flex
-      | similAR = d'geo
-    rGeo _      = resizeGeo s'geo d'geo
-
-    crGeo Fix   = cropGeo s'geo d'geo
-    crGeo Pad   = (s'geo, Geo (-1) (-1))
-    crGeo Crop  = (s'geo, Geo 0 0)
-    crGeo Flex
-      | similAR = crGeo Fix
-      | otherwise
-                = crGeo Pad
-
-    similAR   = similarAspectRatio s'geo d'geo
-
-    resize      = thumb <> [geo <> "!"]
-    resize1     = thumb <> [d'geo ^. isoText]
-
-    thumb       = [ if isThumbnail
-                    then "-thumbnail"
-                    else "-resize"
-                  ]
-    quality     = "-quality" :
-                  [ if isThumbnail
-                    then "75"
-                    else "90"
-                  ]
-    interlace   = [ "-interlace", "Plane" ]
-
-    isPad       = (xoff == (-1) && yoff == (-1))
-    isCrop      = (xoff > 0     || yoff > 0)
-    isThumbnail = d'geo ^. theW <= 300 || d'geo ^. theH <= 300
-    geo         = r ^. isoText
-
-    -- for .tiff convert needs the layer # to be taken
-    -- if the image contains a thumbnail,
-    -- there are 2 layers in the .tiff file
-    tiffLayer x
-      | ".tif"  `T.isSuffixOf` x
-        ||
-        ".tiff" `T.isSuffixOf` x = x <> "[0]"
-      | otherwise                = x
-
-    cmdName             = [ "convert", "-quiet" ]
-
-    cmdArgs
-        | isPad         = resize1
-                          <> quality <> interlace
-                          -- <> [ "-background", "'#333333'" ]
-                          <> [ s, d ]
-
-        | isCrop        = [ "-crop", toText cw <> "x" <> toText ch <> "+" <>
-                            toText xoff <> "+" <> toText yoff
-                          , s, "miff:-"
-                          , "|"
-                          , "convert"
-                          ]
-                          <> resize <> quality <> interlace
-                          <> ["miff:-", d ]
-
-        | otherwise     = resize <> [s, d]
-
-    shellCmd    = T.unwords $
-                  cmdName
-                  ++ rotate
-                  ++ cmdArgs
+        shellCmd    = buildResizeCmd vc rot d'geo s'geo dp sp
+        shellScript = toBash shellCmd
 
 -- ----------------------------------------
 
@@ -357,10 +216,7 @@ fontList :: ( EffExecProg r
             , EffLogging r
             )
          => Sem r [Text]
-fontList = T.lines <$> execScript shellCmd
-  where
-    shellCmd =
-      "convert -list font | grep Font: | sed 's|^.*Font: ||'"
+fontList = T.lines <$> execScript fontListScript
 
 -- ----------------------------------------
 
@@ -400,7 +256,7 @@ formatBlogText :: ( EffError    r
                   )
                => TextPath -> Sem r Text
 formatBlogText sp =
-    execProgText "pandoc" ["-f", "markdown", "-t", "html", sp] ""
+  execScript $ pandocScript sp
 
 writeBlogText :: ( EffIStore   r
                  , EffError    r
@@ -411,5 +267,244 @@ writeBlogText :: ( EffIStore   r
 writeBlogText t dst = do
   dp <- toFileSysPath dst
   writeFileT dp t
+
+------------------------------------------------------------------------
+--
+-- build commands for resizing images
+
+buildResizeCmd :: TextPath -> Int -> GeoAR -> Geo -> TextPath -> TextPath -> CTT
+buildResizeCmd vico rot d'g s'geo d s =
+  buildResize2 vico rot d'g' s'geo d s
+  where
+    -- normalize dest geometry
+    d'g'
+      | d'geo == geo'org = d'g & theGeo .~ s'geo  -- orgiginal size demaned
+                               & theAR  .~ Pad
+      | otherwise        = d'g
+
+    d'geo = d'g ^. theGeo
+
+buildResize2 :: TextPath -> Int -> GeoAR -> Geo -> TextPath -> TextPath -> CTT
+buildResize2 vico rot d'g s'geo d s =
+  buildResize3 vico rot' d'g s'geo' d s
+  where
+    -- rotate geometry
+    s'geo'
+      | odd rot   = flipGeo s'geo
+      | otherwise =         s'geo
+
+    rot' = rot `mod` 4
+
+buildResize3 :: TextPath -> Int -> GeoAR -> Geo -> TextPath -> TextPath -> CTT
+buildResize3 vico rot d'g s'geo d s'
+  -- nothing to convert, just link or copy src to dst
+  | d'geo == s'geo
+    &&
+    rot == 0
+    &&
+    isempty vico
+    &&
+    ".jpg" `T.isSuffixOf` s = mempty
+
+  | otherwise =
+      mempty
+      & convert
+      & addRotate
+      & addRest
+      & ( if isempty vico
+          then id
+          else addVideo
+        )
+      & addVal d                         -- final destination
+  where
+    -- combine options
+    convert cmd   = cmd
+                    & addPipe "convert"
+                    & addQuiet
+
+    composite cmd = cmd
+                    & addPipe "composite"
+                    & addQuiet
+
+    addRest cmd
+      | isPad     = cmd & addPads
+      | isCrop    = cmd & addCrops
+      | otherwise = cmd & addOthers
+
+    addPads cmd   = cmd
+                    & addResize1
+                    & addQuality
+                    & addInterlace
+                    & addVal s
+
+    addCrops cmd  = cmd
+                    & addCrop
+                    & addVal s
+                    & toStdout
+                    & convert
+                    & addQuiet
+                    & addResize
+                    & addQuality
+                    & addInterlace
+                    & fromStdin
+
+    addOthers cmd = cmd
+                    & addResize
+                    & addVal s
+
+    addVideo cmd  = cmd
+                    & toStdout
+                    & composite
+                    & addOptVal "-gravity" "center"
+                    & addVal vico
+                    & fromStdin
+
+    -- add options
+
+    toStdout      = addVal "miff:-"
+    fromStdin     = addVal "miff:-"
+
+    addCrop       = addOptVal "-crop"
+                    ( toText cw   <> "x" <> toText ch
+                      <> "+" <>
+                      toText xoff <> "+" <> toText yoff
+                    )
+
+    addInterlace  = addOptVal "-interlace" "Plane"
+
+    addQuality    = addOptVal "-quality"
+                    ( if isThumbnail
+                      then "75"
+                      else "90"
+                    )
+
+    addQuiet      = addFlag "-quiet"
+
+    addResize     = addOptVal thumb (geo <> "!")
+
+    addResize1    = addOptVal thumb (d'geo ^. isoText)
+
+    addRotate
+      | rot == 0  = id
+      | otherwise = addOptVal "-rotate" (toText $ rot * 90)
+
+
+    s             = tiffLayer s'
+    d'geo         = d'g ^. theGeo
+    aspect        = d'g ^. theAR
+    (Geo cw ch, Geo xoff yoff)
+                  = crGeo aspect
+    r             = rGeo  aspect
+    geo           = r ^. isoText
+
+    rGeo Fix      = d'geo
+    rGeo Flex
+      | similAR   = d'geo
+    rGeo _        = resizeGeo s'geo d'geo
+
+    crGeo Fix     = cropGeo s'geo d'geo
+    crGeo Pad     = (s'geo, Geo (-1) (-1))
+    crGeo Crop    = (s'geo, Geo 0 0)
+    crGeo Flex
+      | similAR   = crGeo Fix
+      | otherwise = crGeo Pad
+
+    similAR       = similarAspectRatio s'geo d'geo
+
+    thumb         = if isThumbnail
+                    then "-thumbnail"
+                    else "-resize"
+
+    isPad         = (xoff == (-1) && yoff == (-1))
+    isCrop        = (xoff > 0     || yoff > 0)
+    isThumbnail   = d'geo ^. theW <= 300 || d'geo ^. theH <= 300
+
+    -- for .tiff convert needs the layer # to be taken
+    -- if the image contains a thumbnail,
+    -- there are 2 layers in the .tiff file
+    tiffLayer x
+      | ".tif"  `T.isSuffixOf` x
+        ||
+        ".tiff" `T.isSuffixOf` x = x <> "[0]"
+      | otherwise                = x
+
+-- ----------------------------------------
+
+buildIconScript :: TextPath -> Text -> Text -> Text
+buildIconScript dst fopt t =
+  toBash cmd
+  where
+    cmd =
+      mkCexec "convert"
+      & addOptVal "-background"  "rgb(255,255,255)"
+      & addOptVal "-fill"        "rgb(192,64,64)"
+      & ( if isempty fopt
+          then id
+          else addOptVal "-font" fopt
+        )
+      & addOptVal "-size"        "600x400"
+      & addOptVal "-pointsize"   ps'
+      & addOptVal "-gravity"     "center"
+      & addFlag   ("label:" <> t')                 -- sequence of options matters
+      & addOptVal "-background"  "rgb(128,128,128)"
+      & addOptVal "-vignette"    "0x40"
+      & addVal    dst
+
+    (t', ps')
+      | multiline = (t0, ps0)
+      | len <= 10 = (t, "92")
+      | len <= 20 = (t1 <> "\\n" <> t2, "80")
+      | otherwise = (s1 <> "\\n" <> s2 <> "\\n" <> s3, "60")
+
+    ls        = T.lines t
+    lsn       = length ls
+    multiline = lsn > 1
+    t0        = T.intercalate "\\n" ls
+    ps0
+      | lsn == 2  = "80"
+      | lsn == 3  = "60"
+      | lsn == 4  = "50"
+      | otherwise = "40"
+    len       = T.length t
+    len2      = len `div` 2
+    len3      = len `div` 3
+    (t1, t2)  = T.splitAt len2 t
+    (s1, r2)  = T.splitAt len3 t
+    (s2, s3)  = T.splitAt len3 r2
+
+------------------------------------------------------------------------
+
+extractThumbnailScript :: TextPath -> TextPath -> Text
+extractThumbnailScript sp dp =
+  toBash cmd
+  where
+    cmd =
+      mkCexec       "exiftool"
+      & addFlag     "-b"
+      & addFlag     "-ThumbnailImage"
+      & addVal      sp
+      & redirStdout dp
+
+fontListScript :: Text
+fontListScript =
+  toBash cmd
+  where
+    cmd =
+      mkCexec "convert"
+      & addOptVal "-list" "font"
+      & addPipe "grep"
+      & addOptVal "-e" "Font:"
+      & addPipe "sed"
+      & addOptVal "-e" "s|^.*Font: ||"
+
+pandocScript :: TextPath -> Text
+pandocScript sp =
+  toBash cmd
+  where
+    cmd =
+      mkCexec "pandoc"
+      & addOptVal "-f" "markdown"
+      & addOptVal "-t" "html"
+      & addVal sp
 
 ------------------------------------------------------------------------

@@ -21,6 +21,8 @@ module Data.CT
   , mkCpipe
   , mkCseq
   , mkCexec
+  , mkCout
+  , redirStdout
 
     -- adding options and arguments
   , addArg
@@ -63,11 +65,14 @@ data CT val = Bin Cop (CT val) (CT val)
 
 data Cop
   = Cconc     -- list conc for cmd options and args
-  | Cexec     -- cmd to execute
   | Cargs     -- options and arguments
+  | Copt      -- options/flags
+
+  | Cexec     -- cmd to execute
   | Cpipe     -- combine 2 cmds with a pipe (|)
   | Cseq      -- combine 2 cmds to a sequence (;)
-  | Copt      -- options/flags
+  | Cout      -- stdout redirect, _1tree is output file
+  | Cin       -- stdin redirect, _1tree is input redirect
 
 type CTT = CT Text
 
@@ -120,6 +125,14 @@ mkCseq t1 t2
     isCmd t2 = Bin Cseq t1 t2
   | otherwise    = mempty
 
+mkCout :: CT val -> CT val -> CT val
+mkCout     Nil     t2             = t2
+mkCout t1@(Val _) (Bin Cout _ t2) = Bin Cout t1 t2  -- remove existing redirect
+mkCout t1@(Val _) t2
+  | isCmd t2                      = Bin Cout t1 t2
+mkCout  _         _               = Nil             -- inconsitent
+
+
 mkVal :: val -> CT val
 mkVal = Val
 
@@ -133,6 +146,9 @@ mkOptV ov vv = Bin Copt (mkVal ov) (mkVal vv)
 
 mkCexec :: val -> CT val
 mkCexec x = Bin Cexec (Val x) (Bin Cargs Nil Nil)
+
+redirStdout :: val -> CT val -> CT val
+redirStdout x cmd = mkCout (mkVal x) cmd
 
 --------------------
 --
@@ -171,11 +187,11 @@ addSeq cmd = editLastExec id (`mkCseq` mkCexec cmd)
 --------------------
 
 isCmd :: CT val -> Bool
-isCmd (Bin o _ _) = o `elem` [Cexec, Cpipe, Cseq]
+isCmd (Bin o _ _) = o `elem` [Cexec, Cpipe, Cseq, Cout]
 isCmd _           = False
 
 isCompCmd :: CT val -> Bool
-isCompCmd (Bin o _ _) = o `elem` [Cpipe, Cseq]
+isCompCmd (Bin o _ _) = o `elem` [Cpipe, Cseq, Cout]
 isCompCmd _           = False
 
 ----------------------------------------
@@ -189,10 +205,10 @@ editLastExec trv = editLastExec' . editExec trv
 
 
 editLastExec' :: (CT val -> CT val) -> (CT val -> CT val)
-editLastExec' f t@(Bin Cexec _ _) = f t
 editLastExec' f t@(Bin o l r)
-  | isCompCmd t = Bin o l (editLastExec' f r)
-editLastExec' _ t    = t
+  | Cexec <- o    = f t
+  | isCompCmd t   = Bin o l (editLastExec' f r)
+editLastExec' f t = f t
 
 
 editExec :: Traversal' (CT val) (CT val)
@@ -240,14 +256,14 @@ toBash = T.unwords . toWords
 toWords :: CT Text -> [Text]
 toWords t0 = toCmd t0 []
   where
-    toCmd Nil            = id
-    toCmd (Val v)        = arg v
-    toCmd (Bin o t1 t2) = case o of
-      Cpipe -> toCompound t1 . sep . lit "|" . sep  . toCompound t2
-      Cseq  -> toCmd t1 . lit ";" . sep . toCmd t2
+    toCmd t@(Bin o t1 t2) = case o of
+      Cout  -> toCompound t2 . lit ">" . toArgs t1
+      Cpipe -> toCompound t1 . lit "|" . toCompound t2
+      Cseq  -> toCmd t1 . lit ";" . toCmd t2
       Cexec -> toCmd t1 . toArgs t2
       Cconc -> toCmd t1 . toCmd t2
-      _     -> id                   -- illegal
+      _     -> toArgs t
+    toCmd t  = toArgs t
 
     toCompound t@(Bin Cseq _ _) = lit "{" . toCmd t . lit ";}"
     toCompound t                = toCmd t
@@ -255,13 +271,12 @@ toWords t0 = toCmd t0 []
     toArgs (Bin Cargs t1 t2) = toArgs (t1 <> t2)
     toArgs (Bin Cconc t1 t2) = toArgs t1 . toArgs t2
     toArgs (Bin Copt  t1 t2) = toArgs t1 . toArgs t2
-    toArgs (Val v)           = sep . arg v
+    toArgs (Val v)           = arg v
     toArgs  Nil              = id
     toArgs  _                = id   -- illegal
 
     arg xs = (quT xs :)
     lit xs = (xs     :)
-    sep    = id
 
 ----------------------------------------
 --
@@ -279,6 +294,9 @@ _2tree _   t             = pure t
 --
 -- quoting
 
+mustBeQuoted :: Char -> Bool
+mustBeQuoted = not . isUnquoted
+
 isUnquoted :: Char -> Bool
 isUnquoted c =
   isAlphaNum c || c `elem` ("%+,-./:@^_" :: [Char])
@@ -292,8 +310,8 @@ quS = concatMap qu
 
 quT :: Text -> Text
 quT t
-  | isJust $ T.find isUnquoted t = t & isoString %~ quS
-  | otherwise                    = t
+  | isJust $ T.find mustBeQuoted t = t & isoString %~ quS
+  | otherwise                      = t
 
 ------------------------------------------------------------------------
 {-
@@ -306,6 +324,7 @@ example = mkCexec "echo"
           & addPipe "wc"
           & addFlag "-w"
           & addFlag "-l"
+          & redirStdout "result.txt"
 
 exrun :: IO ()
 exrun = putStrLn . T.unpack . toBash $ example
