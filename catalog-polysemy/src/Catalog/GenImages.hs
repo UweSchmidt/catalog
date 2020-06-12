@@ -342,7 +342,6 @@ buildResize3 vico rot d'g s'geo d s'
                     & addVal s
                     & toStdout
                     & convert
-                    & addQuiet
                     & addResize
                     & addQuality
                     & addInterlace

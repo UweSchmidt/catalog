@@ -58,6 +58,7 @@ import Catalog.Html.Templates.Blaze2  ( colPage'
 import Catalog.Effects
 import Catalog.GenImages              ( Eff'Img
                                       , createResizedImage
+                                      , createVideoIcon
                                       , genIcon
                                       , genBlogHtml
                                       , getThumbnailImage
@@ -501,7 +502,7 @@ genReqImg r = do
         Just r' -> do
           srcPath' <- toSourcePath r'
           log'trc $ msgPath srcPath' "genReqImg: icon for movie sp="
-          createCopyFromImg geo srcPath' imgPath
+          createVideoIconFromImg geo srcPath' imgPath
 
         Nothing -> do
         -- rule .2
@@ -513,11 +514,11 @@ genReqImg r = do
                            )
                 -- extract thumbnail from mp4
                 withCache  getThumbnailImage       srcPath tmpPath
-                withCache (createResizedImage geo) tmpPath imgPath
+                withCache (createVideoIcon geo) tmpPath imgPath
                 return imgPath
 
           let fallBack :: Eff'Img r => Text -> Sem r Path
-              fallBack _e = createIconFromString geo "movie" imgPath
+              fallBack _e = createVideoIconFromString geo " " imgPath
 
           catch @Text thumbNail fallBack
 
@@ -637,10 +638,19 @@ createIconFromObj r dstPath = do
 -- the copy is stored under the path of the image
 
 createCopyFromImg :: Eff'Img r
-                  => GeoAR -> Path -> Path -> Sem r Path
-createCopyFromImg geo sp ip =
+                   => GeoAR -> Path -> Path -> Sem r Path
+createCopyFromImg = createCopyFromImg' createResizedImage
+
+createVideoIconFromImg :: Eff'Img r
+                   => GeoAR -> Path -> Path -> Sem r Path
+createVideoIconFromImg = createCopyFromImg' createVideoIcon
+
+createCopyFromImg' :: Eff'Img r
+                   => (GeoAR -> Path -> Path -> Sem r ())
+                   ->  GeoAR -> Path -> Path -> Sem r Path
+createCopyFromImg' createResized geo sp ip =
   catch @Text
-  ( do withCache (createResizedImage geo) sp ip
+  ( do withCache (createResized geo) sp ip
        return ip
   )
   (\ _e -> createIconFromString geo "broken\nimage" ip)
@@ -649,9 +659,18 @@ createCopyFromImg geo sp ip =
 
 createIconFromString :: Eff'Img r
                      => GeoAR -> Text -> Path -> Sem r Path
-createIconFromString geo t dp = do
+createIconFromString = createIconFromString' createResizedImage
+
+createVideoIconFromString :: Eff'Img r
+                     => GeoAR -> Text -> Path -> Sem r Path
+createVideoIconFromString = createIconFromString' createVideoIcon
+
+createIconFromString' :: Eff'Img r
+                      => (GeoAR -> Path -> Path -> Sem r ())
+                      -> GeoAR -> Text -> Path -> Sem r Path
+createIconFromString' createResized geo t dp = do
   sp <- createRawIconFromString t
-  withCache (createResizedImage geo) sp dp
+  withCache (createResized geo) sp dp
   return dp
 
 createRawIconFromString :: Eff'Img r
