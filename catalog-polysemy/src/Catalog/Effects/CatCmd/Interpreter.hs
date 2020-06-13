@@ -26,6 +26,7 @@ import Catalog.Html            ( Eff'Html )
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
 import Catalog.ImgTree.Fold
+import Catalog.Invariant       ( checkImgStore )
 import Catalog.MetaData.Sync   ( Eff'MDSync )
 import Catalog.SyncWithFileSys ( Eff'Sync )
 import Catalog.TextPath        ( toFileSysPath )
@@ -571,6 +572,7 @@ syncCol' sync i = do
   let path'dir = substPathPrefix p'photos p'arch'photos path
   log'verb $ msgPath path'dir "syncCol': directory "
   sync path'dir
+  checkImgStore
 
 -- sync a subcollection of /archive/photo with filesystem
 

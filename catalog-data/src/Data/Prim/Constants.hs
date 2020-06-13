@@ -71,7 +71,8 @@ p'assets
   , p'javascript
   , p'css
   , p'blank
-  , p'vico :: Path
+  , p'vico
+  , p'qmark :: Path
 
 p'assets       = mkPath "assets"
 p'html         = p'assets  `snocPath` "html"
@@ -80,6 +81,7 @@ p'javascript   = p'assets  `snocPath` "javascript"
 p'css          = p'assets  `snocPath` "css"
 p'blank        = p'icons   `snocPath` "blank.jpg"
 p'vico         = p'icons   `snocPath` "video-play-3-64.png"
+p'qmark        = p'icons   `snocPath` "qm2.jpg"
 
 p'docroot
   , p'exifcache

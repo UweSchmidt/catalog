@@ -518,7 +518,7 @@ genReqImg r = do
                 return imgPath
 
           let fallBack :: Eff'Img r => Text -> Sem r Path
-              fallBack _e = createVideoIconFromString geo " " imgPath
+              fallBack _e = createVideoIconFromImg geo p'qmark imgPath
 
           catch @Text thumbNail fallBack
 

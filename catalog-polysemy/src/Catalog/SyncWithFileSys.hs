@@ -39,7 +39,6 @@ import Catalog.GenCollections  ( img2colPath
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Fold
 import Catalog.ImgTree.Modify
-import Catalog.Invariant       ( checkImgStore )
 import Catalog.Logging         ( trc'Obj )
 import Catalog.MetaData.Sync   ( syncMetaData )
 import Catalog.TextPath        ( toFileSysTailPath )
@@ -175,11 +174,6 @@ syncDirP ts p = do
   log'verb $ "syncDir: images added:   " <> toText new'refs
   updateCollectionsByDate new'refs
   updateImportsDir ts new'refs
-
-  -- final action: check integrity, especially
-  -- whether there are dead enties in dir tree
-  checkImgStore
-  return ()
 
 syncDir' :: Eff'Sync r => Path -> Sem r ()
 syncDir' p = do
