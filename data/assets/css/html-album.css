@@ -127,6 +127,7 @@ table.info tr th, table.help tr th {
   text-align:     right;
   vertical-align: top;
   padding-right:  .5em;
+  font-family: monospace;
 }
 
 table.info tr td, table.help tr td {
@@ -144,6 +145,7 @@ body {
   margin:   0px;
   border:   0px;
   padding:  0px;
+  min-height: 100%;
 }
 
 body.picture-2560x1440 {
