@@ -661,9 +661,11 @@ createIconFromString :: Eff'Img r
                      => GeoAR -> Text -> Path -> Sem r Path
 createIconFromString = createIconFromString' createResizedImage
 
+{- not in use
 createVideoIconFromString :: Eff'Img r
                      => GeoAR -> Text -> Path -> Sem r Path
 createVideoIconFromString = createIconFromString' createVideoIcon
+-- -}
 
 createIconFromString' :: Eff'Img r
                       => (GeoAR -> Path -> Path -> Sem r ())

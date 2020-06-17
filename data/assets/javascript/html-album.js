@@ -330,11 +330,12 @@ function initSlideShow () {
     }
 }
 
-var opacity         = "0.6";
+var opacity         = "0.8";
 var backgroundColor = "#666666";
 
 var titleVisible = false;
 var infoVisible  = false;
+var helpVisible  = false;
 
 function toggleTitle() {
     if (titleVisible) {
@@ -356,6 +357,7 @@ function showTitleElement() {
     if (! titleVisible) {
         stopSlideShow();
         hideInfoElement();
+        hideHelpElement();
         $('#title-area-line')
             .css('visibility',      "visible")
             .css('opacity',         opacity)
@@ -384,18 +386,11 @@ function toggleInfo() {
     }
 }
 
-function showInfo() {
-    /* showInfoElement(); /* disable mouse over effects */
-}
-
-function hideInfo() {
-    /* hideInfoElement(); /* disable mouse over effects */
-}
-
 function showInfoElement() {
     if (! infoVisible) {
         stopSlideShow();
         hideTitleElement();
+        hideHelpElement();
         $('#info-area-content')
             .css('visibility',      "visible")
             .css('opacity',         opacity)
@@ -416,6 +411,39 @@ function hideInfoElement() {
     }
 }
 
+function toggleHelp() {
+    if (helpVisible) {
+        hideHelpElement();
+    } else {
+        showHelpElement();
+    }
+}
+
+function showHelpElement() {
+    if (! helpVisible) {
+        stopSlideShow();
+        hideTitleElement();
+        hideInfoElement();
+        $('#help-area-content')
+            .css('visibility',      "visible")
+            .css('opacity',         opacity)
+            .css('backgroundColor', backgroundColor);
+
+        helpVisible = true;
+    }
+}
+
+function hideHelpElement() {
+    if (helpVisible) {
+        $('#help-area-content')
+            .css('visibility',      '')
+            .css('opacity',         '')
+            .css('backgroundColor', '');
+
+        helpVisible = false;
+    }
+}
+
 function isKey(e, c, s) {
     if ((e.keyCode == 0
          ||
@@ -425,6 +453,17 @@ function isKey(e, c, s) {
         e.which == c
        ) { return true;}
     return false;
+}
+
+function keyCodeToString(e, c) {
+    if ((e.keyCode == 0
+         ||
+         e.keyCode == e.which
+        )
+        &&
+        e.which == c
+       ) { return String.fromCharCode(c); }
+    return "";
 }
 
 function keyUp(e) {
@@ -573,6 +612,13 @@ function keyPressed (e) {
         toggleControls();
         return false;
     }
+
+    s = keyCodeToString(e.keyCode);
+    if ( s != "" ) {
+        toggleHelp();
+        return false;
+    }
+
 
     return true;
 }

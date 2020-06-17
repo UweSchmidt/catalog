@@ -53,7 +53,7 @@ td.head2 div.title, td.head2 div.subtitle, td.head2 div.resources {
 }
 
 
-.title, .subtitle, .resources .info, .back, .forward, .up {
+.title, .subtitle, .resources .info, .help, .back, .forward, .up {
   color:            white; /* #300008; */  /*#002060;*/
   background-color: transparent;
 }
@@ -77,12 +77,16 @@ td.head2 div.title, td.head2 div.subtitle, td.head2 div.resources {
   font-size: 18px;
 }
 
+.help {
+  font-size: 18px;
+}
+
 .back, .forward, .up {
   text-align:     center;
   vertical-align: middle;
 }
 
-.title-area, .info-area {
+.title-area, .info-area, .help-area {
   background-color: transparent;
   cursor:           text;
 }
@@ -119,13 +123,13 @@ a.up:hover {
   background-image: url(/fix-75x75/assets/icons/up.jpg);
 }
 
-table.info tr th {
+table.info tr th, table.help tr th {
   text-align:     right;
   vertical-align: top;
   padding-right:  .5em;
 }
 
-table.info tr td {
+table.info tr td, table.help tr td {
   text-align:     left;
   vertical-align: top;
   padding-left:   .5em;
@@ -236,7 +240,7 @@ td.picture {
 }
 /* title and info area */
 
-div.title-area-line, div.info-area-content {
+div.title-area-line, div.info-area-content, div.help-area-content {
   visibility: hidden;
 
   position: absolute;
@@ -246,7 +250,7 @@ div.title-area-line, div.info-area-content {
   min-height:  100px;
 }
 
-div.title-area-line-2560x1440, div.info-area-content-2560x1440 {
+div.title-area-line-2560x1440, div.info-area-content-2560x1440, div.help-area-content-2560x1440 {
   padding-left:   20px;
   padding-right:  20px;
   padding-top:    15px;
@@ -254,7 +258,7 @@ div.title-area-line-2560x1440, div.info-area-content-2560x1440 {
   width:        2100px;
 }
 
-div.title-area-line-1920x1200, div.info-area-content-1920x1200 {
+div.title-area-line-1920x1200, div.info-area-content-1920x1200, div.help-area-content-1920x1200 {
   padding-left:   20px;
   padding-right:  20px;
   padding-top:    15px;
@@ -262,7 +266,7 @@ div.title-area-line-1920x1200, div.info-area-content-1920x1200 {
   width:        1660px;
 }
 
-div.title-area-line-1600x1200, div.info-area-content-1600x1200 {
+div.title-area-line-1600x1200, div.info-area-content-1600x1200, div.help-area-content-1600x1200 {
   padding-left:   20px;
   padding-right:  20px;
   padding-top:    15px;
@@ -270,7 +274,7 @@ div.title-area-line-1600x1200, div.info-area-content-1600x1200 {
   width:        1360px;
 }
 
-div.title-area-line-1400x1050, div.info-area-content-1400x1050 {
+div.title-area-line-1400x1050, div.info-area-content-1400x1050, div.help-area-content-1400x1050 {
   padding-left:   15px;
   padding-right:  15px;
   padding-top:    10px;
@@ -278,7 +282,7 @@ div.title-area-line-1400x1050, div.info-area-content-1400x1050 {
   width:        1250px; /* 900 + 2*15 = 930, 120px left for navi */
 }
 
-div.title-area-line-1280x800, div.info-area-content-1280x800 {
+div.title-area-line-1280x800, div.info-area-content-1280x800, div.help-area-content-1280x800 {
   padding-left:   15px;
   padding-right:  15px;
   padding-top:    10px;

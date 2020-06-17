@@ -331,6 +331,7 @@ picPage theBaseRef theHeadTitle theDate
     picImg
     picTitle
     picInfo
+    picHelp theImgGeo
     picNav
 
 -- ----------------------------------------
@@ -350,6 +351,7 @@ movPage theBaseRef theHeadTitle theDate
     picMov
     picTitle
     picInfo
+    picHelp theImgGeo
     picNav
 
 -- ----------------------------------------
@@ -394,6 +396,8 @@ colPage theBaseRef theHeadTitle theDate theImgGeo
         td ! class_ "head1" $ mempty
         td ! class_ "head2" $ mempty
         td ! class_ "head3" $ colNav
+    picHelp theImgGeo
+
 
 -- ----------------------------------------
 
@@ -686,9 +690,7 @@ picNav = do
 
 picInfo :: Geo -> MetaData -> Html
 picInfo theImgGeo md =
-    H.div ! class_ "info-area"
-          ! onmouseover "showInfo();"
-          ! onmouseout "hideInfo();" $
+    H.div ! class_ "info-area" $
       H.div ! class_ (toValue $ "info-area-content info-area-content-" <>
                                 theImgGeo ^. isoText
                      )
@@ -696,6 +698,43 @@ picInfo theImgGeo md =
         H.div ! class_ "info" $ do
           H.div ! class_ "subtitle" $ "Bild-Daten"
           table ! class_ "info" $ picMeta md
+
+picHelp :: Geo -> Html
+picHelp theImgGeo =
+  H.div ! class_ "help-area" $
+    H.div ! class_ (toValue $ "help-area-content help-area-content-" <>
+                              theImgGeo ^. isoText
+                   )
+          ! A.id "help-area-content" $ do
+      H.div ! class_ "help" $ do
+        H.div ! class_ "subtitle" $ "Tastatur-Kommandos"
+        table ! class_ "help" $ picKeys
+
+picKeys :: Html
+picKeys = do
+  toRow "→, n, > \" \"" "nächstes Bild"
+  toRow "←, p, <"       "vorheriges Bild"
+  toRow "↑, u, ^"       "zum Album"
+  toRow "↓, d, v"       "zum 1. Bild eines Albums"
+  toRow "i"             "Anzeige der Metadaten eines Bildes"
+  toRow "f"             "Anzeige eines Bildes in Originalgröße"
+  toRow "a, q"          "Animation eines Panorama-Bildes"
+  toRow "s"             "start/stop automatischer Bildwechsel im momentanen Album"
+  toRow "S"             "start/stop automatischer Bildwechsel alle Alben"
+  toRow "+"             "automatischer Bildwechsel schneller"
+  toRow "-"             "automatischer Bildwechsel langsamer"
+  toRow "0"             "automatischer Bildwechsel Dauer zurücksetzen"
+  toRow "t"             "Anzeige des Titels eines Bildes"
+  toRow "m"             "Ton bei Videos an/aus"
+  toRow "c"             "Kontrollleiste bei Videos an/aus"
+  toRow "?, h"          "Diese Hilfe-Info"
+
+  where
+    toRow :: Text -> Text -> Html
+    toRow k v = do
+      tr ! class_ "help" $ do
+        th $ toHtml k
+        td $ toHtml v
 
 picMeta :: MetaData -> Html
 picMeta md = mconcat mdTab
