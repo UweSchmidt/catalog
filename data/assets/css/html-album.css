@@ -48,12 +48,12 @@ a:focus {
   color:           #ff0000;
 }
 
-td.head2 div.title, td.head2 div.subtitle, td.head2 div.resources {
+td.head2 div.title, td.head2 div.subtitle, td.head2 div.resources, td.head2 div.comment {
   color: #bbbbbb ; /*white;*/ /* #300008; */  /*#002060;*/
 }
 
 
-.title, .subtitle, .resources .info, .help, .back, .forward, .up {
+.title, .subtitle, .resources, .info, .help, .back, .forward, .up {
   color:            white; /* #300008; */  /*#002060;*/
   background-color: transparent;
 }
