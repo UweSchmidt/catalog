@@ -2140,6 +2140,26 @@ function buildImgCarousel(args, colVal) {
             return false;
         });
 
+    $('#CarouselModal')
+        .off('keyup')
+        .on('keyup', function(e){
+            console.log('CarouselModal:');
+            console.log(e);
+            var charCode = e.keyCode;
+            if ( charCode == 39
+               ) { // right arrow
+                console.log('keypres: next image');
+                $("#CarouselModalBody .carousel-control.right").click();
+            }
+            else if ( charCode == 37
+                    ) { // left arrow
+                console.log('keypres: prev image');
+                $("#CarouselModalBody .carousel-control.left").click();
+            }
+            return false;
+        });
+
+    
     // configure the modal box and its size
     $('#CarouselModal > div.modal-dialog')
         .attr('class', 'modal-dialog modal-carousel-' + g.geo);
