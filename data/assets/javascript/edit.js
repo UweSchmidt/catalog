@@ -33,7 +33,13 @@ function initSystemCollections() {
 // version test
 
 function is450() {
-    return (typeof xxx == "number" && xxx == 450);
+    return (typeof bootstrapVersion == "number" && bootstrapVersion == 450);
+}
+
+var hiddenclass = "hidden";
+
+if ( is450() ) {
+    hiddenclass= "hidden-bs450";
 }
 
 // ----------------------------------------
@@ -146,18 +152,18 @@ function setDiaColAccess(dia, wr) {
     if (wr) {
         $(dia)
             .find('span.img-col-writeprotected')
-            .addClass('hidden');
+            .addClass(hiddenclass);
     } else {
         $(dia)
             .find('span.img-col-writeprotected')
-            .removeClass('hidden');
+            .removeClass(hiddenclass);
     }
 }
 
 function getDiaColWriteProtected(dia) {
     var res = $(dia)
             .find('span.img-col-writeprotected')
-            .hasClass('hidden');
+            .hasClass(hiddenclass);
     console.log('getdiaColWriteAccess', res);
     return res;
 }
@@ -746,11 +752,11 @@ function insertEntries(colId, entries) {
         .hover(function () {
             $(this)
                 .find('.dia-btn-group')
-                .removeClass('hidden');
+                .removeClass(hiddenclass);
         }, function () {
             $(this)
                 .find('.dia-btn-group')
-                .addClass('hidden');
+                .addClass(hiddenclass);
         });
 
     // install handler at rating stars
@@ -808,9 +814,9 @@ function insertEntries(colId, entries) {
 
     //collections don't have all buttons
     col.find('div.dia.colmark button.dia-btn-colimg')
-        .addClass('hidden');
+        .addClass(hiddenclass);
     col.find('div.dia.colmark button.dia-btn-blog')
-        .removeClass('hidden')
+        .removeClass(hiddenclass)
         .attr('title', 'Edit blog text for this collection');
     col.find('div.dia.colmark button.dia-btn-view')
         .attr('title', 'Preview image and/or blog text for this collection');
@@ -824,39 +830,39 @@ function insertEntries(colId, entries) {
             console.log('hide lock button ', cpath);
             if (collectionIsGenerated(cpath)) {
                 $(e).find('button.dia-btn-writeprotected')
-                .addClass('hidden');
+                .addClass(hiddenclass);
             }
         });
 
     // images don't have all buttons
     col.find('div.dia.imgmark button.dia-btn-rename')
-        .addClass('hidden');
+        .addClass(hiddenclass);
     col.find('div.dia.imgmark button.dia-btn-writeprotected')
-        .addClass('hidden');
+        .addClass(hiddenclass);
 
     // .md text files don't have meta data
     col.find('div.dia.imgmark.data-md button.dia-btn-meta')
-        .addClass('hidden');
+        .addClass(hiddenclass);
     col.find('div.dia.imgmark.data-md button.dia-btn-title')
-        .addClass('hidden');
+        .addClass(hiddenclass);
     // redefine colimg button to set colblog entry
     col.find('div.dia.imgmark.data-md button.dia-btn-colimg')
         .attr('title', "Take this text as blog text for the current collection");
     col.find('div.dia.imgmark.data-md button.dia-btn-view')
         .attr('title', "Preview this blog text");
     col.find('div.dia.imgmark.data-md button.dia-btn-blog')
-        .removeClass('hidden');
+        .removeClass(hiddenclass);
 
     // clipboard has a special set of image buttons
     if (colId === idClipboard()) {
         col.find('div.dia button.dia-btn-movefromclipboard')
-            .addClass('hidden');
+            .addClass(hiddenclass);
         col.find('div.dia button.dia-btn-copyfromclipboard')
-            .addClass('hidden');
+            .addClass(hiddenclass);
         col.find('div.dia button.dia-btn-movetoclipboard')
-            .addClass('hidden');
+            .addClass(hiddenclass);
         col.find('div.dia button.dia-btn-copytoclipboard')
-            .addClass('hidden');
+            .addClass(hiddenclass);
     }
 
     // in clipboard and subcollections remove is possible
@@ -864,10 +870,10 @@ function insertEntries(colId, entries) {
     // clipboard collections are never write protected
     if ( ! isPathPrefix(pathClipboard(), path) ) {
         col.find('div.dia button.dia-btn-remove')
-            .addClass('hidden');
+            .addClass(hiddenclass);
     } else {
         col.find('div.dia button.dia-btn-writeprotected')
-            .addClass('hidden');
+            .addClass(hiddenclass);
     }
 }
 
@@ -1715,10 +1721,10 @@ function markAccess(cid, ro) {
             .find('[href="#' + cid + '"]')
             .find('.coltab-writeprotected');
     if (ro) {
-        c.removeClass('hidden');
+        c.removeClass(hiddenclass);
         $('#' + cid).addClass('no-write');
     } else {
-        c.addClass('hidden');
+        c.addClass(hiddenclass);
         $('#' + cid).removeClass('no-write');
     }
 }
@@ -2224,7 +2230,7 @@ function previewImage() {
         .attr('class', 'modal-dialog modal-preview-' + previewGeo().geo);
 
     $('#PreviewModalBody > div')
-        .addClass('hidden');
+        .addClass(hiddenclass);
 
     $('#PreviewModalBlog')    /* blog text is hidden */
         .attr('hidden','');
@@ -2254,7 +2260,7 @@ function insertPreviewRef(ref, args) {
     console.log(args);
 
     // make the div for images visible
-    $('#PreviewModalBody div.data-jpg').removeClass('hidden');
+    $('#PreviewModalBody div.data-jpg').removeClass(hiddenclass);
     $('#PreviewModalImg').removeAttr('hidden');
 
     // insert the image ref, browser will load and show the image
@@ -2275,7 +2281,7 @@ function insertBlogText(txt, args) {
         return;
     }
     // make the div for images visible
-    $('#PreviewModalBody div.data-md').removeClass('hidden');
+    $('#PreviewModalBody div.data-md').removeClass(hiddenclass);
     $('#PreviewModalBlog').removeAttr('hidden');
     $('#PreviewModalBlog')
         .empty()

@@ -20,7 +20,7 @@
 
     <script type="text/javascript">
     <!--
-      var boootstrap=450;
+      var bootstrapVersion=450;
       -->
     </script>
   </head>
@@ -95,11 +95,10 @@
               </svg>
             </button>
           </li>
-          <li class="nav-item hidden">
-            <!-- a dummy button like ShowMetaDataButton: class hidden -->
+          <li class="nav-item hidden-bs450">
+            <!-- a dummy button like ShowMetaDataButton: class hidden-bs450 -->
             <button id="RenameCollectionButton"
-                    hidden=""
-                    class="btn btn-link btn-lg hidden shadow-none bs450"
+                    class="btn btn-link btn-lg shadow-none bs450"
                     data-toggle="modal"
                     data-target="#RenameCollectionModal"
                     title="rename last marked collection">
@@ -144,7 +143,7 @@
               </svg>
             </button>
           </li>
-          <li class="nav-item">
+          <li class="nav-item hidden-bs450">
             <!--
                 this button is never triggered directly
                 but from jquery .click() method in
@@ -152,7 +151,6 @@
                 or from button groups ShowMeta button
               -->
             <button id="ShowMetaDataButton"
-                    hidden=""
                     class="btn btn-link btn-lg shadow-none bs450"
                     data-toggle="modal"
                     data-target="#ShowMetaDataModal"
@@ -173,10 +171,9 @@
               </svg>
             </button>
           </li>
-          <li class="nav-item">
+          <li class="nav-item hidden-bs450">
             <!-- hidden like ShowMetaDataButton -->
             <button id="BlogEditButton0"
-                    hidden=""
                     class="btn btn-link btn-lg shadow-none bs450"
                     title="prepare edit of last marked blog entry">
               <svg class="bi" width="20" height="20" fill="currentColor">
@@ -184,9 +181,8 @@
               </svg>
             </button>
           </li>
-          <li class="nav-item">
+          <li class="nav-item hidden-bs450">
             <button id="BlogEditButton"
-                    hidden=""
                     class="btn btn-link btn-lg shadow-none bs450"
                     data-toggle="modal"
                     data-target="#EditBlogModal"
@@ -1065,13 +1061,13 @@
                class="modal-body">
             <!-- the preview for markdown or text -->
             <div id="PreviewModalBlog"
-                 class="data-md data-txt hidden">
+                 class="data-md data-txt hidden-bs450">
               the markdown text
             </div>
             <!-- the preview image part -->
             <!-- img-thumbnail in img tag reduces image size to available size -->
             <div id="PreviewModalImg"
-                 class="data-jpg hidden">
+                 class="data-jpg hidden-bs450">
               <img id="PreviewModalImgRef"
                    class="data-jpg img-thumbnail"
                    src=""
@@ -1175,14 +1171,14 @@
     <h2 class="prototype">the prototype section</h2>
 
     <div class="prototype" id="prototype-dia">
-      <div class="pull-left img-thumbnail dia unmarked imgmark">
+      <div class="float-left img-thumbnail dia unmarked imgmark bs450">
         <div class="dia-top">
           <div class="dia-name">
             <span>
               <span class="img-no">007</span>: <span class="img-part"></span>
               <span class="col-part">
                 <a href=""></a>
-                <span class="img-col-writeprotected btn-xs hidden">
+                <span class="img-col-writeprotected btn-xs hidden-bs450">
                   <svg class="bi" width="1em" height="1em" fill="currentColor">
                     <use xlink:href="/assets/icons/bootstrap-icons.svg#lock"/>
                   </svg>
@@ -1198,44 +1194,44 @@
                  role="group"
                  aria-label="Image Rating"
                  data-rating="0">
-              <a class="btn btn-link btn-sm star dia-unmarked"
+              <a class="btn btn-link btn-sm star star-bs450 dia-unmarked"
                  title="rating 5 stars"
                  data-star="5">
-                <svg class="bi" width="1em" height="1em" fill="currentColor">
+                <svg class="bi" width="12px" height="12px" fill="currentColor">
                   <use xlink:href="/assets/icons/bootstrap-icons.svg#star"/>
                 </svg>
               </a>
-              <a class="btn btn-link btn-sm star dia-unmarked"
+              <a class="btn btn-link btn-sm star star-bs450 dia-unmarked"
                  title="rating 4 stars"
                  data-star="4">
-                <svg class="bi" width="1em" height="1em" fill="currentColor">
+                <svg class="bi" width="12px" height="12px" fill="currentColor">
                   <use xlink:href="/assets/icons/bootstrap-icons.svg#star"/>
                 </svg>
               </a>
-              <a class="btn btn-link btn-sm star dia-unmarked"
+              <a class="btn btn-link btn-sm star star-bs450 dia-unmarked"
                  title="rating 3 stars"
                  data-star="3">
-                <svg class="bi" width="1em" height="1em" fill="currentColor">
+                <svg class="bi" width="12px" height="12px" fill="currentColor">
                   <use xlink:href="/assets/icons/bootstrap-icons.svg#star"/>
                 </svg>
               </a>
-              <a class="btn btn-link btn-sm star dia-unmarked"
+              <a class="btn btn-link btn-sm star star-bs450 dia-unmarked"
                  title="rating 2 stars"
                  data-star="2">
-                <svg class="bi" width="1em" height="1em" fill="currentColor">
+                <svg class="bi" width="12px" height="12px" fill="currentColor">
                   <use xlink:href="/assets/icons/bootstrap-icons.svg#star"/>
                 </svg>
               </a>
-              <a class="btn btn-link btn-sm star dia-unmarked"
+              <a class="btn btn-link btn-sm star star-bs450 dia-unmarked"
                  title="rating 1 star"
                  data-star="1">
-                <svg class="bi" width="1em" height="1em" fill="currentColor">
+                <svg class="bi" width="12px" height="12px" fill="currentColor">
                   <use xlink:href="/assets/icons/bootstrap-icons.svg#star"/>
                 </svg>
               </a>
-              <a class="hidden btn btn-link btn-sm star dia-unmarked"
+              <a class="hidden-bs450 btn btn-link btn-sm star star-bs450 dia-unmarked"
                  data-star="0">
-                <svg class="bi" width="1em" height="1em" fill="currentColor">
+                <svg class="bi" width="12px" height="12px" fill="currentColor">
                   <use xlink:href="/assets/icons/bootstrap-icons.svg#star"/>
                 </svg>
               </a>
@@ -1252,83 +1248,83 @@
         </div>
         <div class="dia-bot">
           <!-- the bottom line -->
-          <div class="btn-group btn-group-xs dia-btn-group hidden"
+          <div class="btn-group btn-group-xs dia-btn-group hidden-bs450"
                role="group"
                aria-label="Image Actions">
             <button type="button"
-                    class="btn btn-default dia-btn-remove"
+                    class="btn btn-sm dia-bs450 dia-btn-remove"
                     title="Remove this and all marked images/collections">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#x-octagon"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-movetoclipboard"
+                    class="btn btn-sm dia-bs450 dia-btn-movetoclipboard"
                     title="Move this and all marked images/collections to clipboard">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#chevron-left"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-copytoclipboard"
+                    class="btn btn-sm dia-bs450 dia-btn-copytoclipboard"
                     title="Copy this and all marked images/collections to clipboard">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#chevron-double-left"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-sort"
+                    class="btn btn-sm dia-bs450 dia-btn-sort"
                     title="Sort all marked images and place them behind this image">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#sort-down-alt"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-rename"
+                    class="btn btn-sm dia-bs450 dia-btn-rename"
                     title="Rename this collection">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#folder-symlink"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-writeprotected"
+                    class="btn btn-sm dia-bs450 dia-btn-writeprotected"
                     title="Set/rest write protection for this collection">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#lock"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-view"
+                    class="btn btn-sm dia-bs450 dia-btn-view"
                     title="Preview this image">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#eye"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-meta"
+                    class="btn btn-sm dia-bs450 dia-btn-meta"
                     title="View this image meta data">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#info-circle"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-colimg"
+                    class="btn btn-sm dia-bs450 dia-btn-colimg"
                     title="Take this image as image for the current collection">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#file-earmark-text"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-blog hidden"
+                    class="btn btn-sm dia-bs450 dia-btn-blog hidden-bs450"
                     title="Edit the blog text in this entry">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#pencil-square"/>
               </svg>
             </button>
             <button type="button"
-                    class="btn btn-default dia-btn-title"
+                    class="btn btn-sm dia-bs450 dia-btn-title"
                     title="Set title and/or other meta data for this and all marked images">
-              <svg class="bi" width="1em" height="1em" fill="currentColor">
+              <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#pencil"/>
               </svg>
             </button>
@@ -1346,16 +1342,18 @@
     </div>
 
     <div class="prototype" id="prototype-tab">
-      <ul>
-        <li role="presentation">
+      <ul role="tablist">
+        <li class="nav-item">
           <a href="#a-collection"
              aria-controls="a-collection"
+             aria-selected="false"
+             class="nav-item"
              role="tab"
              data-toggle="tab"
              data-placement="bottom"
              title="The collection path">
-            <span class="coltab-name">A Collection</span>
-            <span class="coltab-writeprotected btn-xs hidden">
+            <span class="coltab-name bs450">A Collection</span>
+            <span class="coltab-writeprotected btn-xs hidden-bs450">
               <svg class="bi" width="1em" height="1em" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#lock"/>
               </svg>
@@ -1421,7 +1419,7 @@
                       <use xlink:href="/assets/icons/bootstrap-icons.svg#star"/>
                     </svg>
                   </a>
-                  <a class="hidden btn btn-link btn-lg star carousel-image-unmarked"
+                  <a class="hidden-bs450 btn btn-link btn-lg star carousel-image-unmarked"
                      data-star="0">
                     <svg class="bi" width="1em" height="1em" fill="currentColor">
                       <use xlink:href="/assets/icons/bootstrap-icons.svg#star"/>

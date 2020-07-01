@@ -49,6 +49,47 @@ img.img-thumbnail.carousel-bs450 {
     border: 0px;
 }
 
+span.coltab-name.bs450 {
+    color: #ddd;                   /* dark skin */
+    padding-top: 10px;
+    padding-bottom: 5px;
+    padding-left: 1em;
+}
+
+span.coltab-name.bs450:hover {
+    color: #999;                   /* dark skin */
+}
+
+div.dia.bs450 {
+    font-size: 15px;
+    width: 222px;
+    height: 222px;
+    margin: 2px;
+    padding: 2px;
+    color: #666;
+}
+
+a.star-bs450 {
+    line-height: 0.8;
+    border: 0px;
+}
+
+button.dia-bs450 {
+    padding-top: 0px;
+    padding-bottom: 4px;
+    padding-left: 2px;
+    padding-right: 2px;
+    border-width: 1px;
+    border-color: #222;
+    border-radius: 0px;
+    line-height: 1.0;
+    background-color: #fff;
+}
+
+.hidden-bs450 {
+    display: none !important;
+}
+
 /*----------------------------------------*/
 
 
