@@ -30,6 +30,15 @@ function initSystemCollections() {
 }
 */
 // ----------------------------------------
+// version test
+
+function is450() {
+    return (typeof xxx == "number" && xxx == 450);
+}
+
+// ----------------------------------------
+
+
 
 // remove a collection
 function remCol(path) {
@@ -630,7 +639,7 @@ function showNewCollection(path, colVal) {
     var io = isAlreadyOpen(path);
 
     if ( io[0] ) {
-        // nothing to do, collections is already there
+        // nothing to do, collection is already there
         // but we need the id attr value
         o.colId = io[1];
         console.log("collection already open");
@@ -2003,8 +2012,13 @@ function buildImgCarousel(args, colVal) {
     var cit = c.find('div.carousel-inner div.item')
             .clone()
             .removeClass('active');
+
     // add the appropriate geo class for carousel images to prototype
-    cit.find('div.img-box').addClass("img-box-" + g.geo);
+    if ( is450() ) {
+        cit.find('div.img-box-bs450').addClass("img-box-bs450-" + g.geo);
+    } else {
+        cit.find('div.img-box').addClass("img-box-" + g.geo);
+    }
 
     // remove prototype list of indicators and list of items
     c.find('ol.carousel-indicators').empty();
@@ -2094,9 +2108,15 @@ function buildImgCarousel(args, colVal) {
         var iref = iconRef(previewGeo().img, args.path, e, i);
 
         console.log("new iconref: " + iref);
-        cimg.find("div.img-box img")
-            .attr('src', iref)
-            .attr('alt', eref.name);
+        if ( is450() ) {
+            cimg.find("div.img-box-bs450 img")
+                .attr('src', iref)
+                .attr('alt', eref.name);
+        } else {
+            cimg.find("div.img-box img")
+                .attr('src', iref)
+                .attr('alt', eref.name);
+        }
         c.find('div.carousel-inner').append(cimg);
 
     }); // end forEach loop
@@ -2206,6 +2226,12 @@ function previewImage() {
     $('#PreviewModalBody > div')
         .addClass('hidden');
 
+    $('#PreviewModalBlog')    /* blog text is hidden */
+        .attr('hidden','');
+
+    $('#PreviewModalImg')     /* image div is hidden */
+        .attr('hidden','');
+
     $('#PreviewModalLabel')
         .empty()
         .append('Preview: ' + args.path + "/" + args.name);
@@ -2229,6 +2255,7 @@ function insertPreviewRef(ref, args) {
 
     // make the div for images visible
     $('#PreviewModalBody div.data-jpg').removeClass('hidden');
+    $('#PreviewModalImg').removeAttr('hidden');
 
     // insert the image ref, browser will load and show the image
     $('#PreviewModalImgRef')
@@ -2249,10 +2276,11 @@ function insertBlogText(txt, args) {
     }
     // make the div for images visible
     $('#PreviewModalBody div.data-md').removeClass('hidden');
+    $('#PreviewModalBlog').removeAttr('hidden');
     $('#PreviewModalBlog')
         .empty()
         .append(txt);
-
+    
     $('#PreviewModal').modal('show');
 }
 

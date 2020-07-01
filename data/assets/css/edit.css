@@ -29,6 +29,26 @@ a.bs450:hover, button.bs450:hover {
     color: #999;                   /* dark skin */
 }
 
+/* adjust the width if longer names for keys are added to meta data modal*/
+.metadata-key-bs450 {
+    float: right;
+    width: 7em;
+}
+
+.img-box-bs450 {
+    position: relative;
+    margin: auto;
+}
+
+div.carousel-inner.bs450 {
+    border: 0px;
+}
+
+img.img-thumbnail.carousel-bs450 {
+    padding: 0px;
+    border: 0px;
+}
+
 /*----------------------------------------*/
 
 

@@ -18,6 +18,11 @@
     <!-- Custom styles for PhotoEdit -->
     <link href="/assets/css/edit.css" rel="stylesheet">
 
+    <script type="text/javascript">
+    <!--
+      var boootstrap=450;
+      -->
+    </script>
   </head>
 
   <body class="bs450">
@@ -818,29 +823,30 @@
     <!-- Modal box for meta data input fields -->
     <div class="modal fade"
          id="MetaDataModal"
+         data-backdrop="static"
+         data-keyboard="false"
          tabindex="-1"
          role="dialog"
+         aria-hidden="true"
          aria-labelledby="MetaDataModalLabel">
-      <div class="modal-dialog" role="document">
+      <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
+            <h5 class="modal-title" id="MetaDataModalLabel">Set metadata for marked collections</h5>
             <button type="button"
                     class="close"
                     data-dismiss="modal"
                     aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
-            <h4 class="modal-title"
-                id="MetaDataModalLabel"
-                >Set metadata for marked collections</h4>
           </div>
           <div class="modal-body">
             <!-- Title -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-Title-addon1"
-                    >
-                <span class="metadata-key">Title</span>
+                   >
+                <span class="input-group-text metadata-key-bs450">Title</span>
               </span>
               <input type="text"
                      id="descr-Title"
@@ -850,10 +856,10 @@
             </div>
             <!-- Subtitle -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-Subtitle-addon1"
                     >
-                <span class="metadata-key">Subtitle</span>
+                <span class="input-group-text metadata-key-bs450">Subtitle</span>
               </span>
               <input type="text"
                      id="descr-Subtitle"
@@ -864,10 +870,10 @@
             </div>
             <!-- TitleEnglish -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-TitleEnglish-addon1"
                     >
-                <span class="metadata-key">Title (engl.)</span>
+                <span class="input-group-text metadata-key-bs450">Title (engl.)</span>
               </span>
               <input type="text"
                      id="descr-TitleEnglish"
@@ -877,10 +883,10 @@
             </div>
             <!-- TitleLatin -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-TitleLatin-addon1"
                     >
-                <span class="metadata-key">Title (latin)</span>
+                <span class="input-group-text metadata-key-bs450">Title (latin)</span>
               </span>
               <input type="text"
                      id="descr-TitleLatin"
@@ -890,10 +896,10 @@
             </div>
             <!-- Comment -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-Comment-addon1"
                     >
-                <span class="metadata-key">Comment</span>
+                <span class="input-group-text metadata-key-bs450">Comment</span>
               </span>
               <input type="text"
                      id="descr-Comment"
@@ -904,10 +910,10 @@
             </div>
             <!-- GPS position -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-GPSPosition-addon1"
                     >
-                <span class="metadata-key">GPS Pos.</span>
+                <span class="input-group-text metadata-key-bs450">GPS Pos.</span>
               </span>
               <input type="text"
                      id="descr-GPSPosition"
@@ -918,10 +924,10 @@
             </div>
             <!-- Location -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-Location-addon1"
                     >
-                <span class="metadata-key">Location</span>
+                <span class="input-group-text metadata-key-bs450">Location</span>
               </span>
               <input type="text"
                      id="descr-Location"
@@ -932,10 +938,10 @@
             </div>
             <!-- Rating -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-Rating-addon1"
                     >
-                <span class="metadata-key">Rating</span>
+                <span class="input-group-text metadata-key-bs450">Rating</span>
               </span>
               <input type="text"
                      id="descr-Rating"
@@ -945,10 +951,10 @@
             </div>
             <!-- Keywords -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-Keywords-addon1"
                     >
-                <span class="metadata-key">Keywords</span>
+                <span class="input-group-text metadata-key-bs450">Keywords</span>
               </span>
               <input type="text"
                      id="descr-Keywords"
@@ -958,10 +964,10 @@
             </div>
             <!-- Web -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-Web-addon1"
                     >
-                <span class="metadata-key">Web Ref</span>
+                <span class="input-group-text metadata-key-bs450">Web Ref</span>
               </span>
               <input type="text"
                      id="descr-Web"
@@ -972,10 +978,10 @@
             </div>
             <!-- Wikipedia -->
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend"
                     id="descr-Wikipedia-addon1"
                     >
-                <span class="metadata-key">Wikipedia</span>
+                <span class="input-group-text metadata-key-bs450">Wikipedia</span>
               </span>
               <input type="text"
                      id="descr-Wikipedia"
@@ -1004,19 +1010,20 @@
          id="ShowMetaDataModal"
          tabindex="-1"
          role="dialog"
+         aria-hidden="true"
          aria-labelledby="ShowMetaDataModalLabel">
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
+            <h5 class="modal-title"
+                id="ShowMetaDataModalLabel"
+                >Metadata for last marked image/collection</h5>
             <button type="button"
                     class="close"
                     data-dismiss="modal"
                     aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
-            <h4 class="modal-title"
-                id="ShowMetaDataModalLabel"
-                >Metadata for last marked image/collection</h4>
           </div>
           <div class="modal-body">
             <!-- the table for the meta data -->
@@ -1026,18 +1033,6 @@
                 <td>value</td>
               <tr>
             </table>
-          </div>
-          <div class="modal-footer">
-            <!--
-            <button type="button"
-                    class="btn btn-default"
-                    data-dismiss="modal"
-                    >Cancel</button>
-            <button type="button"
-                    class="btn btn-primary"
-                    id="MetaDataOK"
-                    >O.K.</button>
-            -->
           </div>
         </div>
       </div>
@@ -1056,15 +1051,15 @@
       <div class="modal-dialog modal-preview" role="document">
         <div class="modal-content">
           <div class="modal-header">
+            <h5 class="modal-title"
+                id="PreviewModalLabel"
+                >Preview last marked image</h5>
             <button type="button"
                     class="close"
                     data-dismiss="modal"
                     aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
-            <h4 class="modal-title"
-                id="PreviewModalLabel"
-                >Preview last marked image</h4>
           </div>
           <div id="PreviewModalBody"
                class="modal-body">
@@ -1074,9 +1069,11 @@
               the markdown text
             </div>
             <!-- the preview image part -->
-            <div class="thumbnail data-jpg hidden">
+            <!-- img-thumbnail in img tag reduces image size to available size -->
+            <div id="PreviewModalImg"
+                 class="data-jpg hidden">
               <img id="PreviewModalImgRef"
-                   class="data-jpg"
+                   class="data-jpg img-thumbnail"
                    src=""
                    alt="">
             </div>
@@ -1090,8 +1087,9 @@
          id="CarouselModal"
          tabindex="-1"
          role="dialog"
+         aria-hidden="true"
          aria-labelledby="CarouselModalLabel">
-      <div class="modal-dialog modal-carousel" role="document">
+      <div class="modal-dialog modal-carousel" style="pointer-events: auto;" role="document">
         <div class="modal-content-inverse">
           <div class="modal-header-inverse">
             <button type="button"
@@ -1100,9 +1098,9 @@
                     aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
-            <h4 class="modal-title"
+            <h5 class="modal-title"
                 id="CarouselModalLabel"
-                >Carousel for marked images</h4>
+                >Carousel for image collections</h5>
           </div>
           <div id="CarouselModalBody"
                class="modal-body">
@@ -1371,19 +1369,19 @@
     <div id="prototype-carousel" class="prototype">
       <div id="proto-carousel" class="carousel no-slide" data-interval="false">
         <!-- Indicators -->
-        <ol class="carousel-indicators"
-            style="width: 90%; margin-left: -45%;">
+        <ol class="carousel-indicators">
           <li data-target="#proto-carousel" data-slide-to="0" class="active"></li>
         </ol>
-        <div class="carousel-inner bg-dark" role="listbox">
-          <div class="item active">
-            <div class="img-box">
+        <div class="carousel-inner bs450">
+          <div class="carousel-item active item">  <!-- item class needed by edit.js -->
+            <div class="img-box-bs450">
               <img src=""
+                   class="img-thumbnail carousel-bs450"
                    alt="protype slide">
             </div>
             <div class="container">
               <div class="carousel-caption"
-                   style="top: 0; bottom: auto;">
+                   >
                 <span class="btn-group carousel-stars"
                       role="group"
                       aria-label="Image Rating"
@@ -1431,7 +1429,7 @@
                   </a>
                 </span>
                 <span>
-                  <span class="carousel-image-capt h3">
+                  <span class="carousel-image-capt h4">
                     insert image name here
                   </span>
                   <a class="btn btn-link btn-lg carousel-image-mark"
@@ -1445,7 +1443,7 @@
             </div>
           </div>
         </div>
-        <a class="left carousel-control carousel-control-prev"
+        <a class="carousel-control-prev"
            href="#proto-carousel"
            role="button"
            data-slide="prev">
@@ -1457,7 +1455,7 @@
           -->
           <span class="sr-only">Previous</span>
         </a>
-        <a class="right carousel-control carousel-control-next"
+        <a class="carousel-control-next"
            href="#proto-carousel"
            role="button"
            data-slide="next">
