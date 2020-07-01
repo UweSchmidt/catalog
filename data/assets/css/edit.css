@@ -12,6 +12,25 @@
 @brand-danger:  #d9534f;
 */
 
+/*----------------------------------------*/
+/* bootstrap 4.5.0 extensions */
+
+body.bs450 {
+    padding-top: 50px;
+    background-color: #333;        /* dark skin */
+    color: #ddd;                   /* dark skin */
+}
+
+a.bs450, button.bs450 {
+    color: #ddd;                   /* dark skin */
+}
+
+a.bs450:hover, button.bs450:hover {
+    color: #999;                   /* dark skin */
+}
+
+/*----------------------------------------*/
+
 
 body {
     padding-top: 50px;
@@ -20,12 +39,14 @@ body {
     color: #ddd;                   /* dark skin */
 }
 
-.status-bar {
+.menue-bar, .status-bar {
+    padding: 0px;
     height: 50px;
     min-height: 50px;
     background-color: #222;        /* dark skin */
     border-color: #666;            /* dark skin */
 }
+
 .nav-tabs {
     border-bottom: 1px solid #666; /* dark skin */
 }
