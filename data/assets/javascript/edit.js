@@ -59,7 +59,99 @@ function diaStarSelector(j) {
 }
 
 // ----------------------------------------
+//
+// undo history
 
+var undoHist = [];
+
+function addHistCmd(cname) {
+    console.log("addHistCmd " + cname + " " + undoHist);
+    getHistIdFromServer(function (hid) {
+        undoHist.unshift([hid, cname]);
+        addHistToMenue();
+    });
+}
+
+function resetHistTo(hid0) {
+    console.log("resetHistTo " + hid0 + " " + undoHist);
+
+    var hd  = undoHist.shift();
+    var hid = hd[0];
+    var hnm = hd[1];
+
+    var undoId = "#undo-" + hid; 
+    $(undoId).remove();
+
+    if (hid == hid0) {
+        resetHistInServer(function () {
+            console.log("reset history in server until id: " + hid0);
+        });
+    } else if (undoHist.length > 0) {
+        resetHistTo(hid0);
+    }
+}
+
+function addHistToMenue() {
+    console.log("addHistToMenue " + undoHist);
+    var hd  = undoHist[0];
+    var hid = hd[0];
+    var hnm = hd[1];
+
+    var undoId = "undo-" + hid;
+    var he = '<a class="dropdown-item" id="' + undoId + '">' + hid + ': ' + hnm  + '</a>'
+    console.log(he);
+    
+    // add item to history menue
+    $('#undoHistoryList')
+        .prepend(he)
+
+    // install handler for new history menue entry
+    console.log('install handler at: #' + undoId);
+    $('#' + undoId)
+        .on('click',
+            function () {
+                resetHistTo(hid);
+            });
+}
+
+function cutHistCmd(maxlen) {
+    var len = undoHist.length;
+
+    if ( len > maxlen ) {
+        var i = len;
+        var lst;
+        var lid;
+        while ( i > maxlen ) {
+            i--;
+            lst = undoHist.pop();           // drop from undoHist
+            lid = lst[0];
+            $("#undo-" + lid).remove();     // drop from undo hist menue
+            console.log("cutHistCmd: drop entry " + i + " hid=" + lid);
+        }
+        console.log("cutHistCmd: drop all old entries starting with hid=" + lid + " in server");
+        dropHistAtInServer(lid);            // drop history in server
+    }
+}
+
+// --------------------
+// dummy server calls
+
+var histId = 0;
+
+function getHistIdFromServer(f) {
+    histId++;
+    f(histId);
+}
+
+function resetHistInServer(f) {
+    f();
+}
+
+function dropHistAtInServer(hid) {
+    console.log("dropHistAtInServer id=" + hid);
+}
+
+// ----------------------------------------
 
 
 // remove a collection
