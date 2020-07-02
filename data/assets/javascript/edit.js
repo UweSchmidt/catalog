@@ -30,16 +30,32 @@ function initSystemCollections() {
 }
 */
 // ----------------------------------------
-// version test
+//
+// version test on bootstrap 4.5.0
 
 function is450() {
     return (typeof bootstrapVersion == "number" && bootstrapVersion == 450);
 }
 
-var hiddenclass = "hidden";
+var hiddenclass  = "hidden";
+var imgboxclass  = "img-box";
+var carmarksel   = 'div.carousel-caption a.carousel-image-mark';
+var carmarksel1  = carmarksel;
 
 if ( is450() ) {
-    hiddenclass= "hidden-bs450";
+    hiddenclass = "hidden-bs450";
+    imgboxclass = "img-box-bs450";
+    carmarksel1 = carmarksel1 + ' > svg';
+}
+
+// in bootstrap 4.5.0 the dia-un/marked class must be at the "svg"-tag, not the surrounding "a"-tag
+
+function diaStarSelector(j) {
+    res = '[data-star="' + j + '"]';
+    if ( is450() ) {
+        res = res + ' > svg';
+    }
+    return res;
 }
 
 // ----------------------------------------
@@ -178,7 +194,8 @@ function setDiaRating(dia, rating) {
     var j = 0;
     for (j = 0; j <= 5; ++j) {
         var cls = j <= rating ? "dia-marked" : "dia-unmarked";
-        stars.find('[data-star="' + j + '"]')
+        var ssl = diaStarSelector(j);
+        stars.find(ssl)
             .removeClass("dia-marked")
             .removeClass("dia-unmarked")
             .addClass(cls);
@@ -2020,11 +2037,7 @@ function buildImgCarousel(args, colVal) {
             .removeClass('active');
 
     // add the appropriate geo class for carousel images to prototype
-    if ( is450() ) {
-        cit.find('div.img-box-bs450').addClass("img-box-bs450-" + g.geo);
-    } else {
-        cit.find('div.img-box').addClass("img-box-" + g.geo);
-    }
+    cit.find('div.' + imgboxclass).addClass(imgboxclass + "-" + g.geo);
 
     // remove prototype list of indicators and list of items
     c.find('ol.carousel-indicators').empty();
@@ -2061,15 +2074,22 @@ function buildImgCarousel(args, colVal) {
         console.log('init rating for entry ' + i + ' to ' + rt);
         console.log(JSON.stringify(cimg));
 
+        // set the stars the image is rated with
         var j = 1;
         for (j = 1; j <= rt; ++j) {
-            cimg.find('div.carousel-caption a[data-star="' + j + '"]')
+            cimg.find('div.carousel-caption a' + diaStarSelector(j))
                 .removeClass("carousel-image-unmarked")
                 .addClass("carousel-image-marked");
         }
 
-        cimg.find('div.carousel-caption a.carousel-image-mark')
+        // initialize image marked flag in carousel
+        cimg.find(carmarksel1)
+            .removeClass("carousel-image-marked")
+            .removeClass("carousel-image-unmarked")
             .addClass(cls)
+        
+        // add handler for mark/unmark image via carousel
+        cimg.find(carmarksel)
             .on('click', function (e) {
                 var state = isMarkedDia(toggleDiaMark(args.cid, i));
                 var cls   = state ? "carousel-image-marked" : "carousel-image-unmarked";
@@ -2082,6 +2102,7 @@ function buildImgCarousel(args, colVal) {
                 console.log("toggle image mark: " + args.cid + " ." + i);
             });
 
+        // add handler for rating an image via carousel
         cimg.find('div.carousel-caption a.star')
             .on('click', function (e) {
                 // var state = isMarkedDia(toggleDiaMark(args.cid, i));
@@ -2089,15 +2110,15 @@ function buildImgCarousel(args, colVal) {
                 console.log(e.target);
                 var bno = parseInt($(e.target).closest("a.star").attr("data-star"));
                 var bgp = $(e.target).closest("span.carousel-stars");
-                var b1m = bgp.find('[data-star="1"]').hasClass("carousel-image-marked");
-                var b2u = bgp.find('[data-star="2"]').hasClass("carousel-image-unmarked");
+                var b1m = bgp.find(diaStarSelector(1)).hasClass("carousel-image-marked");
+                var b2u = bgp.find(diaStarSelector(2)).hasClass("carousel-image-unmarked");
                 if (bno === 1 && b1m && b2u) {
                     bno = 0;
                 }
                 var j = 0;
                 for (j = 0; j <= 5; ++j) {
                     var cls = j <= bno ? "carousel-image-marked" : "carousel-image-unmarked";
-                    bgp.find('[data-star="' + j + '"]')
+                    bgp.find(diaStarSelector(j))
                         .removeClass("carousel-image-marked")
                         .removeClass("carousel-image-unmarked")
                         .addClass(cls);
@@ -2114,15 +2135,9 @@ function buildImgCarousel(args, colVal) {
         var iref = iconRef(previewGeo().img, args.path, e, i);
 
         console.log("new iconref: " + iref);
-        if ( is450() ) {
-            cimg.find("div.img-box-bs450 img")
-                .attr('src', iref)
-                .attr('alt', eref.name);
-        } else {
-            cimg.find("div.img-box img")
-                .attr('src', iref)
-                .attr('alt', eref.name);
-        }
+        cimg.find("div." + imgboxclass + " img")
+            .attr('src', iref)
+            .attr('alt', eref.name);
         c.find('div.carousel-inner').append(cimg);
 
     }); // end forEach loop
