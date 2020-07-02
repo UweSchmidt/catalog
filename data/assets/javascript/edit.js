@@ -2430,7 +2430,7 @@ function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
 function setMetaOnServer(path, ixs, metadata) {
     modifyServer("setMetaData", path, [ixs, [metadata]],
                  function () {
-                     getColFromServer(path, refreshCollection);
+                     getColFromServer(path, refreshCollectionF);
                  });
 }
 

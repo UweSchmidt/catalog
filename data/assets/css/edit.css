@@ -49,17 +49,6 @@ img.img-thumbnail.carousel-bs450 {
     border: 0px;
 }
 
-span.coltab-name.bs450 {
-    color: #ddd;                   /* dark skin */
-    padding-top: 10px;
-    padding-bottom: 5px;
-    padding-left: 1em;
-}
-
-span.coltab-name.bs450:hover {
-    color: #999;                   /* dark skin */
-}
-
 div.dia.bs450 {
     font-size: 15px;
     width: 222px;

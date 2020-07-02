@@ -695,15 +695,15 @@
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
+            <h4 class="modal-title"
+                id="EditBlogModalLabel"
+                >Edit blog entry</h4>
             <button type="button"
                     class="close"
                     data-dismiss="modal"
                     aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
-            <h4 class="modal-title"
-                id="EditBlogModalLabel"
-                >Edit blog entry</h4>
           </div>
           <div class="modal-body">
             <div class="form-group">
@@ -732,22 +732,22 @@
          tabindex="-1"
          role="dialog"
          aria-labelledby="newCollectionModalLabel">
-      <div class="modal-dialog" role="document">
+      <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
+            <h4 class="modal-title"
+                id="newCollectionModalLabel"
+                >Create new collection</h4>
             <button type="button"
                     class="close"
                     data-dismiss="modal"
                     aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
-            <h4 class="modal-title"
-                id="newCollectionModalLabel"
-                >Create new collection</h4>
           </div>
           <div class="modal-body">
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend  input-group-text"
                     id="newCol-addon1"
                     >Collection name</span>
               <input type="text"
@@ -777,22 +777,22 @@
          tabindex="-1"
          role="dialog"
          aria-labelledby="RenameCollectionModalLabel">
-      <div class="modal-dialog" role="document">
+      <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
+            <h4 class="modal-title"
+                id="RenameCollectionModalLabel"
+                >Rename collection last marked</h4>
             <button type="button"
                     class="close"
                     data-dismiss="modal"
                     aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
-            <h4 class="modal-title"
-                id="RenameCollectionModalLabel"
-                >Rename collection last marked</h4>
           </div>
           <div class="modal-body">
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend  input-group-text"
                     id="RenameCol-addon1"
                     >New collection name</span>
               <input type="text"
@@ -819,8 +819,6 @@
     <!-- Modal box for meta data input fields -->
     <div class="modal fade"
          id="MetaDataModal"
-         data-backdrop="static"
-         data-keyboard="false"
          tabindex="-1"
          role="dialog"
          aria-hidden="true"
@@ -1115,22 +1113,22 @@
          tabindex="-1"
          role="dialog"
          aria-labelledby="saveImgStoreModalLabel">
-      <div class="modal-dialog" role="document">
+      <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
+            <h4 class="modal-title"
+                id="saveImgStoreModalLabel"
+                >Save image store</h4>
             <button type="button"
                     class="close"
                     data-dismiss="modal"
                     aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
-            <h4 class="modal-title"
-                id="saveImgStoreModalLabel"
-                >Save image store</h4>
           </div>
           <div class="modal-body">
             <div class="input-group">
-              <span class="input-group-addon"
+              <span class="input-group-prepend input-group-text"
                     id="saveImgStore-addon1"
                     >Comment</span>
               <input type="text"
@@ -1347,12 +1345,12 @@
           <a href="#a-collection"
              aria-controls="a-collection"
              aria-selected="false"
-             class="nav-item"
+             class="nav-link btn-dark"
              role="tab"
              data-toggle="tab"
              data-placement="bottom"
              title="The collection path">
-            <span class="coltab-name bs450">A Collection</span>
+            <span class="coltab-name">A Collection</span>
             <span class="coltab-writeprotected btn-xs hidden-bs450">
               <svg class="bi" width="1em" height="1em" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#lock"/>
