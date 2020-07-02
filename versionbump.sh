@@ -2,7 +2,7 @@
 
 # set -x
 
-version="0.3.2.0"
+version="0.3.2.1"
 dat=$(date "+%Y-%m-%d")
 
 LANG="en_US.UTF-8"
@@ -49,6 +49,7 @@ bump catalog-client/app/Main.hs
 
 bump catalog-data/src/Catalog/Version.hs
 bump data/assets/html/edit.html
+bump data/assets/html/edit-4.5.0.html
 bump data/assets/javascript/rpc-servant.js
 
 set -x
