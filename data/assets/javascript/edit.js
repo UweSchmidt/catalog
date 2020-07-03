@@ -84,7 +84,9 @@ function resetHistTo(hid0) {
 
     if (hid == hid0) {
         resetHistInServer(function () {
-            console.log("reset history in server until id: " + hid0);
+            console.log("reset history in server until id: " + hid0 + ", " + hnm);
+            statusMsg("discard all changes up to " + hid + ": " + hnm);
+            checkAllColAreThere(true, true);
         });
     } else if (undoHist.length > 0) {
         resetHistTo(hid0);
@@ -1130,6 +1132,7 @@ function syncCollectionWithFilesystem(sync, path) {
 
     // start syncing on server side
     statusMsg('synchronizing collection with filesystem: ' + path);
+    addHistCmd("sync collection " + splitName(path));
     modifyServer1(sync, path, [],
                   function(log) {
                       statusMsg('synchronizing collections on server side done');
@@ -1156,6 +1159,7 @@ function exifCollectionWithFilesystem(path) {
 
     // start syncing on server side
     statusMsg('recomputing exif data for: ' + path);
+    addHistCmd("sync exif data in " + splitName(path));
     modifyServer('syncExif', path, [],
                 function(log) {
                     statusMsg('recomputing exif data done');
@@ -1166,6 +1170,7 @@ function exifCollectionWithFilesystem(path) {
 function checkArchiveConsistency() {
     console.log("checkArchiveConsistency");
     statusMsg('checking/repairing archive consistency');
+    addHistCmd("check catalog");
     modifyServer1("checkArchive", pathArchive(), [],
                   function(log) {
                       statusMsg('checking archive on server side done');
@@ -1290,6 +1295,10 @@ function splitPath(p) {
         p.bname = e.join(".");
     }
     return p;
+}
+
+function splitName(p) {
+    return splitPath(p).name;
 }
 
 // check whether p1 is a path prefix of p2
@@ -1739,6 +1748,7 @@ function setCollectionImg(cid) {
         if ( $(simg).hasClass('data-jpg') ) {
             // it's a .jpg image
             // so take this image as collection image
+            addHistCmd("set col img for " + splitName(path));
             modifyServer('colimg', path, [spath, pos],
                          function () {
                              var ppath = o.cpath;
@@ -1756,6 +1766,7 @@ function setCollectionImg(cid) {
         else if ( $(simg).hasClass('data-md') ) {
             // it's a .md text file
             // so take this as the collection blog text
+            addHistCmd("set col blog for " + splitName(path));
             modifyServer('colblog', path, [spath, pos], noop);
         } else {
             statusError('not a .jpg image or a .md text file');
@@ -2482,6 +2493,7 @@ function saveBlogText(args) {
 // ajax calls
 
 function removeFromColOnServer(path, args) {
+    addHistCmd("remove from " + splitName(path));
     modifyServer("removeFromCollection", path, args,
                  function () {
                      getColFromServer(path, refreshCollection1);
@@ -2489,10 +2501,12 @@ function removeFromColOnServer(path, args) {
 }
 
 function copyToColOnServer(spath, dpath, args) {
+    addHistCmd("copy from " + splitName(spath) + " to " + splitName(dpath));   
     copyMoveToColOnServer("copyToCollection", spath, dpath, args);
 }
 
 function moveToColOnServer(spath, dpath, args) {
+    addHistCmd("move from " + splitName(spath) + " to " + splitName(dpath));   
     copyMoveToColOnServer("moveToCollection", spath, dpath, args);
 }
 
@@ -2505,6 +2519,7 @@ function copyMoveToColOnServer(cpmv, spath, dpath, args) {
 }
 
 function sortColOnServer(path, ixs) {
+    addHistCmd("sort in " + splitName(path));   
     modifyServer("sort", path, ixs,
                  function () {
                      getColFromServer(path, refreshCollection);
@@ -2512,6 +2527,7 @@ function sortColOnServer(path, ixs) {
 }
 
 function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
+    addHistCmd("write protect in " + splitName(path));   
     modifyServer("changeWriteProtected", path, [ixs, ro],
                  function () {
                      getColFromServer(path, refreshCollectionF);
@@ -2520,6 +2536,7 @@ function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
 }
 
 function setMetaOnServer(path, ixs, metadata) {
+    addHistCmd("set metadata in " + splitName(path));   
     modifyServer("setMetaData", path, [ixs, [metadata]],
                  function () {
                      getColFromServer(path, refreshCollectionF);
@@ -2527,6 +2544,8 @@ function setMetaOnServer(path, ixs, metadata) {
 }
 
 function setRatingOnServer(cid, path, ix, rating) {
+    console.log('setRatingOnserver:' + path + ", " + ix + ", " + rating);
+    addHistCmd("set rating in " + splitName(path));   
     modifyServer("setRating1", path, [ix, rating],
                  function () {
                      setRatingInCollection(cid, ix, rating);
@@ -2535,6 +2554,7 @@ function setRatingOnServer(cid, path, ix, rating) {
 
 function setRatingsOnServer(cid, path, ixs, rating) {
     console.log('setRatingsOnserver:' + path + ", " + ixs + ", " + rating);
+    addHistCmd("set ratings in " + splitName(path));   
     modifyServer1("setRating", path, [ixs, rating],
                   function () {
                       setRatingsInCollection(cid, ixs, rating);
@@ -2557,6 +2577,7 @@ function getIsColFromServer(path, cleanupCol) {
 }
 
 function createColOnServer(path, name, showCol) {
+    addHistCmd("new collection " + name);   
     modifyServer("newcol", path, name,
                  function () {
                      getColFromServer(path, refreshCollection);
@@ -2564,6 +2585,7 @@ function createColOnServer(path, name, showCol) {
 }
 
 function renameColOnServer(cpath, path, newname, showCol) {
+    addHistCmd("rename " + splitName(path) + " to " + newname);   
     modifyServer("renamecol", path, newname,
                  function () {
                      getColFromServer(cpath, refreshCollection1);
@@ -2641,6 +2663,7 @@ function saveImgStoreStart() {
 
 function saveImgStore(text) {
     console.log('saveImgStore: ' + text);
+    addHistCmd("save catalog");
     modifyServer("snapshot",
                  pathArchive(),
                  text,
