@@ -31,6 +31,7 @@ where
 -- polysemy and polysemy-tools
 import Polysemy
 import Polysemy.Consume.BGQueue
+import Polysemy.State
 import Polysemy.State.RunTMVar
 import Polysemy.ExecProg
 import Polysemy.Logging
@@ -40,7 +41,14 @@ import Catalog.CatEnv
 import Catalog.Effects
 import Catalog.Effects.CatCmd
 import Catalog.Effects.CatCmd.Interpreter
-import Catalog.Journal              (journalToStdout, journalToDevNull)
+import Catalog.History        ( UndoHistory
+                              , UndoListCmd
+                              , undoListNoop
+                              , undoListWithState
+                              )
+import Catalog.Journal        ( journalToStdout
+                              , journalToDevNull
+                              )
 
 -- catalog
 import Data.Prim
@@ -51,6 +59,7 @@ import Data.ImageStore              (ImgStore, emptyImgStore)
 import Control.Concurrent.STM       (atomically)
 import Control.Concurrent.STM.TMVar
 import Control.Concurrent.STM.TChan
+import Data.IORef                   (IORef)
 import System.IO                    (stderr, hFlush)
 
 import qualified Control.Exception as Ex
@@ -60,6 +69,7 @@ import qualified Data.Text.IO      as T
 ------------------------------------------------------------------------------
 
 type CatApp a = Sem '[ CatCmd
+                     , UndoListCmd
                      , ExecProg
                      , FileSystem
                      , Time
@@ -83,6 +93,12 @@ runApp ims env =
   . logToStdErr
   . logWithLevel (env ^. appEnvLogLevel)
   . runLogEnvFS env
+  . undoListNoop
+  . evalCatCmd
+
+-- --------------------
+--
+-- for simple testing in ghci
 
 r :: CatApp a -> IO (ImgStore, Either Text a)
 r = runApp emptyImgStore defaultAppEnv
@@ -102,6 +118,8 @@ runRead var logQ env =
   . runError        @Text
   . runLogging      logQ (env ^. appEnvLogLevel)
   . runLogEnvFS     env
+  . undoListNoop
+  . evalCatCmd
 
 {-# INLINE runRead #-}
 
@@ -109,18 +127,22 @@ runRead var logQ env =
 --
 -- run on server side: catalog modifying command
 
-runMody :: TMVar ImgStore
+runMody :: IORef UndoHistory
+        -> TMVar ImgStore
         -> TMVar ImgStore
         -> TChan Job
         -> AppEnv
         -> CatApp a
         -> IO (Either Text a)
-runMody rvar mvar logQ env =
+runMody hist rvar mvar logQ env =
   runM' mvar
   . modifyStateTMVar rvar mvar
   . runError        @Text
   . runLogging      logQ (env ^. appEnvLogLevel)
   . runLogEnvFS     env
+  . runStateIORef   hist
+  . undoListWithState
+  . evalCatCmd
 
 {-# INLINE runMody #-}
 
@@ -156,6 +178,8 @@ runBG var qu logQ env =
   . runError       @Text
   . runLogging     logQ (env ^. appEnvLogLevel)
   . runLogEnvFS    env
+  . undoListNoop
+  . evalCatCmd
 
 --------------------
 
@@ -177,8 +201,7 @@ runLogQ lev qu t =
 
 runLogEnvFS :: (EffError r, EffIStore r, EffLogging r, Member (Embed IO) r)
             => AppEnv
-            -> Sem (CatCmd
-                    : ExecProg
+            -> Sem (ExecProg
                     : FileSystem
                     : Time
                     : Reader CatEnv
@@ -190,7 +213,6 @@ runLogEnvFS env =
   runJournal        (env ^. appEnvJournal)
   . runReader       @CatEnv (env ^. appEnvCat)
   . runOS
-  . evalCatCmd
 
 {-# INLINE runLogEnvFS #-}
 

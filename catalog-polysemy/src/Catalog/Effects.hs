@@ -3,6 +3,7 @@
     DataKinds,
     FlexibleContexts,
     GADTs,
+    OverloadedStrings,
     PolyKinds,
     RankNTypes,
     ScopedTypeVariables,
@@ -10,14 +11,6 @@
     TypeOperators,
     TypeFamilies
 #-} -- default extensions (only for emacs)
-
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
--- {-# LANGUAGE TemplateHaskell #-}
 
 ------------------------------------------------------------------------------
 
@@ -42,6 +35,7 @@ module Catalog.Effects
   , EffNonDet
   , EffTime
   , EffExecProg
+  , EffUndoHist
 
   , Eff'ISE     -- combined effect constraints
   , Eff'ISEL
@@ -88,6 +82,7 @@ import Data.Journal    (JournalP)
 import Data.Prim
 
 import Catalog.CatEnv  (CatEnv)
+import Catalog.History (UndoListCmd)
 
 import Polysemy.ExecProg (ExecProg)
 
@@ -102,6 +97,7 @@ type EffLogging  r = Member Logging            r
 type EffNonDet   r = Member NonDet             r
 type EffTime     r = Member Time               r
 type EffExecProg r = Member ExecProg           r
+type EffUndoHist r = Member UndoListCmd        r
 
 type Eff'ISE     r = ( EffIStore  r
                      , EffError   r

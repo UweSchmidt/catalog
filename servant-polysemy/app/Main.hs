@@ -42,9 +42,9 @@ import Catalog.CatEnv          ( CatEnv
                                , catMountPath
                                , catFontName
                                )
-
 import Catalog.Effects.CatCmd
 import Catalog.GenImages       ( selectFont )
+import Catalog.History         ( emptyHistory )
 import Catalog.Run             ( CatApp
                                , runRead
                                , runMody
@@ -59,6 +59,7 @@ import Data.ImageStore         (emptyImgStore)
 -- libs
 import Control.Concurrent.STM.TMVar (newTMVarIO)
 import Control.Monad.IO.Class       (liftIO)
+import Data.IORef
 import System.Exit                  (die)
 
 -- servant libs
@@ -318,11 +319,13 @@ main = do
   mvar  <- newTMVarIO emptyImgStore
   qu    <- createJobQueue
 
+  hist  <- newIORef emptyHistory
+
   let runRC :: CatApp a -> Handler a
       runRC = ioeither2Handler . runRead rvar logQ env
 
   let runMC :: CatApp a -> Handler a
-      runMC = ioeither2Handler . runMody rvar mvar logQ env
+      runMC = ioeither2Handler . runMody hist rvar mvar logQ env
 
   let runBQ :: CatApp a -> Handler ()
       runBQ = liftIO . runBG rvar qu logQ env
@@ -340,7 +343,7 @@ main = do
 
   -- load the catalog from json file
   do
-    eres <-runMody rvar mvar logQ env1 initImgStore
+    eres <-runMody hist rvar mvar logQ env1 initImgStore
     either
       (die . (^. isoString))    -- no catalog loaded
       return

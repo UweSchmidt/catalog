@@ -25,6 +25,7 @@ library
                       Catalog.GenCollections
                       Catalog.GenImages
                       Catalog.GenPages
+                      Catalog.History
                       Catalog.Html
                       Catalog.ImgTree.Access
                       Catalog.ImgTree.Fold

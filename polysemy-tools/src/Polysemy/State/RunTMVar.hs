@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE
     DataKinds,
     FlexibleContexts,
@@ -46,7 +47,7 @@ runStateTMVar
 
 runStateTMVar ref stateCmd = do
   s0 <- embed $ atomically $ takeTMVar ref
-  (s1, res) <- runState s0 stateCmd
+  (! s1, res) <- runState s0 stateCmd
   embed $ atomically $ putTMVar ref s1
   return res
 
@@ -71,7 +72,7 @@ evalStateTMVar ref stateCmd = do
 -- allow non blocking concurrent read actions on a state
 -- but synchronize the modifiying actions
 --
--- ther are 2 vars holding the state,
+-- there are 2 vars holding the state,
 -- one for reading, one for the state changes
 --
 -- the read var never blocks, when accessed
