@@ -79,11 +79,11 @@ function resetHistTo(hid0) {
     var hid = hd[0];
     var hnm = hd[1];
 
-    var undoId = "#undo-" + hid; 
+    var undoId = "#undo-" + hid;
     $(undoId).remove();
 
     if (hid == hid0) {
-        resetHistInServer(function () {
+        resetHistInServer(hid0, function () {
             console.log("reset history in server until id: " + hid0 + ", " + hnm);
             statusMsg("discard all changes up to " + hid + ": " + hnm);
             checkAllColAreThere(true, true);
@@ -100,12 +100,14 @@ function addHistToMenue() {
     var hnm = hd[1];
 
     var undoId = "undo-" + hid;
-    var he = '<a class="dropdown-item" id="' + undoId + '">' + hid + ': ' + hnm  + '</a>'
+    var he = '<a class="dropdown-item" id="' + undoId + '">'
+        + hid + ': ' + hnm
+        + '</a>';
     console.log(he);
-    
+
     // add item to history menue
     $('#undoHistoryList')
-        .prepend(he)
+        .prepend(he);
 
     // install handler for new history menue entry
     console.log('install handler at: #' + undoId);
@@ -137,7 +139,7 @@ function cutHistCmd(maxlen) {
 
 // --------------------
 // dummy server calls
-
+/*
 var histId = 0;
 
 function getHistIdFromServer(f) {
@@ -152,7 +154,7 @@ function resetHistInServer(f) {
 function dropHistAtInServer(hid) {
     console.log("dropHistAtInServer id=" + hid);
 }
-
+*/
 // ----------------------------------------
 
 
@@ -2190,7 +2192,7 @@ function buildImgCarousel(args, colVal) {
             .removeClass("carousel-image-marked")
             .removeClass("carousel-image-unmarked")
             .addClass(cls)
-        
+
         // add handler for mark/unmark image via carousel
         cimg.find(carmarksel)
             .on('click', function (e) {
@@ -2303,7 +2305,7 @@ function buildImgCarousel(args, colVal) {
             return false;
         });
 
-    
+
     // configure the modal box and its size
     $('#CarouselModal > div.modal-dialog')
         .attr('class', 'modal-dialog modal-carousel-' + g.geo);
@@ -2404,7 +2406,7 @@ function insertBlogText(txt, args) {
     $('#PreviewModalBlog')
         .empty()
         .append(txt);
-    
+
     $('#PreviewModal').modal('show');
 }
 
@@ -2501,12 +2503,12 @@ function removeFromColOnServer(path, args) {
 }
 
 function copyToColOnServer(spath, dpath, args) {
-    addHistCmd("copy from " + splitName(spath) + " to " + splitName(dpath));   
+    addHistCmd("copy from " + splitName(spath) + " to " + splitName(dpath));
     copyMoveToColOnServer("copyToCollection", spath, dpath, args);
 }
 
 function moveToColOnServer(spath, dpath, args) {
-    addHistCmd("move from " + splitName(spath) + " to " + splitName(dpath));   
+    addHistCmd("move from " + splitName(spath) + " to " + splitName(dpath));
     copyMoveToColOnServer("moveToCollection", spath, dpath, args);
 }
 
@@ -2519,7 +2521,7 @@ function copyMoveToColOnServer(cpmv, spath, dpath, args) {
 }
 
 function sortColOnServer(path, ixs) {
-    addHistCmd("sort in " + splitName(path));   
+    addHistCmd("sort in " + splitName(path));
     modifyServer("sort", path, ixs,
                  function () {
                      getColFromServer(path, refreshCollection);
@@ -2527,7 +2529,7 @@ function sortColOnServer(path, ixs) {
 }
 
 function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
-    addHistCmd("write protect in " + splitName(path));   
+    addHistCmd("write protect in " + splitName(path));
     modifyServer("changeWriteProtected", path, [ixs, ro],
                  function () {
                      getColFromServer(path, refreshCollectionF);
@@ -2536,7 +2538,7 @@ function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
 }
 
 function setMetaOnServer(path, ixs, metadata) {
-    addHistCmd("set metadata in " + splitName(path));   
+    addHistCmd("set metadata in " + splitName(path));
     modifyServer("setMetaData", path, [ixs, [metadata]],
                  function () {
                      getColFromServer(path, refreshCollectionF);
@@ -2545,7 +2547,7 @@ function setMetaOnServer(path, ixs, metadata) {
 
 function setRatingOnServer(cid, path, ix, rating) {
     console.log('setRatingOnserver:' + path + ", " + ix + ", " + rating);
-    addHistCmd("set rating in " + splitName(path));   
+    addHistCmd("set rating in " + splitName(path));
     modifyServer("setRating1", path, [ix, rating],
                  function () {
                      setRatingInCollection(cid, ix, rating);
@@ -2554,12 +2556,32 @@ function setRatingOnServer(cid, path, ix, rating) {
 
 function setRatingsOnServer(cid, path, ixs, rating) {
     console.log('setRatingsOnserver:' + path + ", " + ixs + ", " + rating);
-    addHistCmd("set ratings in " + splitName(path));   
+    addHistCmd("set ratings in " + splitName(path));
     modifyServer1("setRating", path, [ixs, rating],
                   function () {
                       setRatingsInCollection(cid, ixs, rating);
                   });
 }
+
+function getHistIdFromServer(processRes) {
+    console.log('getHistIdFromServer');
+    modifyServer1("newUndoEntry", pathArchive(), [],
+                 function (hid) {
+                     console.log("getHistIdFromServer: hid=" + hid);
+                     processRes(hid);
+                 });
+}
+
+function resetHistInServer(hid, cont) {
+    console.log("resetHistInServer hid=" + hid);
+    modifyServer("applyUndo", pathArchive(), hid, cont);
+}
+
+function dropHistAtInServer(hid) {
+    console.log("dropHistAtInServer id=" + hid);
+    modifyServer("dropUndoEntries", pathArchive(), hid, noop);
+}
+
 
 function getColFromServer(path, showCol) {
     readServer("collection", path,
@@ -2577,7 +2599,7 @@ function getIsColFromServer(path, cleanupCol) {
 }
 
 function createColOnServer(path, name, showCol) {
-    addHistCmd("new collection " + name);   
+    addHistCmd("new collection " + name);
     modifyServer("newcol", path, name,
                  function () {
                      getColFromServer(path, refreshCollection);
@@ -2585,7 +2607,7 @@ function createColOnServer(path, name, showCol) {
 }
 
 function renameColOnServer(cpath, path, newname, showCol) {
-    addHistCmd("rename " + splitName(path) + " to " + newname);   
+    addHistCmd("rename " + splitName(path) + " to " + newname);
     modifyServer("renamecol", path, newname,
                  function () {
                      getColFromServer(cpath, refreshCollection1);
