@@ -62,7 +62,13 @@ module Catalog.Effects.CatCmd
   , jpgImgCopy
   , htmlPage
 
-    -- reexport of types used in Cmd'
+  -- undo history commands
+  , newUndoEntry
+  , applyUndo
+  , dropUndoEntries
+
+  -- reexport of types used in CatCmd
+  , HistoryID
   , ImgNodeP
   , MetaData
   , Name
@@ -82,6 +88,7 @@ import Data.ImgTree        ( ImgNodeP )
 import Data.MetaData       ( MetaData
                            , Rating
                            )
+import Data.History        ( HistoryID )
 
 -- ----------------------------------------
 --
@@ -128,6 +135,10 @@ data CatCmd m a where
   JpgImgCopy           ::    ReqType -> Geo -> Path -> CatCmd m LazyByteString
   HtmlPage             ::    ReqType -> Geo -> Path -> CatCmd m LazyByteString
 
+  -- Undo history
+  NewUndoEntry         ::                              CatCmd m HistoryID
+  ApplyUndo            ::                 HistoryID -> CatCmd m ()
+  DropUndoEntries      ::                 HistoryID -> CatCmd m ()
 
 makeSem ''CatCmd
 

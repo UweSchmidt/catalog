@@ -16,6 +16,7 @@ import Network.HTTP.Media ((//), (/:))
 import Servant
 
 import Data.Prim
+import Data.History (HistoryID)
 import Data.ImgTree (ImgNodeP)
 import Data.MetaData
 
@@ -228,6 +229,12 @@ type JsonModifyAPI
       "updateCheckSum"       :> ParamPost (CheckSum, Name) ()
       :<|>
       "updateTimeStamp"      :> ParamPost (TimeStamp, Name) ()
+      :<|>
+      "newUndoEntry"         :> SimplePost HistoryID
+      :<|>
+      "applyUndo"            :> ParamPost HistoryID ()
+      :<|>
+      "dropUndoEntries"      :> ParamPost HistoryID ()
     )
 
 -- ----------------------------------------

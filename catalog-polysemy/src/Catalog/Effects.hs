@@ -136,6 +136,7 @@ type Eff'ALL  r  = ( EffCatEnv   r
                    , EffLogging  r
                    , EffTime     r
                    , EffExecProg r
+                   , EffUndoHist r
                    )
 
 

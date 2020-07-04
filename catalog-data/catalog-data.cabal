@@ -15,6 +15,7 @@ library
   hs-source-dirs:      src
 
   exposed-modules:   Data.FilePath
+                     Data.History
                      Data.ImgNode
                      Data.ImgTree
                      Data.ImageStore

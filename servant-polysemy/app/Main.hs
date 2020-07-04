@@ -251,6 +251,14 @@ catalogServer env runReadC runModyC runBGC =
       :<|>
       runR3 checkImgPart
 
+    runM0 :: forall a.
+             CatApp a -> [Text] -> Handler a
+    runM0 cmd' _ts = runModyC cmd'      -- throw away redundant path
+
+    runX1 :: forall a1 a.
+             (a1 -> CatApp a) -> [Text] -> a1 -> Handler a
+    runX1 cmd' _ts = runModyC . cmd'    -- throw away redundant path
+
     runM1 :: forall a.
              (Path -> CatApp a) -> [Text] -> Handler a
     runM1 cmd' = runModyC . cmd' . listToPath
@@ -307,6 +315,12 @@ catalogServer env runReadC runModyC runBGC =
       runM3 updateCheckSum
       :<|>
       runM3 updateTimeStamp
+      :<|>
+      runM0 newUndoEntry
+      :<|>
+      runX1 applyUndo
+      :<|>
+      runX1 dropUndoEntries
 
 ----------------------------------------
 

@@ -22,6 +22,10 @@ import Catalog.Effects
 import Catalog.Effects.CatCmd
 import Catalog.GenCheckSum     ( Eff'CheckSum )
 import Catalog.CatalogIO       ( Eff'CatIO )
+import Catalog.History         ( addToUndoList
+                               , getFromUndoList
+                               , dropFromUndoList
+                               )
 import Catalog.Html            ( Eff'Html )
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
@@ -51,6 +55,7 @@ import qualified Catalog.SyncWithFileSys as SC
 import Data.Prim
 import Data.ImgNode
 import Data.MetaData
+import Data.ImageStore ( ImgStore )
 import Data.ImgTree
 
 -- libraries
@@ -180,6 +185,20 @@ evalCatCmd =
 
       | otherwise ->
           throw @Text $ msgPath path "illegal doc path "
+
+    -- eval undo commands
+
+    NewUndoEntry -> do
+      get @ImgStore >>= addToUndoList
+
+    ApplyUndo hid -> do
+      oldState <- getFromUndoList hid
+      case oldState of
+        Just s  -> put @ImgStore s
+        Nothing -> return ()
+
+    DropUndoEntries hid -> do
+      dropFromUndoList hid
 
 {-# INLINE evalCatCmd #-}
 
