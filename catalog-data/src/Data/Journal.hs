@@ -9,9 +9,19 @@
 
 module Data.Journal where
 
-import Data.ImgTree
-import Data.MetaData
-import Data.Prim
+import Data.ImgTree  ( ColEntries'
+                     , DirEntries
+                     , ImgParts
+                     , ImgRef'
+                     )
+import Data.MetaData ( MetaData )
+import Data.Prim     ( Name
+                     , ObjId
+                     , Path
+                     , Text
+                     , TimeStamp
+                     )
+import Data.History  ( HistoryID )
 
 data Journal' ref = MkIMG         ref Name
                   | MkDIR         ref Name
@@ -28,6 +38,9 @@ data Journal' ref = MkIMG         ref Name
                   | LoadImgStore  FilePath
                   | SaveImgStore  FilePath
                   | SaveBlogText  ref Name Text
+                  | NewUndo       HistoryID
+                  | DoUndo        HistoryID
+                  | DropUndo      HistoryID
                   | NoOp
                   | JSeq (Journal' ref) (Journal' ref)
 

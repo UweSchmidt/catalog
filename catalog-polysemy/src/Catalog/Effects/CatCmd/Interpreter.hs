@@ -31,6 +31,7 @@ import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
 import Catalog.ImgTree.Fold
 import Catalog.Invariant       ( checkImgStore )
+import Catalog.Journal         ( journal )
 import Catalog.MetaData.Sync   ( Eff'MDSync )
 import Catalog.SyncWithFileSys ( Eff'Sync )
 import Catalog.TextPath        ( toFileSysPath )
@@ -54,6 +55,7 @@ import qualified Catalog.SyncWithFileSys as SC
 -- catalog
 import Data.Prim
 import Data.ImgNode
+import Data.Journal    ( Journal'(..) )
 import Data.MetaData
 import Data.ImageStore ( ImgStore )
 import Data.ImgTree
@@ -189,16 +191,20 @@ evalCatCmd =
     -- eval undo commands
 
     NewUndoEntry -> do
-      get @ImgStore >>= addToUndoList
+      hid <- get @ImgStore >>= addToUndoList
+      journal (NewUndo hid)
+      return hid
 
     ApplyUndo hid -> do
       oldState <- getFromUndoList hid
       case oldState of
-        Just s  -> put @ImgStore s
+        Just s  -> do put @ImgStore s
+                      journal (DoUndo hid)
         Nothing -> return ()
 
     DropUndoEntries hid -> do
       dropFromUndoList hid
+      journal (DropUndo hid)
 
 {-# INLINE evalCatCmd #-}
 
