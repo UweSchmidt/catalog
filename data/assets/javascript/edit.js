@@ -137,6 +137,11 @@ function cutHistCmd(maxlen) {
     }
 }
 
+function clearUndoHistory() {
+    cutHistCmd(0);
+    statusMsg("Undo history clearded");
+}
+
 // --------------------
 // dummy server calls
 /*
@@ -3002,6 +3007,12 @@ $(document).ready(function () {
             statusClear();
             // statusMsg('refreshing all open collections');
             checkAllColAreThere(true, true);
+        });
+
+    $('#ClearUndoHistory')
+        .on('click', function () {
+            statusClear();
+            clearUndoHistory();
         });
 
     $('#ConsistencyCheck')
