@@ -175,8 +175,11 @@ catalogServer env runReadC runModyC runBGC =
 
         ref = fromMaybe mempty mbref ^. isoString
 
-        isEditRef = "/edit.html" `isSuffixOf` ref
-
+        isEditRef =
+          "/edit.html" `isSuffixOf` ref        -- HACK, HACK, HACK
+          ||
+          "/edit-4.5.0.html" `isSuffixOf` ref
+          
         aDay :: Int
         aDay = 24 * 60 * 60
 
