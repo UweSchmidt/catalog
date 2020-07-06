@@ -123,11 +123,14 @@ a.up:hover {
   background-image: url(/fix-75x75/assets/icons/up.jpg);
 }
 
+table.info, table.help {
+  border-spacing: 5px;
+}
+
 table.info tr th, table.help tr th {
   text-align:     right;
   vertical-align: top;
   padding-right:  .5em;
-  font-family: monospace;
 }
 
 table.info tr td, table.help tr td {
