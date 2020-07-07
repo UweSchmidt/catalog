@@ -47,6 +47,9 @@ div.carousel-inner.bs450 {
 img.img-thumbnail.carousel-bs450 {
     padding: 0px;
     border: 0px;
+    display: block;
+    margin-left:auto;
+    margin-right:auto;
 }
 
 div.dia.bs450 {
@@ -284,22 +287,22 @@ table.metadata-table th {
   color: #d9534f;
 }
 
-.modal-preview-1600x1200, .modal-carousel-1600x1200, .img-box-1600x1200 {
+.modal-preview-1600x1200, .modal-carousel-1600x1200, .img-box-1600x1200, .img-box-bs450-1600x1200 {
   min-width:  1600px;
   min-height: 1200px;
 }
 
-.modal-preview-1400x1050, .modal-carousel-1400x1050, .img-box-1400x1050 {
+.modal-preview-1400x1050, .modal-carousel-1400x1050, .img-box-1400x1050, .img-box-bs450-1400x1050 {
   min-width:  1400px;
   min-height: 1050px;
 }
 
-.modal-preview-1280x800, .modal-carousel-1280x800, .img-box-1280x800 {
+.modal-preview-1280x800, .modal-carousel-1280x800, .img-box-1280x800, .img-box-bs450-1280x800 {
   min-width:  1280px;
   min-height:  800px;
 }
 
-.modal-preview-900x600, .modal-carousel-900x600, .img-box-900x600 {
+.modal-preview-900x600, .modal-carousel-900x600, .img-box-900x600, .img-box-bs450-900x600 {
   min-width:  900px;
   min-height: 600px;
 }
