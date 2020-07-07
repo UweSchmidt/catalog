@@ -52,9 +52,10 @@ import Catalog.Run             ( CatApp
                                , runLogQ
                                )
 
--- catalog
+-- catalog-data
 import Data.Prim
 import Data.ImageStore         (emptyImgStore)
+import Text.SimpleParser
 
 -- libs
 import Control.Concurrent.STM.TMVar (newTMVarIO)
@@ -170,15 +171,24 @@ catalogServer env runReadC runModyC runBGC =
       addHeader (cval ^. isoText) bs
       where
         cval
-          | isEditRef = "no-store"
-          | otherwise = "public, max-age=" ++ show aDay
+          | isEditRef ref = "no-store"    -- disable caching in browser (at least in Chrome)
+          | otherwise     = "public, max-age=" ++ show aDay
 
         ref = fromMaybe mempty mbref ^. isoString
 
-        isEditRef = "/edit.html" `isSuffixOf` ref
-
         aDay :: Int
         aDay = 24 * 60 * 60
+
+        -- check whether a referer url is of form ".../edit.html" or ".../edit-x.y.z.html"
+        -- with x.y.z as version number
+
+        isEditRef :: String -> Bool
+        isEditRef r = matchP eref r
+          where
+            eref = anyStringThen edit
+            edit = string "/edit" <* optional vers <* string ".html" <* eof
+            vers = char '-' *> some digitChar *> many subv
+            subv = try $ char '.' *> some digitChar
 
     -- --------------------
     -- handle icon request

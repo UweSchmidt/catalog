@@ -424,7 +424,7 @@ headPage theBaseRef theHeadTitle theDate theJS
   theJS
   script
     ! type_   "text/javascript"
-    ! src     "/bootstrap/js/jquery/1.12.4/jquery.min.js"
+    ! src     "/bootstrap/4.5.0/js/jquery/jquery-3.5.1.min.js"
     $ mempty
   script
     ! type_   "text/javascript"

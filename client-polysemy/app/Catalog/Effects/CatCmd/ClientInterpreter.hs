@@ -117,6 +117,14 @@ evalClientCatCmd =
     HtmlPage rt geo p ->
       basicDocReq ".html" rt geo p
 
+    -- undo history commands
+    NewUndoEntry ->
+      simpleJSONmodify "newUndoEntry" p'archive
+    ApplyUndo hid ->
+      paramJSONmodify "applyUndo" p'archive hid
+    DropUndoEntries hid -> do
+      paramJSONmodify "dropUndoEntries" p'archive hid
+
 ------------------------------------------------------------------------------
 
 simpleJSONget :: (FromJSON a, HttpEffects r)
