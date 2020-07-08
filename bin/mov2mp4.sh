@@ -18,8 +18,8 @@ else
 fi
 
 # default dir to be searched
-defdir=$HOME/Bilder/Diakaesten
-
+# defdir=$HOME/Bilder/Diakaesten
+defdir="."
 
 dir=${1:-$defdir}
 
