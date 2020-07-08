@@ -485,6 +485,18 @@ div.blog-contents h2 {
   font-size: 120%;
 }
 
+/* ------------------------------------------------------------ */
+/*
+center the video horizontally and vertically
+within the body element (usually: full screen size)
+*/
+
+#pic-scaled {
+  position:        relative;
+  display:         flex;
+  justify-content: center;
+  align-items:     center;
+}
 
 /* ------------------------------------------------------------ */
 /*
