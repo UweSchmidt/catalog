@@ -5,71 +5,77 @@
     <meta name="description" content="Web Photo Album Test Page">
     <meta name="author" content="Uwe Schmidt">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" type="text/css" href="/assets/css/html-album.css">
-
-    <script type="text/javascript" src="/bootstrap/js/jquery/1.12.4/jquery.min.js"></script>
-    <script type="text/javascript" src="/assets/javascript/html-album.js"></script>
-    <script>
-
-      function isPlaying() {
-          console.log("video is playing");
-          // toggleMute();
+    <style>
+      html {
+        overflow: auto;
+        height: 100%;
       }
-    </script>
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
 
+      div {
+        padding: 0;
+        margin: 0;
+      }
+
+      #container {
+        display: inline-grid;
+        background-color: Aqua;
+        width: 100%;
+        height: 100%;
+      }
+
+      #header {
+        align-self: start;
+        overflow: hidden;
+        background-color: Green;
+      }
+
+      #footer {
+        align-self:end;
+        overflow: hidden;
+        background-color: Green;
+      }
+
+      h1 {
+        margin: 0;
+      }
+
+      #content {
+        overflow: scroll;
+        background-color: Yellow;
+      }
+
+      div.spacer {
+        background-color: #007;
+        margin-bottom: 500px;
+      }
+    </style>
   </head>
-  <body class="album" style="margin: 15px">
-    <div class="title" style="margin: 15px">
-      Catalog Test Page
-    </div>
-    <div class="ruler" style="margin: 15px">
-    </div>
-
-    <div style="text-align:center">
-      <button onclick="playPause()">Play/Pause</button>
-      <button onclick="makeBig()">Big</button>
-      <button onclick="makeSmall()">Small</button>
-      <button onclick="makeNormal()">Normal</button>
-      <br><br>
-      <video id="pic-movie" width="420" autoplay="autoplay" muted onplaying="isPlaying();">
-        <source src="docs/movie/archive/photos/themen/Reisen/USA-2018/2018-04-03/Lumix/p1010072.mp4" type="video/mp4">
-          Your browser does not support HTML5 video.
-      </video>
-    </div>
-
-    <script>
-// var myVideo = document.getElementById("pic-video");
-
-      function startPlay() {
-          var myVideo = document.getElementById("pic-video");
-          console.log("playing");
-          myvideo.play();
-      }
-function playPause() {
-    var myVideo = document.getElementById("pic-video");
-    if (myVideo.paused)
-        myVideo.play();
-    else
-        myVideo.pause();
-}
-
-function makeBig() {
-    var myVideo = document.getElementById("pic-video");
-    myVideo.width = 560;
-}
-
-function makeSmall() {
-    var myVideo = document.getElementById("pic-video");
-    myVideo.width = 320;
-}
-
-function makeNormal() {
-    var myVideo = document.getElementById("pic-video");
-    myVideo.width = 420;
-}
-    </script>
-
-    <div class="ruler" style="margin: 15px">
+  <body>
+    <div id="container">
+      <div id="header">
+        <h1>Example</h1>
+      </div>
+      <div id="content">
+        <h2>Example</h2>
+        <ol>
+        </ol>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque id odio mauris, nec fringilla lectus. Ut lacinia egestas purus, ac dignissim ante aliquet sodales. Praesent lacinia arcu quis nisi gravida nec tempus elit dictum. Aenean sed justo metus, nec accumsan sapien. Ut non risus sapien. Curabitur tempor ipsum quis purus faucibus feugiat. Praesent tempus varius est nec consectetur. Aliquam erat volutpat. Integer fringilla lacinia odio a porttitor. Vivamus in felis vel ipsum laoreet sodales quis eu quam. Aliquam erat volutpat. Nam euismod tempor commodo. Integer cursus dapibus nulla, sit amet luctus justo interdum nec. Duis cursus, mauris at tempor molestie, est neque vestibulum lorem, nec varius odio eros ac metus. Nunc non nisl sapien. Integer ut quam non dui placerat euismod. Nullam tempor dapibus ultricies. Nam nec nibh at arcu molestie vestibulum.</p>
+        <p>Donec pulvinar vulputate odio, non molestie lectus tincidunt bibendum. Maecenas pellentesque urna et urna posuere bibendum. Praesent nisl odio, rutrum sed aliquet eu, ultricies a eros. Sed a diam sit amet velit laoreet scelerisque. Nulla facilisi. Aenean id lorem ut tortor euismod pharetra. Vivamus imperdiet, sapien eu ornare malesuada, arcu justo venenatis arcu, id hendrerit ligula nunc porta urna. Nunc placerat adipiscing massa sit amet congue. Curabitur facilisis enim arcu. Sed eu faucibus est. Etiam eget nisl turpis. Nunc id magna ut enim fermentum dignissim sed id leo. Praesent semper ultricies sagittis. Nullam aliquam laoreet nibh at molestie. Aliquam id velit erat, ut malesuada sem.</p>
+        <p>Nunc elementum metus non mi congue dictum. Duis eget enim purus, at porttitor lacus. Sed mattis justo id diam tincidunt sed hendrerit augue sodales. Donec blandit placerat cursus. Nam malesuada ultricies ipsum at tristique. Phasellus facilisis mi consequat est tempor a ultricies justo aliquet. Maecenas turpis neque, faucibus pellentesque porta id, mollis ac quam. Cras rhoncus condimentum eros vitae tincidunt. Nulla tempor justo porta nisi fringilla ac interdum ligula cursus. Etiam bibendum sem a nisi cursus et sagittis massa volutpat. Vestibulum egestas congue suscipit. Aenean nibh felis, elementum iaculis luctus nec, tempus sed nisi. Donec elit orci, fringilla id tempor vitae, placerat sit amet felis. Mauris at accumsan eros. Duis quam lorem, pharetra ut sollicitudin a, varius laoreet justo. Curabitur nec nibh augue, sit amet auctor diam. Donec sit amet diam lacus. Maecenas sed massa ut lorem sagittis tincidunt at ut nibh. Aliquam non mauris vel sem convallis consectetur eu sit amet tellus. Morbi nisi mi, porta sed feugiat eu, mattis ut velit.</p>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque id odio mauris, nec fringilla lectus. Ut lacinia egestas purus, ac dignissim ante aliquet sodales. Praesent lacinia arcu quis nisi gravida nec tempus elit dictum. Aenean sed justo metus, nec accumsan sapien. Ut non risus sapien. Curabitur tempor ipsum quis purus faucibus feugiat. Praesent tempus varius est nec consectetur. Aliquam erat volutpat. Integer fringilla lacinia odio a porttitor. Vivamus in felis vel ipsum laoreet sodales quis eu quam. Aliquam erat volutpat. Nam euismod tempor commodo. Integer cursus dapibus nulla, sit amet luctus justo interdum nec. Duis cursus, mauris at tempor molestie, est neque vestibulum lorem, nec varius odio eros ac metus. Nunc non nisl sapien. Integer ut quam non dui placerat euismod. Nullam tempor dapibus ultricies. Nam nec nibh at arcu molestie vestibulum.</p>
+        <p>Donec pulvinar vulputate odio, non molestie lectus tincidunt bibendum. Maecenas pellentesque urna et urna posuere bibendum. Praesent nisl odio, rutrum sed aliquet eu, ultricies a eros. Sed a diam sit amet velit laoreet scelerisque. Nulla facilisi. Aenean id lorem ut tortor euismod pharetra. Vivamus imperdiet, sapien eu ornare malesuada, arcu justo venenatis arcu, id hendrerit ligula nunc porta urna. Nunc placerat adipiscing massa sit amet congue. Curabitur facilisis enim arcu. Sed eu faucibus est. Etiam eget nisl turpis. Nunc id magna ut enim fermentum dignissim sed id leo. Praesent semper ultricies sagittis. Nullam aliquam laoreet nibh at molestie. Aliquam id velit erat, ut malesuada sem.</p>
+        <p>Nunc elementum metus non mi congue dictum. Duis eget enim purus, at porttitor lacus. Sed mattis justo id diam tincidunt sed hendrerit augue sodales. Donec blandit placerat cursus. Nam malesuada ultricies ipsum at tristique. Phasellus facilisis mi consequat est tempor a ultricies justo aliquet. Maecenas turpis neque, faucibus pellentesque porta id, mollis ac quam. Cras rhoncus condimentum eros vitae tincidunt. Nulla tempor justo porta nisi fringilla ac interdum ligula cursus. Etiam bibendum sem a nisi cursus et sagittis massa volutpat. Vestibulum egestas congue suscipit. Aenean nibh felis, elementum iaculis luctus nec, tempus sed nisi. Donec elit orci, fringilla id tempor vitae, placerat sit amet felis. Mauris at accumsan eros. Duis quam lorem, pharetra ut sollicitudin a, varius laoreet justo. Curabitur nec nibh augue, sit amet auctor diam. Donec sit amet diam lacus. Maecenas sed massa ut lorem sagittis tincidunt at ut nibh. Aliquam non mauris vel sem convallis consectetur eu sit amet tellus. Morbi nisi mi, porta sed feugiat eu, mattis ut velit.</p>
+        <div class="spacer"></div>
+      </div>
+      <div id="footer">
+        <h1>Status Line</h1>
+      </div>
     </div>
   </body>
 </html>
