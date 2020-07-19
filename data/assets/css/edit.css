@@ -15,11 +15,54 @@
 /*----------------------------------------*/
 /* bootstrap 4.5.0 extensions */
 
-body.bs450 {
-    padding-top: 50px;
-    background-color: #333;        /* dark skin */
-    color: #ddd;                   /* dark skin */
+
+html.bs450 {
+  overflow: auto;
+  height:   100%;
 }
+
+body.bs450 {
+  width:   100%;
+  height:  100%;
+  margin:  0;
+  padding: 0;
+
+  background-color: #333;
+  color:            #ddd;
+}
+
+#fullscreen-container {
+  display: inline-grid;          /* grid with 3 rows: top-nav, cont, status */
+  width:   100%;
+  height:  100%;
+  /* background-color: Aqua; */
+}
+
+#top-navigation-bar {
+  align-self: start;             /* move nav bar to the top */
+  overflow:   hidden;
+
+  background-color: #222;        /* dark skin */
+  border-color:     #666;        /* dark skin */
+}
+
+#edit-collections-container {
+  overflow: scroll;
+}
+
+#theCollections {
+  margin-bottom: 100%;           /* take all available screen space */
+}
+
+#status-container {
+  align-self:  end;              /* move status to the bottom */
+  overflow:    hidden;
+  line-height: 90%;
+
+  background-color: #222;        /* dark skin */
+  border-color:     #666;        /* dark skin */
+}
+
 
 a.bs450, button.bs450 {
     color: #ddd;                   /* dark skin */
@@ -37,7 +80,7 @@ a.bs450:hover, button.bs450:hover {
 
 .img-box-bs450 {
     position: relative;
-    margin: auto;
+    margin:   auto;
 }
 
 div.carousel-inner.bs450 {
@@ -46,10 +89,10 @@ div.carousel-inner.bs450 {
 
 img.img-thumbnail.carousel-bs450 {
     padding: 0px;
-    border: 0px;
-    display: block;
-    margin-left:auto;
-    margin-right:auto;
+    border:  0px;
+    display:      block;
+    margin-left:  auto;
+    margin-right: auto;
 }
 
 div.dia.bs450 {
@@ -67,14 +110,17 @@ a.star-bs450 {
 }
 
 button.dia-bs450 {
-    padding-top: 0px;
-    padding-bottom: 4px;
+  box-sizing: border-box;
+
+    padding-top: 2px;
+    padding-bottom: 3px;
     padding-left: 2px;
     padding-right: 2px;
     border-width: 1px;
     border-color: #bbb;
     border-radius: 0px;
     line-height: 1.0;
+    margin-left: 1px;
     background-color: #fff;
 }
 

@@ -1257,7 +1257,7 @@ function statusClear() {
     console.log('statusClear');
     $('#status-container')
         .removeClass('status-err-bg');
-    statusMsg('');
+    statusMsg('&nbsp;');
 }
 
 // ----------------------------------------
