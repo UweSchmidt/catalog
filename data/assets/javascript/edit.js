@@ -2923,9 +2923,15 @@ $(document).ready(function () {
 
     $('#CarouselButton')
         .on('click', function () {
-            statusMsg("open image carousel");
+            statusClear();
             imageCarousel();
         });
+    /*
+    // clear status line on modal closed
+
+    $('#CarouselModal')
+        .on('hidden.bs.modal', statusClear);
+    */
 
     $('#ShowMetaDataButton0')
         .on('click', function () {
