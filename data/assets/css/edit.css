@@ -17,8 +17,9 @@
 
 
 html.bs450 {
-  overflow: auto;
-  height:   100%;
+  overflow:  auto;
+  height:    100%;
+  font-size: 14px;
 }
 
 body.bs450 {
