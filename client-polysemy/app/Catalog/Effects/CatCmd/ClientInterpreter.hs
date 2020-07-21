@@ -106,12 +106,14 @@ evalClientCatCmd =
       paramJSONget "rating" p pos
     TheRatings p ->
       simpleJSONget "ratings" p
+    TheMediaPath p ->
+      simpleJSONget "mediaPath" p
     CheckImgPart onlyUpdate n p ->
       paramJSONget "checkimgpart" p (onlyUpdate, n)
 
     -- image and HTML page requests
-    StaticFile _dp bn ->
-      getReq bn
+    StaticFile tp ->
+      getReq tp
     JpgImgCopy rt geo p ->
       basicDocReq ".jpg" rt geo p
     HtmlPage rt geo p ->

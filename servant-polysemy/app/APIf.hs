@@ -82,11 +82,19 @@ type NewDocAPI
       PageAPI
       :<|>
       MovieAPI
+      :<|>
+      ArchiveAPI
     )
 
 -- movies are found under /docs/movies/archive/.../movie.mp4"
 
 type MovieAPI = "movie" :> "archive" :> "photos" :> Raw
+
+-- the whole archive can be accessed directly via /docs/archive/photos/.../img.ext
+-- this makes MovieAPI redundant, but computing the movie url must be changed
+
+type ArchiveAPI = "archive" :> "photos" :> Raw
+
 
 -- a lazy bytestring as response with a cache control header
 
@@ -182,6 +190,8 @@ type JsonGetAPI
       "rating"        :> ParamPost Int Rating
       :<|>
       "ratings"       :> SimplePost [Rating]
+      :<|>
+      "mediaPath"     :> SimplePost [Path]
       :<|>
       "checkimgpart"  :> ParamPost (Bool, Name) CheckSumRes
     )

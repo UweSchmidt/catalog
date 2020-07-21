@@ -55,6 +55,7 @@ module Catalog.Effects.CatCmd
   , theMetaData
   , theRating
   , theRatings
+  , theMediaPath
   , checkImgPart
 
   -- catalog get commands
@@ -128,10 +129,11 @@ data CatCmd m a where
   TheMetaData          ::          Int      -> Path -> CatCmd m MetaData
   TheRating            ::          Int      -> Path -> CatCmd m Rating
   TheRatings           ::                      Path -> CatCmd m [Rating]
+  TheMediaPath         ::                      Path -> CatCmd m [Path]
   CheckImgPart         :: Bool ->  Name     -> Path -> CatCmd m CheckSumRes
 
   -- catalog get commands
-  StaticFile           ::          TextPath -> Text -> CatCmd m LazyByteString
+  StaticFile           ::                  TextPath -> CatCmd m LazyByteString
   JpgImgCopy           ::    ReqType -> Geo -> Path -> CatCmd m LazyByteString
   HtmlPage             ::    ReqType -> Geo -> Path -> CatCmd m LazyByteString
 

@@ -29,6 +29,7 @@ module Client.Effects.ClientCmd
   , ccSnapshot
   , ccCheckSum
   , ccUpdCSum
+  , ccMediaPath
 
     -- * reexported catalog types
   , Geo
@@ -54,18 +55,19 @@ import Data.Prim
 ------------------------------------------------------------------------------
 
 data ClientCmd m a where
-  CcEntry    :: Path                       -> ClientCmd m ()
-  CcLs       :: Path                       -> ClientCmd m ()
-  CcLsmd     :: PathPos -> [Name]          -> ClientCmd m ()
-  CcSetmd1   :: PathPos ->  Name   -> Text -> ClientCmd m ()
-  CcDelmd1   :: PathPos ->  Name           -> ClientCmd m ()
-  CcDownload :: Path    -> ReqType -> Geo
-             -> Text    -> Bool    -> Bool -> ClientCmd m ()
-  CcSnapshot :: Text                       -> ClientCmd m ()
-  CcCheckSum :: Path    -> Name
-             -> Bool    -> Bool            -> ClientCmd m ()
-  CcUpdCSum  :: Path    -> Name
-             -> Bool    -> Bool            -> ClientCmd m ()
+  CcEntry      :: Path                       -> ClientCmd m ()
+  CcLs         :: Path                       -> ClientCmd m ()
+  CcLsmd       :: PathPos -> [Name]          -> ClientCmd m ()
+  CcSetmd1     :: PathPos ->  Name   -> Text -> ClientCmd m ()
+  CcDelmd1     :: PathPos ->  Name           -> ClientCmd m ()
+  CcDownload   :: Path    -> ReqType -> Geo
+               -> Text    -> Bool    -> Bool -> ClientCmd m ()
+  CcSnapshot   :: Text                       -> ClientCmd m ()
+  CcCheckSum   :: Path    -> Name
+               -> Bool    -> Bool            -> ClientCmd m ()
+  CcUpdCSum    :: Path    -> Name
+               -> Bool    -> Bool            -> ClientCmd m ()
+  CcMediaPath  :: Path                       -> ClientCmd m ()
 
 makeSem ''ClientCmd
 

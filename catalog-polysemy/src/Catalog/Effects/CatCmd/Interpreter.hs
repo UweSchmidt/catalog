@@ -38,6 +38,7 @@ import Catalog.TextPath        ( toFileSysPath )
 import Catalog.TimeStamp
 import Catalog.GenPages        ( Req'
                                , emptyReq'
+                               , processReqMediaPath
                                , processReqImg
                                , processReqPage
                                , rType
@@ -164,13 +165,20 @@ evalCatCmd =
     TheRatings p ->
       path2node p >>= read'ratings
 
+    TheMediaPath path
+      | Just ppos <- path2colPath "" path -> do
+          processReqMediaPath (mkReq RRef mempty ppos)
+
+      | otherwise ->
+          throw @Text $ msgPath path "illegal doc path "
+
     CheckImgPart onlyUpdate nm p ->
       path2node p >>= read'checkImgPart onlyUpdate p nm
 
     -- eval get commands
 
-    StaticFile dp bn -> do
-      readStaticFile ((isoText # dp) `snocPath` (isoText # bn))
+    StaticFile tp -> do
+      readStaticFile (isoText # tp)
 
     JpgImgCopy rt geo path
       | Just ppos <- path2colPath ".jpg" path -> do

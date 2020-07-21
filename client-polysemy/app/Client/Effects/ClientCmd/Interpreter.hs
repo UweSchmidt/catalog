@@ -86,6 +86,10 @@ evalClientCmd =
       runReader (CSEnv onlyUpdate True forceUpdate) $
          evalCheckSum updateCheckSumRes p part
 
+    CcMediaPath p -> do
+      mps <- evalMediaPath p
+      sequenceA_ . map (writeln . (^. isoText)) $ mps
+
 {-# INLINE evalClientCmd #-}
 
 ------------------------------------------------------------------------------
@@ -102,6 +106,15 @@ evalLs p = do
       | otherwise = []
 
 {-# INLINE evalLs #-}
+
+------------------------------------------------------------------------------
+
+evalMediaPath :: CCmdEffects r => Path -> Sem r [Path]
+evalMediaPath p = do
+  log'trc $ untext ["evalMediaPath:", p ^. isoText]
+  rs <- theMediaPath p
+  log'trc $ ("res = " <> show rs) ^. isoText
+  return rs
 
 ------------------------------------------------------------------------------
 

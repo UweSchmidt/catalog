@@ -121,6 +121,8 @@ catalogServer env runReadC runModyC runBGC =
     )
     :<|>
     get'movie
+    :<|>
+    get'archive
   )
 
   where
@@ -142,6 +144,7 @@ catalogServer env runReadC runModyC runBGC =
     -- <syncdir> default is "photos"
 
     get'movie         = static (tailPath p'arch'photos)
+    get'archive       = static (tailPath p'arch'photos)
 
     -- root html files are located under /assets/html
 
@@ -162,7 +165,7 @@ catalogServer env runReadC runModyC runBGC =
 
     staticDoc :: Path -> BaseName a -> Handler LazyByteString
     staticDoc dirPath (BaseName n) =
-      runReadC $ staticFile (dirPath ^. isoText) n
+      runReadC $ staticFile ((dirPath `snocPath` (isoText # n)) ^. isoText)
 
     -- --------------------
 
@@ -258,6 +261,8 @@ catalogServer env runReadC runModyC runBGC =
       runR2 theRating
       :<|>
       runR1 theRatings
+      :<|>
+      runR1 theMediaPath
       :<|>
       runR3 checkImgPart
 

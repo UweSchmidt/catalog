@@ -19,6 +19,7 @@
 module Catalog.GenPages
   ( Req'
   , emptyReq'
+  , processReqMediaPath
   , processReqImg
   , processReqPage
   , rType
@@ -219,6 +220,7 @@ denormPathPos r =
 -- check whether an image ref is legal
 -- and add the image ref to the result
 -- in case of a ref to a collection, the empty ImgRef is set
+-- the collection case does not occur with normalized paths
 
 setImgRef :: (Eff'ISE r, EffNonDet r)
           => Req'IdNode a -> Sem r (Req'IdNode'ImgRef a)
@@ -273,6 +275,41 @@ toImgMeta r =
             getMetaData iOid
     Nothing
       -> return $ r ^. rColNode . theMetaData
+
+-- --------------------
+--
+-- compute path of a media file (img/movie/text/...)
+
+processReqMediaPath :: (Eff'ISEL r)
+                    => Req' a -> Sem r [Path]
+processReqMediaPath r =
+  fromMaybe [] <$> runMaybe (processReqMediaPath' r)
+
+processReqMediaPath' :: (Eff'ISEL r, EffNonDet r)
+                    => Req' a -> Sem r [Path]
+processReqMediaPath' r0 = do
+  r1 <- normAndSetIdNode r0
+
+  ( -- collection entry with an image ref
+    do
+      r2 <- setImgRef r1
+      p2 <- (p'archive <>) <$> toSourcePath r2
+
+      log'trc $ msgPath p2 "processRegMediaPath: path="
+      return [p2]
+    )
+    <|>
+    ( -- image entry with paths for all parts
+      do
+        p <- objid2path (r1 ^. rIdNode . _1)
+
+        let ns = r1 ^.. rIdNode . _2 . theParts . thePartNames
+        let ps = map (flip substPathName p) ns
+
+        log'trc $ "processRegMediaPath: paths="
+                  <> (show ps ^. isoText)
+        return ps
+    )
 
 -- --------------------
 --
@@ -342,7 +379,7 @@ processReq :: (EffError r)
 processReq cmd r0 = do
   res <- runMaybe (cmd r0)
   case res of
-    Nothing -> throw @Text "emil"
+    Nothing -> throw @Text "processReq failed"
     Just x  -> return x
 
 -- ----------------------------------------
