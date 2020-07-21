@@ -82,16 +82,18 @@ type NewDocAPI
       PageAPI
       :<|>
       MovieAPI
-      :<|>
-      ArchiveAPI
     )
+    :<|>
+    ArchiveAPI
 
 -- movies are found under /docs/movies/archive/.../movie.mp4"
 
 type MovieAPI = "movie" :> "archive" :> "photos" :> Raw
 
--- the whole archive can be accessed directly via /docs/archive/photos/.../img.ext
--- this makes MovieAPI redundant, but computing the movie url must be changed
+-- the whole archive dir tree can be accessed directly
+-- via /archive/photos/.../img.ext
+-- this wil make MovieAPI redundant, but computing the movie url must be changed
+-- in GenPages
 
 type ArchiveAPI = "archive" :> "photos" :> Raw
 
