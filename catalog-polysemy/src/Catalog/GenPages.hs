@@ -447,9 +447,7 @@ toUrlPath' r
 toUrlImgPath :: EffIStore r => Req'IdNode'ImgRef a -> Sem r TextPath
 toUrlImgPath r = do
   ip <- toSourcePath r
-  return $ (p'docroot `concPath` px `consPath` p'archive `concPath` ip) ^. isoText
-  where
-    px  = r ^. rType . isoText . from isoText
+  return $ (p'archive `concPath` ip) ^. isoText
 
 toUrlExt :: ReqType -> Text
 toUrlExt RPage  = ".html"

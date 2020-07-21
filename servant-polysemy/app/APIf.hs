@@ -80,20 +80,14 @@ type NewDocAPI
       ImgfxAPI
       :<|>
       PageAPI
-      :<|>
-      MovieAPI
     )
     :<|>
     ArchiveAPI
 
--- movies are found under /docs/movies/archive/.../movie.mp4"
-
-type MovieAPI = "movie" :> "archive" :> "photos" :> Raw
-
--- the whole archive dir tree can be accessed directly
--- via /archive/photos/.../img.ext
--- this wil make MovieAPI redundant, but computing the movie url must be changed
--- in GenPages
+-- the whole archive dir tree can be served statically and accessed directly
+-- via /archive/photos/.../file.ext
+-- this is done with movie (.mp4) files, those are served
+-- statically due to streaming support in warp library
 
 type ArchiveAPI = "archive" :> "photos" :> Raw
 

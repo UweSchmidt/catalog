@@ -119,8 +119,6 @@ catalogServer env runReadC runModyC runBGC =
       :<|>
       get'html1
     )
-    :<|>
-    get'movie
   )
   :<|>
   get'archive
@@ -139,11 +137,7 @@ catalogServer env runReadC runModyC runBGC =
 
     -- movies are served statically to enable streaming
     -- the original .mp4 movies are accessed
-    -- by a path prefix "/docs/movies/archive/<syncdir>/" ++ <path-to-mp4>
-    -- image object
-    -- <syncdir> default is "photos"
-
-    get'movie         = static (tailPath p'arch'photos)
+    -- by a path prefix "/archive/photos/" ++ <path-to-mp4>
 
     get'archive       = static (tailPath p'arch'photos)
 
