@@ -41,7 +41,7 @@ body.bs450 {
 
 #top-navigation-bar {
   align-self: start;             /* move nav bar to the top */
-  overflow:   hidden;
+  /*  overflow: hidden; */
 
   background-color: #222;        /* dark skin */
   border-color:     #666;        /* dark skin */

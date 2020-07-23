@@ -1019,6 +1019,7 @@ function newEntry(colId, colPath, entry, i) {
         // "data-jpg" for images,
         // "data-md" for blog entries (markdown text .md or .txt)
         // in preview modal box this info becomes important
+
         var ep = splitPath(entry.part);
         var ex = ep.ext;
         if (ep.ext == "txt" || ep.ext == "md") {
@@ -1027,6 +1028,13 @@ function newEntry(colId, colPath, entry, i) {
             ex = "data-jpg";
         }
         p.addClass(ex);
+
+        // if img is a video, add extra "data-mp4" class as marker
+        // only supported in edit-4.5.0 and later
+
+        if (ep.ext == "mp4" && is450()) {
+            p.addClass("data-mp4");
+        }
 
         sc = sc + ref.cpath + "/" + entry.part;
         mk = "imgmark";
@@ -1753,8 +1761,8 @@ function setCollectionImg(cid) {
         console.log(o);
 
         if ( $(simg).hasClass('data-jpg') ) {
-            // it's a .jpg image
-            // so take this image as collection image
+            // it's a .jpg image or a .mp4 movie
+            // so take this image or movie icon as collection image
             addHistCmd("set col img for " + splitName(path));
             modifyServer('colimg', path, [spath, pos],
                          function () {
@@ -2358,22 +2366,37 @@ function previewImage() {
         .addClass(hiddenclass);
 
     $('#PreviewModalBlog')    /* blog text is hidden */
-        .attr('hidden','');
+        .addClass(hiddenclass);
 
     $('#PreviewModalImg')     /* image div is hidden */
-        .attr('hidden','');
+        .addClass(hiddenclass);
+
+    $('#PreviewModalMovie')   /* movie div is hidden */
+        .addClass(hiddenclass);
 
     $('#PreviewModalLabel')
         .empty()
         .append('Preview: ' + args.path + "/" + args.name);
 
+    // if dia has a "data-mp4" class, compute the movie ref
+    // and insert it in the movie div
+    // else
     // if dia has a .jpg then load the preview ref and show the image
     // via call back insertPreviewRef
 
-    if ( $(args.dia).hasClass('data-jpg') ) {
+    // images are tagged with "data-jpg"
+    // movies are tagged with "data-jpg" and "data-mp4"
+    // blog entries are tagged with "data-md"
+    // collections are tagged with "data-jpg" and "data-md"
+
+    if ( $(args.dia).hasClass('data-mp4') ) {  // movie
+        getMovieRef(args);
+    }
+    else if ( $(args.dia).hasClass('data-jpg') ) { // image or coll
         getPreviewRef(args);
     }
-    if ( $(args.dia).hasClass('data-md') ) {
+
+    if ( $(args.dia).hasClass('data-md') ) { // blog entry or coll
         getBlogText(args);
     }
 }
@@ -2385,8 +2408,7 @@ function insertPreviewRef(ref, args) {
     console.log(args);
 
     // make the div for images visible
-    $('#PreviewModalBody div.data-jpg').removeClass(hiddenclass);
-    $('#PreviewModalImg').removeAttr('hidden');
+    $('#PreviewModalImg').removeClass(hiddenclass);
 
     // insert the image ref, browser will load and show the image
     $('#PreviewModalImgRef')
@@ -2394,6 +2416,33 @@ function insertPreviewRef(ref, args) {
         .attr('alt', args.path);
 
     $('#PreviewModal').modal('show');
+}
+
+function insertMovieRef(ref, args) {
+    // come from: previewImage and getMovieRef
+    console.log('insertMovieRef');
+    console.log(ref);
+    console.log(args);
+
+    // make the div for images visible
+    $('#PreviewModalMovie')
+        .empty()
+        .append('<video class="data-mp4" controls="" width="' + (previewGeo().w - 32) + '">'
+                + '<source id="PreviewModalMovieRef" src="' + ref + '" type="video/mp4">'
+                + '</video>'
+               )
+        .removeClass(hiddenclass);
+
+    $('#PreviewModal').modal('show');
+}
+
+function closePreviewModal() {
+    // statusMsg("Preview closed");
+    // $('#PreviewModalMovieRef')
+    //     .removeAttr('src');
+
+    $('#PreviewModalMovie')
+        .empty();
 }
 
 function insertBlogText(txt, args) {
@@ -2653,6 +2702,15 @@ function getPreviewRef(args) {
                 };
     var res = iconRef(args.fmt, args.path, entry, args.pos);
     insertPreviewRef(res, args);
+}
+
+function getMovieRef(args) {
+    var ref = args.path + "/pic-" + fmtIx(args.pos);
+    console.log("getMovieRef: " + ref);
+    readServer("mediaPath",
+               ref,
+               function (res) { insertMovieRef(res, args); }
+              );
 }
 
 function getBlogText(args) {
@@ -3027,6 +3085,9 @@ $(document).ready(function () {
             // statusMsg('refreshing all open collections');
             checkArchiveConsistency();
         });
+
+    $('#PreviewModal')
+        .on('hidden.bs.modal', closePreviewModal);
 
 });
 

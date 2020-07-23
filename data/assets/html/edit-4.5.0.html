@@ -659,7 +659,7 @@
                     <svg class="bi" width="1em" height="1em" fill="currentColor">
                       <use xlink:href="/assets/icons/bootstrap-icons.svg#flag-fill"/>
                     </svg>
-                    Remove marked from clipboard (sub-)collection
+                    Remove all marked entries from clipboard
                   </a>
                 </div>
               </li>
@@ -1134,6 +1134,17 @@
                    src=""
                    alt="">
             </div>
+            <!-- the preview movie part -->
+            <div id="PreviewModalMovie"
+                 class="thumbnail data-mp4 hidden-bs450">
+              <video class="data-mp4"
+                     controls=""
+                     alt="">
+                <source id="PreviewModalMovieRef"
+                        src=""
+                        type="video/mp4">
+              </video>
+            </div>
           </div>
         </div>
       </div>
@@ -1309,7 +1320,7 @@
                aria-label="Image Actions">
             <button type="button"
                     class="btn btn-sm dia-bs450 dia-btn-remove"
-                    title="Remove this and all marked images/collections">
+                    title="Remove this and all other marked images/collections">
               <svg class="bi" width="14px" height="14px" fill="currentColor">
                 <use xlink:href="/assets/icons/bootstrap-icons.svg#x-octagon"/>
               </svg>
