@@ -142,24 +142,6 @@ function clearUndoHistory() {
     statusMsg("Undo history clearded");
 }
 
-// --------------------
-// dummy server calls
-/*
-var histId = 0;
-
-function getHistIdFromServer(f) {
-    histId++;
-    f(histId);
-}
-
-function resetHistInServer(f) {
-    f();
-}
-
-function dropHistAtInServer(hid) {
-    console.log("dropHistAtInServer id=" + hid);
-}
-*/
 // ----------------------------------------
 
 
@@ -2418,16 +2400,34 @@ function insertPreviewRef(ref, args) {
     $('#PreviewModal').modal('show');
 }
 
-function insertMovieRef(ref, args) {
+function insertMovieRef0(ref, args) {
+    args.movieRef = ref;
+    getMovieMeta(args);
+}
+
+function insertMovieRef(res, args) {
+    var meta = res[0];
+    var ref  = args.movieRef;
+    var geo  = meta["Composite:ImageSize"];
+    var movW = meta["QuickTime:ImageWidth"];
+    var movH = meta["QuickTime:ImageHeight"];
+
+    // compute width and height of movie window
+    var g = fitGeo(movW, movH);
+
     // come from: previewImage and getMovieRef
     console.log('insertMovieRef');
     console.log(ref);
+    console.log(meta);
+    console.log(geo);
+    console.log(movW);
+    console.log(movH);
     console.log(args);
 
     // make the div for images visible
     $('#PreviewModalMovie')
         .empty()
-        .append('<video class="data-mp4" controls="" width="' + (previewGeo().w - 32) + '">'
+        .append('<video class="data-mp4" controls="" width="' + g.w + '" height="' + g.h + '">'
                 + '<source id="PreviewModalMovieRef" src="' + ref + '" type="video/mp4">'
                 + '</video>'
                )
@@ -2704,14 +2704,29 @@ function getPreviewRef(args) {
     insertPreviewRef(res, args);
 }
 
+// --------------------
+// an example for callback hell: getMovieRef, insertMovieRef0, getMovieMeta, insertMovieRef
+
 function getMovieRef(args) {
     var ref = args.path + "/pic-" + fmtIx(args.pos);
+    args.pathpos = ref;
     console.log("getMovieRef: " + ref);
     readServer("mediaPath",
                ref,
-               function (res) { insertMovieRef(res, args); }
+               function (res) { insertMovieRef0(res, args); }
               );
 }
+
+function getMovieMeta(args) {
+    var ref = args.path;
+    console.log("getMovieMeta: " + ref);
+    readServer1("metadata",
+                args.path,
+                args.pos,
+                function (res) { insertMovieRef(res, args);}
+               );
+}
+// --------------------
 
 function getBlogText(args) {
     readServer1('blogcontents',
@@ -3153,6 +3168,36 @@ function previewGeoXY(x, y) {
     o.geo = "" + o.w + "x" + o.h;
     o.img = "pad-" + o.geo;
     return o;
+}
+
+function previewMovieGeo(w, h) {
+    var o = previewGeo();
+    var res = fitGeo(w, h, o.w, o.h);
+    console.log("previewMovieGeo");
+    console.log(res);
+    return res;
+}
+
+function fitGeo(orgW, orgH) {
+    var pg   = previewGeo();
+    var pad  = 32;
+    var dstW = pg.w - pad;
+    var dstH = pg.h - pad;
+    var res = {};
+    if (orgW <= dstW && orgH <= dstH) {
+        res.w = orgW; res.h = orgH;
+    } else {
+        var orgAR = orgW / orgH;
+        var dstAR = dstW / dstH;
+        if ( orgAR >= dstAR ) {
+            res.w = dstW;
+            res.h = Math.floor(dstW / orgAR);
+        } else {
+            res.h = dstH;
+            res.w = Math.floor(dstH * orgAR);
+        }
+    }
+    return res;
 }
 
 // ----------------------------------------
