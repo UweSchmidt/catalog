@@ -64,6 +64,11 @@ body.bs450 {
   border-color:     #666;        /* dark skin */
 }
 
+#PreviewModalImgRef, #PreviewModalMovie {
+  margin-left:  auto;            /* center image or movie */
+  margin-right: auto;
+  display:      block;
+}
 
 a.bs450, button.bs450 {
     color: #ddd;                   /* dark skin */
