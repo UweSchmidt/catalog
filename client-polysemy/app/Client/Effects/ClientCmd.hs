@@ -30,9 +30,11 @@ module Client.Effects.ClientCmd
   , ccCheckSum
   , ccUpdCSum
   , ccMediaPath
+  , ccUndoList
 
     -- * reexported catalog types
   , Geo
+  , HistoryID
   , Name
   , Path
   , PathPos
@@ -42,6 +44,9 @@ module Client.Effects.ClientCmd
 where
 
 import Polysemy
+
+import Data.History
+       ( HistoryID )
 
 import Data.Prim
        ( Geo
@@ -68,6 +73,7 @@ data ClientCmd m a where
   CcUpdCSum    :: Path    -> Name
                -> Bool    -> Bool            -> ClientCmd m ()
   CcMediaPath  :: Path                       -> ClientCmd m ()
+  CcUndoList   ::                               ClientCmd m ()
 
 makeSem ''ClientCmd
 

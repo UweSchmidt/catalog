@@ -67,6 +67,7 @@ module Catalog.Effects.CatCmd
   , newUndoEntry
   , applyUndo
   , dropUndoEntries
+  , listUndoEntries
 
   -- reexport of types used in CatCmd
   , HistoryID
@@ -141,6 +142,7 @@ data CatCmd m a where
   NewUndoEntry         ::                      Text -> CatCmd m HistoryID
   ApplyUndo            ::                 HistoryID -> CatCmd m ()
   DropUndoEntries      ::                 HistoryID -> CatCmd m ()
+  ListUndoEntries      ::                              CatCmd m [(HistoryID, Text)]
 
 makeSem ''CatCmd
 

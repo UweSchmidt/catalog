@@ -24,6 +24,7 @@ import Catalog.GenCheckSum     ( Eff'CheckSum )
 import Catalog.CatalogIO       ( Eff'CatIO )
 import Catalog.History         ( addToUndoList
                                , getFromUndoList
+                               , getWholeUndoList
                                , dropFromUndoList
                                )
 import Catalog.Html            ( Eff'Html )
@@ -213,6 +214,11 @@ evalCatCmd =
     DropUndoEntries hid -> do
       dropFromUndoList hid
       journal (DropUndo hid)
+
+    ListUndoEntries -> do
+      res <- getWholeUndoList
+      log'trc ("listUnodEntries: " <> (show res) ^. isoText)
+      return res
 
 {-# INLINE evalCatCmd #-}
 

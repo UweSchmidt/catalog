@@ -223,7 +223,11 @@ catalogServer env runReadC runModyC runBGC =
       runReadC . htmlPage rt geo . listToPath
 
     -- --------------------
-
+{-
+    runR0 :: forall a.
+             CatApp a -> [Text] -> Handler a
+    runR0 cmd' _ts = runReadC cmd'      -- throw away redundant path
+-}
     runR1 :: forall a .
              (Path -> CatApp a) -> [Text] -> Handler a
     runR1 cmd' = runReadC  . cmd' . listToPath
@@ -260,11 +264,11 @@ catalogServer env runReadC runModyC runBGC =
       runR1 theMediaPath
       :<|>
       runR3 checkImgPart
-{-
+
     runM0 :: forall a.
              CatApp a -> [Text] -> Handler a
     runM0 cmd' _ts = runModyC cmd'      -- throw away redundant path
--}
+
     runX1 :: forall a1 a.
              (a1 -> CatApp a) -> [Text] -> a1 -> Handler a
     runX1 cmd' _ts = runModyC . cmd'    -- throw away redundant path
@@ -331,6 +335,8 @@ catalogServer env runReadC runModyC runBGC =
       runX1 applyUndo
       :<|>
       runX1 dropUndoEntries
+      :<|>
+      runM0 listUndoEntries
 
 ----------------------------------------
 

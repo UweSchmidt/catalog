@@ -61,12 +61,35 @@ function diaStarSelector(j) {
 // ----------------------------------------
 //
 // undo history
+// history is stored in server
+// when opening undo history menue the whole history
+// is read from server and the drop down menue is created on the fly
 
 var undoHist = [];
+
+function setHistory() {
+    // clear undo history
+    undoHist = [];
+    $('#undoHistoryList')
+        .empty();
+
+    // load new history list from server
+    getHistoryFromServer(addHistList);
+}
+
+// callback from getHistoryFromServer
+function addHistList(hl) {
+    while ( hl.length != 0 ) {
+        var he = hl.pop();
+        undoHist.unshift(he);
+        addHistToMenue();
+    }
+}
 
 function addHistCmd(cname) {
     console.log("addHistCmd " + cname + " " + undoHist);
     getHistIdFromServer(cname, function (hid) {
+        console.log("addHistCmd: " + hid + ": " + cname);
         undoHist.unshift([hid, cname]);
         addHistToMenue();
     });
@@ -93,9 +116,9 @@ function resetHistTo(hid0) {
     }
 }
 
-function addHistToMenue() {
-    console.log("addHistToMenue " + undoHist);
-    var hd  = undoHist[0];
+function addHistToMenue(hd) {
+    // var hd  = undoHist[0];
+    console.log("addHistToMenue " + hd);
     var hid = hd[0];
     var hnm = hd[1];
 
@@ -2636,6 +2659,15 @@ function dropHistAtInServer(hid) {
     modifyServer("dropUndoEntries", pathArchive(), hid, noop);
 }
 
+function getHistoryFromServer(cont) {
+    console.log("getHistFromServer");
+    modifyServer1("listUndoEntries", pathArchive(), [],
+                  function (hs) {
+                      console.log("undo history");
+                      console.log(hs);
+                      cont(hs);
+                  });
+}
 
 function getColFromServer(path, showCol) {
     readServer("collection", path,
@@ -3099,6 +3131,12 @@ $(document).ready(function () {
             statusClear();
             // statusMsg('refreshing all open collections');
             checkArchiveConsistency();
+        });
+
+    $('#dropdownUndoHistory')
+        .on('click', function () {
+            // statusMsg("Open Undo History");
+            setHistory();
         });
 
     $('#PreviewModal')

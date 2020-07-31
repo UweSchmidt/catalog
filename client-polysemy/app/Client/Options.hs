@@ -218,6 +218,12 @@ cmdClient = subparser $
       `withInfo`
       ( "Take a snapshot of catalog" )
     )
+  <>
+  command "undo-history"
+    ( pure CcUndoList
+      `withInfo`
+      "List undo history"
+    )
 
 ----------------------------------------
 --

@@ -90,6 +90,10 @@ evalClientCmd =
       mps <- evalMediaPath p
       sequenceA_ . map (writeln . (^. isoText)) $ mps
 
+    CcUndoList -> do
+      es <- listUndoEntries
+      sequenceA_ . map (uncurry prettyUndo) $ es
+
 {-# INLINE evalClientCmd #-}
 
 ------------------------------------------------------------------------------
@@ -373,6 +377,10 @@ checksumFile :: ( Member FileSystem r )
 checksumFile p = do
   r <- mkCheckSum <$> readFileBS p
   return $! r
+
+------------------------------------------------------------------------------
+
+prettyUndo hid cmt = writeln $ (show hid ++ ". ") ^. isoText <> cmt
 
 ------------------------------------------------------------------------------
 

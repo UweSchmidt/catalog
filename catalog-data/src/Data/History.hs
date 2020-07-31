@@ -7,6 +7,7 @@ module Data.History
   , addToHistory
   , resetHistory
   , dropHistory
+  , entriesInHistory
   )
 where
 
@@ -49,5 +50,8 @@ dropHistory :: HistoryID -> History a -> History a
 dropHistory hid (HS hid' hs) = HS hid' hs'
   where
     hs' = snd $ M.split hid hs
+
+entriesInHistory :: History a -> [(HistoryID, a)]
+entriesInHistory (HS _hid hs) = M.toDescList hs
 
 -- ----------------------------------------

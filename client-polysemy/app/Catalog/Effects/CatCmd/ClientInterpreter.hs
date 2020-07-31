@@ -121,16 +121,21 @@ evalClientCatCmd =
 
     -- undo history commands
     --
+    -- commands must use modify calls,
+    -- read calls dont have access to the history store
+    --
     -- the p'archive arg in the history commands is redundant,
     -- but the handmade JSON interface has a path component
     -- for all commands
     --
     NewUndoEntry cmt ->
-      paramJSONmodify "newUndoEntry"    p'archive cmt
+      paramJSONmodify  "newUndoEntry"    p'archive cmt
     ApplyUndo hid ->
-      paramJSONmodify "applyUndo"       p'archive hid
+      paramJSONmodify  "applyUndo"       p'archive hid
     DropUndoEntries hid -> do
-      paramJSONmodify "dropUndoEntries" p'archive hid
+      paramJSONmodify  "dropUndoEntries" p'archive hid
+    ListUndoEntries -> do
+      simpleJSONmodify "listUndoEntries" p'archive
 
 ------------------------------------------------------------------------------
 
