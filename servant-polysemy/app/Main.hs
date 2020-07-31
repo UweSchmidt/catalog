@@ -260,11 +260,11 @@ catalogServer env runReadC runModyC runBGC =
       runR1 theMediaPath
       :<|>
       runR3 checkImgPart
-
+{-
     runM0 :: forall a.
              CatApp a -> [Text] -> Handler a
     runM0 cmd' _ts = runModyC cmd'      -- throw away redundant path
-
+-}
     runX1 :: forall a1 a.
              (a1 -> CatApp a) -> [Text] -> a1 -> Handler a
     runX1 cmd' _ts = runModyC . cmd'    -- throw away redundant path
@@ -326,7 +326,7 @@ catalogServer env runReadC runModyC runBGC =
       :<|>
       runM3 updateTimeStamp
       :<|>
-      runM0 newUndoEntry
+      runX1 newUndoEntry
       :<|>
       runX1 applyUndo
       :<|>

@@ -120,10 +120,15 @@ evalClientCatCmd =
       basicDocReq ".html" rt geo p
 
     -- undo history commands
-    NewUndoEntry ->
-      simpleJSONmodify "newUndoEntry" p'archive
+    --
+    -- the p'archive arg in the history commands is redundant,
+    -- but the handmade JSON interface has a path component
+    -- for all commands
+    --
+    NewUndoEntry cmt ->
+      paramJSONmodify "newUndoEntry"    p'archive cmt
     ApplyUndo hid ->
-      paramJSONmodify "applyUndo" p'archive hid
+      paramJSONmodify "applyUndo"       p'archive hid
     DropUndoEntries hid -> do
       paramJSONmodify "dropUndoEntries" p'archive hid
 

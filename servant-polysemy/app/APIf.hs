@@ -236,7 +236,7 @@ type JsonModifyAPI
       :<|>
       "updateTimeStamp"      :> ParamPost (TimeStamp, Name) ()
       :<|>
-      "newUndoEntry"         :> SimplePost HistoryID
+      "newUndoEntry"         :> ParamPost Text HistoryID
       :<|>
       "applyUndo"            :> ParamPost HistoryID ()
       :<|>

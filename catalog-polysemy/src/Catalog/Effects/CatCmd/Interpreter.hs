@@ -198,8 +198,8 @@ evalCatCmd =
 
     -- eval undo commands
 
-    NewUndoEntry -> do
-      hid <- get @ImgStore >>= addToUndoList
+    NewUndoEntry cmt -> do
+      hid <- get @ImgStore >>= addToUndoList cmt
       journal (NewUndo hid)
       return hid
 

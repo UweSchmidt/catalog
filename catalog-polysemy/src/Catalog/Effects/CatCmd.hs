@@ -138,7 +138,7 @@ data CatCmd m a where
   HtmlPage             ::    ReqType -> Geo -> Path -> CatCmd m LazyByteString
 
   -- Undo history
-  NewUndoEntry         ::                              CatCmd m HistoryID
+  NewUndoEntry         ::                      Text -> CatCmd m HistoryID
   ApplyUndo            ::                 HistoryID -> CatCmd m ()
   DropUndoEntries      ::                 HistoryID -> CatCmd m ()
 

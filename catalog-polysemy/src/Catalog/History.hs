@@ -45,18 +45,19 @@ import Data.History    ( History
                        , emptyHistory
                        )
 import Data.ImageStore (ImgStore)
+import Data.Prim.Prelude
 
 ------------------------------------------------------------------------------
 
-type UndoHistory  = History ImgStore
+type UndoHistory  = History (Text, ImgStore)
 type HistoryState = State UndoHistory
 
 -- ----------------------------------------
 
 data UndoListCmd m a where
-  AddToUndoList    :: ImgStore -> UndoListCmd m HistoryID
-  GetFromUndoList  :: HistoryID -> UndoListCmd m (Maybe ImgStore)
-  DropFromUndoList :: HistoryID -> UndoListCmd m ()
+  AddToUndoList    :: Text -> ImgStore -> UndoListCmd m HistoryID
+  GetFromUndoList  :: HistoryID        -> UndoListCmd m (Maybe ImgStore)
+  DropFromUndoList :: HistoryID        -> UndoListCmd m ()
 
 makeSem ''UndoListCmd
 
@@ -67,9 +68,9 @@ undoListWithState :: Sem (UndoListCmd ': r) a
 undoListWithState =
   reinterpret $
   \ c -> case c of
-    AddToUndoList s -> do
+    AddToUndoList cmt s -> do
       h <- get @UndoHistory
-      let (hid, h') = addToHistory s h
+      let (hid, h') = addToHistory (cmt, s) h
       put @UndoHistory h'
       return hid
 
@@ -77,7 +78,7 @@ undoListWithState =
       h <- get @UndoHistory
       let (ms, h') = resetHistory hid h
       put @UndoHistory h'
-      return ms
+      return (snd <$> ms)
 
     DropFromUndoList hid -> do
       modify @UndoHistory (dropHistory hid)
@@ -89,7 +90,7 @@ undoListNoop :: Sem (UndoListCmd ': r) a
 undoListNoop =
   interpret $
   \ c -> case c of
-    AddToUndoList _s -> do
+    AddToUndoList _cmt _s -> do
       return 0
 
     GetFromUndoList _hid -> do

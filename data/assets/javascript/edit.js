@@ -66,7 +66,7 @@ var undoHist = [];
 
 function addHistCmd(cname) {
     console.log("addHistCmd " + cname + " " + undoHist);
-    getHistIdFromServer(function (hid) {
+    getHistIdFromServer(cname, function (hid) {
         undoHist.unshift([hid, cname]);
         addHistToMenue();
     });
@@ -2617,9 +2617,9 @@ function setRatingsOnServer(cid, path, ixs, rating) {
                   });
 }
 
-function getHistIdFromServer(processRes) {
+function getHistIdFromServer(cname, processRes) {
     console.log('getHistIdFromServer');
-    modifyServer1("newUndoEntry", pathArchive(), [],
+    modifyServer1("newUndoEntry", pathArchive(), cname,
                  function (hid) {
                      console.log("getHistIdFromServer: hid=" + hid);
                      processRes(hid);
