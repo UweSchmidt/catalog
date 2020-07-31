@@ -63,13 +63,11 @@ function diaStarSelector(j) {
 // undo history
 // history is stored in server
 // when opening undo history menue the whole history
-// is read from server and the drop down menue is created on the fly
-
-var undoHist = [];
+// is read from server
+// and the drop down menue is created on the fly
 
 function setHistory() {
     // clear undo history
-    undoHist = [];
     $('#undoHistoryList')
         .empty();
 
@@ -80,44 +78,29 @@ function setHistory() {
 // callback from getHistoryFromServer
 function addHistList(hl) {
     while ( hl.length != 0 ) {
-        var he = hl.pop();
-        undoHist.unshift(he);
-        addHistToMenue();
+        var hd = hl.pop();
+        addHistToMenue(hd);
     }
 }
 
 function addHistCmd(cname) {
-    console.log("addHistCmd " + cname + " " + undoHist);
+    console.log("addHistCmd " + cname);
     getHistIdFromServer(cname, function (hid) {
         console.log("addHistCmd: " + hid + ": " + cname);
-        undoHist.unshift([hid, cname]);
-        addHistToMenue();
     });
 }
 
-function resetHistTo(hid0) {
-    console.log("resetHistTo " + hid0 + " " + undoHist);
+function resetHistTo(hid) {
+    console.log("resetHistTo " + hid);
 
-    var hd  = undoHist.shift();
-    var hid = hd[0];
-    var hnm = hd[1];
-
-    var undoId = "#undo-" + hid;
-    $(undoId).remove();
-
-    if (hid == hid0) {
-        resetHistInServer(hid0, function () {
-            console.log("reset history in server until id: " + hid0 + ", " + hnm);
-            statusMsg("discard all changes up to " + hid + ": " + hnm);
-            checkAllColAreThere(true, true);
-        });
-    } else if (undoHist.length > 0) {
-        resetHistTo(hid0);
-    }
+    resetHistInServer(hid, function () {
+        console.log("reset history in server until id: " + hid);
+        statusMsg("discard all changes up to " + hid);
+        checkAllColAreThere(true, true);
+    });
 }
 
 function addHistToMenue(hd) {
-    // var hd  = undoHist[0];
     console.log("addHistToMenue " + hd);
     var hid = hd[0];
     var hnm = hd[1];
@@ -141,30 +124,18 @@ function addHistToMenue(hd) {
             });
 }
 
-function cutHistCmd(maxlen) {
-    var len = undoHist.length;
-
-    if ( len > maxlen ) {
-        var i = len;
-        var lst;
-        var lid;
-        while ( i > maxlen ) {
-            i--;
-            lst = undoHist.pop();           // drop from undoHist
-            lid = lst[0];
-            $("#undo-" + lid).remove();     // drop from undo hist menue
-            console.log("cutHistCmd: drop entry " + i + " hid=" + lid);
-        }
-        console.log("cutHistCmd: drop all old entries starting with hid=" + lid + " in server");
-        dropHistAtInServer(lid);            // drop history in server
-    }
-}
-
 function clearUndoHistory() {
-    cutHistCmd(0);
+    getHistoryFromServer(resetHistList);
     statusMsg("Undo history clearded");
 }
 
+function resetHistList(hl) {
+    if ( hl.length > 0 ) {
+        var h0 = hl[0];
+        var hid = h0[0];
+        dropHistAtInServer(hid);
+    }
+}
 // ----------------------------------------
 
 
@@ -181,7 +152,7 @@ function insCol(path, col) {
     openCollections[path] = col;
 }
 
-// update a  collection and
+// update a collection and
 // return whether col has changed
 function updCol(path, col) {
     console.log('updCol: ' + path);
@@ -1128,7 +1099,7 @@ function checkAndRefreshCol(path, refresh, force) {
 function checkAllColAreThere(refresh, force) {
     var colPaths = allCollectionPaths();
     colPaths.forEach(function (path, i) {
-        checkAndRefreshCol(path,refresh, force);
+        checkAndRefreshCol(path, refresh, force);
     });
 
 }
