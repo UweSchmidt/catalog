@@ -1,5 +1,5 @@
 name:                catalog-client
-version:             0.3.4.1
+version:             0.3.5.0
 synopsis:            Client for catalog
 homepage:            https://github.com/UweSchmidt/apps/catalog
 license:             BSD3
