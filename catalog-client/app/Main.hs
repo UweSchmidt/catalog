@@ -54,7 +54,7 @@ version :: String
 version = "0.3.5.0"
 
 date :: String
-date = "2020-07-31"
+date = "2020-08-01"
 
 appname :: String
 appname = "client"

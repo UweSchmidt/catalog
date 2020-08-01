@@ -4,7 +4,7 @@
 
 var serverVersion = { "server"  : "servant",
                       "version" : "0.3.5.0",
-                      "date"    : "2020-07-31"
+                      "date"    : "2020-08-01"
                     };
 
 // --------------------

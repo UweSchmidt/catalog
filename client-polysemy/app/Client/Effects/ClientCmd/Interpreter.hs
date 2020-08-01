@@ -372,7 +372,7 @@ prettyCheckSumRes p part csr = do
 -- with very large files (> 1Gb, e.g. .afphoto stacks)
 
 
-checksumFile :: ( Member FileSystem r )
+checksumFile :: Member FileSystem r
              => TextPath -> Sem r CheckSum
 checksumFile p = do
   r <- mkCheckSum <$> readFileBS p
@@ -380,6 +380,8 @@ checksumFile p = do
 
 ------------------------------------------------------------------------------
 
+prettyUndo :: Member (Consume Text) r
+           => HistoryID -> Text -> Sem r ()
 prettyUndo hid cmt = writeln $ (show hid ++ ". ") ^. isoText <> cmt
 
 ------------------------------------------------------------------------------
