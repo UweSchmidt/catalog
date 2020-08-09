@@ -46,10 +46,10 @@ import Data.MetaData ( MetaData
                      , exifModel
                      , exifWhiteBalance
 
-                     , fileDirectory
                      , fileFileModifyDate
-                     , fileFileName
+                     , fileRefImg
                      , fileRefJpg
+                     , fileRefRaw
 
                      , getGPSposDeg
 
@@ -779,14 +779,6 @@ picMeta md = mconcat mdTab
       where
         val  = lookupGPS md
 
-    mdFile :: Text -> Html
-    mdFile descr =
-      toEntry descr fileFileName v $
-      toHtml $ d <> "/" <> v
-      where
-        d = md ^. metaDataAt fileDirectory
-        v = md ^. metaDataAt fileFileName
-
     mdTab :: [Html]
     mdTab =
       [ mdval  "Titel"                 descrTitle
@@ -817,8 +809,9 @@ picMeta md = mconcat mdTab
       , mdval  "Weißabgleich"          exifWhiteBalance
       , mdval  "Aufnahmezähler"        makerNotesShutterCount
       , mdval  "Geometrie"             compositeImageSize
-      , mdFile "Raw-Datei"
-      , mdval  "Bild-Datei"            fileRefJpg
+      , mdval  "Original-Datei"        fileRefRaw
+      , mdval  "Bild-Datei"            fileRefImg
+      , mdval  "Bild-Kopie"            fileRefJpg
       , mdval  "Bearbeitet"            fileFileModifyDate
       , mdRat  "Bewertung"
       ]

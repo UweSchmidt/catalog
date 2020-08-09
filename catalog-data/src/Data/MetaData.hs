@@ -64,6 +64,8 @@ module Data.MetaData
   , fileFileModifyDate
   , fileFileName
   , fileMIMEType
+  , fileRefRaw
+  , fileRefImg
   , fileRefJpg
 
   , exifArtist
@@ -698,6 +700,8 @@ attrFile =
     , "FileModifyDate"
     , "FileName"
     , "MIMEType"
+    , "RefRaw"
+    , "RefImg"
     , "RefJpg"
     ]
   )
@@ -707,6 +711,8 @@ fileDirectory
   , fileFileModifyDate
   , fileFileName
   , fileMIMEType
+  , fileRefRaw
+  , fileRefImg
   , fileRefJpg :: Name
 
 keysAttrFile :: [Name]
@@ -716,6 +722,8 @@ keysAttrFile@
   , fileFileModifyDate
   , fileFileName
   , fileMIMEType
+  , fileRefRaw
+  , fileRefImg
   , fileRefJpg
   ] = attrGroup2attrName attrFile
 

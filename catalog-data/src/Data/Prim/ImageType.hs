@@ -44,7 +44,7 @@ isJpg :: ImgType -> Bool
 isJpg IMGjpg = True
 isJpg _      = False
 
--- is .jpg file
+-- is .png, .gif, .tiff or other image file
 isImg :: ImgType -> Bool
 isImg IMGimg = True
 isImg _      = False

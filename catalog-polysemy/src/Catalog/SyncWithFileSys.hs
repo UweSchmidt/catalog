@@ -49,6 +49,8 @@ import Data.MetaData
 import Data.Prim
 import Data.TextPath
 
+import qualified Data.Text as T
+
 -- ----------------------------------------
 
 type Eff'Sync r = ( EffIStore   r   -- any effects missing?
@@ -504,7 +506,11 @@ partClassifiedNames = unfoldr part . sortBy (compare `on` (^. key))
         equiv n1 n2 =
           n1 == n2
           ||
-          s1 == dropVirtualCopyNo s2  -- equality relative to virtual copy no
+          ( s1 `T.isPrefixOf` s2
+            &&
+            T.null (dropVirtualCopyNo (T.drop (T.length s1) s2))
+          )
+          -- equality relative to virtual copy no
           where
             s1 = n1 ^. isoText
             s2 = n2 ^. isoText

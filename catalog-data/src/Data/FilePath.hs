@@ -138,23 +138,26 @@ p'geo = some digitChar <++> string "x" <++> some digitChar
 -- syncing with filesystem
 
 virtualCopyNo :: SP (String, String)
-virtualCopyNo = anyStringThen' cNo
+virtualCopyNo = anyStringThen' (concat <$> some vcp) <* eof -- cNo
   where
-    cNo = single '_'
-          *>
-          ((++) <$> vcb
-                <*> option "" vcs
+    vcp :: SP String
+    vcp = (:)
+          <$>
+          single '_'
+          <*>
+          ( ( (++) <$> ( some digitChar
+                         <|>
+                         string "M"
+                         <|>
+                         string "Nik"
+                       )
+                   <*> nnm
+            )
           )
-          <*
-          eof
-    vcb = ((++) <$> (some digitChar
-                     <|>
-                     string "M"
-                    )
-                <*> option "" (string "_Nik")
-          )
-    vcs = (:) <$> single '-'
-              <*> some digitChar
+
+    -- negative num
+    nnm :: SP String
+    nnm = option "" ( (:) <$> single '-' <*> some digitChar )
 
 baseName
   , imgdirName, imgdirPre

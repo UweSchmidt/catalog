@@ -38,7 +38,9 @@ import Data.MetaData                  ( MetaData
                                       , descrDuration
                                       , descrSubtitle
                                       , descrTitle
+                                      , fileRefImg
                                       , fileRefJpg
+                                      , fileRefRaw
                                       , getImageGeo
                                       , getRating
                                       , imgRating
@@ -72,6 +74,7 @@ import Catalog.TextPath               ( toFileSysPath )
 import Catalog.TimeStamp              ( nowAsIso8601 )
 
 -- libraries
+import qualified Data.List            as L
 import qualified Data.Sequence        as Seq
 import qualified Data.Text            as T
 import qualified Text.Blaze.Html      as Blaze
@@ -901,10 +904,22 @@ collectImgAttr :: Eff'ISE r => Req'IdNode'ImgRef a -> Sem r ImgAttr
 collectImgAttr r = do
   theMeta <- getMetaData iOid
   theUrl  <- toUrlPath' (toMediaReq r)  -- !!! not toUrlPath due to RMovie
+  theSrc  <- toSourcePath r
+  theInod <- getImgVal iOid
+  let onm =  orgName (theInod ^. theParts) :: Maybe Name
   return $
     ImgAttr
     { _imgMediaUrl = theUrl ^. isoText
     , _imgMeta     = theMeta
+                     & metaDataAt fileRefImg .~ (theSrc ^. isoText)
+                     & ( maybe id
+                         (\ n ->
+                             metaDataAt fileRefRaw
+                             .~
+                             (substPathName n theSrc ^. isoText)
+                         )
+                         onm
+                       )
     , _imgTitle    = take1st
                      [ theMeta ^. metaDataAt descrTitle
                      , nm ^. isoText
@@ -918,6 +933,20 @@ collectImgAttr r = do
     }
   where
     ImgRef iOid nm = r ^. rImgRef
+
+-- select the name of the raw (original) image
+
+orgName :: ImgParts -> Maybe Name
+orgName pts =
+  pts  ^? thePartNames' (`elem` [IMGraw, IMGmovie, IMGtxt])
+  <|>
+  pts  ^? thePartNames' (`elem` [IMGimg, IMGdng])
+  <|>
+  ( listToMaybe $
+    L.sortBy (compare `on` nameLen) (pts ^.. thePartNames' isJpg)
+  )
+    where
+      nameLen nm = T.length (nm ^. isoText)
 
 -- --------------------
 
