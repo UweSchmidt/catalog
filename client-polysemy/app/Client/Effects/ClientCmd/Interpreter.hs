@@ -34,10 +34,15 @@ import Polysemy.Logging
 import Polysemy.Reader
 import Polysemy.State
 
--- catalog
+-- catalog-data
 import Data.Prim
 import Data.ImgNode hiding (theMetaData)
 import Data.MetaData
+
+import Text.SimpleParser
+       ( parseMaybe
+       , parseGlob
+       )
 
 -- catalog-polysemy
 import Catalog.Effects.CatCmd
@@ -55,11 +60,13 @@ evalClientCmd =
   interpret $
   \ c -> case c of
     CcEntry p -> do
-      n <- theEntry p
-      writeln $ show n ^. isoText
+      ps <- globExpand p
+      traverse_ (\ p' -> do n <- theEntry p'
+                            writeln $ show n ^. isoText
+                ) ps
 
     CcLs p -> do
-      ps <- evalLs p
+      ps <- evalGlobLs p
       sequenceA_ . map (writeln . (^. isoText)) $ ps
 
     CcLsmd pp keys -> do
@@ -78,13 +85,15 @@ evalClientCmd =
     CcSnapshot msg ->
       snapshot msg defaultPath
 
-    CcCheckSum p part onlyUpdate onlyMissing ->
+    CcCheckSum p part onlyUpdate onlyMissing -> do
+      ps <- globExpand p
       runReader (CSEnv onlyUpdate onlyMissing False) $
-         evalCheckSum prettyCheckSumRes p part
+         evalCheckSums prettyCheckSumRes ps part
 
-    CcUpdCSum p part onlyUpdate forceUpdate ->
+    CcUpdCSum p part onlyUpdate forceUpdate -> do
+      ps <- globExpand p
       runReader (CSEnv onlyUpdate True forceUpdate) $
-         evalCheckSum updateCheckSumRes p part
+         evalCheckSums updateCheckSumRes ps part
 
     CcMediaPath p -> do
       mps <- evalMediaPath p
@@ -110,6 +119,44 @@ evalLs p = do
       | otherwise = []
 
 {-# INLINE evalLs #-}
+
+evalLss :: CCmdEffects r => [Path] -> Sem r [Path]
+evalLss ps = concat <$> traverse evalLs ps
+
+{-# INLINE evalLss #-}
+
+------------------------------------------------------------------------------
+--
+-- evalLs with glob style wildcards
+
+evalGlobLs :: CCmdEffects r => Path -> Sem r [Path]
+evalGlobLs = globExpand >=> evalLss
+
+------------------------------------------------------------------------------
+--
+-- expand glob style pattern
+
+globExpand :: CCmdEffects r => Path -> Sem r [Path]
+globExpand p = do
+  ps <- globExpand' (listFromPath p) [defaultPath]
+  return $ if null ps
+           then [p]
+           else ps
+  where
+    globExpand' []         = return
+    globExpand' (gl : gls) = cont gls . filterGlob gl
+      where
+        cont []   = return
+        cont gls' = evalLss >=> globExpand' gls'
+
+filterGlob :: Text -> [Path] -> [Path]
+filterGlob globPattern = filter (matchGlob globPattern)
+
+matchGlob :: Text -> (Path -> Bool)
+matchGlob globPattern =
+  case parseMaybe parseGlob (globPattern ^. isoString) of
+    Nothing  -> const False
+    Just prs -> (\ p -> isJust . parseMaybe prs $ lastPath p ^. isoString)
 
 ------------------------------------------------------------------------------
 
@@ -164,8 +211,10 @@ evalDownload p rt geo d withSeqNo overwrite = do
 
   dx <- dirExist d
   if dx
-    then fmap snd . runState (0::Int)
-         $ evalDownload1 rt geo d1 (nextSqn withSeqNo) overwrite p
+    then
+    do ps <- globExpand p
+       fmap snd . runState (0::Int)
+         $ traverse_ (evalDownload1 rt geo d1 (nextSqn withSeqNo) overwrite) ps
     else abortWith $ "Download dir not found: " <> d
 
 evalDownload1 :: ( CCmdEffects r
@@ -271,6 +320,11 @@ type CSEffects r = ( Member (Reader CSEnv) r
 type CSCmd r a  = Path -> Name -> CheckSumRes -> Sem r a
 
 --------------------
+
+evalCheckSums :: CSEffects r
+              => CSCmd r () -> [Path] -> Name -> Sem r ()
+evalCheckSums k ps part = do
+  traverse_ (\ p' -> evalCheckSum k p' part) ps
 
 evalCheckSum :: CSEffects r
              => CSCmd r () -> Path -> Name -> Sem r ()

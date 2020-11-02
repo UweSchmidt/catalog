@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 ------------------------------------------------------------------------------
 
 module Client.Options
@@ -67,6 +69,7 @@ cmdClient = subparser $
       `withInfo`
       ( "List subcollections, default PATH is: "
         <> show defaultPath
+        <> ". Path may contain glob style patterns"
       )
     )
   <>
@@ -96,9 +99,9 @@ cmdClient = subparser $
       )
       `withInfo`
       ( "Set metadata attr for a collection or entry of a collection, "
-        ++ "default PATH is: "
-        ++ show defaultPath
-        ++ ", key may be given as glob pattern"
+        <> "default PATH is: "
+        <> show defaultPath
+        <> ", key may be given as glob pattern"
       )
     )
   <>
@@ -109,9 +112,9 @@ cmdClient = subparser $
       )
       `withInfo`
       ( "Delete metadata attr for a collection or entry of a collection, "
-        ++ "default PATH is: "
-        ++ show defaultPath
-        ++ ", key may be given as glob pattern"
+        <> "default PATH is: "
+        <> show defaultPath
+        <> ", key may be given as glob pattern."
       )
     )
   <>
@@ -128,7 +131,7 @@ cmdClient = subparser $
               <> short 'i'
               <> help ( "The image variant, one of ["
                         <> img'variants
-                        <> "], default: img"
+                        <> "], default: img."
                       )
               <> value RImg
               <> metavar "IMG-VARIANT"
@@ -136,7 +139,7 @@ cmdClient = subparser $
         <*> option geoReader
             ( long "geometry"
               <> short 'g'
-              <> help "The image geometry: <width>x<height> or org (original size)"
+              <> help "The image geometry: <width>x<height> or org (original size)."
               <> value (Geo 1 1)
               <> metavar "GEOMETRY"
             )
@@ -146,25 +149,27 @@ cmdClient = subparser $
               <> metavar "DOWNLOAD-DIR"
               <> showDefault
               <> value "."
-              <> help "The dir to store downloads"
+              <> help "The dir to store downloads."
             )
         <*> flag False True
             ( long "with-seq-no"
               <> short 'n'
               <> help ("Prefix downloaded images with a sequence number"
                        <> " (useful for digital photo frame to show "
-                       <> " the pictures in collection order)"
+                       <> " the pictures in collection order)."
                       )
             )
         <*> flag False True
             ( long "force"
               <> short 'f'
-              <> help "Force destination file overwrite when downloading files"
+              <> help "Force destination file overwrite when downloading files."
             )
         <*> argPath1
       )
       `withInfo`
-      "Download all images of a collection"
+      ( "Download all images of a collection"
+        <> ". Glob style patterns are allowed in path."
+      )
     )
   <>
   command "checksum"
@@ -175,7 +180,8 @@ cmdClient = subparser $
       )
       `withInfo`
       ( "Show checksums for image files "
-        ++ "of a catalog entry for an image or a whole image dir"
+        <> "of a catalog entry for an image or a whole image dir"
+        <> ". Glob style patterns are allowed in path."
       )
     )
   <>
@@ -187,7 +193,8 @@ cmdClient = subparser $
       )
       `withInfo`
       ( "Compute, check and/or update checksums "
-        ++ "of an image or a whole image dir"
+        <> "of an image or a whole image dir"
+        <> ". Glob style patterns are allowed in path."
       )
     )
   <>
@@ -195,15 +202,16 @@ cmdClient = subparser $
     ( (CcMediaPath <$> argPath1)
       `withInfo`
       ( "Compute media path for a collection entry"
-        ++ " or media paths for an image entry"
+        <> " or media paths for an image entry."
       )
     )
   <>
   command "entry"
     ( (CcEntry <$> argPath)
       `withInfo`
-      ( "Dump catalog entry, for testing and debugging, default Path is: "
-        ++ show defaultPath
+      ( "Dump catalog entry (entries), for testing and debugging, default path is: "
+        <> show defaultPath
+        <> ". Glob style patterns are allowed in path."
       )
     )
   <>
@@ -216,13 +224,13 @@ cmdClient = subparser $
                       )
       )
       `withInfo`
-      ( "Take a snapshot of catalog" )
+      ( "Take a snapshot of catalog." )
     )
   <>
   command "undo-history"
     ( pure CcUndoList
       `withInfo`
-      "List undo history"
+      "List undo history."
     )
 
 ----------------------------------------
@@ -286,7 +294,7 @@ imgReqReader = eitherReader parse
   where
     parse arg =
       maybe
-        (Left $ "Wrong image format: " ++ arg)
+        (Left $ "Wrong image format: " <> arg)
         Right
         (arg ^? prismString)
 
@@ -295,30 +303,30 @@ geoReader = eitherReader parse
   where
     parse arg =
       maybe
-        (Left $ "Wrong geometry: " ++ arg)
+        (Left $ "Wrong geometry: " <> arg)
         Right
         (readGeo' arg)
 
 globParser :: ReadM [Name]
 globParser = globParser' notNull
   where
-    notNull arg [] = Left $ "No keys found for pattern: " ++ arg
+    notNull arg [] = Left $ "No keys found for pattern: " <> arg
     notNull _   xs = Right xs
 
 globParser1 :: ReadM Name
 globParser1 = globParser' single
   where
     single _   [x] = Right x
-    single arg []  = Left $ "No key found for pattern: " ++ arg
-    single arg xs  = Left $ "No unique key found for pattern: " ++ arg
-                            ++ ", could be one of " ++ show xs
+    single arg []  = Left $ "No key found for pattern: " <> arg
+    single arg xs  = Left $ "No unique key found for pattern: " <> arg
+                            <> ", could be one of " <> show xs
 
 globParser' :: (String -> [Name] -> Either String a) -> ReadM a
 globParser' check = eitherReader parse
   where
     parse arg =
       case parseMaybe parseGlob arg of
-        Nothing -> Left $ "Wrong glob style pattern: " ++ arg
+        Nothing -> Left $ "Wrong glob style pattern: " <> arg
         Just gp -> check arg (globKeysMD gp)
 
 ------------------------------------------------------------------------------
