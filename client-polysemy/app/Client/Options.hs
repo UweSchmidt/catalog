@@ -206,6 +206,15 @@ cmdClient = subparser $
       )
     )
   <>
+  command "glob"
+    ( (CcGlob <$> argPath)
+      `withInfo`
+      ( "Expand glob style patterns in path, default path is: "
+        <> show defaultPath
+        <> "."
+      )
+    )
+  <>
   command "entry"
     ( (CcEntry <$> argPath)
       `withInfo`

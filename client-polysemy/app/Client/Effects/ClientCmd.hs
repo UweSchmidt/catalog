@@ -20,6 +20,7 @@ module Client.Effects.ClientCmd
     ClientCmd (..)
 
     -- * Actions
+  , ccGlob
   , ccEntry
   , ccLs
   , ccLsmd
@@ -60,6 +61,7 @@ import Data.Prim
 ------------------------------------------------------------------------------
 
 data ClientCmd m a where
+  CcGlob       :: Path                       -> ClientCmd m ()
   CcEntry      :: Path                       -> ClientCmd m ()
   CcLs         :: Path                       -> ClientCmd m ()
   CcLsmd       :: PathPos -> [Name]          -> ClientCmd m ()

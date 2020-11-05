@@ -59,6 +59,10 @@ evalClientCmd :: CCmdEffects r => InterpreterFor ClientCmd r
 evalClientCmd =
   interpret $
   \ c -> case c of
+    CcGlob p -> do
+      ps <- globExpand p
+      traverse_ (\ p' -> writeln $ p' ^. isoText) ps
+
     CcEntry p -> do
       ps <- globExpand p
       traverse_ (\ p' -> do n <- theEntry p'
