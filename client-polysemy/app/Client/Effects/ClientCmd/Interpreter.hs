@@ -50,6 +50,11 @@ import Catalog.Effects.CatCmd
 -- client-polysemy
 import Client.Effects.ClientCmd
 
+-- libraries
+import qualified Data.Aeson.Encode.Pretty as J
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TL
+
 ------------------------------------------------------------------------------
 
 type CCmdEffects r =
@@ -66,7 +71,8 @@ evalClientCmd =
     CcEntry p -> do
       ps <- globExpand p
       traverse_ (\ p' -> do n <- theEntry p'
-                            writeln $ show n ^. isoText
+                            writeln $ p' ^. isoText
+                            writeln $ viaJsonToText n
                 ) ps
 
     CcLs p -> do
@@ -445,6 +451,14 @@ prettyUndo hid cmt = writeln $ (show hid ++ ". ") ^. isoText <> cmt
 ------------------------------------------------------------------------------
 
 defaultPath :: Path
-defaultPath = "/archive"
+defaultPath = p'archive
+
+------------------------------------------------------------------------------
+
+viaJsonToText :: ToJSON a => a -> Text
+viaJsonToText = TL.toStrict . TL.decodeUtf8 . J.encodePretty' conf
+  where
+    conf = J.defConfig
+           { J.confIndent  = J.Spaces 2 }
 
 ------------------------------------------------------------------------------

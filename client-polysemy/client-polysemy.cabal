@@ -48,6 +48,7 @@ executable client-polysemy
 
   build-depends: async                >= 2.2.2
                , aeson                >= 0.8
+               , aeson-pretty         >= 0.8
                , base                 >= 4.7 && <5
                , bytestring
                , directory
