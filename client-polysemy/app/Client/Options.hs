@@ -64,10 +64,10 @@ type CmdParser r = Parser (ClientCmd r ())
 
 cmdClient :: CmdParser r
 cmdClient = subparser $
-  command "ls"
-    ( (CcLs <$> argPath)
+  command "ls-sub"
+    ( (CcLsSub <$> argPath)
       `withInfo`
-      ( "List subcollections, default PATH is: "
+      ( "List subnodes of collections and dirs, default PATH is: "
         <> show defaultPath
         <> ". Path may contain glob style patterns"
       )

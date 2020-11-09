@@ -75,7 +75,7 @@ evalClientCmd =
                             writeln $ viaJsonToText n
                 ) ps
 
-    CcLs p -> do
+    CcLsSub p -> do
       ps <- evalGlobLs p
       sequenceA_ . map (writeln . (^. isoText)) $ ps
 

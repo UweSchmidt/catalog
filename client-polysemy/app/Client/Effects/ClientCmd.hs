@@ -22,7 +22,7 @@ module Client.Effects.ClientCmd
     -- * Actions
   , ccGlob
   , ccEntry
-  , ccLs
+  , ccLsSub
   , ccLsmd
   , ccSetmd1
   , ccDelmd1
@@ -63,7 +63,7 @@ import Data.Prim
 data ClientCmd m a where
   CcGlob       :: Path                       -> ClientCmd m ()
   CcEntry      :: Path                       -> ClientCmd m ()
-  CcLs         :: Path                       -> ClientCmd m ()
+  CcLsSub      :: Path                       -> ClientCmd m ()
   CcLsmd       :: PathPos -> [Name]          -> ClientCmd m ()
   CcSetmd1     :: PathPos ->  Name   -> Text -> ClientCmd m ()
   CcDelmd1     :: PathPos ->  Name           -> ClientCmd m ()
