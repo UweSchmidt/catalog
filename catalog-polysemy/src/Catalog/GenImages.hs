@@ -310,6 +310,7 @@ buildResize3 vico rot d'g s'geo d s'
       mempty
       & convert
       & addRotate
+      & addStrip
       & addRest
       & ( if isempty vico
           then id
@@ -387,6 +388,7 @@ buildResize3 vico rot d'g s'geo d s'
       | rot == 0  = id
       | otherwise = addOptVal "-rotate" (toText $ rot * 90)
 
+    addStrip      = addFlag "-strip"   -- remove exif data
 
     s             = tiffLayer s'
     d'geo         = d'g ^. theGeo
@@ -427,6 +429,69 @@ buildResize3 vico rot d'g s'geo d s'
         ".tiff" `T.isSuffixOf` x = x <> "[0]"
       | otherwise                = x
 
+-- ----------------------------------------
+{-
+
+there is a bug in convert concerning the image orientation
+
+# resize an image in portrait format to 2560x1440
+
+uwe@scheibe:~/tmp> convert -verbose -resize 2560x1440 -quality 90 -interlace Plane ../Bilder/Diakaesten/themen/Reisen/Highway1-2015/Uwe/2015-09-08/srgb/_uwe9086.jpg _uwe9086-2560x1440.jpg
+../Bilder/Diakaesten/themen/Reisen/Highway1-2015/Uwe/2015-09-08/srgb/_uwe9086.jpg JPEG 3264x4928 3264x4928+0+0 8-bit sRGB 17.7239MiB 0.550u 0:01.289
+../Bilder/Diakaesten/themen/Reisen/Highway1-2015/Uwe/2015-09-08/srgb/_uwe9086.jpg=>_uwe9086-2560x1440.jpg JPEG 3264x4928=>954x1440 954x1440+0+0 8-bit sRGB 404643B 0.850u 0:00.850
+
+# extract exif data for src and dst
+
+uwe@scheibe:~/tmp> exiftool ../Bilder/Diakaesten/themen/Reisen/Highway1-2015/Uwe/2015-09-08/srgb/_uwe9086.jpg > org.out
+uwe@scheibe:~/tmp> exiftool _uwe9086-2560x1440.jpg > cpy.out
+
+# diff exif data
+uwe@scheibe:~/tmp> diff org.out cpy.out
+2,7c2,7
+< File Name                       : _uwe9086.jpg
+< Directory                       : ../Bilder/Diakaesten/themen/Reisen/Highway1-2015/Uwe/2015-09-08/srgb
+< File Size                       : 18 MB
+< File Modification Date/Time     : 2020:11:24 13:17:12+01:00
+< File Access Date/Time           : 2020:11:24 15:04:45+01:00
+< File Inode Change Date/Time     : 2020:11:24 13:17:12+01:00
+---
+> File Name                       : _uwe9086-2560x1440.jpg
+> Directory                       : .
+> File Size                       : 395 kB
+> File Modification Date/Time     : 2020:11:24 17:00:53+01:00
+> File Access Date/Time           : 2020:11:24 17:01:07+01:00
+> File Inode Change Date/Time     : 2020:11:24 17:00:53+01:00
+12c12
+< JFIF Version                    : 1.02
+---
+> JFIF Version                    : 1.01
+16c16
+< Orientation                     : Horizontal (normal)
+---
+> Orientation                     : Rotate 270 CW
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# convert thinks it has to rotate the copy 90 degrees counter clock wise
+354,356c354,356
+< Image Width                     : 3264
+< Image Height                    : 4928
+< Encoding Process                : Baseline DCT, Huffman coding
+---
+> Image Width                     : 954
+> Image Height                    : 1440
+> Encoding Process                : Progressive DCT, Huffman coding
+366c366
+< Image Size                      : 3264x4928
+---
+> Image Size                      : 954x1440
+369c369
+< Megapixels                      : 16.1
+---
+> Megapixels                      : 1.4
+
+# workaround: remove all exif data with -strip flag
+# generated copies don't need this exif data anyway
+
+-}
 -- ----------------------------------------
 
 buildIconScript :: TextPath -> Text -> Text -> Text
