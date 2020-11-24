@@ -19,7 +19,7 @@ import qualified Data.Text as T
 --
 -- names are wrapped Text's
 -- names don't start with a '.'
--- so ".", ".." and dot files are are all mapped to the empty name
+-- so ".", ".." and dot files are all mapped to the empty name
 
 newtype Name = Name Text
 
