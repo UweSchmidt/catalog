@@ -310,13 +310,12 @@ buildResize3 vico rot d'g s'geo d s'
       mempty
       & convert
       & addRotate
-      & addStrip
+--    & addStrip           -- hack: throw away all exif data (even color space info)
       & addRest
-      & ( if isempty vico
-          then id
-          else addVideo
-        )
-      & addVal d                         -- final destination
+      & addVideo
+      & addVal d           -- final destination
+      & delOrient          -- throw away exif data for orientation
+                           -- rotations are all done in convert
   where
     -- combine options
     convert cmd   = cmd
@@ -352,7 +351,14 @@ buildResize3 vico rot d'g s'geo d s'
                     & addResize
                     & addVal s
 
-    addVideo cmd  = cmd
+      & ( if isempty vico
+          then id
+          else addVideo
+        )
+
+    addVideo cmd
+     | isempty vico = cmd
+     | otherwise    = cmd
                     & toStdout
                     & composite
                     & addOptVal "-gravity" "center"
@@ -388,7 +394,15 @@ buildResize3 vico rot d'g s'geo d s'
       | rot == 0  = id
       | otherwise = addOptVal "-rotate" (toText $ rot * 90)
 
-    addStrip      = addFlag "-strip"   -- remove exif data
+--  addStrip      = addFlag "-strip"   -- remove exif data
+
+    delOrient     :: CTT -> CTT
+    delOrient cmd = cmd
+                    & addSeq "exiftool"
+                    & addFlag "-quiet"
+                    & addFlag "-Orientation="
+                    & addFlag "-overwrite_original"
+                    & addVal d
 
     s             = tiffLayer s'
     d'geo         = d'g ^. theGeo
@@ -450,43 +464,29 @@ uwe@scheibe:~/tmp> diff org.out cpy.out
 2,7c2,7
 < File Name                       : _uwe9086.jpg
 < Directory                       : ../Bilder/Diakaesten/themen/Reisen/Highway1-2015/Uwe/2015-09-08/srgb
-< File Size                       : 18 MB
-< File Modification Date/Time     : 2020:11:24 13:17:12+01:00
-< File Access Date/Time           : 2020:11:24 15:04:45+01:00
-< File Inode Change Date/Time     : 2020:11:24 13:17:12+01:00
 ---
 > File Name                       : _uwe9086-2560x1440.jpg
-> Directory                       : .
-> File Size                       : 395 kB
-> File Modification Date/Time     : 2020:11:24 17:00:53+01:00
-> File Access Date/Time           : 2020:11:24 17:01:07+01:00
-> File Inode Change Date/Time     : 2020:11:24 17:00:53+01:00
-12c12
-< JFIF Version                    : 1.02
----
-> JFIF Version                    : 1.01
+
 16c16
 < Orientation                     : Horizontal (normal)
 ---
 > Orientation                     : Rotate 270 CW
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# convert thinks it has to rotate the copy 90 degrees counter clock wise
+# convert thinks image should be rotated 90 degrees counter clock wise
+# when displayed, this is wrong
+# Orientation tag must be deleted afterwards
+
 354,356c354,356
 < Image Width                     : 3264
 < Image Height                    : 4928
-< Encoding Process                : Baseline DCT, Huffman coding
 ---
 > Image Width                     : 954
 > Image Height                    : 1440
-> Encoding Process                : Progressive DCT, Huffman coding
+
 366c366
 < Image Size                      : 3264x4928
 ---
 > Image Size                      : 954x1440
-369c369
-< Megapixels                      : 16.1
----
-> Megapixels                      : 1.4
 
 # workaround: remove all exif data with -strip flag
 # generated copies don't need this exif data anyway

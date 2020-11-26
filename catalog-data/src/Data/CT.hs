@@ -305,7 +305,7 @@ quS :: String -> String
 quS = concatMap qu
   where
     qu c
-      | isUnquoted c = [c]
+      | isUnquoted c =        [c]
       | otherwise    = '\\' : [c]
 
 quT :: Text -> Text
