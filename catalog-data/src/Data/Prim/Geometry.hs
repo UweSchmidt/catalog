@@ -21,8 +21,8 @@ import Text.SimpleParser ( SP
 data Geo = Geo !Int !Int
 
 deriving instance Show Geo
-deriving instance Eq Geo
-deriving instance Ord Geo
+deriving instance Eq   Geo
+deriving instance Ord  Geo
 
 instance FromJSON Geo where
   parseJSON v = do

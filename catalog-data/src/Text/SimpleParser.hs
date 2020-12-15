@@ -138,48 +138,111 @@ type GlobParser = SP String
 
 parseGlob :: SP GlobParser
 parseGlob =
-  do _ <- single '*'
-     p <- parseGlob
-     return (anyStringThen p)
+  ( do _ <- single '*'
+       p <- parseGlob
+       return (anyStringThen p)
+  )
   <|>
-  do _ <- single '?'
-     p <- parseGlob
-     return ( do x  <- anySingle
-                 xs <- p
-                 return (x : xs)
-            )
+  ( do _ <- single '?'
+       p <- parseGlob
+       return ( do x  <- anySingle
+                   xs <- p
+                   return (x : xs)
+              )
+  )
   <|>
-  do inSet <- globSet
-     p     <- parseGlob
-     return ( do x  <- satisfy inSet
-                 xs <- p
-                 return (x : xs)
-            )
+  ( do inSet <- globSet
+       p     <- parseGlob
+       return ( do x  <- satisfy inSet
+                   xs <- p
+                   return (x : xs)
+              )
+  )
   <|>
-  do c <- anySingle
-     p <- parseGlob
-     return ( do x  <- single c
-                 xs <- p
-                 return (x : xs)
-            )
+  ( do c <- anySingle
+       p <- parseGlob
+       return ( do x  <- single c
+                   xs <- p
+                   return (x : xs)
+              )
+  )
   <|>
-  eof *> return (eof *> return "")
-
-globSet :: SP (Char -> Bool)
-globSet =
-  do cs <- single '[' *> many globElem <* single ']'
-     return $
-       foldr uniSet empSet cs
+  ( eof *> return (eof *> return "") )
   where
-    uniSet s1 s2 = \ x -> s1 x || s2 x
-    empSet       = const False
+    globSet :: SP (Char -> Bool)
+    globSet =
+      do cs <- single '[' *> many globElem <* single ']'
+         return $
+           foldr uniSet empSet cs
+      where
+        uniSet s1 s2 = \ x -> s1 x || s2 x
+        empSet       = const False
 
-globElem :: SP (Char -> Bool)
-globElem =
-  do c1 <- noneOf' "]"
-     c2 <- option c1 upperBound
-     return (\ x -> x >= c1 && x <= c2)
+    globElem :: SP (Char -> Bool)
+    globElem =
+      do c1 <- noneOf' "]"
+         c2 <- option c1 upperBound
+         return (\ x -> x >= c1 && x <= c2)
+      where
+        upperBound = single '-' *> noneOf' "]"
+
+
+parseGlobNoCase :: SP GlobParser
+parseGlobNoCase =
+  ( do _ <- single '*'
+       p <- parseGlobNoCase
+       return (anyStringThen p)
+  )
+  <|>
+  ( do _ <- single '?'
+       p <- parseGlobNoCase
+       return ( do x  <- anySingle
+                   xs <- p
+                   return (x : xs)
+              )
+  )
+  <|>
+  ( do inSet <- globSet
+       p     <- parseGlobNoCase
+       return ( do x  <- satisfy inSet
+                   xs <- p
+                   return (x : xs)
+              )
+  )
+  <|>
+  ( do c <- anySingle
+       p <- parseGlobNoCase
+       return ( do x  <- satisfy
+                         (\ x -> x == toLower c
+                                 ||
+                                 x == toUpper c
+                         )
+                   xs <- p
+                   return (x : xs)
+              )
+  )
+  <|>
+  ( eof *> return (eof *> return "") )
   where
-    upperBound = single '-' *> noneOf' "]"
+
+    globSet :: SP (Char -> Bool)
+    globSet =
+      do cs <- single '[' *> many globElem <* single ']'
+         return $
+           foldr uniSet empSet cs
+      where
+        uniSet s1 s2 = \ x -> s1 x || s2 x
+        empSet       = const False
+
+    globElem :: SP (Char -> Bool)
+    globElem =
+      do c1 <- noneOf' "]"
+         c2 <- option c1 upperBound
+         return (\ x -> x >= toLower c1 && x <= toLower c2
+                        ||
+                        x >= toUpper c1 && x <= toUpper c2
+                )
+      where
+        upperBound = single '-' *> noneOf' "]"
 
 -- ----------------------------------------

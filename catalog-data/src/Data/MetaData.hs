@@ -5,7 +5,15 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Data.MetaData
-  ( MetaData
+  ( MetaKey
+  , MetaValue
+  , MetaTable
+
+  , someKeysMD
+  , globKeysMD
+  , allKeysMD
+
+  , MetaData
   , metaDataAt
   , partMetaData
   , selectMetaData
@@ -13,9 +21,6 @@ module Data.MetaData
   , selectByParser
   , lookupByNames
   , prettyMD
-  , someKeysMD
-  , globKeysMD
-  , allKeysMD
 
   , clearAccess
   , addNoDeleteAccess
@@ -163,6 +168,7 @@ import           Data.Prim
 import qualified Data.Aeson          as J
 import           Data.HashMap.Strict ( HashMap )
 import qualified Data.HashMap.Strict as HM
+import qualified Data.IntMap.Strict  as IM
 import qualified Data.List           as L
 import qualified Data.Text           as T
 import qualified Data.Vector         as V
@@ -363,7 +369,7 @@ lookupByNames ns md =
 
 -- ----------------------------------------
 
-
+{-
 someKeysMD :: (Name -> Bool) -> [Name]
 someKeysMD p = filter p allKeysMD
 
@@ -374,6 +380,7 @@ globKeysMD gp = someKeysMD p
 
 allKeysMD :: [Name]
 allKeysMD = map (isoText #) . sort . HM.keys $ allAttrKeys
+-- -}
 
 keysMD :: MetaData -> [Name]
 keysMD (MD mp) = map (isoText #) . HM.keys $ mp
@@ -386,6 +393,7 @@ prettyMD md = sort $ zipWith (<:>) keys' attrs
     attrs = map (\ k ->  md ^. metaDataAt k . isoString) $ keys
 
     xs <:> ys = xs ++ " : " ++ ys
+
 
 -- ----------------------------------------
 --
@@ -1055,5 +1063,364 @@ keysAttrImg@
   [ imgRating
   , imgEXIFUpdate
   ] = attrGroup2attrName attrImg
+
+-- ----------------------------------------
+
+data MetaKey
+  = Composite'Aperture
+  | Composite'AutoFocus
+  | Composite'CircleOfConfusion
+  | Composite'DOF
+  | Composite'FOV
+  | Composite'Flash
+  | Composite'FocalLength35efl
+  | Composite'GPSAltitude
+  | Composite'GPSLatitude
+  | Composite'GPSLongitude
+  | Composite'GPSPosition
+  | Composite'HyperfocalDistance
+  | Composite'ImageSize
+  | Composite'LensID
+  | Composite'LensSpec
+  | Composite'LightValue
+  | Composite'Megapixels
+  | Composite'ShutterSpeed
+  | Composite'SubSecCreateDate
+  | Composite'SubSecDateTimeOriginal
+  | Descr'Access
+  | Descr'CatalogVersion
+  | Descr'CatalogWrite
+  | Descr'Comment
+  | Descr'CreateDate
+  | Descr'Duration
+  | Descr'GPSPosition
+  | Descr'GoogleMaps
+  | Descr'Keywords
+  | Descr'Location
+  | Descr'OrderedBy
+  | Descr'Rating
+  | Descr'Subtitle
+  | Descr'Title
+  | Descr'TitleEnglish
+  | Descr'TitleLatin
+  | Descr'Web
+  | Descr'Wikipedia
+  | EXIF'Artist
+  | EXIF'BitsPerSample
+  | EXIF'Copyright
+  | EXIF'CreateDate
+  | EXIF'ExposureCompensation
+  | EXIF'ExposureMode
+  | EXIF'ExposureProgram
+  | EXIF'ExposureTime
+  | EXIF'FNumber
+  | EXIF'Flash
+  | EXIF'FocalLength
+  | EXIF'FocalLengthIn35mmFormat
+  | EXIF'GPSVersionID
+  | EXIF'ISO
+  | EXIF'ImageHeight
+  | EXIF'ImageWidth
+  | EXIF'Make
+  | EXIF'MaxApertureValue
+  | EXIF'MeteringMode
+  | EXIF'Model
+  | EXIF'Orientation
+  | EXIF'UserComment
+  | EXIF'WhiteBalance
+  | File'Directory
+  | File'FileModifyDate
+  | File'FileName
+  | File'FileSize
+  | File'MIMEType
+  | File'RefImg
+  | File'RefJpg
+  | File'RefRaw
+  | Img'EXIFUpdate
+  | Img'Rating
+  | MakerNotes'ColorSpace
+  | MakerNotes'DaylightSavings
+  | MakerNotes'FocusDistance
+  | MakerNotes'FocusMode
+  | MakerNotes'Quality
+  | MakerNotes'SerialNumber
+  | MakerNotes'ShootingMode
+  | MakerNotes'ShutterCount
+  | MakerNotes'TimeZone
+  | QuickTime'Duration
+  | QuickTime'ImageHeight
+  | QuickTime'ImageWidth
+  | QuickTime'VideoFrameRate
+  | XMP'Format
+  | XMP'GPSAltitude
+  | XMP'GPSLatitude
+  | XMP'GPSLongitude
+  | XMP'Rating
+  | XMP'RawFileName
+  | Key'Unknown          -- must be the last value
+
+
+data MetaValue
+  = MText Text
+  | MInt  Int
+  | MRat  Int            -- rating: 0..5
+  | MOri  Int            -- orientation: 0..3 <-> 0, 90, 180, 270 degrees CW
+  | MKeyw [Text]         -- keywords
+  | MNull
+
+newtype MetaTable = MT (IM.IntMap MetaValue)
+
+-- --------------------
+--
+-- instances for MetaTable
+
+instance IsEmpty MetaTable where
+  isempty (MT m) = IM.null m
+
+instance Semigroup MetaTable where
+  (<>) = mergeMT
+
+instance Monoid MetaTable where
+  mempty = MT IM.empty
+
+instance ToJSON MetaTable where
+  toJSON (MT m) = J.toJSON [m']
+    where
+      m' = IM.foldlWithKey' ins HM.empty m
+        where
+          ins acc i mv =
+            HM.insert (metaKeyTextLookup $ toEnum i) (toJSON mv) acc
+
+instance FromJSON MetaTable where
+  parseJSON = J.withArray "MetaData" $ \ v ->
+    case V.length v of
+      1 -> parseTable (V.head v)
+      _ -> mzero
+    where
+      parseTable o = toMT <$> parseJSON o
+
+      toMT :: HM.HashMap Text Text -> MetaTable
+      toMT m = HM.foldlWithKey' ins mempty m
+        where
+          ins acc k0 v0 = insertMT k v acc
+            where
+              k = metaKeyLookup k0
+              v = metaValueFromText k v0
+
+-- lens combining insertMT and lookupMT
+metaTableAt :: MetaKey -> Lens' MetaTable MetaValue
+metaTableAt mk k mt = (\ v -> insertMT mk v mt) <$> k (lookupMT mk mt)
+
+insertMT :: MetaKey -> MetaValue -> MetaTable -> MetaTable
+insertMT k v mt@(MT m)
+  | isempty k   = mt
+  | isempty v   = MT $ IM.delete (fromEnum k)   m
+  | otherwise   = MT $ IM.insert (fromEnum k) v m
+
+lookupMT :: MetaKey -> MetaTable -> MetaValue
+lookupMT k (MT m) = fromMaybe mempty $ IM.lookup (fromEnum k) m
+
+-- <> for meta tables
+mergeMT :: MetaTable -> MetaTable -> MetaTable
+mergeMT m1 m2 = foldWithKeyMT mergeMV m2 m1   -- fold over m1
+  where
+    mergeMV k1 v1 acc = insertMT k1 (v1 <> v2) acc
+      where
+        v2 = lookupMT k1 m2
+
+foldWithKeyMT :: (MetaKey -> MetaValue -> a -> a) -> a -> MetaTable -> a
+foldWithKeyMT f acc (MT m) =
+  IM.foldlWithKey' f' acc m
+  where
+    f' acc' k' mv' = f (toEnum k') mv' acc'
+
+-- --------------------
+--
+-- instances and basic ops for MetaValue
+
+deriving instance Show MetaValue
+
+instance IsEmpty MetaValue where   -- default values are redundant
+  isempty (MText "") = True
+  isempty (MOri 0)   = True
+  isempty (MRat 0)   = True
+  isempty (MKeyw []) = True
+  isempty  MNull     = True
+  isempty _          = False
+
+instance Semigroup MetaValue where     -- <> isn't symmetric
+  MNull          <> mv2      = mv2
+  mv1            <> MNull    = mv1
+
+  mv1@(MText t1) <> MText _
+    | t1 == "-"              = MNull   -- "-" deletes value
+    | otherwise              = mv1
+
+  mv1@(MInt _)   <> MInt _   = mv1     -- 1. wins
+  mv1@(MRat _)   <> MRat _   = mv1
+  mv1@(MOri _)   <> MOri _   = mv1
+  MKeyw w1       <> MKeyw w2
+    | w1 == ["-"]            = MNull   -- delete keywords
+    | otherwise              = mergeKW w1 w2
+  _              <> mv2      = mv2     -- mixing types, no effect
+
+instance Monoid MetaValue where
+  mempty = MNull
+
+instance ToJSON MetaValue where
+  toJSON = toJSON . metaValueToText
+
+-- MetaKey determines the MetaValue representation
+-- no instance of FromJSON, due to decoding dependency on the key
+
+-- --------------------
+--
+-- parse meta values
+
+metaValueFromText :: MetaKey -> Text -> MetaValue
+
+metaValueFromText EXIF'Orientation  t = mkOriMV t
+
+metaValueFromText Descr'Rating      t = mkRatingMV t
+metaValueFromText Img'Rating        t = mkRatingMV t
+metaValueFromText XMP'Rating        t = mkRatingMV t
+
+metaValueFromText Key'Unknown       _ = MNull
+metaValueFromText _                 t
+  | isempty t                         = MNull
+  | otherwise                         = MText t
+
+mkRatingMV :: Text -> MetaValue
+mkRatingMV t = MRat $ t ^. isoString . isoRating
+
+mkOriMV :: Text -> MetaValue
+mkOriMV t = MOri toOri
+  where
+    toOri
+      | t == "Rotate 90 CW"           = 1
+      | "Rotate 180" `T.isPrefixOf` t = 2
+      | t == "Rotate 90 CCW"          = 3
+      | t == "Rotate 270 CW"          = 3
+      | t `elem` ["0","1","2","3"]    = read (t ^. isoString)
+      | otherwise                     = 0
+
+mkKeywordsMV :: Text -> MetaValue
+mkKeywordsMV = MKeyw . splitKW
+  where
+    splitKW =
+      filter (not . T.null)       -- remove empty words
+      .
+      map (T.unwords . T.words)   -- normalize whitespace
+      .
+      T.split (== ',')            -- split at ","
+
+-- --------------------
+--
+-- convert to text for JSON
+
+metaValueToText :: MetaValue -> Text
+metaValueToText (MText t) = t
+metaValueToText (MInt  i) = isoString # show i
+metaValueToText (MRat  r) = isoString # show r
+metaValueToText (MOri  o) = isoString # show o
+metaValueToText  MNull    = mempty
+
+getRatingMV :: MetaValue -> Rating
+getRatingMV (MRat r) = (r `max` 0) `min` ratingMax
+getRatingMV _        = 0
+
+getOriMV :: MetaValue -> Int
+getOriMV (MOri i) = i
+getOriMV _        = 0
+
+mergeKW :: [Text] -> [Text] -> MetaValue
+mergeKW ws1 ws2 = MKeyw ws
+  where
+    ws         = nub ins L.\\ rmv
+    (rmv, ins) = partKWs $ ws1 ++ ws2
+
+    -- partition keywords in (to be removed, added)
+    partKWs =
+      first (map (T.drop 1))
+      .
+      partition ((== "-"). T.take 1)
+
+-- --------------------
+--
+-- instances and basic ops for MetaKey
+
+deriving instance Bounded MetaKey
+deriving instance Enum    MetaKey
+deriving instance Eq      MetaKey
+deriving instance Ord     MetaKey
+deriving instance Show    MetaKey
+
+instance IsoText MetaKey where
+  isoText = iso metaKeyTextLookup metaKeyLookup
+  {-# INLINE isoText #-}
+
+instance IsEmpty MetaKey where
+  isempty Key'Unknown = True
+  isempty _           = False
+
+-- instance ToJSON MetaKey where
+--   toJSON = J.toJSON . metaKeyTextLookup
+
+-- instance FromJSON MetaKey where
+--   parseJSON v = metaKeyLookup <$> parseJSON v
+
+metaKeyLookup :: Text -> MetaKey
+metaKeyLookup t =
+  fromMaybe Key'Unknown $
+  HM.lookup (T.toLower t) metaKeyLookupTable
+{-# INLINE metaKeyLookup #-}
+
+metaKeyTextLookup :: MetaKey -> Text
+metaKeyTextLookup k =
+  fromMaybe mempty $ IM.lookup (fromEnum k) metaKeyToTextTable
+
+-- --------------------
+
+allKeysMD :: [Name]
+allKeysMD = map (isoText #) $ IM.elems metaKeyToTextTable
+
+someKeysMD :: (Name -> Bool) -> [Name]
+someKeysMD p = filter p allKeysMD
+
+globKeysMD :: SP String -> [Name]
+globKeysMD gp = someKeysMD p
+  where
+    p n = matchP gp (n ^. isoString)
+
+-- --------------------
+--
+-- mother's little helpers
+
+metaKeyToText :: MetaKey -> Text
+metaKeyToText Key'Unknown = ""
+metaKeyToText k           = T.pack . map toColon . show $ k
+  where
+    toColon '\'' = ':'
+    toColon c    = c
+{-# INLINE metaKeyToText #-}
+
+allMetaKeys :: [Text]
+allMetaKeys = map metaKeyToText [minBound :: MetaKey .. maxBound]
+
+type MetaKeyLookupTable = HM.HashMap Text MetaKey
+
+metaKeyLookupTable :: MetaKeyLookupTable
+metaKeyLookupTable =
+  HM.fromList $
+  zip (map T.toLower allMetaKeys)
+      [minBound .. maxBound]
+
+type MetaKeyToTextTable = IM.IntMap Text
+
+metaKeyToTextTable :: MetaKeyToTextTable
+metaKeyToTextTable =
+  IM.fromList $
+  map (\ k -> (fromEnum k, metaKeyToText k)) [minBound .. pred maxBound]
+
 
 -- ----------------------------------------

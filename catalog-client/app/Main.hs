@@ -21,7 +21,7 @@ import           Data.Aeson                ( decode
                                            , encode
                                            )
 import           Text.SimpleParser         ( parseMaybe
-                                           , parseGlob
+                                           , parseGlobNoCase
                                            )
 
 import           Control.Monad.ReaderStateErrIO
@@ -1038,7 +1038,7 @@ globParser' :: (String -> [Name] -> Either String a) -> ReadM a
 globParser' check = eitherReader parse
   where
     parse arg =
-      case parseMaybe parseGlob arg of
+      case parseMaybe parseGlobNoCase arg of
         Nothing -> Left $ "Wrong glob style pattern: " ++ arg
         Just gp -> check arg (globKeysMD gp)
 
