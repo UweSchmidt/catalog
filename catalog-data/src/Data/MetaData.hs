@@ -166,7 +166,9 @@ module Data.MetaData
 where
 
 import           Data.Prim
-import           Data.Bits           (bit, (.|.), testBit, setBit, clearBit)
+import           Data.Bits           ( bit, (.|.), (.&.), complement
+                                     , testBit, setBit, clearBit
+                                     )
 import           Data.Maybe          (mapMaybe)
 import qualified Data.Aeson          as J
 import           Data.HashMap.Strict ( HashMap )
@@ -178,6 +180,7 @@ import qualified Data.Vector         as V
 import qualified Data.Scientific     as SC
 import qualified Text.SimpleParser   as SP
 import           Text.SimpleParser
+import qualified Text.Pretty         as T
 import           Text.Printf         ( printf )
 -- import Debug.Trace
 
@@ -372,7 +375,6 @@ lookupByNames ns md =
 
 -- ----------------------------------------
 
-{-
 someKeysMD :: (Name -> Bool) -> [Name]
 someKeysMD p = filter p allKeysMD
 
@@ -383,7 +385,6 @@ globKeysMD gp = someKeysMD p
 
 allKeysMD :: [Name]
 allKeysMD = map (isoText #) . sort . HM.keys $ allAttrKeys
--- -}
 
 keysMD :: MetaData -> [Name]
 keysMD (MD mp) = map (isoText #) . HM.keys $ mp
@@ -1229,7 +1230,7 @@ no''wrtdel = no''delete .|.              no''write
 no''wrtsrt =                no''sort .|. no''write
 
 
--- read or set an access restriction
+-- indexed access to a single restriction
 
 accessRestr :: AccessRestr -> Lens' Access Bool
 accessRestr r k a =
@@ -1239,6 +1240,52 @@ accessRestr r k a =
           ) a (fromEnum r)
   ) <$>
   k (testBit a (fromEnum r))
+
+
+isoAccessRestr :: Iso' Access [AccessRestr]
+isoAccessRestr = iso toS frS
+  where
+    toS :: Access -> [AccessRestr]
+    toS a = foldr add [] [minBound .. maxBound]
+      where
+        add r acc
+          | a ^. accessRestr r = r : acc
+          | otherwise          =     acc
+
+    frS rs = foldl' sb no''restr rs
+      where
+        sb :: Access -> AccessRestr -> Access
+        sb a r = a & accessRestr r .~ True
+
+
+
+modifyAccess' :: (Access -> Access) -> MetaTable -> MetaTable
+modifyAccess' f mt =
+  mt & metaTableAt Descr'Access . metaAcc %~ f
+
+setAccess'
+  , allowAccess'
+  , restrAccess' :: [AccessRestr] -> MetaTable -> MetaTable
+
+setAccess'   rs = modifyAccess' (.&. complement (isoAccessRestr # rs))
+allowAccess' rs = modifyAccess' (const $ isoAccessRestr # rs)
+restrAccess' rs = modifyAccess' ((isoAccessRestr # rs) .|.)
+
+clearAccess'
+  , addNoWriteAccess'
+  , addNoSortAccess'
+  , addNoDeleteAccess'
+  , subNoWriteAccess'
+  , subNoSortAccess'
+  , subNoDeleteAccess' :: MetaTable -> MetaTable
+
+clearAccess'       = setAccess'   []
+addNoWriteAccess'  = restrAccess' [NO'write]
+addNoSortAccess'   = restrAccess' [NO'sort]
+addNoDeleteAccess' = restrAccess' [NO'delete]
+subNoWriteAccess'  = allowAccess' [NO'write]
+subNoSortAccess'   = allowAccess' [NO'sort]
+subNoDeleteAccess' = allowAccess' [NO'delete]
 
 -- --------------------
 --
@@ -1290,6 +1337,12 @@ foldWithKeyMT f acc (MT m) =
   IM.foldlWithKey' f' acc m
   where
     f' acc' k' mv' = f (toEnum k') mv' acc'
+
+keysMT :: MetaTable -> [MetaKey]
+keysMT (MT m) = map toEnum $ IM.keys m
+
+toListMT :: MetaTable -> [(MetaKey, MetaValue)]
+toListMT (MT m) = map (first toEnum) $ IM.toAscList m
 
 -- --------------------
 
@@ -1384,23 +1437,16 @@ metaOri = iso
 metaOriText :: Iso' MetaValue Text
 metaOriText = metaOri . isoOriText
 
-metaAccess :: Iso' MetaValue [AccessRestr]
-metaAccess = iso
+metaAcc :: Iso' MetaValue Access
+metaAcc = iso
   (\ x -> case x of
-            MAcc a -> toS a
-            _      -> mempty
+            MAcc a -> a
+            _      -> no''restr
   )
-  (\ rs -> MAcc $ foldl' sb no''restr rs)
-  where
-    sb :: Access -> AccessRestr -> Access
-    sb a r = a & accessRestr r .~ True
+  MAcc
 
-    toS :: Access -> [AccessRestr]
-    toS a = foldr add [] [minBound .. maxBound]
-      where
-        add r acc
-          | a ^. accessRestr r = r : acc
-          | otherwise          =     acc
+metaAccess :: Iso' MetaValue [AccessRestr]
+metaAccess = metaAcc . isoAccessRestr
 
 metaAccessText :: Iso' MetaValue Text
 metaAccessText = metaAccess . isoAccText
@@ -1532,16 +1578,25 @@ metaKeyTextLookup k =
 
 -- --------------------
 
-allKeysMD :: [Name]
-allKeysMD = map (isoText #) $ IM.elems metaKeyToTextTable
+allKeysMT :: [MetaKey]
+allKeysMT = [minBound .. pred maxBound]
 
-someKeysMD :: (Name -> Bool) -> [Name]
-someKeysMD p = filter p allKeysMD
+someKeysMT :: (Text -> Bool) -> [MetaKey]
+someKeysMT p = filter (p . metaKeyToText) allKeysMT
 
-globKeysMD :: SP String -> [Name]
-globKeysMD gp = someKeysMD p
+globKeysMT :: SP String -> [MetaKey]
+globKeysMT gp = someKeysMT p
   where
-    p n = matchP gp (n ^. isoString)
+    p t = matchP gp (t ^. isoString)
+
+prettyMT :: MetaTable -> [Text]
+prettyMT mt = zipWith (<:>) ks vs
+  where
+    kvs = toListMT mt
+    ks  = T.fillRightList ' ' $ map (^. _1 . isoText) kvs
+    vs  = map (metaValueToText . snd) kvs
+
+    xs <:> ys = xs <> " : " <> ys
 
 -- --------------------
 --
