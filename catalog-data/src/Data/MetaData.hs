@@ -8,6 +8,7 @@ module Data.MetaData
   ( MetaKey
   , MetaValue
   , MetaTable
+  , MetaTableText
 
   , someKeysMD
   , globKeysMD
@@ -165,6 +166,8 @@ module Data.MetaData
 where
 
 import           Data.Prim
+import           Data.Bits           (bit, (.|.), testBit, setBit, clearBit)
+import           Data.Maybe          (mapMaybe)
 import qualified Data.Aeson          as J
 import           Data.HashMap.Strict ( HashMap )
 import qualified Data.HashMap.Strict as HM
@@ -1066,6 +1069,21 @@ keysAttrImg@
 
 -- ----------------------------------------
 
+-- lookup a sequence of fields and take first value found
+lookupByKeys :: [MetaKey] -> MetaTable -> MetaValue
+lookupByKeys ns mt =
+  foldr f mempty $ map (flip lookupMT mt) ns
+  where
+    f mv r
+      | isempty mv = r
+      | otherwise  = mv
+
+-- ----------------------------------------
+
+newtype MetaTable  = MT (IM.IntMap MetaValue)
+
+type MetaTableText = HM.HashMap Text Text
+
 data MetaKey
   = Composite'Aperture
   | Composite'AutoFocus
@@ -1166,9 +1184,61 @@ data MetaValue
   | MRat  Int            -- rating: 0..5
   | MOri  Int            -- orientation: 0..3 <-> 0, 90, 180, 270 degrees CW
   | MKeyw [Text]         -- keywords
+  | MAcc  Access         -- access restrictions
   | MNull
 
-newtype MetaTable = MT (IM.IntMap MetaValue)
+data AccessRestr = NO'write | NO'delete | NO'sort
+
+type Access = Int
+
+-- --------------------
+
+deriving instance Show    AccessRestr
+deriving instance Eq      AccessRestr
+deriving instance Ord     AccessRestr
+deriving instance Enum    AccessRestr
+deriving instance Bounded AccessRestr
+
+accessNames :: [Text]
+accessNames@
+  [no_write, no_sort, no_delete] = map fst accessMap
+
+accessMap :: [(Text, AccessRestr)]
+accessMap =
+  map (\ a -> (toT a, a)) [minBound .. maxBound]
+  where
+    toT :: AccessRestr -> Text
+    toT = T.pack . map f . show
+      where
+        f '\'' = '-'
+        f c    = toLower c
+
+no''restr
+  , no''change
+  , no''delete, no''sort, no''write
+  , no''wrtdel, no''wrtsrt :: Access
+
+[no''write, no''sort, no''delete] = map toA [minBound .. maxBound]
+  where
+    toA :: AccessRestr -> Access
+    toA = bit . fromEnum
+
+no''restr = 0
+no''change = no''delete .|. no''sort .|. no''write
+no''wrtdel = no''delete .|.              no''write
+no''wrtsrt =                no''sort .|. no''write
+
+
+-- read or set an access restriction
+
+accessRestr :: AccessRestr -> Lens' Access Bool
+accessRestr r k a =
+  (\ b -> ( if b
+            then setBit
+            else clearBit
+          ) a (fromEnum r)
+  ) <$>
+  k (testBit a (fromEnum r))
 
 -- --------------------
 --
@@ -1178,18 +1248,13 @@ instance IsEmpty MetaTable where
   isempty (MT m) = IM.null m
 
 instance Semigroup MetaTable where
-  (<>) = mergeMT
+  (<>) = unionMT
 
 instance Monoid MetaTable where
   mempty = MT IM.empty
 
 instance ToJSON MetaTable where
-  toJSON (MT m) = J.toJSON [m']
-    where
-      m' = IM.foldlWithKey' ins HM.empty m
-        where
-          ins acc i mv =
-            HM.insert (metaKeyTextLookup $ toEnum i) (toJSON mv) acc
+  toJSON m = J.toJSON [m ^. isoMTT]
 
 instance FromJSON MetaTable where
   parseJSON = J.withArray "MetaData" $ \ v ->
@@ -1197,15 +1262,7 @@ instance FromJSON MetaTable where
       1 -> parseTable (V.head v)
       _ -> mzero
     where
-      parseTable o = toMT <$> parseJSON o
-
-      toMT :: HM.HashMap Text Text -> MetaTable
-      toMT m = HM.foldlWithKey' ins mempty m
-        where
-          ins acc k0 v0 = insertMT k v acc
-            where
-              k = metaKeyLookup k0
-              v = metaValueFromText k v0
+      parseTable o = (isoMTT #) <$> parseJSON o
 
 -- lens combining insertMT and lookupMT
 metaTableAt :: MetaKey -> Lens' MetaTable MetaValue
@@ -1213,16 +1270,16 @@ metaTableAt mk k mt = (\ v -> insertMT mk v mt) <$> k (lookupMT mk mt)
 
 insertMT :: MetaKey -> MetaValue -> MetaTable -> MetaTable
 insertMT k v mt@(MT m)
-  | isempty k   = mt
-  | isempty v   = MT $ IM.delete (fromEnum k)   m
+  | isempty k   = mt                               -- no redundant stuff in metatable
+  | isempty v   = MT $ IM.delete (fromEnum k)   m  -- dto
   | otherwise   = MT $ IM.insert (fromEnum k) v m
 
 lookupMT :: MetaKey -> MetaTable -> MetaValue
 lookupMT k (MT m) = fromMaybe mempty $ IM.lookup (fromEnum k) m
 
 -- <> for meta tables
-mergeMT :: MetaTable -> MetaTable -> MetaTable
-mergeMT m1 m2 = foldWithKeyMT mergeMV m2 m1   -- fold over m1
+unionMT :: MetaTable -> MetaTable -> MetaTable
+unionMT m1 m2 = foldWithKeyMT mergeMV m2 m1   -- fold over m1
   where
     mergeMV k1 v1 acc = insertMT k1 (v1 <> v2) acc
       where
@@ -1233,6 +1290,32 @@ foldWithKeyMT f acc (MT m) =
   IM.foldlWithKey' f' acc m
   where
     f' acc' k' mv' = f (toEnum k') mv' acc'
+
+-- --------------------
+
+isoMTT :: Iso' MetaTable MetaTableText
+isoMTT = iso mt2tt (flip editMT mempty)
+
+mt2tt :: MetaTable -> MetaTableText
+mt2tt (MT m) = IM.foldlWithKey' ins HM.empty m
+  where
+    ins acc i mv =
+      HM.insert (metaKeyTextLookup $ toEnum i) (metaValueToText mv) acc
+
+
+editMT :: MetaTableText -> MetaTable -> MetaTable
+editMT m mt = HM.foldlWithKey' ins mt m
+  where
+    ins acc k0 v0
+      | otherwise = insertMT k v acc
+
+      where
+        k = metaKeyLookup k0
+        v | v0 == "-" = mempty        -- "-" is used for removing entry
+          | k  == Descr'Keywords
+                      = metaValueFromText k v0 &
+                        metaKeywords %~ flip mergeKW mempty
+          | otherwise = metaValueFromText k v0
 
 -- --------------------
 --
@@ -1248,93 +1331,161 @@ instance IsEmpty MetaValue where   -- default values are redundant
   isempty  MNull     = True
   isempty _          = False
 
-instance Semigroup MetaValue where     -- <> isn't symmetric
+instance Semigroup MetaValue where
   MNull          <> mv2      = mv2
   mv1            <> MNull    = mv1
 
-  mv1@(MText t1) <> MText _
-    | t1 == "-"              = MNull   -- "-" deletes value
-    | otherwise              = mv1
+  mv1@(MText _)  <> MText _  = mv1     -- 1. wins
 
   mv1@(MInt _)   <> MInt _   = mv1     -- 1. wins
-  mv1@(MRat _)   <> MRat _   = mv1
-  mv1@(MOri _)   <> MOri _   = mv1
-  MKeyw w1       <> MKeyw w2
-    | w1 == ["-"]            = MNull   -- delete keywords
-    | otherwise              = mergeKW w1 w2
+  mv1@(MRat _)   <> MRat _   = mv1     -- 1. wins
+  mv1@(MOri _)   <> MOri _   = mv1     -- 1. wins
+  mv1@(MAcc _)   <> MAcc _   = mv1     -- 1. wins
+  MKeyw w1       <> MKeyw w2 = MKeyw $ unionKW w1 w2
+
   _              <> mv2      = mv2     -- mixing types, no effect
 
 instance Monoid MetaValue where
   mempty = MNull
 
-instance ToJSON MetaValue where
-  toJSON = toJSON . metaValueToText
-
 -- MetaKey determines the MetaValue representation
 -- no instance of FromJSON, due to decoding dependency on the key
 
--- --------------------
---
--- parse meta values
+metaKeywords :: Iso' MetaValue [Text]
+metaKeywords = iso
+  (\ x -> case x of
+            MKeyw kw -> kw
+            _        -> mempty
+  )
+  MKeyw
 
-metaValueFromText :: MetaKey -> Text -> MetaValue
+metaKeywordsText :: Iso' MetaValue Text
+metaKeywordsText = metaKeywords . isoKeywText
 
-metaValueFromText EXIF'Orientation  t = mkOriMV t
+metaRating :: Iso' MetaValue Int
+metaRating = iso
+  (\ x -> case x of
+            MRat i -> i
+            _      -> 0
+  )
+  (\ i -> MRat $ (i `max` 0) `min` 5)
 
-metaValueFromText Descr'Rating      t = mkRatingMV t
-metaValueFromText Img'Rating        t = mkRatingMV t
-metaValueFromText XMP'Rating        t = mkRatingMV t
+metaRatingText :: Iso' MetaValue Text
+metaRatingText = metaRating . isoIntStr . isoText
 
-metaValueFromText Key'Unknown       _ = MNull
-metaValueFromText _                 t
-  | isempty t                         = MNull
-  | otherwise                         = MText t
+metaOri :: Iso' MetaValue Int
+metaOri = iso
+  (\ x -> case x of
+            MOri i -> i
+            _      -> 0
+  )
+  (\ i -> MOri $ (i `max` 0) `min` 3)
 
-mkRatingMV :: Text -> MetaValue
-mkRatingMV t = MRat $ t ^. isoString . isoRating
+metaOriText :: Iso' MetaValue Text
+metaOriText = metaOri . isoOriText
 
-mkOriMV :: Text -> MetaValue
-mkOriMV t = MOri toOri
+metaAccess :: Iso' MetaValue [AccessRestr]
+metaAccess = iso
+  (\ x -> case x of
+            MAcc a -> toS a
+            _      -> mempty
+  )
+  (\ rs -> MAcc $ foldl' sb no''restr rs)
   where
-    toOri
-      | t == "Rotate 90 CW"           = 1
-      | "Rotate 180" `T.isPrefixOf` t = 2
-      | t == "Rotate 90 CCW"          = 3
-      | t == "Rotate 270 CW"          = 3
-      | t `elem` ["0","1","2","3"]    = read (t ^. isoString)
-      | otherwise                     = 0
+    sb :: Access -> AccessRestr -> Access
+    sb a r = a & accessRestr r .~ True
 
-mkKeywordsMV :: Text -> MetaValue
-mkKeywordsMV = MKeyw . splitKW
+    toS :: Access -> [AccessRestr]
+    toS a = foldr add [] [minBound .. maxBound]
+      where
+        add r acc
+          | a ^. accessRestr r = r : acc
+          | otherwise          =     acc
+
+metaAccessText :: Iso' MetaValue Text
+metaAccessText = metaAccess . isoAccText
+
+isoKeywText :: Iso' [Text] Text
+isoKeywText = iso toT frT
   where
-    splitKW =
+    toT = T.intercalate ","
+    frT =
       filter (not . T.null)       -- remove empty words
       .
       map (T.unwords . T.words)   -- normalize whitespace
       .
       T.split (== ',')            -- split at ","
 
+isoOriText :: Iso' Int Text
+isoOriText = iso toT frT
+  where
+    toT o = case o of
+      1 -> d90
+      2 -> d180
+      3 -> d270
+      _ -> d0
+
+    frT t
+      | d90  == t              = 1
+      | d180 `T.isPrefixOf` t  = 2
+      | d270 == t || d271 == t = 3
+      | otherwise              = 0
+
+    d0   = "Horizontal"
+    d90  = "Rotate 90 CW"
+    d180 = "Rotate 180" -- `T.isPrefixOf` t = 2
+    d270 = "Rotate 90 CCW"
+    d271 = "Rotate 270 CW"
+
+isoAccText :: Iso' [AccessRestr] Text
+isoAccText = iso toT frT
+  where
+    toT :: [AccessRestr] -> Text
+    toT = T.unwords . map (\ r -> accessNames !! fromEnum r)
+
+    frT :: Text -> [AccessRestr]
+    frT = mapMaybe (flip lookup accessMap) . T.words
+
+isoIntStr :: Iso' Int String
+isoIntStr = iso show (fromMaybe 0 . readMaybe)
+
+isoIntText :: Iso' Int Text
+isoIntText = isoIntStr . isoText
+
+-- --------------------
+--
+-- parse meta values
+
+metaValueFromText :: MetaKey -> Text -> MetaValue
+metaValueFromText mk t = case mk of
+  Descr'Access     -> metaAccessText   # t
+  Descr'Keywords   -> metaKeywordsText # t
+  Descr'Rating     -> metaRatingText   # t
+  EXIF'Orientation -> metaOriText      # t
+  Img'Rating       -> metaRatingText   # t
+  XMP'Rating       -> metaRatingText   # t
+  Key'Unknown      -> MNull
+  _ | isempty t    -> MNull
+    | otherwise    -> MText t
+
 -- --------------------
 --
 -- convert to text for JSON
 
 metaValueToText :: MetaValue -> Text
-metaValueToText (MText t) = t
-metaValueToText (MInt  i) = isoString # show i
-metaValueToText (MRat  r) = isoString # show r
-metaValueToText (MOri  o) = isoString # show o
-metaValueToText  MNull    = mempty
+metaValueToText mv = case mv of
+  MText t -> t
+  MInt  i -> show i ^. isoText
+  MRat  r -> show r ^. isoText
+  MOri  o -> show o ^. isoText
+  MAcc  _ -> mv ^. metaAccessText
+  MNull   -> mempty
 
-getRatingMV :: MetaValue -> Rating
-getRatingMV (MRat r) = (r `max` 0) `min` ratingMax
-getRatingMV _        = 0
+unionKW :: [Text] -> [Text] -> [Text]
+unionKW ws1 ws2 = nub (ws1 ++ ws2)
 
-getOriMV :: MetaValue -> Int
-getOriMV (MOri i) = i
-getOriMV _        = 0
-
-mergeKW :: [Text] -> [Text] -> MetaValue
-mergeKW ws1 ws2 = MKeyw ws
+mergeKW :: [Text] -> [Text] -> [Text]
+mergeKW ws1 ws2 = ws
   where
     ws         = nub ins L.\\ rmv
     (rmv, ins) = partKWs $ ws1 ++ ws2
