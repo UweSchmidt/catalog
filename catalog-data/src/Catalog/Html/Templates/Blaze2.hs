@@ -16,7 +16,8 @@ module Catalog.Html.Templates.Blaze2
 where
 
 import Data.MetaData ( MetaData
-                     , metaDataAt
+                     , MetaKey
+                     , lookupMetaText
 
                      , compositeDOF
                      , compositeGPSAltitude
@@ -51,7 +52,7 @@ import Data.MetaData ( MetaData
                      , fileRefJpg
                      , fileRefRaw
 
-                     , getGPSposDeg
+                     , lookupGPSposDeg
 
                      , imgRating
 
@@ -483,9 +484,9 @@ jsCode theDuration thisHref thisPos
 colTitle :: Text -> MetaData -> Html
 colTitle theTitle md = do
   di "title"    theTitle
-  di "subtitle" (md ^. metaDataAt descrSubtitle)
-  di "comment"  (md ^. metaDataAt descrComment)
-  di' gpsToHtml "comment"  (lookupGPS md)
+  di "subtitle" (lookupMetaText descrSubtitle md)
+  di "comment"  (lookupMetaText descrComment md)
+  di' gpsToHtml "comment"  (lookupGPSposDeg md)
   where
     di :: Text -> Text -> Html
     di = di' toHtml
@@ -739,7 +740,7 @@ picKeys = do
 picMeta :: MetaData -> Html
 picMeta md = mconcat mdTab
   where
-    toEntry :: Text -> Name -> Text -> Html -> Html
+    toEntry :: Text -> MetaKey -> Text -> Html -> Html
     toEntry descr key val val'
       | T.null val = mempty
       | otherwise  =
@@ -748,20 +749,20 @@ picMeta md = mconcat mdTab
           th $ toHtml descr
           td $ val'
 
-    mdval :: Text -> Name -> Html
+    mdval :: Text -> MetaKey -> Html
     mdval descr key =
       toEntry descr key val $
       toHtml val
       where
-        val = md ^. metaDataAt key
+        val = lookupMetaText key md
 
-    mdLink :: Text -> Name -> Html
+    mdLink :: Text -> MetaKey -> Html
     mdLink descr key =
       toEntry descr key val $
       H.a ! href (toValue val) $
       toHtml val
       where
-        val = md ^. metaDataAt key
+        val = lookupMetaText key md
 
     mdRat :: Text -> Html
     mdRat descr =
@@ -770,14 +771,14 @@ picMeta md = mconcat mdTab
       toHtml val
       where
         key   = imgRating
-        val   = md ^. metaDataAt key
+        val   = lookupMetaText key md
 
     mdMap :: Text -> Html
     mdMap descr =
       toEntry descr compositeGPSPosition val $
       gpsToHtml val
       where
-        val  = lookupGPS md
+        val  = lookupGPSposDeg md
 
     mdTab :: [Html]
     mdTab =
@@ -815,10 +816,6 @@ picMeta md = mconcat mdTab
       , mdval  "Bearbeitet"            fileFileModifyDate
       , mdRat  "Bewertung"
       ]
-
-lookupGPS :: MetaData -> Text
-lookupGPS =
-  maybe mempty (isoString . prismString #) . getGPSposDeg
 
 gpsToHtml :: Text -> Html
 gpsToHtml val =
