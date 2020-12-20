@@ -31,11 +31,24 @@ import Catalog.ImgTree.Fold
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
 import Catalog.Logging
-import Catalog.CopyRemove     (removeEmptyColls)
-import Catalog.TimeStamp      (whatTimeIsIt)
+import Catalog.CopyRemove     ( removeEmptyColls )
+import Catalog.TimeStamp      ( whatTimeIsIt )
 
 import Data.ImgTree
-import Data.MetaData
+import Data.MetaData          ( MetaData
+                              , metaTextAt
+                              , lookupCreate
+                              , parseDate
+                              , parseTime
+                              , isoDateInt
+
+                              , descrAccess     -- meta keys
+                              , descrComment
+                              , descrCreateDate
+                              , descrOrderedBy
+                              , descrSubtitle
+                              , descrTitle
+                              )
 import Data.Prim
 
 import qualified Data.IntMap     as IM

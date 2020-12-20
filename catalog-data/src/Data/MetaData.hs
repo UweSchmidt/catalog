@@ -63,6 +63,7 @@ module Data.MetaData
 -}
   , parseTime
   , parseDate
+  , parseDateTime
   , isoDateInt
   , isoStars
 
@@ -180,7 +181,6 @@ import qualified Data.IntMap.Strict  as IM
 import qualified Data.List           as L
 import qualified Data.Text           as T
 import qualified Data.Vector         as V
-import qualified Data.Scientific     as SC
 import qualified Text.SimpleParser   as SP
 import           Text.SimpleParser
 import qualified Text.Pretty         as T
@@ -595,18 +595,18 @@ lookupGeo mt =
 
 
 lookupOri :: MetaData -> Int
-lookupOri mt = mt ^. metaDataAt EXIF'Orientation . metaOri
+lookupOri mt = mt ^. metaDataAt exifOrientation . metaOri
 
 lookupRating :: MetaData -> Rating
 lookupRating mt =
   lookupByKeys
-  [ Descr'Rating     -- descr:Rating has priority over
-  , XMP'Rating       -- XMP:Rating from LR
+  [ descrRating     -- descr:Rating has priority over
+  , xmpRating       -- XMP:Rating from LR
   ] mt ^. metaRating
 
 lookupUpdateTime :: MetaData -> TimeStamp
 lookupUpdateTime mt =
-  mt ^. metaDataAt Img'EXIFUpdate . metaTimeStamp
+  mt ^. metaDataAt imgEXIFUpdate . metaTimeStamp
 
 setUpdateTime :: TimeStamp -> MetaData -> MetaData
 setUpdateTime ts mt =
@@ -620,7 +620,7 @@ lookupGPSposDeg =
 
 newtype MetaData  = MT (IM.IntMap MetaValue)
 
-type MetaDataText = HM.HashMap Text Text
+type MetaDataText = HashMap Text Text
 
 data MetaKey
   = Composite'Aperture
@@ -1154,14 +1154,6 @@ isoMetaValueText k = case k of
   Key'Unknown           -> iso (const mempty) (const mempty)
   _                     -> metaText
 
-{-
-metaValueFromText :: MetaKey -> Text -> MetaValue
-metaValueFromText k t = isoMetaValueText k # t
-
-metaValueToText :: MetaKey -> MetaValue -> Text
-metaValueToText k v = v ^. isoMetaValueText k
--- -}
-
 unionKW :: [Text] -> [Text] -> [Text]
 unionKW ws1 ws2 = nub (ws1 ++ ws2)
 
@@ -1248,7 +1240,7 @@ metaKeyToText k           = T.pack . map toColon . show $ k
 allMetaKeys :: [Text]
 allMetaKeys = map metaKeyToText [minBound :: MetaKey .. maxBound]
 
-type MetaKeyLookupTable = HM.HashMap Text MetaKey
+type MetaKeyLookupTable = HashMap Text MetaKey
 
 metaKeyLookupTable :: MetaKeyLookupTable
 metaKeyLookupTable =
