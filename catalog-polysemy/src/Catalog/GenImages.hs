@@ -41,7 +41,7 @@ import Catalog.TextPath          (toFileSysPath)
 import Polysemy.ExecProg         (execScript)
 
 -- catalog modules
-import Data.MetaData             (getImageGeoOri)
+import Data.MetaData             (lookupGeoOri)
 import Data.Prim
 import Data.CT
 
@@ -130,7 +130,7 @@ createResizedImage' vico d'geo src dst = do
                   else toFileSysPath vico
   sp           <- toFileSysPath src
   dp           <- toFileSysPath dst
-  (s'geo, ori) <- getImageGeoOri <$> getExifMetaData src
+  (s'geo, ori) <- lookupGeoOri <$> getExifMetaData src
   createResized vc ori s'geo sp dp
   where
 

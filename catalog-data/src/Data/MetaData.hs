@@ -12,7 +12,9 @@ module Data.MetaData
   , Rating
   , AccessRestr
 
-  , metaTableAt
+  , metaDataAt
+  , metaTextAt
+
 {-
   , someKeysMD
   , globKeysMD
@@ -39,7 +41,6 @@ module Data.MetaData
   , isSortable
   , isRemovable
 
-  , lookupMetaText
   , lookupCreate
   , lookupFileName
   , lookupGPSposDeg
@@ -224,12 +225,12 @@ type YMD = (String, String, String)
 type HMS = (String, String, String, String)
 type YMD'HMS = (YMD, HMS)
 
-parseDateTime :: String -> Maybe YMD'HMS
-parseDateTime = parseMaybe dateTimeParser
+parseDateTime :: Text -> Maybe YMD'HMS
+parseDateTime = parseMaybe dateTimeParser . (isoText #)
 
 -- take the day part from a date/time input
-parseDate :: String -> Maybe (String, String, String)
-parseDate = parseMaybe (fst <$> dateTimeParser)
+parseDate :: Text -> Maybe (String, String, String)
+parseDate = parseMaybe (fst <$> dateTimeParser) . (isoText #)
 {-# INLINE parseDate #-}
 
 isoDateInt :: Iso' (String, String, String) Int
@@ -247,8 +248,8 @@ isoDateInt = iso toInt frInt
         (y,  m) = my `divMod` 100
 
 -- take the time part of a full date/time input
-parseTime :: String -> Maybe (String, String, String, String)
-parseTime = parseMaybe (snd <$> dateTimeParser)
+parseTime :: Text -> Maybe (String, String, String, String)
+parseTime = parseMaybe (snd <$> dateTimeParser) . (isoText #)
 {-# INLINE parseTime #-}
 
 timeParser :: SP HMS
@@ -569,33 +570,32 @@ lookupByKeys ns mt =
 -- -}
 
 lookupCreate :: (Text -> res) -> MetaData -> res
-lookupCreate p mt = p cd
+lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
   where
-    cd = metaValueToText $
-         lookupByKeys
-         [ compositeSubSecCreateDate
-         , exifCreateDate
-         ] mt
+    v = lookupByKeys
+        [ compositeSubSecCreateDate
+        , exifCreateDate
+        ] mt
 
 lookupFileName :: MetaData -> Maybe Text
 lookupFileName mt
   | isempty n = Nothing
   | otherwise  = Just n
   where
-   n = metaValueToText $ mt ^. metaTableAt File'FileName
+   n = mt ^. metaTextAt File'FileName
 
 lookupGeoOri :: MetaData -> (Geo, Int)
 lookupGeoOri = lookupGeo &&& lookupOri
 
 lookupGeo :: MetaData -> Geo
 lookupGeo mt =
-  toGeo . metaValueToText $ mt ^. metaTableAt Composite'ImageSize
+  toGeo $ mt ^. metaTextAt compositeImageSize
   where
     toGeo sz = fromMaybe geo'org (readGeo'' $ sz ^. isoString)
 
 
 lookupOri :: MetaData -> Int
-lookupOri mt = mt ^. metaTableAt EXIF'Orientation . metaOri
+lookupOri mt = mt ^. metaDataAt EXIF'Orientation . metaOri
 
 lookupRating :: MetaData -> Rating
 lookupRating mt =
@@ -606,11 +606,11 @@ lookupRating mt =
 
 lookupUpdateTime :: MetaData -> TimeStamp
 lookupUpdateTime mt =
-  mt ^. metaTableAt Img'EXIFUpdate . metaTimeStamp
+  mt ^. metaDataAt Img'EXIFUpdate . metaTimeStamp
 
 setUpdateTime :: TimeStamp -> MetaData -> MetaData
 setUpdateTime ts mt =
-  mt & metaTableAt Img'EXIFUpdate . metaTimeStamp .~ ts
+  mt & metaDataAt Img'EXIFUpdate . metaTimeStamp .~ ts
 
 lookupGPSposDeg :: MetaData -> Text
 lookupGPSposDeg =
@@ -802,7 +802,7 @@ isoAccessRestr = iso toS frS
 
 modifyAccess :: (Access -> Access) -> MetaData -> MetaData
 modifyAccess f mt =
-  mt & metaTableAt Descr'Access . metaAcc %~ f
+  mt & metaDataAt Descr'Access . metaAcc %~ f
 
 setAccess
   , allowAccess
@@ -835,7 +835,7 @@ isSortable  = isAccessable NO'sort
 isRemovable = isAccessable NO'delete
 
 isAccessable :: AccessRestr -> MetaData -> Bool
-isAccessable r mt = not $ mt ^. metaTableAt Descr'Access . metaAcc . accessRestr r
+isAccessable r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
 
 -- --------------------
 --
@@ -877,11 +877,11 @@ instance FromJSON MetaData where
       parseTable o = (isoMTT #) <$> parseJSON o
 
 -- lens combining insertMT and lookupMT
-metaTableAt :: MetaKey -> Lens' MetaData MetaValue
-metaTableAt mk k mt = (\ v -> insertMT mk v mt) <$> k (lookupMT mk mt)
+metaDataAt :: MetaKey -> Lens' MetaData MetaValue
+metaDataAt mk k mt = (\ v -> insertMT mk v mt) <$> k (lookupMT mk mt)
 
-lookupMetaText :: MetaKey -> MetaData -> Text
-lookupMetaText k mt = metaValueToText $ lookupMT k mt
+metaTextAt :: MetaKey -> Lens' MetaData Text
+metaTextAt k = metaDataAt k . isoMetaValueText k
 
 insertMT :: MetaKey -> MetaValue -> MetaData -> MetaData
 insertMT k v mt@(MT m)
@@ -923,23 +923,26 @@ isoMTT = iso mt2tt (flip editMT mempty)
 mt2tt :: MetaData -> MetaDataText
 mt2tt (MT m) = IM.foldlWithKey' ins HM.empty m
   where
-    ins acc i mv =
-      HM.insert (metaKeyTextLookup $ toEnum i) (metaValueToText mv) acc
+    ins acc i v =
+      HM.insert (metaKeyTextLookup k) (v ^. isoMetaValueText k) acc
+      where
+        k = toEnum i
 
 
 editMT :: MetaDataText -> MetaData -> MetaData
 editMT m mt = HM.foldlWithKey' ins mt m
   where
     ins acc k0 v0
-      | otherwise = insertMT k v acc
+      | v0 == "-" =                      -- remove key from metadata
+          acc & metaDataAt k .~ mempty
 
+      | k == descrKeywords =             -- add and remove keywords
+          acc & metaDataAt k . metaKeywords %~ mergeKW (isoKeywText # v0)
+
+      | otherwise =                      -- insert or set new value
+          acc & metaDataAt k .~ isoMetaValueText k # v0
       where
         k = metaKeyLookup k0
-        v | v0 == "-" = mempty        -- "-" is used for removing entry
-          | k  == Descr'Keywords
-                      = metaValueFromText k v0 &
-                        metaKeywords %~ flip mergeKW mempty
-          | otherwise = metaValueFromText k v0
 
 -- --------------------
 --
@@ -1136,36 +1139,28 @@ isoIntText = isoIntStr . isoText
 
 -- --------------------
 --
--- parse meta values
 
+isoMetaValueText :: MetaKey -> Iso' MetaValue Text
+isoMetaValueText k = case k of
+  Composite'GPSPosition -> metaGPSDecText
+  Descr'Access          -> metaAccessText
+  Descr'GPSPosition     -> metaGPSDecText
+  Descr'Keywords        -> metaKeywordsText
+  Descr'Rating          -> metaRatingText
+  EXIF'Orientation      -> metaOriText
+  Img'EXIFUpdate        -> metaTimeStampText
+  Img'Rating            -> metaRatingText
+  XMP'Rating            -> metaRatingText
+  Key'Unknown           -> iso (const mempty) (const mempty)
+  _                     -> metaText
+
+{-
 metaValueFromText :: MetaKey -> Text -> MetaValue
-metaValueFromText mk t = case mk of
-  Descr'Access          -> metaAccessText    # t
-  Composite'GPSPosition -> metaGPSDecText    # t
-  Descr'GPSPosition     -> metaGPSDecText    # t
-  Descr'Keywords        -> metaKeywordsText  # t
-  Descr'Rating          -> metaRatingText    # t
-  EXIF'Orientation      -> metaOriText       # t
-  Img'Rating            -> metaRatingText    # t
-  Img'EXIFUpdate        -> metaTimeStampText # t
-  XMP'Rating            -> metaRatingText    # t
-  Key'Unknown           -> MNull
-  _ | isempty t         -> MNull
-    | otherwise         -> MText t
+metaValueFromText k t = isoMetaValueText k # t
 
--- --------------------
---
--- convert to text for JSON
-
-metaValueToText :: MetaValue -> Text
-metaValueToText mv = case mv of
-  MText t -> t
-  MInt  i -> mv ^. metaIntText
-  MRat  _ -> mv ^. metaRatingText
-  MOri  _ -> mv ^. metaOriText
-  MAcc  _ -> mv ^. metaAccessText
-  MKeyw _ -> mv ^. metaKeywordsText
-  MNull   -> mempty
+metaValueToText :: MetaKey -> MetaValue -> Text
+metaValueToText k v = v ^. isoMetaValueText k
+-- -}
 
 unionKW :: [Text] -> [Text] -> [Text]
 unionKW ws1 ws2 = nub (ws1 ++ ws2)
@@ -1234,7 +1229,7 @@ prettyMT mt = zipWith (<:>) ks vs
   where
     kvs = toListMT mt
     ks  = T.fillRightList ' ' $ map (^. _1 . isoText) kvs
-    vs  = map (metaValueToText . snd) kvs
+    vs  = map (\ (k, v) -> v ^. isoMetaValueText k) kvs
 
     xs <:> ys = xs <> " : " <> ys
 

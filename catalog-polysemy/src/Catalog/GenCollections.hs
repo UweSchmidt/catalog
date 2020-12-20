@@ -277,7 +277,7 @@ sortByDate =
       colEntry
       (\ j n1 -> do
           md  <- getMetaData j
-          let t = getCreateMeta parseTime md
+          let t = lookupCreate parseTime md
           return $ Right (t, n1)
       )
       (\ j    -> Left <$> getImgName j )
@@ -363,18 +363,18 @@ mkColMeta t s c o a = mkColMeta' $ defaultColMeta t s c o a
 mkColMeta' :: Eff'ISEJLT r => MetaData -> Sem r MetaData
 mkColMeta' md0 = do
   tm <- timeStampToText <$> whatTimeIsIt
-  let md = md0 & metaDataAt descrCreateDate .~ tm
+  let md = md0 & metaTextAt descrCreateDate .~ tm
   log'trc $ "mkColMeta: " <> toText md
   return md
 
 defaultColMeta :: Text -> Text -> Text -> Text -> Text -> MetaData
 defaultColMeta t s c o a =
   mempty
-  & metaDataAt descrTitle      .~ t
-  & metaDataAt descrSubtitle   .~ s
-  & metaDataAt descrComment    .~ c
-  & metaDataAt descrOrderedBy  .~ o
-  & metaDataAt descrAccess     .~ a
+  & metaTextAt descrTitle      .~ t
+  & metaTextAt descrSubtitle   .~ s
+  & metaTextAt descrComment    .~ c
+  & metaTextAt descrOrderedBy  .~ o
+  & metaTextAt descrAccess     .~ a
 
 
 -- create collections recursively, similar to 'mkdir -p'
@@ -464,7 +464,7 @@ colEntries2dateMap rs = do
     add1 :: Eff'ISE r => DateMap -> ColEntry -> Sem r DateMap
     add1 acc ce = do
       meta <- getMetaData (ce ^. theColObjId)
-      let mdate = (^. isoDateInt) <$> getCreateMeta parseDate meta
+      let mdate = (^. isoDateInt) <$> lookupCreate parseDate meta
       return $
         maybe acc
         (\ i' -> IM.insertWith (<>) i' (singletonColEntrySet ce) acc)

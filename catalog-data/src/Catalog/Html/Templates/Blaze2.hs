@@ -17,7 +17,7 @@ where
 
 import Data.MetaData ( MetaData
                      , MetaKey
-                     , lookupMetaText
+                     , metaTextAt
 
                      , compositeDOF
                      , compositeGPSAltitude
@@ -484,8 +484,8 @@ jsCode theDuration thisHref thisPos
 colTitle :: Text -> MetaData -> Html
 colTitle theTitle md = do
   di "title"    theTitle
-  di "subtitle" (lookupMetaText descrSubtitle md)
-  di "comment"  (lookupMetaText descrComment md)
+  di "subtitle" (md ^. metaTextAt descrSubtitle)
+  di "comment"  (md ^. metaTextAt descrComment)
   di' gpsToHtml "comment"  (lookupGPSposDeg md)
   where
     di :: Text -> Text -> Html
@@ -754,7 +754,7 @@ picMeta md = mconcat mdTab
       toEntry descr key val $
       toHtml val
       where
-        val = lookupMetaText key md
+        val = md ^. metaTextAt key
 
     mdLink :: Text -> MetaKey -> Html
     mdLink descr key =
@@ -762,7 +762,7 @@ picMeta md = mconcat mdTab
       H.a ! href (toValue val) $
       toHtml val
       where
-        val = lookupMetaText key md
+        val = md ^. metaTextAt key
 
     mdRat :: Text -> Html
     mdRat descr =
@@ -771,7 +771,7 @@ picMeta md = mconcat mdTab
       toHtml val
       where
         key   = imgRating
-        val   = lookupMetaText key md
+        val   = md ^. metaTextAt key
 
     mdMap :: Text -> Html
     mdMap descr =
