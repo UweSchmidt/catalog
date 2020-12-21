@@ -16,9 +16,9 @@ import Network.HTTP.Media ((//), (/:))
 import Servant
 
 import Data.Prim
-import Data.History (HistoryID)
-import Data.ImgTree (ImgNodeP)
-import Data.MetaData
+import Data.History  (HistoryID)
+import Data.ImgTree  (ImgNodeP)
+import Data.MetaData (MetaData, Rating)
 
 import qualified Data.Text as T
 

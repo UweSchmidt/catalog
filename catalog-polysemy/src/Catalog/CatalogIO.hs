@@ -43,7 +43,7 @@ import Catalog.Version        (version, date)
 import Data.ImageStore        (ImgStore, theCatMetaData, mkImgStore)
 import Data.ImgTree           (mkEmptyImgRoot)
 import Data.Journal           (Journal'(LoadImgStore, SaveImgStore, InitImgStore))
-import Data.MetaData          (metaDataAt, descrCatalogWrite, descrCatalogVersion)
+import Data.MetaData          (metaTextAt, descrCatalogWrite, descrCatalogVersion)
 import Data.Prim
 import Data.TextPath          (takeDir, splitExtension)
 
@@ -75,8 +75,8 @@ setCatMetaData = do
   catWrt     <- nowAsIso8601
 
   let catMeta = mempty
-              & metaDataAt descrCatalogVersion .~ catVer
-              & metaDataAt descrCatalogWrite   .~ catWrt
+              & metaTextAt descrCatalogVersion .~ catVer
+              & metaTextAt descrCatalogWrite   .~ catWrt
 
   modify' @ImgStore (\ s -> s & theCatMetaData %~ (catMeta <>))
 

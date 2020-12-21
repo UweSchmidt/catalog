@@ -27,7 +27,12 @@ import Catalog.MetaData.ExifTool (getExifMetaData)
 import Catalog.TimeStamp
 
 import Data.ImgNode
-import Data.MetaData
+import Data.MetaData             ( MetaData
+                                 , metaDataAt
+                                 , metaTimeStamp
+                                 , filterByImgType
+                                 , imgEXIFUpdate
+                                 )
 import Data.Prim
 
 -- ----------------------------------------
@@ -53,7 +58,7 @@ getMDpart :: ( EffCatEnv   r
           -> Sem r MetaData
 getMDpart p imgPath pt
   | p $ pt ^. theImgType =
-      filterMetaData ty <$> getExifMetaData partPath
+      filterByImgType ty <$> getExifMetaData partPath
 
   | otherwise =
       return mempty
@@ -91,12 +96,13 @@ setMD p i ps = do
     do let md1 = mdn <> md0
        if md1 /= md0
           ||
-          isempty (getEXIFUpdateTime md0)
+          isempty (md0 ^. metaDataAt imgEXIFUpdate . metaTimeStamp)
          then
          -- something has changed since last update
          -- so add timestamp and store new metadata
-         do md2 <- flip setEXIFUpdateTime md1 <$> whatTimeIsIt
-            adjustMetaData (const md2) i
+         do ts <- whatTimeIsIt
+            let md2 = md1 & metaDataAt imgEXIFUpdate . metaTimeStamp .~ ts
+            adjustMetaData (const $ md2) i
             log'verb $
               msgPath ip "setMD: update exif data for "
          else

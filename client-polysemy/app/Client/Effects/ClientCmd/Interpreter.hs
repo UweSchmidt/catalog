@@ -37,7 +37,11 @@ import Polysemy.State
 -- catalog-data
 import Data.Prim
 import Data.ImgNode hiding (theMetaData)
-import Data.MetaData
+import Data.MetaData ( MetaKey
+                     , metaTextAt
+                     , selectByKeys
+                     , prettyMD
+                     )
 
 import Text.SimpleParser
        ( parseMaybe
@@ -179,10 +183,10 @@ evalMediaPath p = do
 
 ------------------------------------------------------------------------------
 
-evalMetaData :: CCmdEffects r => PathPos -> [Name] -> Sem r MetaData
+evalMetaData :: CCmdEffects r => PathPos -> [MetaKey] -> Sem r MetaData
 evalMetaData pp@(p, cx) keys = do
   log'trc $ untext ["evalMetaData:", from isoText . isoPathPos # pp]
-  r <- (^. selectByNames keys)
+  r <- (^. selectByKeys (`elem` keys))
        <$>
        theMetaData (fromMaybe (-1) cx) p
   log'trc $ untext ["res =", show r ^. isoText]
@@ -190,14 +194,14 @@ evalMetaData pp@(p, cx) keys = do
 
 ------------------------------------------------------------------------------
 
-evalSetMetaData1 :: CCmdEffects r => PathPos -> Name -> Text -> Sem r ()
+evalSetMetaData1 :: CCmdEffects r => PathPos -> MetaKey -> Text -> Sem r ()
 evalSetMetaData1 pp@(p, cx) key val = do
   log'trc $ untext [ "evalSetMetaData:"
                    , from isoText . isoPathPos # pp
                    , key ^. isoText
                    , val
                    ]
-  let md1 = mempty & metaDataAt key .~ val
+  let md1 = mempty & metaTextAt key .~ val
   _r <- setMetaData1 (fromMaybe (-1) cx) md1 p
   return ()
 

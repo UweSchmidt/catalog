@@ -29,7 +29,10 @@ import Catalog.ImgTree.Access
 import Catalog.MetaData.Exif (setMD)
 
 import Data.ImgNode
-import Data.MetaData
+import Data.MetaData         ( metaDataAt
+                             , metaTimeStamp
+                             , imgEXIFUpdate
+                             )
 import Data.Prim
 
 -- ----------------------------------------
@@ -82,8 +85,9 @@ syncMetaData i = do
 
 syncMetaData' :: Eff'MDSync r => ObjId -> [ImgPart] -> Sem r ()
 syncMetaData' i ps = do
-  ts <- getEXIFUpdateTime <$> getMetaData i
-  fu <- (^. catForceMDU) <$> ask
+  md   <-  getMetaData i
+  let ts = md ^. metaDataAt imgEXIFUpdate . metaTimeStamp
+  fu    <- (^. catForceMDU) <$> ask
   let update = fu || (ts < ps ^. traverse . theImgTimeStamp)
 
   -- trc $ "syncMetadata: " ++ show (ts, ps ^. traverse . theImgTimeStamp, update)

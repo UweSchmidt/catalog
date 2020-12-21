@@ -4,7 +4,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Text.Pretty where
+module Data.Text.Fill where
 
 import           Data.Text (Text)
 import qualified Data.Text as T

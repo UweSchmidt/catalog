@@ -58,7 +58,14 @@ import qualified Catalog.SyncWithFileSys as SC
 import Data.Prim
 import Data.ImgNode
 import Data.Journal    ( Journal'(..) )
-import Data.MetaData
+import Data.MetaData   ( MetaData
+                       , metaDataAt
+                       , lookupRating
+                       , mkRating
+                       , clearAccess
+                       , addNoWriteAccess
+                       , subNoWriteAccess
+                       )
 import Data.ImageStore ( ImgStore )
 import Data.ImgTree
 
@@ -714,7 +721,7 @@ read'metadata pos i n
 
 read'rating :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r Rating
 read'rating pos i n =
-  getRating <$> read'metadata pos i n
+  lookupRating <$> read'metadata pos i n
 
 -- get the rating field of all entries in a collection
 
@@ -724,7 +731,7 @@ read'ratings n =
   where
     f = colEntry' (getR . _iref) getR
       where
-        getR i' = getRating <$> getMetaData i'
+        getR i' = lookupRating <$> getMetaData i'
 
 read'checkImgPart :: Eff'CheckSum r
                   => Bool -> Path -> Name -> ImgNode -> Sem r CheckSumRes

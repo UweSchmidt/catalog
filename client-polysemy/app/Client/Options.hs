@@ -15,11 +15,9 @@ import Client.Effects.ClientCmd.Interpreter
 
 
 import Data.MetaData
-       ( allKeysMD
+       ( MetaKey
+       , allKeysMD
        , globKeysMD
-       -- , metaDataAt
-       -- , prettyMD
-       -- , selectByNames
        )
 
 import Data.Prim
@@ -258,7 +256,7 @@ argPathPos = (^. isoPathPos) <$> argPath
 argPathPos1 :: Parser PathPos
 argPathPos1 = (^. isoPathPos) <$> argPath1
 
-argKey :: Parser Name
+argKey :: Parser MetaKey
 argKey = argument globParser1 (metavar "KEY")
 
 argValue :: Parser Text
@@ -316,13 +314,13 @@ geoReader = eitherReader parse
         Right
         (readGeo' arg)
 
-globParser :: ReadM [Name]
+globParser :: ReadM [MetaKey]
 globParser = globParser' notNull
   where
     notNull arg [] = Left $ "No keys found for pattern: " <> arg
     notNull _   xs = Right xs
 
-globParser1 :: ReadM Name
+globParser1 :: ReadM MetaKey
 globParser1 = globParser' single
   where
     single _   [x] = Right x
@@ -330,7 +328,7 @@ globParser1 = globParser' single
     single arg xs  = Left $ "No unique key found for pattern: " <> arg
                             <> ", could be one of " <> show xs
 
-globParser' :: (String -> [Name] -> Either String a) -> ReadM a
+globParser' :: (String -> [MetaKey] -> Either String a) -> ReadM a
 globParser' check = eitherReader parse
   where
     parse arg =

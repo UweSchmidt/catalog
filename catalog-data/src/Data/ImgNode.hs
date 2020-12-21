@@ -87,7 +87,11 @@ module Data.ImgNode
 where
 
 import           Control.Monad.Except
-import           Data.MetaData
+import           Data.MetaData ( MetaData
+                               , isWriteable
+                               , isSortable
+                               , isRemovable
+                               )
 import           Data.Prim
 
 import qualified Data.Aeson      as J

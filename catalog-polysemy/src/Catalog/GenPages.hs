@@ -33,7 +33,7 @@ import Data.Prim
 import Data.ImgNode
 import Data.ImgTree
 import Data.MetaData                  ( MetaData
-                                      , metaDataAt
+                                      , metaTextAt
                                       , descrComment
                                       , descrDuration
                                       , descrSubtitle
@@ -41,8 +41,8 @@ import Data.MetaData                  ( MetaData
                                       , fileRefImg
                                       , fileRefJpg
                                       , fileRefRaw
-                                      , getImageGeo
-                                      , getRating
+                                      , lookupGeo
+                                      , lookupRating
                                       , imgRating
                                       )
 import Data.TextPath                  ( pathName2ImgType
@@ -635,7 +635,7 @@ createIconFromObj r dstPath = do
   -- read the collection title
   txt1 <- getImgVals
           (r ^. rColId)
-          (theMetaData . metaDataAt descrTitle)
+          (theMetaData . metaTextAt descrTitle)
   log'dbg $ "createIconFromObj: " <> txt1
 
   txt2 <- if isempty txt1
@@ -911,23 +911,23 @@ collectImgAttr r = do
     ImgAttr
     { _imgMediaUrl = theUrl ^. isoText
     , _imgMeta     = theMeta
-                     & metaDataAt fileRefImg .~ (theSrc ^. isoText)
+                     & metaTextAt fileRefImg .~ (theSrc ^. isoText)
                      & ( maybe id
                          (\ n ->
-                             metaDataAt fileRefRaw
+                             metaTextAt fileRefRaw
                              .~
                              (substPathName n theSrc ^. isoText)
                          )
                          onm
                        )
     , _imgTitle    = take1st
-                     [ theMeta ^. metaDataAt descrTitle
+                     [ theMeta ^. metaTextAt descrTitle
                      , nm ^. isoText
                      ]
-    , _imgSubTitle = theMeta ^. metaDataAt descrSubtitle
-    , _imgComment  = theMeta ^. metaDataAt descrComment
+    , _imgSubTitle = theMeta ^. metaTextAt descrSubtitle
+    , _imgComment  = theMeta ^. metaTextAt descrComment
     , _imgDuration = take1st
-                     [ theMeta ^. metaDataAt descrDuration
+                     [ theMeta ^. metaTextAt descrDuration
                      , "1.0"
                      ]
     }
@@ -1005,17 +1005,17 @@ genReqImgPage' r = do
 
   let star               = '\9733'
   let rating             = (\ x -> replicate x star ^. isoText) $
-                           getRating this'meta
-  let metaData           = this'meta -- add jpg filename and rating
-                           & metaDataAt fileRefJpg .~ (this'mediaUrl ^. isoText)
-                           & metaDataAt imgRating  .~ rating
+                           lookupRating this'meta
+  let metaData           = this'meta -- add jpg filename and rating as stars
+                           & metaTextAt fileRefJpg .~ (this'mediaUrl ^. isoText)
+                           & metaTextAt imgRating  .~ rating
 
   case toMediaReq r ^. rType of
 
     --image page
     RImg -> do
       org'imgpath       <- toSourcePath r
-      org'geo           <- getImageGeo <$> getExifMetaData org'imgpath
+      org'geo           <- lookupGeo <$> getExifMetaData org'imgpath
 
       -- .jpg images may be shown in original size
       let org'mediaUrl   = toUrlPath
@@ -1062,7 +1062,7 @@ genReqImgPage' r = do
     -- mp4 video
     RMovie -> do
       org'imgpath       <- toSourcePath r
-      org'geo           <- getImageGeo <$> getExifMetaData org'imgpath
+      org'geo           <- lookupGeo <$> getExifMetaData org'imgpath
 
       return $
         movPage'
@@ -1126,7 +1126,7 @@ toIconDescr icon'geo r = do
                                    & rGeo  .~ icon'geo
                                 )
   r'meta           <- runMaybeEmpty (toImgMeta r)
-  let r'title       = r'meta ^. metaDataAt descrTitle
+  let r'title       = r'meta ^. metaTextAt descrTitle
 
   return (r'url, r'iconurl, r'title)
   where

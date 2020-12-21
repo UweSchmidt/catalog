@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -14,21 +15,25 @@ module Data.MetaData
 
   , metaDataAt
   , metaTextAt
+  , metaTimeStamp
 
+  , filterByImgType
 {-
-  , someKeysMD
-  , globKeysMD
-  , allKeysMD
 
   , MetaData
   , metaDataAt
   , partMetaData
   , selectMetaData
-  , selectByNames
   , selectByParser
   , lookupByNames
-  , prettyMD
 -}
+  , selectByKeys
+
+  , someKeysMD
+  , globKeysMD
+  , allKeysMD
+  , prettyMD
+
   , clearAccess
   , addNoDeleteAccess
   , addNoSortAccess
@@ -41,12 +46,15 @@ module Data.MetaData
   , isSortable
   , isRemovable
 
+  , lookupByKeys
   , lookupCreate
   , lookupFileName
   , lookupGPSposDeg
   , lookupGeoOri
   , lookupGeo
   , lookupOri
+  , lookupRating
+  , mkRating
 
 --  , mkRating
 --  , getRating
@@ -180,10 +188,10 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap.Strict  as IM
 import qualified Data.List           as L
 import qualified Data.Text           as T
+import qualified Data.Text.Fill      as T
 import qualified Data.Vector         as V
 import qualified Text.SimpleParser   as SP
 import           Text.SimpleParser
-import qualified Text.Pretty         as T
 import           Text.Printf         ( printf )
 -- import Debug.Trace
 
@@ -599,10 +607,13 @@ lookupOri mt = mt ^. metaDataAt exifOrientation . metaOri
 
 lookupRating :: MetaData -> Rating
 lookupRating mt =
-  lookupByKeys
+  lookupByKeys      -- imgRating is used in genPages and has type Text
   [ descrRating     -- descr:Rating has priority over
   , xmpRating       -- XMP:Rating from LR
   ] mt ^. metaRating
+
+mkRating :: Rating -> MetaData
+mkRating r = mempty & metaDataAt descrRating .~ metaRating # r
 
 lookupUpdateTime :: MetaData -> TimeStamp
 lookupUpdateTime mt =
@@ -854,6 +865,7 @@ isoStars = isoStars' . isoText
 --
 -- instances for MetaData
 
+deriving instance Eq   MetaData   -- used in Catalog.MetaData.Exif
 deriving instance Show MetaData
 
 instance IsEmpty MetaData where
@@ -948,6 +960,7 @@ editMT m mt = HM.foldlWithKey' ins mt m
 --
 -- instances and basic ops for MetaValue
 
+deriving instance Eq   MetaValue
 deriving instance Show MetaValue
 
 instance IsEmpty MetaValue where   -- default values are redundant
@@ -1148,8 +1161,8 @@ isoMetaValueText k = case k of
   Descr'Keywords        -> metaKeywordsText
   Descr'Rating          -> metaRatingText
   EXIF'Orientation      -> metaOriText
+  Img'Rating            -> metaText          -- used in genPages
   Img'EXIFUpdate        -> metaTimeStampText
-  Img'Rating            -> metaRatingText
   XMP'Rating            -> metaRatingText
   Key'Unknown           -> iso (const mempty) (const mempty)
   _                     -> metaText
@@ -1205,19 +1218,19 @@ metaKeyTextLookup k =
 
 -- --------------------
 
-allKeysMT :: [MetaKey]
-allKeysMT = [minBound .. pred maxBound]
+allKeysMD :: [MetaKey]
+allKeysMD = [minBound .. pred maxBound]
 
-someKeysMT :: (Text -> Bool) -> [MetaKey]
-someKeysMT p = filter (p . metaKeyToText) allKeysMT
+someKeysMD :: (Text -> Bool) -> [MetaKey]
+someKeysMD p = filter (p . metaKeyToText) allKeysMD
 
-globKeysMT :: SP String -> [MetaKey]
-globKeysMT gp = someKeysMT p
+globKeysMD :: SP String -> [MetaKey]
+globKeysMD gp = someKeysMD p
   where
     p t = matchP gp (t ^. isoString)
 
-prettyMT :: MetaData -> [Text]
-prettyMT mt = zipWith (<:>) ks vs
+prettyMD :: MetaData -> [Text]
+prettyMD mt = zipWith (<:>) ks vs
   where
     kvs = toListMT mt
     ks  = T.fillRightList ' ' $ map (^. _1 . isoText) kvs

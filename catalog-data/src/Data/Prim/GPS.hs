@@ -29,7 +29,7 @@ data GPSpos' a =
   GPSpos { _gpsLat  :: !a
          , _gpsLong :: !a
          }
-  deriving Show
+  deriving (Eq, Show)
 
 type GPSposDeg = GPSpos' GPSdeg  -- GPS position (lat, long) in deg, min, sec, dir
 type GPSposDec = GPSpos' Double  -- GPS position (lat, long) in decimal degrees

@@ -23,6 +23,7 @@ library
                      Data.MetaData
                      Data.RefTree
                      Data.TextPath
+                     Data.Text.Fill
                      Data.Prim
                      Data.Prim.CheckSum
                      Data.Prim.CheckSumRes
