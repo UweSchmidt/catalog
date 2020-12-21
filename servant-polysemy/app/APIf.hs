@@ -18,7 +18,7 @@ import Servant
 import Data.Prim
 import Data.History  (HistoryID)
 import Data.ImgTree  (ImgNodeP)
-import Data.MetaData (MetaData, Rating)
+import Data.MetaData (MetaDataText, Rating)
 
 import qualified Data.Text as T
 
@@ -181,7 +181,7 @@ type JsonGetAPI
       :<|>
       "blogsource"      :> ParamPost Int Text
       :<|>
-      "metadata"        :> ParamPost Int MetaData
+      "metadata"        :> ParamPost Int MetaDataText
       :<|>
       "rating"          :> ParamPost Int Rating
       :<|>
@@ -216,9 +216,9 @@ type JsonModifyAPI
       :<|>
       "renamecol"            :> ParamPost Name ()
       :<|>
-      "setMetaData"          :> ParamPost ([Int], MetaData) ()
+      "setMetaData"          :> ParamPost ([Int], MetaDataText) ()
       :<|>
-      "setMetaData1"         :> ParamPost (Int, MetaData) ()
+      "setMetaData1"         :> ParamPost (Int, MetaDataText) ()
       :<|>
       "setRating"            :> ParamPost ([Int], Rating) ()
       :<|>

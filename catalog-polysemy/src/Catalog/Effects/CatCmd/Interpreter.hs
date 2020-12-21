@@ -59,7 +59,10 @@ import Data.Prim
 import Data.ImgNode
 import Data.Journal    ( Journal'(..) )
 import Data.MetaData   ( MetaData
+                       , MetaDataText
                        , metaDataAt
+                       , editMD
+                       , isoMDT
                        , lookupRating
                        , mkRating
                        , clearAccess
@@ -551,8 +554,15 @@ modify'renamecol newName i = do
 --
 -- set meta data fields for a list of selected collection entries
 
-modify'setMetaData :: Eff'ISEJL r => [Int] -> MetaData -> ImgNode -> Sem r ()
+modify'setMetaData :: Eff'ISEJL r
+                   => [Int] -> MetaDataText -> ImgNode -> Sem r ()
 modify'setMetaData ixs md n =
+  modify'setMetaData' ixs (editMD md) n
+
+
+modify'setMetaData' :: Eff'ISEJL r
+                    => [Int] -> (MetaData -> MetaData) -> ImgNode -> Sem r ()
+modify'setMetaData' ixs ed n =
   traverse_ setm $ toPosList ixs
   where
     cs = n ^. theColEntries
@@ -560,16 +570,25 @@ modify'setMetaData ixs md n =
     setm pos = maybe (return ()) sm $ cs ^? ix pos
       where
         sm = colEntry'
-             (adjustMetaData (md <>) . _iref)
-             (adjustMetaData (md <>)        )
+             (adjustMetaData ed . _iref)
+             (adjustMetaData ed        )
 
 -- set meta data fields for a collection or a single collection entry
 
 modify'setMetaData1 :: Eff'ISEJL r
-                    => Int -> MetaData -> ObjId -> ImgNode -> Sem r ()
+                    => Int -> MetaDataText -> ObjId -> ImgNode -> Sem r ()
 modify'setMetaData1 pos md oid n
-  | pos < 0   = adjustMetaData (md <>) oid      -- update coll  metadata
+  | pos < 0   = adjustMetaData ed oid           -- update coll  metadata
   | otherwise = modify'setMetaData ixs md n     -- update entry metadata
+  where
+    ed  = editMD md
+    ixs = replicate pos (0-1) ++ [1]
+
+modify'setMetaData1' :: Eff'ISEJL r
+                     => Int -> (MetaData -> MetaData) -> ObjId -> ImgNode -> Sem r ()
+modify'setMetaData1' pos ed oid n
+  | pos < 0   = adjustMetaData ed oid           -- update coll  metadata
+  | otherwise = modify'setMetaData' ixs ed n    -- update entry metadata
   where
     ixs = replicate pos (0-1) ++ [1]
 
@@ -577,17 +596,16 @@ modify'setMetaData1 pos md oid n
 
 modify'setRating :: Eff'ISEJL r => [Int] -> Rating -> ImgNode -> Sem r ()
 modify'setRating ixs r =
-  modify'setMetaData ixs (mkRating r)
+  modify'setMetaData' ixs (mkRating r <>)
 
 -- set the rating field for a collection or a single collection entry
 
 modify'setRating1 :: Eff'ISEJL r
                   => Int -> Rating -> ObjId -> ImgNode -> Sem r ()
 modify'setRating1 pos r oid n
-  | pos < 0   = modify'setMetaData1 pos md oid n
+  | pos < 0   = modify'setMetaData1' pos (mkRating r <>) oid n
   | otherwise = modify'setRating ixs r n
   where
-    md  = mkRating r
     ixs = replicate pos (0-1) ++ [1]
 
 -- --------------------
@@ -708,8 +726,8 @@ read'blogsource pos i n
 --
 -- get the meta data of a collection entry
 
-read'metadata :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaData
-read'metadata pos i n
+read'metadata' :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaData
+read'metadata' pos i n
   | pos < 0   = getMetaData i
   | otherwise = processColEntryAt
                 (\ (ImgRef i' _) -> getMetaData i')
@@ -717,11 +735,14 @@ read'metadata pos i n
                 pos
                 n
 
+read'metadata :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaDataText
+read'metadata pos i n = (^. isoMDT) <$> read'metadata' pos i n
+
 -- get the rating field of a collection entry
 
 read'rating :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r Rating
 read'rating pos i n =
-  lookupRating <$> read'metadata pos i n
+  lookupRating <$> read'metadata' pos i n
 
 -- get the rating field of all entries in a collection
 

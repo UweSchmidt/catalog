@@ -16,8 +16,9 @@ module Data.MetaData
   , metaDataAt
   , metaTextAt
   , metaTimeStamp
-
+  , editMD
   , filterByImgType
+  , isoMDT
 {-
 
   , MetaData
@@ -878,7 +879,7 @@ instance Monoid MetaData where
   mempty = MT IM.empty
 
 instance ToJSON MetaData where
-  toJSON m = J.toJSON [m ^. isoMTT]
+  toJSON m = J.toJSON [m ^. isoMDT]
 
 instance FromJSON MetaData where
   parseJSON = J.withArray "MetaData" $ \ v ->
@@ -886,7 +887,7 @@ instance FromJSON MetaData where
       1 -> parseTable (V.head v)
       _ -> mzero
     where
-      parseTable o = (isoMTT #) <$> parseJSON o
+      parseTable o = (isoMDT #) <$> parseJSON o
 
 -- lens combining insertMT and lookupMT
 metaDataAt :: MetaKey -> Lens' MetaData MetaValue
@@ -929,8 +930,8 @@ toListMT (MT m) = map (first toEnum) $ IM.toAscList m
 
 -- --------------------
 
-isoMTT :: Iso' MetaData MetaDataText
-isoMTT = iso mt2tt (flip editMT mempty)
+isoMDT :: Iso' MetaData MetaDataText
+isoMDT = iso mt2tt (flip editMD mempty)
 
 mt2tt :: MetaData -> MetaDataText
 mt2tt (MT m) = IM.foldlWithKey' ins HM.empty m
@@ -941,8 +942,8 @@ mt2tt (MT m) = IM.foldlWithKey' ins HM.empty m
         k = toEnum i
 
 
-editMT :: MetaDataText -> MetaData -> MetaData
-editMT m mt = HM.foldlWithKey' ins mt m
+editMD :: MetaDataText -> MetaData -> MetaData
+editMD m mt = HM.foldlWithKey' ins mt m
   where
     ins acc k0 v0
       | v0 == "-" =                      -- remove key from metadata
