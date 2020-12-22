@@ -736,17 +736,17 @@ function allCollectionPaths() {
 }
 
 function isWriteProtectedCollection(md) {
-    var acc = md["descr:Access"];
+    var acc = md["Descr:Access"];
     return acc && acc.search('no-write') >= 0;
 }
 
 function isNoDeleteCollection(md) {
-    var acc = md["descr:Access"];
+    var acc = md["Descr:Access"];
     return acc && acc.search('no-delete') >= 0;
 }
 
 function isNotSortableCollection(md) {
-    var acc = md["descr:Access"];
+    var acc = md["Descr:Access"];
     return acc && acc.search('no-sort') >= 0;
 }
 
@@ -786,7 +786,7 @@ function showNewCollection(path, colVal) {
         var sr = isNotSortableCollection(md);
         var nd = isNoDeleteCollection(md);
         var gn = collectionIsGenerated(o.path);
-        var ct = md["descr:Title"];
+        var ct = md["Descr:Title"];
 
         // add the tab panel
         var t = $('#prototype-tabpanel').children("div").clone();
@@ -1968,7 +1968,7 @@ function setMetaData() {
                  "TitleLatin"
                ];
     keys.forEach(function (e, i) {
-        var k =    'descr:' + e;
+        var k =    'Descr:' + e;
         var v = $('#descr-' + e).val();
         if (v && v.length > 0) {
             metadata[k] = v;
@@ -2031,28 +2031,28 @@ function fillMetaData1(md, args) {
     console.log(args);
 
     // insert fields into metadata edit form
-    var dt = md["descr:Title"] || "";
+    var dt = md["Descr:Title"] || "";
     console.log(dt);
     $('#descr-Title').val(dt);
-    var ds = md["descr:Subtitle"] || "";
+    var ds = md["Descr:Subtitle"] || "";
     $('#descr-Subtitle').val(ds);
-    var dte = md["descr:TitleEnglish"] || "";
+    var dte = md["Descr:TitleEnglish"] || "";
     $('#descr-TitleEnglish').val(dte);
-    var dtl = md["descr:TitleLatin"] || "";
+    var dtl = md["Descr:TitleLatin"] || "";
     $('#descr-TitleLatin').val(dtl);
-    var dr = md["descr:Rating"] || "";
+    var dr = md["Descr:Rating"] || "";
     $('#descr-Rating').val(dr);
-    var dc = md["descr:Comment"] || "";
+    var dc = md["Descr:Comment"] || "";
     $('#descr-Comment').val(dc);
-    var dgp = md["descr:GPSPosition"] || "";
+    var dgp = md["Descr:GPSPosition"] || "";
     $('#descr-GPSPosition').val(dgp);
-    var dlc = md["descr:Location"] || "";
+    var dlc = md["Descr:Location"] || "";
     $('#descr-Location').val(dlc);
-    var dk = md["descr:Keywords"] || "";
+    var dk = md["Descr:Keywords"] || "";
     $('#descr-Keywords').val(dk);
-    var dw = md["descr:Web"] || "";
+    var dw = md["Descr:Web"] || "";
     $('#descr-Web').val(dw);
-    var di = md["descr:Wikipedia"] || "";
+    var di = md["Descr:Wikipedia"] || "";
     $('#descr-Wikipedia').val(di);
 }
 
@@ -2338,11 +2338,11 @@ function buildImgCarousel(args, colVal) {
         .append(c);
 
     var clab = "";
-    var ttt  = md["descr:Title"];
+    var ttt  = md["Descr:Title"];
     if ( ttt ) {
         clab += "<h3>" + ttt + "<h3>"
     }
-    ttt  = md["descr:Subtitle"];
+    ttt  = md["Descr:Subtitle"];
     if ( ttt ) {
         clab += "<h4>" + ttt + "<h4>"
     }
