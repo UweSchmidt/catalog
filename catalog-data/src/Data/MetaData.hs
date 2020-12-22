@@ -871,8 +871,8 @@ instance FromJSON MetaDataText where
   parseJSON j =
     ( \ o -> MDT <$> parseJSON o    -- parse a {...} as Map Text Text
     ) j
-    <|>                             -- parse a [{...}] as Map Text Text
-                                    -- parse a wart
+    <|>                             -- old version: parse a [{...}] as Map Text Text
+                                    -- this is a wart, but donwards compatible
     ( J.withArray "[MetaDataText]" $ \ v ->
         case V.length v of
           1 -> parseJSON (V.head v)
@@ -880,8 +880,8 @@ instance FromJSON MetaDataText where
     ) j
 
 instance ToJSON MetaDataText where
-  toJSON (MDT m) = J.toJSON [m]     -- wrap a {...} into a [{...}]
-                                    -- this is a wart
+  toJSON (MDT m) = J.toJSON m
+
 -- --------------------
 --
 -- instances for MetaData

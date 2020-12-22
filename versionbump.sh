@@ -2,7 +2,7 @@
 
 # set -x
 
-version="0.3.5.4"
+version="0.4.0.0"
 dat=$(date "+%Y-%m-%d")
 
 LANG="en_US.UTF-8"
@@ -31,8 +31,6 @@ bump () {
     fi
 }
 
-# common lib
-bump catalog-data/catalog-data.cabal
 
 # polysemy based libs/execs
 bump polysemy-tools/polysemy-tools.cabal
@@ -40,13 +38,14 @@ bump catalog-polysemy/catalog-polysemy.cabal
 bump client-polysemy/client-polysemy.cabal
 bump servant-polysemy/servant-polysemy.cabal
 
-# mtl based libs/execs
-bump catalog-mtl/catalog-mtl.cabal
-bump catalog-servant/catalog-servant.cabal
-bump catalog-client/catalog-client.cabal
-bump catalog-client/app/Main.hs
+# mtl based libs/execs, no longer supported since 0.4.0.0
+# bump catalog-mtl/catalog-mtl.cabal
+# bump catalog-servant/catalog-servant.cabal
+# bump catalog-client/catalog-client.cabal
+# bump catalog-client/app/Main.hs
 
-
+# common libs and sources
+bump catalog-data/catalog-data.cabal
 bump catalog-data/src/Catalog/Version.hs
 bump data/assets/html/edit.html
 bump data/assets/html/edit-4.5.0.html
