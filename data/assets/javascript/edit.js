@@ -29,6 +29,30 @@ function initSystemCollections() {
     getServerVersion(openSystemCollections());
 }
 */
+
+function fromServerMetaData(md0) {
+    var md = md0;
+
+    if (serverVersion.version < "0.3.6") {
+        // meta data was wrapped into a single element list (why?)
+        if (md0.constructor === Array) {
+            md = md0[0];
+        }
+    }
+    return md;
+}
+
+function toServerMetaData(md0) {
+    var md = md0;
+
+    if (serverVersion.version < "0.3.6") {
+        // meta data has to be wrapped into a single element list (why?)
+        md = [md0];
+    }
+    return md;
+}
+
+
 // ----------------------------------------
 //
 // version test on bootstrap 4.5.0
@@ -711,18 +735,18 @@ function allCollectionPaths() {
     return colPaths;
 }
 
-function isWriteProtectedCollection(colVal) {
-    var acc = colVal.metadata[0]["descr:Access"];
+function isWriteProtectedCollection(md) {
+    var acc = md["descr:Access"];
     return acc && acc.search('no-write') >= 0;
 }
 
-function isNoDeleteCollection(colVal) {
-    var acc = colVal.metadata[0]["descr:Access"];
+function isNoDeleteCollection(md) {
+    var acc = md["descr:Access"];
     return acc && acc.search('no-delete') >= 0;
 }
 
-function isNotSortableCollection(colVal) {
-    var acc = colVal.metadata[0]["descr:Access"];
+function isNotSortableCollection(md) {
+    var acc = md["descr:Access"];
     return acc && acc.search('no-sort') >= 0;
 }
 
@@ -733,9 +757,11 @@ function showNewCollection(path, colVal) {
     insCol(path, colVal);
 
     // compute colId and colName from path
-    var o = splitPath(path);
+    var o  = splitPath(path);
+    var md = colVal.metadata;
     console.log(o);
     console.log(colVal);
+    console.log(md);
 
     var io = isAlreadyOpen(path);
 
@@ -756,11 +782,11 @@ function showNewCollection(path, colVal) {
         console.log(o);
 
         // no-write collection ?
-        var ro = isWriteProtectedCollection(colVal);
-        var sr = isNotSortableCollection(colVal);
-        var nd = isNoDeleteCollection(colVal);
+        var ro = isWriteProtectedCollection(md);
+        var sr = isNotSortableCollection(md);
+        var nd = isNoDeleteCollection(md);
         var gn = collectionIsGenerated(o.path);
-        var ct = colVal.metadata[0]["descr:Title"];
+        var ct = md["descr:Title"];
 
         // add the tab panel
         var t = $('#prototype-tabpanel').children("div").clone();
@@ -1929,10 +1955,17 @@ function setMetaData() {
      */
 
     var metadata = {};
-    var keys = ["Title", "Subtitle", "Comment",
-                "GPSPosition", "Location", "Rating",
-                "Keywords", "Web", "Wikipedia",
-                "TitleEnglish", "TitleLatin"
+    var keys = [ "Title",
+                 "Subtitle",
+                 "Comment",
+                 "GPSPosition",
+                 "Location",
+                 "Rating",
+                 "Keywords",
+                 "Web",
+                 "Wikipedia",
+                 "TitleEnglish",
+                 "TitleLatin"
                ];
     keys.forEach(function (e, i) {
         var k =    'descr:' + e;
@@ -1992,9 +2025,7 @@ function fillMetaData() {
 
 }
 
-function fillMetaData1(md0, args) {
-    // meta data is wrapped into a single element list (why?)
-    var md = md0[0];
+function fillMetaData1(md, args) {
     console.log('fillMetaData1');
     console.log(md);
     console.log(args);
@@ -2029,7 +2060,7 @@ function fillMetaData1(md0, args) {
 
 // check whether there is a marked entry
 // if not, it's a noop
-// else the real getMeta is performed
+// else the real getMetaData is performed
 
 function getMetaData0() {
     var cid  = activeCollectionId();
@@ -2058,9 +2089,7 @@ function getMetaData() {
     getMetaFromServer(o);
 }
 
-function showMetaData(md0, args) {
-    // meta data is wrapped into a single element list (why?)
-    var md = md0[0];
+function showMetaData(md, args) {
     console.log('showMetaData');
     console.log(md);
     console.log(args);
@@ -2105,8 +2134,11 @@ function imageCarousel() {
 }
 
 function buildImgCarousel(args, colVal) {
+    var md = colVal.metadata;
+
     console.log("buildImgCarousel: " + args.path);
     console.log(JSON.stringify(colVal));
+    console.log(md);
 
     if (colVal.entries.length == 0) {
         statusError("empty collection: " + args.path);
@@ -2306,11 +2338,11 @@ function buildImgCarousel(args, colVal) {
         .append(c);
 
     var clab = "";
-    var ttt  = colVal.metadata[0]["descr:Title"];
+    var ttt  = md["descr:Title"];
     if ( ttt ) {
         clab += "<h3>" + ttt + "<h3>"
     }
-    ttt  = colVal.metadata[0]["descr:Subtitle"];
+    ttt  = md["descr:Subtitle"];
     if ( ttt ) {
         clab += "<h4>" + ttt + "<h4>"
     }
@@ -2402,8 +2434,7 @@ function insertMovieRef0(ref, args) {
     getMovieMeta(args);
 }
 
-function insertMovieRef(res, args) {
-    var meta = res[0];
+function insertMovieRef(meta, args) {
     var ref  = args.movieRef;
     var geo  = meta["Composite:ImageSize"];
     var movW = meta["QuickTime:ImageWidth"];
@@ -2590,7 +2621,7 @@ function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
 
 function setMetaOnServer(path, ixs, metadata) {
     addHistCmd("set metadata in " + splitName(path));
-    modifyServer("setMetaData", path, [ixs, [metadata]],
+    modifyServer("setMetaData", path, [ixs, toServerMetaData(metadata)],
                  function () {
                      getColFromServer(path, refreshCollectionF);
                  });
@@ -2645,9 +2676,10 @@ function getHistoryFromServer(cont) {
 
 function getColFromServer(path, showCol) {
     readServer("collection", path,
-           function (col) {
-               showCol(path, col);
-           });
+               function (col) {
+                   col.metadata = fromServerMetaData(col.metadata);
+                   showCol(path, col);
+               });
 }
 
 function getIsWriteableFromServer(path, markWriteable) {
@@ -2679,7 +2711,9 @@ function fillMetaFromServer(args) {
     readServer1('metadata',
                 args.path,
                 args.pos,
-                function (res) { fillMetaData1(res, args); }
+                function (res) {
+                    fillMetaData1(fromServerMetaData(res), args);
+                }
                );
 }
 
@@ -2688,7 +2722,9 @@ function getMetaFromServer(args) {
     readServer1('metadata',
                 args.path,
                 args.pos,
-                function (res) { showMetaData(res, args); }
+                function (res) {
+                    showMetaData(fromServerMetaData(res), args);
+                }
                );
 }
 
@@ -2711,7 +2747,8 @@ function getPreviewRef(args) {
 }
 
 // --------------------
-// an example for callback hell: getMovieRef, insertMovieRef0, getMovieMeta, insertMovieRef
+// an example for callback hell:
+// getMovieRef, insertMovieRef0, getMovieMeta, insertMovieRef
 
 function getMovieRef(args) {
     var ref = args.path + "/pic-" + fmtIx(args.pos);
@@ -2729,7 +2766,9 @@ function getMovieMeta(args) {
     readServer1("metadata",
                 args.path,
                 args.pos,
-                function (res) { insertMovieRef(res, args);}
+                function (res) {
+                    insertMovieRef(fromServerMetaData(res), args);
+                }
                );
 }
 // --------------------

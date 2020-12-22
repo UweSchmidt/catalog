@@ -1182,6 +1182,8 @@ isoMetaValueText k = case k of
   EXIF'Orientation      -> metaOriText
   Img'Rating            -> metaText          -- used in genPages
   Img'EXIFUpdate        -> metaTimeStampText
+  QuickTime'ImageHeight -> metaIntText
+  QuickTime'ImageWidth  -> metaIntText
   XMP'Rating            -> metaRatingText
   Key'Unknown           -> iso (const mempty) (const mempty)
   _                     -> metaText
