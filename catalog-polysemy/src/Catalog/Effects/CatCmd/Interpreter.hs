@@ -59,8 +59,8 @@ import Data.Prim
 import Data.ImgNode
 import Data.Journal    ( Journal'(..) )
 import Data.MetaData   ( MetaData
-                       , MetaDataText
-                       , metaDataAt
+                       -- , MetaDataText
+                       -- , metaDataAt
                        , editMD
                        , isoMDT
                        , lookupRating

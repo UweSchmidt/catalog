@@ -5,7 +5,6 @@ module Data.Prim.Constants where
 import Data.Prim.Name
 import Data.Prim.Path
 import Data.Prim.Prelude
-import qualified Data.Text as T
 
 n'archive
   , n'albums
@@ -174,21 +173,6 @@ tt'day y m d =
           , y
           ]
   ^. isoText
-
--- access restrictions
-
-no'restr
-  , no'change
-  , no'delete, no'sort, no'write
-  , no'wrtdel, no'wrtsrt :: Text
-
-no'restr  = ""
-no'write  = "no-write"
-no'sort   = "no-sort"
-no'delete = "no-delete"
-no'change = T.unwords [no'delete, no'sort, no'write]
-no'wrtdel = T.unwords [no'delete, no'write]
-no'wrtsrt = T.unwords [no'sort, no'write]
 
 to'colandname
   , to'dateandtime

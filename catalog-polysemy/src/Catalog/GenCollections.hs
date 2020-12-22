@@ -36,11 +36,21 @@ import Catalog.TimeStamp      ( whatTimeIsIt )
 
 import Data.ImgTree
 import Data.MetaData          ( MetaData
+                              , Access
+
+                              , metaDataAt
                               , metaTextAt
+                              , metaAcc
+
                               , lookupCreate
                               , parseDate
                               , parseTime
                               , isoDateInt
+
+                              , no'change
+                              , no'delete
+                              , no'wrtdel
+                              , no'wrtsrt
 
                               , descrAccess     -- meta keys
                               , descrComment
@@ -53,7 +63,7 @@ import Data.Prim
 
 import qualified Data.IntMap     as IM
 import qualified Data.Sequence   as Seq
-import qualified Data.Text       as T
+import qualified Data.Text       as T (intercalate)
 
 -- ----------------------------------------
 --
@@ -99,7 +109,7 @@ genImportsCollection = genSysCollection no'change n'imports tt'imports
 genByDateCollection :: Eff'ISEJLT r => Sem r ()
 genByDateCollection = genSysCollection no'change n'bycreatedate tt'bydate
 
-genSysCollection :: Eff'ISEJLT r => Text -> Name -> Text -> Sem r ()
+genSysCollection :: Eff'ISEJLT r => Access -> Name -> Text -> Sem r ()
 genSysCollection a n'sys tt'sys = do
   ic <- getRootImgColId
   pc <- objid2path ic
@@ -370,7 +380,7 @@ setColBlogToFstTxtEntry rm i = do
 -- ----------------------------------------
 
 mkColMeta :: Eff'ISEJLT r
-          => Text -> Text -> Text -> Text -> Text -> Sem r MetaData
+          => Text -> Text -> Text -> Text -> Access -> Sem r MetaData
 mkColMeta t s c o a = mkColMeta' $ defaultColMeta t s c o a
 
 mkColMeta' :: Eff'ISEJLT r => MetaData -> Sem r MetaData
@@ -380,14 +390,14 @@ mkColMeta' md0 = do
   log'trc $ "mkColMeta: " <> toText md
   return md
 
-defaultColMeta :: Text -> Text -> Text -> Text -> Text -> MetaData
+defaultColMeta :: Text -> Text -> Text -> Text -> Access -> MetaData
 defaultColMeta t s c o a =
   mempty
   & metaTextAt descrTitle      .~ t
   & metaTextAt descrSubtitle   .~ s
   & metaTextAt descrComment    .~ c
   & metaTextAt descrOrderedBy  .~ o
-  & metaTextAt descrAccess     .~ a
+  & metaDataAt descrAccess     .~ metaAcc # a
 
 
 -- create collections recursively, similar to 'mkdir -p'
