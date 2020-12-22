@@ -372,25 +372,25 @@ descrTitle
 
 keysAttrCol :: [MetaKey]
 keysAttrCol@
-  [ descrTitle
-  , descrSubtitle
-  , descrTitleEnglish
-  , descrTitleLatin
-  , descrLocation
-  , descrKeywords
-  , descrWeb
-  , descrWikipedia
-  , descrGoogleMaps
-  , descrComment
-  , descrCreateDate
-  , descrOrderedBy
-  , descrAccess
-  , descrDuration
-  , descrRating
-  , descrGPSPosition
+  [ descrAccess
   , descrCatalogVersion
   , descrCatalogWrite
-  ] = [Descr'Title .. Descr'CatalogWrite]
+  , descrComment
+  , descrCreateDate
+  , descrDuration
+  , descrGPSPosition
+  , descrGoogleMaps
+  , descrKeywords
+  , descrLocation
+  , descrOrderedBy
+  , descrRating
+  , descrSubtitle
+  , descrTitle
+  , descrTitleEnglish
+  , descrTitleLatin
+  , descrWeb
+  , descrWikipedia
+  ] = [Descr'Access .. Descr'Wikipedia]
 
 exifArtist
   , exifBitsPerSample
@@ -455,14 +455,14 @@ fileDirectory
 keysAttrFile :: [MetaKey]
 keysAttrFile@
   [ fileDirectory
-  , fileFileSize
   , fileFileModifyDate
   , fileFileName
+  , fileFileSize
   , fileMIMEType
-  , fileRefRaw
   , fileRefImg
   , fileRefJpg
-  ] = [File'Directory .. File'RefJpg]
+  , fileRefRaw
+  ] = [File'Directory .. File'RefRaw]
 
 imgRating
   , imgEXIFUpdate :: MetaKey
@@ -509,22 +509,22 @@ keysAttrQuickTime@
   , quickTimeVideoFrameRate
   ] = [QuickTime'Duration .. QuickTime'VideoFrameRate]
 
-xmpGPSLatitude
-  , xmpGPSLongitude
+xmpFormat
   , xmpGPSAltitude
-  , xmpFormat
-  , xmpRawFileName
-  , xmpRating :: MetaKey
+  , xmpGPSLatitude
+  , xmpGPSLongitude
+  , xmpRating
+  , xmpRawFileName :: MetaKey
 
 keysAttrXmp :: [MetaKey]
 keysAttrXmp@
-  [ xmpGPSLatitude
-  , xmpGPSLongitude
+  [ xmpFormat
   , xmpGPSAltitude
-  , xmpFormat
-  , xmpRawFileName
+  , xmpGPSLatitude
+  , xmpGPSLongitude
   , xmpRating
-  ] = [XMP'GPSLatitude .. XMP'Rating]
+  , xmpRawFileName
+  ] = [XMP'Format .. XMP'RawFileName]
 
 -- ----------------------------------------
 
