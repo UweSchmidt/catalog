@@ -76,6 +76,12 @@ bsToMetaData =
              return mempty
          ) return
   .
-  J.eitherDecodeStrict'
+  either Left
+         (\ xs -> case xs of
+             [x] -> Right . (isoMDT #) . mdj2mdt $ x
+             _   -> Left "single element list expected"
+         )
+  .
+  J.eitherDecodeStrict' @ [MetaDataJSON]
 
 ------------------------------------------------------------------------

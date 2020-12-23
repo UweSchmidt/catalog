@@ -10,11 +10,13 @@ module Data.MetaData
   , MetaValue
   , MetaData
   , MetaDataText
+  , MetaDataJSON
   , Rating
   , Access
   , AccessRestr
 
   , isoMDT
+  , mdj2mdt
   , metaDataAt
   , metaTextAt
   , metaTimeStamp
@@ -22,7 +24,7 @@ module Data.MetaData
 
   , editMD
   , filterByImgType
-  , selectByKeys
+  , filterKeysMD
 
   , someKeysMD
   , globKeysMD
@@ -191,6 +193,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap.Strict  as IM
 import qualified Data.List           as L
 import qualified Data.Map            as M
+import qualified Data.Scientific     as SC
 import qualified Data.Text           as T
 import qualified Data.Text.Fill      as T
 import qualified Data.Vector         as V
@@ -471,7 +474,7 @@ keysAttrImg :: [MetaKey]
 keysAttrImg@
   [ imgRating
   , imgEXIFUpdate
-  ] = [ Img'Rating .. Img'EXIFUpdate]
+  ] = [Img'EXIFUpdate .. Img'Rating]
 
 makerNotesColorSpace
   , makerNotesDaylightSavings
@@ -527,25 +530,22 @@ keysAttrXmp@
   ] = [XMP'Format .. XMP'RawFileName]
 
 -- ----------------------------------------
-
+{-
 partByKey :: (MetaKey -> Bool) -> Iso' MetaData (MetaData, MetaData)
 partByKey p = iso part (uncurry (<>))
   where
     part = foldWithKeyMD f (mempty, mempty)
       where
         f k v acc
-          | p k       = acc & _1 %~ insertMD k v
-          | otherwise = acc & _2 %~ insertMD k v
-
-selectByKeys :: (MetaKey -> Bool) -> Lens' MetaData MetaData
-selectByKeys p = partByKey p . _1
-
+          | p k       = acc & _1 . metaDataAt k .~ v
+          | otherwise = acc & _2 . metaDataAt k .~ v
+-- -}
 
 -- filter meta data enries by image type
 
 filterByImgType :: ImgType -> MetaData -> MetaData
-filterByImgType ty md =
-  md ^. selectByKeys (`elem` ks)
+filterByImgType ty =
+  filterKeysMD (`elem` ks)
   where
     ks | isShowablePartOrRaw ty = ksRaw
        | isMeta              ty = ksXmp
@@ -635,6 +635,8 @@ lookupGPSposDeg =
 newtype MetaData  = MD (IM.IntMap MetaValue)
 
 newtype MetaDataText = MDT (M.Map Text Text)
+
+type MetaDataJSON = M.Map Text J.Value
 
 data MetaKey
   = Composite'Aperture
@@ -882,6 +884,23 @@ instance FromJSON MetaDataText where
 instance ToJSON MetaDataText where
   toJSON (MDT m) = J.toJSON m
 
+mdj2mdt :: MetaDataJSON -> MetaDataText
+mdj2mdt = MDT . M.map j2t
+  where
+    j2t :: J.Value -> Text
+    j2t (J.String t) = t
+    j2t (J.Number n) = showSc n ^. isoText
+    j2t _            = mempty
+
+    showSc n =
+      either showF showI $ SC.floatingOrInteger n
+      where
+        showF :: Double -> String
+        showF _ = show n
+
+        showI :: Integer -> String
+        showI = show
+
 -- --------------------
 --
 -- instances for MetaData
@@ -929,13 +948,13 @@ unionMD (MD m1) (MD m2) = MD $ IM.unionWith (<>) m1 m2
     mergeMV k1 v1 acc = insertMD k1 (v1 <> v2) acc
       where
         v2 = lookupMD k1 m2
--- -}
 
 foldWithKeyMD :: (MetaKey -> MetaValue -> a -> a) -> a -> MetaData -> a
 foldWithKeyMD f acc (MD m) =
   IM.foldlWithKey' f' acc m
   where
     f' acc' k' mv' = f (toEnum k') mv' acc'
+-- -}
 
 {-
 keysMD :: MetaData -> [MetaKey]
@@ -943,6 +962,9 @@ keysMD (MD m) = map toEnum $ IM.keys m
 -}
 toListMD :: MetaData -> [(MetaKey, MetaValue)]
 toListMD (MD m) = map (first toEnum) $ IM.toAscList m
+
+filterKeysMD :: (MetaKey -> Bool) -> MetaData -> MetaData
+filterKeysMD p (MD m) = MD $ IM.filterWithKey (\ i _v -> p $ toEnum i) m
 
 -- --------------------
 
@@ -1123,7 +1145,7 @@ metaAccessText = metaAccess . isoAccText
 isoKeywText :: Iso' [Text] Text
 isoKeywText = iso toT frT
   where
-    toT = T.intercalate ","
+    toT = T.intercalate ", "
     frT =
       filter (not . T.null)       -- remove empty words
       .

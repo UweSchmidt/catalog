@@ -41,7 +41,7 @@ import Data.MetaData ( MetaKey
                      , MetaData
                      , isoMDT
                      , metaTextAt
-                     , selectByKeys
+                     , filterKeysMD
                      , prettyMD
                      )
 
@@ -188,7 +188,7 @@ evalMediaPath p = do
 evalMetaData :: CCmdEffects r => PathPos -> [MetaKey] -> Sem r MetaData
 evalMetaData pp@(p, cx) keys = do
   log'trc $ untext ["evalMetaData:", from isoText . isoPathPos # pp]
-  r <- (\ mt ->  (isoMDT # mt) ^. selectByKeys (`elem` keys))
+  r <- (\ mt ->  (isoMDT # mt) & filterKeysMD (`elem` keys))
        <$>
        theMetaData (fromMaybe (-1) cx) p
   log'trc $ untext ["res =", show r ^. isoText]

@@ -26,13 +26,14 @@ import Catalog.CatEnv
 import Catalog.Effects
 import Catalog.ImgTree.Fold
 import Catalog.ImgTree.Access
-import Catalog.MetaData.Exif (setMD)
+import Catalog.MetaData.Exif   ( setMD )
 
 import Data.ImgNode
-import Data.MetaData         ( metaDataAt
-                             , metaTimeStamp
-                             , imgEXIFUpdate
-                             )
+import Catalog.Logging         ( trc'Obj )
+import Data.MetaData           ( metaDataAt
+                               , metaTimeStamp
+                               , imgEXIFUpdate
+                               )
 import Data.Prim
 
 -- ----------------------------------------
@@ -85,7 +86,9 @@ syncMetaData i = do
 
 syncMetaData' :: Eff'MDSync r => ObjId -> [ImgPart] -> Sem r ()
 syncMetaData' i ps = do
+  trc'Obj i $ "syncMetaData': " <> toText ps
   md   <-  getMetaData i
+  trc'Obj i $ "syncMetaData': " <> toText md
   let ts = md ^. metaDataAt imgEXIFUpdate . metaTimeStamp
   fu    <- (^. catForceMDU) <$> ask
   let update = fu || (ts < ps ^. traverse . theImgTimeStamp)

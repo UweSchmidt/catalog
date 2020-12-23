@@ -365,6 +365,8 @@ type ClassifiedNames = [ClassifiedName]
 syncImg :: Eff'Sync r
         => ObjId -> Path -> ClassifiedNames -> Sem r ()
 syncImg ip pp xs = do
+  trc'Obj i $ "syncImg: " <> toText (pp, xs)
+
   -- new image ?
   whenM (not <$> existsEntry i) $
     void $ mkImg ip n
@@ -374,7 +376,6 @@ syncImg ip pp xs = do
       msgPath p "syncImg: entry for image conflicts with directory entry:"
                 <> ", entry ignored"
 
-  -- trc'Obj i $ "syncImg: " <> toText (pp, xs)
 
   -- is there at least a jpg image
   -- a txt (something, that can be shown)
@@ -400,7 +401,7 @@ syncImg ip pp xs = do
 
 syncParts :: Eff'Sync r => ObjId -> Path -> Sem r ()
 syncParts i pp = do
-  -- trc'Obj i "syncParts: syncing img parts for "
+  trc'Obj i "syncParts: syncing img parts for "
   ps  <- getImgVals i (theParts . isoImgParts)
   ps' <- traverse syncPart ps
   adjustImg (const $ mkImgParts ps') i
