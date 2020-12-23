@@ -863,10 +863,7 @@ function insertEntries(colId, entries) {
     });
 
     // insert the ratings
-    getRatingsFromServer(path,
-                         function(ratings) {
-                             setAllRatingsInCollection(colId, ratings);
-                         });
+    getAllRatingsFromServer(colId);
 
     // set handler for showing edit buttons
     col.find('div.dia')
@@ -898,6 +895,7 @@ function insertEntries(colId, entries) {
             }
             setEntryMark(o.dia);
             setRating(newRating);
+            getAllRatingsFromServer(colId);
         });
 
     // set handler for button groups
@@ -2730,6 +2728,15 @@ function getMetaFromServer(args) {
 
 function getRatingFromServer(path, pos, setRating) {
     readServer1('rating', path, pos, setRating);
+}
+
+function getAllRatingsFromServer(colId) {
+    var path = collectionPath(colId);
+    getRatingsFromServer(path,
+                         function(ratings) {
+                             setAllRatingsInCollection(colId, ratings);
+                         });
+
 }
 
 // TODO: substitute getRatingFromServer for every picture

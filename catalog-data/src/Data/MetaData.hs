@@ -613,8 +613,8 @@ lookupRating mt =
   , xmpRating       -- XMP:Rating from LR
   ] mt ^. metaRating
 
-mkRating :: Rating -> MetaData
-mkRating r = mempty & metaDataAt descrRating .~ metaRating # r
+mkRating :: Rating -> MetaData -> MetaData
+mkRating r md = md & metaDataAt descrRating .~ metaRating # r
 
 {-
 lookupUpdateTime :: MetaData -> TimeStamp

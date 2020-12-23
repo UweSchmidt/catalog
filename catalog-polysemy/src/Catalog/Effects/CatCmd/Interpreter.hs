@@ -596,14 +596,14 @@ modify'setMetaData1' pos ed oid n
 
 modify'setRating :: Eff'ISEJL r => [Int] -> Rating -> ImgNode -> Sem r ()
 modify'setRating ixs r =
-  modify'setMetaData' ixs (mkRating r <>)
+  modify'setMetaData' ixs (mkRating r)
 
 -- set the rating field for a collection or a single collection entry
 
 modify'setRating1 :: Eff'ISEJL r
                   => Int -> Rating -> ObjId -> ImgNode -> Sem r ()
 modify'setRating1 pos r oid n
-  | pos < 0   = modify'setMetaData1' pos (mkRating r <>) oid n
+  | pos < 0   = modify'setMetaData1' pos (mkRating r) oid n
   | otherwise = modify'setRating ixs r n
   where
     ixs = replicate pos (0-1) ++ [1]
