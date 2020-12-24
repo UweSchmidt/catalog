@@ -31,10 +31,10 @@ import Prelude ()
 import Prelude.Compat
 
 -- polysemy and polysemy-tools
-import Polysemy.State.RunTMVar (createJobQueue)
+import Polysemy.State.RunTMVar ( createJobQueue )
 
 -- catalog-polysemy
-import Catalog.CatalogIO       (initImgStore)
+import Catalog.CatalogIO       ( initImgStore )
 import Catalog.CatEnv          ( CatEnv
                                , appEnvCat
                                , appEnvLogLevel

@@ -179,6 +179,13 @@ loadImgStore f = do
         "loadImgStore: JSON input corrupted: " <> sp
 
     Just st -> do
+      let md = st ^. theCatMetaData
+      log'verb $
+        "loadImgStore: catalog version " <>
+        md ^. metaTextAt descrCatalogVersion <>
+        " written at " <>
+        md ^. metaTextAt descrCatalogWrite
+
       put st
       journal $ LoadImgStore (f ^. isoString)
       -- make a "FS check" and throw away undefined refs
@@ -199,6 +206,9 @@ initImgRoot rootName colName dirName = do
 
 initImgStore :: Eff'CatIO r => Sem r ()
 initImgStore = do
+  log'verb $ "catalog-polysemy version " <> (isoString # version) <>
+             " from " <> (isoString # date)
+
   env <- ask
   initImgRoot n'archive n'collections n'photos
   loadImgStore (env ^. catJsonArchive)
