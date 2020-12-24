@@ -472,8 +472,8 @@ imgRating
 
 keysAttrImg :: [MetaKey]
 keysAttrImg@
-  [ imgRating
-  , imgEXIFUpdate
+  [ imgEXIFUpdate
+  , imgRating
   ] = [Img'EXIFUpdate .. Img'Rating]
 
 makerNotesColorSpace
