@@ -97,7 +97,7 @@ encodeJSON = J.encodePretty' conf
 saveImgStore :: Eff'CatIO r => TextPath -> Sem r ()
 saveImgStore p = do
   sp <- pxMountPath p
-  log'verb $ "saveImgStore: save state to " <> toText sp
+  log'info $ "store catalog into file " <> toText sp
 
   bs <- toBS
   writeFileLB sp bs
@@ -170,7 +170,7 @@ checkinImgStore cmt f = do
 loadImgStore :: Eff'CatIO r => TextPath -> Sem r ()
 loadImgStore f = do
   sp <- pxMountPath f
-  log'verb $ "loadImgStore: load State from " <> sp
+  log'info $ "load catalog from file " <> sp
   bs <- readFileLB sp
 
   case fromBS bs of
@@ -180,8 +180,8 @@ loadImgStore f = do
 
     Just st -> do
       let md = st ^. theCatMetaData
-      log'verb $
-        "loadImgStore: catalog version " <>
+      log'info $
+        "catalog loaded, version " <>
         md ^. metaTextAt descrCatalogVersion <>
         " written at " <>
         md ^. metaTextAt descrCatalogWrite
@@ -206,7 +206,7 @@ initImgRoot rootName colName dirName = do
 
 initImgStore :: Eff'CatIO r => Sem r ()
 initImgStore = do
-  log'verb $ "catalog-polysemy version " <> (isoString # version) <>
+  log'info $ "catalog-polysemy version " <> (isoString # version) <>
              " from " <> (isoString # date)
 
   env <- ask

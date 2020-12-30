@@ -4,6 +4,7 @@ module Options.Applicative.LogLevel
   , optQuiet
   , optErr
   , optWarn
+  , optInfo
   , optVerb
   , optTrc
   , optDbg
@@ -29,7 +30,7 @@ optErr :: Parser LogLevel
 optErr =
   flag' LogErr
   ( long "errors"
-    <> help "Only error messages (default)"
+    <> help "Only error messages"
   )
 
 optWarn :: Parser LogLevel
@@ -40,12 +41,12 @@ optWarn =
     <> help "Only errors and warnings"
   )
 
-optLog :: Parser LogLevel
-optLog =
-  flag' LogLog
-  ( long "log-messages"
-    <> short 'l'
-    <> help "Only errors and warnings"
+optInfo :: Parser LogLevel
+optInfo =
+  flag' LogInfo
+  ( long "info"
+    <> short 'i'
+    <> help "Info, error and warning messages (default)"
   )
 
 optVerb :: Parser LogLevel
@@ -73,9 +74,9 @@ optDbg =
 
 optLogLevel :: Parser LogLevel
 optLogLevel =
-  optDbg <|> optTrc <|> optVerb <|> optLog <|> optWarn <|> optErr <|> optQuiet
+  optDbg <|> optTrc <|> optVerb <|> optInfo <|> optWarn <|> optErr <|> optQuiet
   <|>
-  pure LogErr
+  pure LogInfo
 
 
 ----------------------------------------

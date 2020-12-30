@@ -191,7 +191,7 @@ runLogQ lev qu t =
   runM
   . logToBGQueue qu
   . logWithLevel lev
-  $ log'log t
+  $ log'info t
 
 {-# INLINE runLogQ #-}
 

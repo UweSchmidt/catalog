@@ -118,7 +118,11 @@ cmdClient = subparser $
   <>
   command "download"
     ( ( let dl reqtype' geo' dest' seqno' overwrite' path'
-              = CcDownload path' reqtype' geo' dest' seqno' overwrite'
+              = CcDownload path' reqtype' geo' dest'' seqno' overwrite'
+                where
+                  dest''
+                    | isempty dest' = lastPath path' ^. isoText
+                    | otherwise     = dest'
 
             img'variants :: String
             img'variants =
@@ -127,27 +131,28 @@ cmdClient = subparser $
         <$> option imgReqReader
             ( long "variant"
               <> short 'i'
+              <> value RImg
+              <> metavar "IMG-VARIANT"
               <> help ( "The image variant, one of ["
                         <> img'variants
                         <> "], default: img."
                       )
-              <> value RImg
-              <> metavar "IMG-VARIANT"
             )
         <*> option geoReader
             ( long "geometry"
               <> short 'g'
-              <> help "The image geometry: <width>x<height> or org (original size)."
               <> value (Geo 1 1)
               <> metavar "GEOMETRY"
+              <> help "The image geometry: <width>x<height> or org (original size)."
             )
         <*> strOption
             ( long "dest"
               <> short 'd'
               <> metavar "DOWNLOAD-DIR"
-              <> showDefault
-              <> value "."
-              <> help "The dir to store downloads."
+              <> value ""
+              <> help ("The dir to store downloads"
+                       <> " (default: ./<last collection name in PATH>)"
+                      )
             )
         <*> flag False True
             ( long "with-seq-no"

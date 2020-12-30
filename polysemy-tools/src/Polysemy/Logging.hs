@@ -23,7 +23,7 @@ module Polysemy.Logging
   , log'       -- log message with level
   , log'err    -- 0: errors
   , log'warn   -- 1: warnings
-  , log'log    -- 2: logging messages
+  , log'info   -- 2: info messages
   , log'verb   -- 3: verbose messages
   , log'trc    -- 4: trace messages
   , log'dbg    -- 5: debug messages
@@ -64,13 +64,13 @@ import           System.IO    ( Handle
 
 newtype LogMsg = LogMsg {logMsgToText :: Text}
 
-data LogLevel = LogNull | LogErr | LogWarn | LogLog | LogVerb | LogTrc | LogDbg
+data LogLevel = LogNull | LogErr | LogWarn | LogInfo | LogVerb | LogTrc | LogDbg
   deriving (Eq, Ord)
 
 prettyLogLevel :: LogLevel -> Text
 prettyLogLevel LogErr  = "error:   "
 prettyLogLevel LogWarn = "warning: "
-prettyLogLevel LogLog  = "log:     "
+prettyLogLevel LogInfo = "info:    "
 prettyLogLevel LogVerb = "verbose: "
 prettyLogLevel LogTrc  = "trace:   "
 prettyLogLevel LogDbg  = "debug:   "
@@ -134,23 +134,23 @@ noLoggingAtAll =
 
 log'err
   , log'warn
-  , log'log
+  , log'info
   , log'verb
   , log'trc
   , log'dbg :: Member Logging r => Text -> Sem r ()
 log'err  = log' LogErr  . LogMsg
 log'warn = log' LogWarn . LogMsg
-log'log  = log' LogLog  . LogMsg
+log'info = log' LogInfo . LogMsg
 log'verb = log' LogVerb . LogMsg
 log'trc  = log' LogTrc  . LogMsg
 log'dbg  = log' LogDbg  . LogMsg
 
-{-# INLINE log'err #-}
+{-# INLINE log'err  #-}
 {-# INLINE log'warn #-}
-{-# INLINE log'log #-}
+{-# INLINE log'info #-}
 {-# INLINE log'verb #-}
-{-# INLINE log'trc #-}
-{-# INLINE log'dbg #-}
+{-# INLINE log'trc  #-}
+{-# INLINE log'dbg  #-}
 
 untext :: [Text] -> Text
 untext = T.unwords
