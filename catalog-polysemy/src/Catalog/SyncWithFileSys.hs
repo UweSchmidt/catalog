@@ -47,9 +47,9 @@ import Catalog.TimeStamp       ( whatTimeIsIt, lastModified )
 import Data.ImgTree
 import Data.MetaData
 import Data.Prim
-import Data.TextPath
-
-import qualified Data.Text as T
+import Data.TextPath           ( ClassifiedName
+                               , classifyPaths
+                               )
 
 -- ----------------------------------------
 
@@ -328,7 +328,7 @@ collectDirCont i = do
   log'trc $ "collectDirCont: entries found " <> toText es
 
   let (others, rest) =
-        partition (hasImgType isempty) es
+        partition (hasImgType isOther) es
   let (subdirs, rest2) =
         partition (hasImgType isImgSubDir) rest
   let (imgfiles, rest3) =
@@ -359,7 +359,6 @@ collectDirCont i = do
 
 -- ----------------------------------------
 
-type ClassifiedName  = (Name, (Name, ImgType))
 type ClassifiedNames = [ClassifiedName]
 
 syncImg :: Eff'Sync r
@@ -451,9 +450,7 @@ parseDirCont p = do
     classifyNames =
       partition (hasImgType (not . isJpgSubDir)) -- select jpg img subdirs
       .
-      filter    (hasImgType (not . isBoring))    -- remove boring stuff
-      .
-      map ((isoText #) &&& textPathToImgType)
+      classifyPaths
 
 
 parseImgSubDirCont :: (EffFileSys r, EffLogging r, EffCatEnv r)
@@ -468,13 +465,14 @@ parseImgSubDirCont p nm = do
       log'verb $ "parseImgSubDirCont: not a directory: " <> toText sp
       return []
   where
+    nt = nm ^. isoText <> "/"
 
     classifyNames =
       filter (\ n -> isShowablePart (n ^. _2 . _2))
       .
-      map (\ n -> let dn = nm ^. isoText <> "/" <> n
-                  in (isoText # dn, textPathToImgType dn)
-          )
+      classifyPaths
+      .
+      map (nt <>)
 
 hasImgType :: (ImgType -> Bool) -> ClassifiedName -> Bool
 hasImgType p = p . snd . snd
@@ -497,23 +495,11 @@ partClassifiedNames = unfoldr part . sortBy (compare `on` (^. key))
 
     part1 x1 []             = ([x1], [])
     part1 x1 xs@(x2 : xs')
-      | k1 `equiv` k2  = part1 x2' xs' & _1 %~ (x1 :)
+      | k1 == k2  = part1 x2' xs' & _1 %~ (x1 :)
       | otherwise      = ([x1], xs)
       where
         k1    = x1 ^. key
         k2    = x2 ^. key
         x2'   = x2 &  key .~ k1
-
-        equiv n1 n2 =
-          n1 == n2
-          ||
-          ( s1 `T.isPrefixOf` s2
-            &&
-            T.null (dropVirtualCopyNo (T.drop (T.length s1) s2))
-          )
-          -- equality relative to virtual copy no
-          where
-            s1 = n1 ^. isoText
-            s2 = n2 ^. isoText
 
 ------------------------------------------------------------------------

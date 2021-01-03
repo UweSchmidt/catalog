@@ -11,10 +11,10 @@ import           Data.Prim.Prelude
 type NameImgType = (Name, ImgType)
 
 data ImgType =
-  IMGraw   | IMGmeta   | IMGjson   | IMGjpg    |
-  IMGimg   | IMGcopy   | IMGimgdir | IMGjpgdir |
-  IMGother | IMGboring | IMGhugin  | IMGdxo    |
-  IMGtxt   | IMGdng    | IMGmovie
+  IMGraw    | IMGmeta   | IMGjpg | IMGimg |
+  IMGimgdir | IMGjpgdir |
+  IMGtxt    | IMGmovie  |
+  IMGother  | IMGboring
 
 deriving instance Eq   ImgType
 deriving instance Ord  ImgType
@@ -27,7 +27,7 @@ instance ToJSON ImgType where
 
 instance FromJSON ImgType where
   parseJSON o = read <$> parseJSON o
-
+{-
 instance Semigroup ImgType where
   IMGother <> t2 = t2
   t1       <> _  = t1
@@ -38,6 +38,7 @@ instance Monoid ImgType where
 
 instance IsEmpty ImgType where
   isempty = (== IMGother)
+-- -}
 
 -- is .jpg file
 isJpg :: ImgType -> Bool
@@ -53,6 +54,12 @@ isImg _      = False
 isTxt :: ImgType -> Bool
 isTxt IMGtxt = True
 isTxt _      = False
+
+-- is other file
+isOther :: ImgType -> Bool
+isOther IMGother  = True
+isOther IMGboring = True
+isOther _         = False
 
 -- is sub dir with images developed as .jpg
 isJpgSubDir :: ImgType -> Bool
@@ -70,8 +77,8 @@ isRawMeta ty = ty `elem` [IMGraw, IMGmeta, IMGmovie]
 
 -- file, that is stored as part of an image entry
 isAnImgPart :: ImgType -> Bool
-isAnImgPart ty = ty `elem` [ IMGraw, IMGmeta, IMGjson
-                           , IMGjpg, IMGimg,  IMGcopy
+isAnImgPart ty = ty `elem` [ IMGraw, IMGmeta
+                           , IMGjpg, IMGimg
                            , IMGtxt, IMGmovie
                            ]
 

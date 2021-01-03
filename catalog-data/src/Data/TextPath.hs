@@ -27,41 +27,12 @@
 -- as input
 
 module Data.TextPath
-  ( textPathToImgType
-  , textPathToExt
-  , dropVirtualCopyNo
-  , splitAbsPath
-  , joinAbsPath
-  , splitExt
-  , joinExt
-  , splitDirFileExt
-  , splitDirFileExt2
-  , matchExt
-  , matchExts
-
-  , imgTypeExt
-  , extImg
-  , extJpg
-  , extTxt
-  , extVideo
-  , extRaw
-  , extDng
-  , extMeta
-  , extDxO
-  , extPto
-  , extJson
-
-  , imgFiles
-  , jpgFiles
-  , txtFiles
-  , movieFiles
-  , rawFiles
-  , dngFiles
-  , metaFiles
-  , dxoFiles
-  , huginFiles
-  , jsonFiles
+  ( TextPath
+  , ClassifiedName
+  , classifyPath
+  , classifyPaths
   , pathName2ImgType
+
   , addExt
   , addJpg
 
@@ -73,16 +44,17 @@ module Data.TextPath
   , ymdNameMb
   , baseNameMb
 
-  , F.splitLast
-  , F.joinLast
-
   , (<//>)
   )
 where
 
 import Data.Prim
 
-import qualified Data.FilePath    as F
+import qualified Data.FilePath    as F ( splitPathNameExtTypeD
+                                       , addJpg
+                                       , ymdNameMb
+                                       , baseNameMb
+                                       )
 
 import qualified Data.Text        as T
 import qualified System.FilePath  as FP
@@ -91,137 +63,20 @@ import qualified System.FilePath  as FP
 
 type TextPath = Text
 
--- ----------------------------------------
---
--- the main entry points to file path classification
---
--- used in syncing catalog with file system
+type ClassifiedName = (Name, (Name, ImgType))
 
-textPathToImgType :: TextPath -> NameImgType
-textPathToImgType = F.filePathToImgType . T.unpack
+-- classify paths: compute base name and type
+-- and remove boring names
+classifyPaths :: [TextPath] -> [ClassifiedName]
+classifyPaths = filter (not . isBoring . snd . snd) . map classifyPath
 
-
-textPathToExt :: ImgType -> TextPath -> Name
-textPathToExt ty = F.filePathToExt ty . T.unpack
-
--- ----------------------------------------
-
-dropVirtualCopyNo :: Text -> Text
-dropVirtualCopyNo s = s & isoString %~ F.dropVirtualCopyNo
-
--- ----------------------------------------
-
-splitAbsPath :: TextPath -> Maybe [Text]
-splitAbsPath p =  fmap T.pack <$> F.splitAbsPath (T.unpack p)
-
-joinAbsPath :: [Text] -> TextPath
-joinAbsPath = mconcat . map ("/" <>)
-
--- --------------------
-
--- split a filename into basename and list of extensions
---
--- splitExt "abc.def"     -> Just ["abc", ".def"]
--- splitExt "abc.def.ghi" -> Just ["abc", ".def", ".ghi"]
--- splitExt "abc"         -> Nothing
--- splitExt "abc"         -> Nothing
--- splitExt ".iii"        -> Nothing
--- splitExt "abc..ii"     -> Nothing
-
-splitExt :: TextPath -> Maybe [Text]
-splitExt p =
-  (fmap T.pack) <$> F.splitExt (T.unpack p)
-
-joinExt :: [Text] -> Text
-joinExt = mconcat
-
--- splitDirFileExt "/xxx/abc.jpg" -> Just ("/xxx","abc",".jpg")
--- splitDirFileExt "/abc.jpg"     -> Just ("","abc",".jpg")
--- splitDirFileExt "/abc.txt.jpg" -> Just ("","abc.txt",".jpg")
-
-splitDirFileExt :: TextPath -> Maybe (TextPath, TextPath, Text)
-splitDirFileExt p =
-  (map3 T.pack) <$> F.splitDirFileExt (T.unpack p)
+classifyPath :: TextPath -> ClassifiedName
+classifyPath tp = (isoText # tp, (isoString # bn, imgType))
   where
-    map3 f (x1, x2, x3) = (f x1, f x2, f x3)
-
-
--- splitDirFileExt2 "/abc.txt.jpg" -> Just ("","abc",".jpg",".txt")
--- splitDirFileExt2 "/abc.jpg"     -> Nothing
-
-splitDirFileExt2 :: TextPath -> Maybe (TextPath, TextPath, Text, Text)
-splitDirFileExt2 p =
-  (map4 T.pack) <$> F.splitDirFileExt2 (T.unpack p)
-  where
-    map4 f (x1, x2, x3, x4) = (f x1, f x2, f x3, f x4)
-
-matchExt :: ImgType -> Text -> TextPath -> Maybe ImgType
-matchExt ty ex p = F.matchExt ty (T.unpack ex) (T.unpack p)
-
-matchExts :: ImgType -> [Text] -> TextPath -> Maybe ImgType
-matchExts ty exs p = F.matchExts ty (fmap T.unpack exs) (T.unpack p)
-
-
--- used in servant server
-
-extImg
-  , extJpg
-  , extTxt
-  , extVideo
-  , extRaw
-  , extDng
-  , extMeta
-  , extDxO
-  , extPto
-  , extJson :: Text -> Maybe ImgType
-
-[ extImg
-  , extJpg
-  , extTxt
-  , extVideo
-  , extRaw
-  , extDng
-  , extMeta
-  , extDxO
-  , extPto
-  , extJson
-  ] = map (uncurry matchExts) imgTypeExt
-
--- sort extensions by length: ".tiff" before ".tif"
--- else backtracking with try does not work properly
-
-imgTypeExt :: [(ImgType, [Text])]
-imgTypeExt = fmap (second (fmap T.pack)) F.imgTypeExt
-
-
-lookupExt :: ImgType -> [Text]
-lookupExt = fmap T.pack . F.lookupExt
-
-imgFiles
-  , jpgFiles
-  , txtFiles
-  , movieFiles
-  , rawFiles
-  , dngFiles
-  , metaFiles
-  , dxoFiles
-  , huginFiles
-  , jsonFiles :: [Text]
-
-imgFiles   = lookupExt IMGimg
-jpgFiles   = lookupExt IMGjpg
-txtFiles   = lookupExt IMGtxt
-movieFiles = lookupExt IMGmovie
-rawFiles   = lookupExt IMGraw
-dngFiles   = lookupExt IMGdng
-metaFiles  = lookupExt IMGmeta
-dxoFiles   = lookupExt IMGdxo
-huginFiles = lookupExt IMGhugin
-jsonFiles  = lookupExt IMGjson
-
+    ((_p, (bn, _bx), _ex), imgType) = F.splitPathNameExtTypeD (tp ^. isoString)
 
 pathName2ImgType :: TextPath -> ImgType
-pathName2ImgType = F.fileName2ImgType . T.unpack
+pathName2ImgType = snd . snd . classifyPath
 
 -- ----------------------------------------
 --
@@ -267,3 +122,21 @@ baseNameMb p =
   fmap T.pack $ F.baseNameMb (T.unpack p)
 
 ------------------------------------------------------------------------------
+{-
+
+testC :: IO ()
+testC = do
+  c <- readFile "/Users/uwe/tmp/tnames"
+  sequence_ $ map putStrLn (toC c)
+
+toC :: String -> [String]
+toC c = map fmt . sortBy cmp $ map classifyPath ts
+  where
+    ts :: [TextPath]
+    ts = map (isoString #) $ lines c
+
+    fmt (n, (bn, t)) = unwords [show bn, show n, show t]
+    cmp = (compare `on` (^. _2 . _1))
+          <>
+          (compare `on` (^. _1))
+--  -}

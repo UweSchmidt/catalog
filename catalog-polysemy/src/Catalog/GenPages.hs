@@ -940,7 +940,7 @@ orgName :: ImgParts -> Maybe Name
 orgName pts =
   pts  ^? thePartNames' (`elem` [IMGraw, IMGmovie, IMGtxt])
   <|>
-  pts  ^? thePartNames' (`elem` [IMGimg, IMGdng])
+  pts  ^? thePartNames' (== IMGimg)
   <|>
   ( listToMaybe $
     L.sortBy (compare `on` nameLen) (pts ^.. thePartNames' isJpg)

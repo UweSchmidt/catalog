@@ -96,6 +96,28 @@ manyChars = many anySingle
 someChars :: SP String
 someChars = some anySingle
 
+lowerOrUpperCaseWord :: String -> SP String
+lowerOrUpperCaseWord w =
+  try (string $ map toLower w)
+  <|>
+  try (string $ map toUpper w)
+
+noCaseWord :: String -> SP String
+noCaseWord w = try $
+  traverse noCaseChar w
+
+noCaseChar :: Char -> SP Char
+noCaseChar c = satisfy (\ x -> x == toLower c || x == toUpper c)
+
+ntimes :: Int -> SP a -> SP [a]
+ntimes n p = foldr f (return []) $ replicate n p
+  where
+    p' `f` ps' = (:) <$> p' <*> ps'
+
+atleast'ntimes :: Int -> SP a -> SP [a]
+atleast'ntimes n p = (<>) <$> ntimes n p <*> many p
+
+
 -- --------------------
 
 sedParser :: (a -> String) -> SP a -> SP String
