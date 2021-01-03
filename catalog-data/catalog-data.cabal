@@ -14,7 +14,8 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
 
-  exposed-modules:   Data.FilePath
+  exposed-modules:   Data.ColEntrySet
+                     Data.FilePath
                      Data.History
                      Data.ImgNode
                      Data.ImgTree

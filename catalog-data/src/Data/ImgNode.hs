@@ -15,8 +15,6 @@ module Data.ImgNode
        , ImgRef
        , ColEntry'(..)
        , ColEntries'
-       , ColEntrySet'
-       , ColEntrySet
        , DirEntries'
        , mkImgParts
        , mkImgPart
@@ -67,14 +65,6 @@ module Data.ImgNode
        , addDirEntry
        , delDirEntry
        , delColEntry
-       , memberColEntrySet
-       , singletonColEntrySet
-       , fromListColEntrySet
-       , fromSeqColEntrySet
-       , toListColEntrySet
-       , toSeqColEntrySet
-       , diffColEntrySet
-       , intersectColEntrySet
        , ObjIds
        , singleObjId
        , isWriteableCol
@@ -576,57 +566,6 @@ delColEntry :: (Eq ref) => ref -> ColEntries' ref -> ColEntries' ref
 delColEntry r =
     Seq.filter (\ ce -> ce ^. theColObjId /= r)
 {-# INLINE delColEntry #-}
-
-
--- ----------------------------------------
-
-newtype ColEntrySet' ref = CES (Set (ColEntry' ref))
-
-type    ColEntrySet      = ColEntrySet' ObjId
-
-deriving instance (Show ref) => Show (ColEntrySet' ref)
-
-instance Ord ref => Semigroup (ColEntrySet' ref) where
-  CES s1 <> CES s2 = CES $ s1 `S.union` s2
-
-instance Ord ref => Monoid (ColEntrySet' ref) where
-  mempty  = CES S.empty
-  mappend = (<>)
-
-instance IsEmpty (ColEntrySet' ref) where
-  isempty (CES s) = S.null s
-
-singletonColEntrySet :: ColEntry' ref -> ColEntrySet' ref
-singletonColEntrySet = CES . S.singleton
-
-fromListColEntrySet :: Ord ref => [ColEntry' ref] -> ColEntrySet' ref
-fromListColEntrySet = CES . S.fromList
-
-fromSeqColEntrySet :: Ord ref => ColEntries' ref -> ColEntrySet' ref
-fromSeqColEntrySet cs = CES $ foldMap S.singleton cs
-
-toListColEntrySet :: ColEntrySet' ref -> [ColEntry' ref]
-toListColEntrySet (CES s) = S.toList s
-
-toSeqColEntrySet :: ColEntrySet' ref -> ColEntries' ref
-toSeqColEntrySet (CES s) = foldMap Seq.singleton s
-
-memberColEntrySet :: Ord ref
-                  => ColEntry' ref
-                  -> ColEntrySet' ref -> Bool
-memberColEntrySet ce (CES s) = ce `S.member` s
-
-diffColEntrySet :: Ord ref
-                => ColEntrySet' ref
-                -> ColEntrySet' ref
-                -> ColEntrySet' ref
-CES s1 `diffColEntrySet` CES s2 = CES $ s1 `S.difference` s2
-
-intersectColEntrySet :: Ord ref
-                     => ColEntrySet' ref
-                     -> ColEntrySet' ref
-                     -> ColEntrySet' ref
-CES s1 `intersectColEntrySet` CES s2 = CES $ s1 `S.intersection` s2
 
 -- ----------------------------------------
 

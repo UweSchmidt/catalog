@@ -35,6 +35,9 @@ import Catalog.ImgTree.Fold
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
 
+import Data.ColEntrySet ( ColEntrySet
+                        , memberColEntrySet
+                        )
 import Data.ImgTree
 import Data.MetaData
 import Data.Prim

@@ -29,6 +29,7 @@
 module Data.TextPath
   ( TextPath
   , ClassifiedName
+  , ClassifiedNames
   , classifyPath
   , classifyPaths
   , pathName2ImgType
@@ -61,9 +62,11 @@ import qualified System.FilePath  as FP
 
 ------------------------------------------------------------------------------
 
-type TextPath = Text
+-- alias for filepaths as Text values
+type TextPath        = Text
 
-type ClassifiedName = (Name, (Name, ImgType))
+type ClassifiedName  = (Name, (Name, ImgType))
+type ClassifiedNames = [ClassifiedName]
 
 -- classify paths: compute base name and type
 -- and remove boring names

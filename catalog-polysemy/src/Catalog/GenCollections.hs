@@ -34,6 +34,10 @@ import Catalog.Logging
 import Catalog.CopyRemove     ( removeEmptyColls )
 import Catalog.TimeStamp      ( whatTimeIsIt )
 
+import Data.ColEntrySet       ( ColEntrySet
+                              , singletonColEntrySet
+                              , toSeqColEntrySet
+                              )
 import Data.ImgTree
 import Data.MetaData          ( MetaData
                               , Access

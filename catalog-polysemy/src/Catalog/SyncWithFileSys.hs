@@ -44,10 +44,15 @@ import Catalog.MetaData.Sync   ( syncMetaData )
 import Catalog.TextPath        ( toFileSysTailPath )
 import Catalog.TimeStamp       ( whatTimeIsIt, lastModified )
 
+import Data.ColEntrySet        ( ColEntrySet
+                               , fromListColEntrySet
+                               , diffColEntrySet
+                               )
 import Data.ImgTree
 import Data.MetaData
 import Data.Prim
 import Data.TextPath           ( ClassifiedName
+                               , ClassifiedNames
                                , classifyPaths
                                )
 
@@ -96,7 +101,7 @@ allColEntries =
       iss            <- traverse go (crs ^.. traverse . theColColRef)
       return         $  foldl' (<>) (fromListColEntrySet $ imref <> beref <> irs) iss
 
-    -- jump from the dir hierachy to the assosiated collection hierarchy
+    -- jump from the dir hierachy to the associated collection hierarchy
     dirA  go i _es  _ts = do
       p <- objid2path i
       log'verb $ msgPath p "allColEntries: "
@@ -358,8 +363,6 @@ collectDirCont i = do
       dirExist sp
 
 -- ----------------------------------------
-
-type ClassifiedNames = [ClassifiedName]
 
 syncImg :: Eff'Sync r
         => ObjId -> Path -> ClassifiedNames -> Sem r ()
