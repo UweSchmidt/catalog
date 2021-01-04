@@ -487,15 +487,12 @@ theColObjId k (ImgEnt (ImgRef i n)) = (\ new -> ImgEnt (ImgRef new n)) <$> k i
 theColObjId k (ColEnt i           ) =           ColEnt                 <$> k i
 {-# INLINE theColObjId #-}
 
--- theImgName :: Lens' ImgPart Name
--- theImgName k (IP n t s c) = (\ new -> IP new t s c) <$> k n
-
-theColImgRef :: Prism' (ColEntry' ref) (ref, Name)
+theColImgRef :: Prism' (ColEntry' ref) (ImgRef' ref)
 theColImgRef =
-  prism (\ (i, n) -> ImgEnt (ImgRef i n))
+  prism (\ ir -> ImgEnt ir)
         (\ x -> case x of
-                  ImgEnt (ImgRef i n) -> Right (i, n)
-                  _                   -> Left  x
+                  ImgEnt ir -> Right ir
+                  _         -> Left  x
         )
 {-# INLINE theColImgRef #-}
 

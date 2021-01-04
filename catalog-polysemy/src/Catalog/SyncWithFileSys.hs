@@ -60,6 +60,10 @@ import Data.TextPath           ( ClassifiedName
                                , classifyPaths
                                )
 
+import           Data.Map.Strict (Map)
+import           Data.Set        (Set)
+import qualified Data.Map.Strict as M
+import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
 
 -- ----------------------------------------
@@ -73,6 +77,66 @@ type Eff'Sync r = ( EffIStore   r   -- any effects missing?
                   , EffExecProg r
                   , EffFileSys  r
                   )
+
+-- ----------------------------------------
+--
+-- collect all ImgRef's used in a collection
+
+type ImgRefMap = Map ObjId (Set ImgRef)
+
+-- edit ImgRef's in a collection
+-- value is Nothing: delete ref
+-- value is Just ir: substitute ref by ir
+
+type ImgRefUpdateMap = Map ObjId (Map ImgRef (Maybe ImgRef))
+
+collectImgRefs' :: Eff'ISEL r
+                   => Path -> Sem r ImgRefMap
+collectImgRefs' p = do
+  log'verb $ msgPath p "collectImgRefs': "
+  mbi <- lookupByPath p
+  maybe (return mempty) (collectImgRefs . fst) mbi
+
+collectImgRefs :: Eff'ISEL r
+               => ObjId -> Sem r ImgRefMap
+collectImgRefs =
+  foldMT imgA dirA rootA colA
+  where
+    -- collect all ImgRef's by recursing into subcollections
+    colA :: (EffIStore r, EffLogging r)
+         => (ObjId -> Sem r ImgRefMap)
+         -> ObjId
+         -> MetaData
+         -> Maybe ImgRef
+         -> Maybe ImgRef
+         -> ColEntries
+         -> Sem r ImgRefMap
+    colA  go  i _md im be cs = do
+      p              <- objid2path i
+      log'verb       $  msgPath p "collectImgRefs: "
+      let imref      =  im ^.. traverse
+      let beref      =  be ^.. traverse
+      let (crs, irs) =  partition isColColRef (cs ^. isoSeqList)
+      let irs1       =  irs ^.. traverse . theColImgRef
+      let irs2       =  S.fromList $ imref <> beref <> irs1
+      subs           <- traverse go (crs ^.. traverse . theColColRef)
+      return         $  M.insert i irs2 $ M.unions subs
+
+    -- jump from the dir hierachy to the associated collection hierarchy
+    dirA  go i _es  _ts = do
+      p <- objid2path i
+      log'verb $ msgPath p "collectImgRefs: "
+
+      img2col <- img2colPath
+      dp      <- objid2path i
+      ci      <- fst <$> getIdNode' (img2col dp)
+      go ci
+
+    -- traverse the collection hierarchy
+    rootA go _i _dir col = go col
+
+    -- do nothing for img nodes, just to get a complete definition
+    imgA  _     _pts _md = return mempty
 
 -- ----------------------------------------
 
@@ -123,6 +187,7 @@ allColEntries =
     -- do nothing for img nodes, just to get a complete definition
     imgA  _     _pts _md = return mempty
 
+-- --------------------
 
 cleanupAllRefs :: ColEntrySet -> SemISEJL r ()
 cleanupAllRefs rs =
