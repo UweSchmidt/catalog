@@ -55,7 +55,8 @@ objId2Maybe =
 
 deriving instance Eq   ObjId
 deriving instance Ord  ObjId
-deriving instance Show ObjId
+instance Show ObjId where
+  show = oidToHex
 
 instance Semigroup ObjId where
   i1 <> i2

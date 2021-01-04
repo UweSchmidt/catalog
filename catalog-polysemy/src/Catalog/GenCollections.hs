@@ -34,10 +34,6 @@ import Catalog.Logging
 import Catalog.CopyRemove     ( removeEmptyColls )
 import Catalog.TimeStamp      ( whatTimeIsIt )
 
-import Data.ColEntrySet       ( ColEntrySet
-                              , singletonColEntrySet
-                              , toSeqColEntrySet
-                              )
 import Data.ImgTree
 import Data.MetaData          ( MetaData
                               , Access
@@ -462,17 +458,17 @@ mkColByPath' insertCol p = do
 
 -- ----------------------------------------
 
-type DateMap = IM.IntMap ColEntrySet
+type DateMap = IM.IntMap ColEntries
 
-updateCollectionsByDate :: Eff'ISEJLT r => ColEntrySet -> Sem r ()
-updateCollectionsByDate rs =
-  unless (isempty rs) $ do
+updateCollectionsByDate :: Eff'ISEJLT r => ColEntries -> Sem r ()
+updateCollectionsByDate es =
+  unless (isempty es) $ do
     log'verb $
        "updateCollectionsByDate: new refs are added to byDate collections: "
-       <> toText rs
+       <> toText es
 
     genByDateCollection
-    dm <- colEntries2dateMap rs
+    dm <- colEntries2dateMap es
     dateMap2Collections p'bycreatedate dm
 
     log'verb "cleanup bydate collections"
@@ -481,11 +477,11 @@ updateCollectionsByDate rs =
 
 -- group col entries by create date
 
-colEntries2dateMap :: Eff'ISEL r => ColEntrySet -> Sem r DateMap
-colEntries2dateMap rs = do
+colEntries2dateMap :: Eff'ISEL r => ColEntries -> Sem r DateMap
+colEntries2dateMap es = do
   log'verb "colEntries2dateMap: build DateMap"
 
-  foldlM add1 IM.empty $ toSeqColEntrySet rs
+  foldlM add1 IM.empty es
   where
 
     add1 :: Eff'ISE r => DateMap -> ColEntry -> Sem r DateMap
@@ -494,7 +490,7 @@ colEntries2dateMap rs = do
       let mdate = (^. isoDateInt) <$> lookupCreate parseDate meta
       return $
         maybe acc
-        (\ i' -> IM.insertWith (<>) i' (singletonColEntrySet ce) acc)
+        (\ i' -> IM.insertWith (<>) i' (Seq.singleton ce) acc)
         mdate
 
 -- create/update day collection with a col entry sets
@@ -506,22 +502,21 @@ dateMap2Collections pc dm =
   where
     insCol (i, ces) = do
       (_yc, _mc, dc) <- mkDateCol ymd pc
-      adjustColByDate cs dc
+      adjustColByDate ces dc
       log'verb $
         "dateMap2Collections: collection updated: " <> toText ymd
       return ()
       where
         ymd = isoDateInt # i
-        cs  = toSeqColEntrySet ces
 
 -- ----------------------------------------
 
-updateImportsDir :: Eff'ISEJLT r => TimeStamp -> ColEntrySet -> Sem r ()
-updateImportsDir ts ces =
-  unless (isempty ces) $ do
+updateImportsDir :: Eff'ISEJLT r => TimeStamp -> ColEntries -> Sem r ()
+updateImportsDir ts es =
+  unless (isempty es) $ do
     genImportsCollection
     idir <- mkImportCol ts p'imports
-    adjustColByName (toSeqColEntrySet ces) idir
+    adjustColByName es idir
     return ()
 
 -- create import collection, if dir not yet there

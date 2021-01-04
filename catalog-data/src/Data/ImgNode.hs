@@ -119,22 +119,22 @@ instance IsEmpty (ImgNode' ref) where
 
 instance ToJSON ref => ToJSON (ImgNode' ref) where
   toJSON (IMG pm md) = J.object
-    [ "ImgNode"     J..= ("IMG" :: String)
+    [ "ImgNode"     J..= ("IMG" :: Text)
     , "parts"       J..= pm
     , "metadata"    J..= md
     ]
   toJSON (DIR rs ts) = J.object
-    [ "ImgNode"     J..= ("DIR" :: String)
+    [ "ImgNode"     J..= ("DIR" :: Text)
     , "children"    J..= rs
     , "sync"        J..= ts
     ]
   toJSON (ROOT rd rc) = J.object
-    [ "ImgNode"     J..= ("ROOT" :: String)
+    [ "ImgNode"     J..= ("ROOT" :: Text)
     , t'archive     J..= rd
     , t'collections J..= rc
     ]
   toJSON (COL md im be es) = J.object $
-    [ "ImgNode"    J..= ("COL" :: String)
+    [ "ImgNode"    J..= ("COL" :: Text)
     , "metadata"   J..= md
     , "entries"    J..= es
     ]
@@ -148,7 +148,7 @@ instance ToJSON ref => ToJSON (ImgNode' ref) where
 instance (FromJSON ref) => FromJSON (ImgNode' ref) where
   parseJSON = J.withObject "ImgNode" $ \ o ->
     do t <- o J..: "ImgNode"
-       case t :: String of
+       case t :: Text of
          "IMG" ->
            IMG  <$> o J..: "parts"
                 <*> o J..: "metadata"
@@ -404,10 +404,12 @@ type ImgRef      = ImgRef' ObjId
 
 deriving instance (Eq   ref) => Eq   (ImgRef' ref)
 deriving instance (Ord  ref) => Ord  (ImgRef' ref)
-deriving instance (Show ref) => Show (ImgRef' ref)
 deriving instance Functor     ImgRef'
 deriving instance Foldable    ImgRef'
 deriving instance Traversable ImgRef'
+
+instance (Show ref) => Show (ImgRef' ref) where
+  show (ImgRef r n) = show (r, n)
 
 instance IsEmpty (ImgRef' ref) where
   isempty = isempty . _iname
@@ -417,34 +419,36 @@ emptyImgRef = ImgRef mempty mempty
 
 -- --------------------
 
-data ColEntry'   ref  = ImgEnt ! (ImgRef' ref)
-                      | ColEnt ! ref
+data ColEntry'   ref  = ImgEnt !(ImgRef' ref)
+                      | ColEnt !ref
 
 type ColEntries' ref = Seq (ColEntry' ref)
 
 deriving instance (Eq   ref) => Eq   (ColEntry' ref)
 deriving instance (Ord  ref) => Ord  (ColEntry' ref)
-deriving instance (Show ref) => Show (ColEntry' ref)
 deriving instance Functor     ColEntry'
 deriving instance Foldable    ColEntry'
 deriving instance Traversable ColEntry'
 
+instance (Show ref) => Show (ColEntry' ref) where
+  show = colEntry' show show
+
 instance (ToJSON ref) => ToJSON (ColEntry' ref) where
   toJSON (ImgEnt (ImgRef i n)) = J.object $
-    [ "ColEntry"  J..= ("IMG" :: String)
+    [ "ColEntry"  J..= ("IMG" :: Text)
     , "ref"       J..= i
     , "part"      J..= n
     ]
 
   toJSON (ColEnt i) = J.object
-    [ "ColEntry"  J..= ("COL" :: String)
+    [ "ColEntry"  J..= ("COL" :: Text)
     , "ref"       J..= i
     ]
 
 instance (FromJSON ref) => FromJSON (ColEntry' ref) where
   parseJSON = J.withObject "ColEntry" $ \ o ->
     do t <- o J..: "ColEntry"
-       case t :: String of
+       case t :: Text of
          "IMG" ->
            ImgEnt <$> (ImgRef <$> o J..: "ref"
                               <*> o J..: "part"

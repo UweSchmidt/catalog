@@ -26,8 +26,10 @@ module Catalog.SyncWithFileSys
 where
 
 import Catalog.CopyRemove      ( cleanupColByPath
-                               , cleanupAllRefs
                                , rmRec
+                               , AdjustImgRef
+                               , AdjustColEnt
+                               , cleanupRefs'
                                )
 import Catalog.Effects
 import Catalog.GenCollections  ( img2colPath
@@ -47,6 +49,8 @@ import Catalog.TimeStamp       ( whatTimeIsIt, lastModified )
 import Data.ColEntrySet        ( ColEntrySet
                                , fromListColEntrySet
                                , diffColEntrySet
+                               , memberColEntrySet
+                               , toSeqColEntrySet
                                )
 import Data.ImgTree
 import Data.MetaData
@@ -55,6 +59,8 @@ import Data.TextPath           ( ClassifiedName
                                , ClassifiedNames
                                , classifyPaths
                                )
+
+import qualified Data.Sequence   as Seq
 
 -- ----------------------------------------
 
@@ -118,6 +124,35 @@ allColEntries =
     imgA  _     _pts _md = return mempty
 
 
+cleanupAllRefs :: ColEntrySet -> SemISEJL r ()
+cleanupAllRefs rs =
+  getRootImgColId >>= cleanupRefs rs
+
+cleanupRefs :: ColEntrySet -> ObjId -> SemISEJL r ()
+cleanupRefs rs i0
+  | isempty rs = return ()
+  | otherwise  = cleanupRefs' adjIR adjCE i0
+  where
+    adjIR :: AdjustImgRef         -- ObjId -> Maybe ImgRef -> Maybe (Maybe ImgRef)
+    adjIR _oid (Just (ImgRef j n))
+      | removedImg j n = Just Nothing
+      | otherwise      = Nothing
+    adjIR _oid _       = Nothing
+
+
+    adjCE :: AdjustColEnt         --  ObjId -> ColEntries -> Maybe ColEntries
+    adjCE _oid es
+      | any (`memberColEntrySet` rs) es =
+          -- some refs must be deleted
+          -- only rebuild the list es if any refs must be deleted
+          Just $ Seq.filter (not . (`memberColEntrySet` rs)) es
+
+      | otherwise =
+          Nothing
+
+    removedImg j n =
+      mkColImgRef j n `memberColEntrySet` rs
+
 -- ----------------------------------------
 
 -- sync the whole photo archive with disk contents
@@ -178,9 +213,11 @@ syncDirP ts p = do
   log'verb   "syncDir: remove these refs in all collections"
   cleanupAllRefs rem'refs
 
-  log'verb $ "syncDir: images added:   " <> toText new'refs
-  updateCollectionsByDate new'refs
-  updateImportsDir ts new'refs
+  let es = toSeqColEntrySet new'refs
+
+  log'verb $ "syncDir: images added:   " <> toText es
+  updateCollectionsByDate es
+  updateImportsDir ts es
 
 syncDir' :: Eff'Sync r => Path -> Sem r ()
 syncDir' p = do

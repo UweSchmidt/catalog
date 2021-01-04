@@ -23,10 +23,12 @@ module Catalog.CopyRemove
   , cleanupColByPath
   , cleanupAllCollections
   , cleanupCollections
-  , cleanupAllRefs
   , selectCollections
   , filterCols
   , filterDirs
+  , AdjustImgRef
+  , AdjustColEnt
+  , cleanupRefs'
   )
 where
 
@@ -35,9 +37,9 @@ import Catalog.ImgTree.Fold
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
 
-import Data.ColEntrySet ( ColEntrySet
-                        , memberColEntrySet
-                        )
+-- import Data.ColEntrySet ( ColEntrySet
+--                         , memberColEntrySet
+--                         )
 import Data.ImgTree
 import Data.MetaData
 import Data.Prim
@@ -279,12 +281,9 @@ cleanupCollections i0 = do
 
           return ex
 
-cleanupAllRefs :: ColEntrySet -> SemISEJL r ()
-cleanupAllRefs rs =
-  getRootImgColId >>= cleanupRefs rs
-
-cleanupRefs :: ColEntrySet -> ObjId -> SemISEJL r ()
-cleanupRefs rs i0
+ {-
+cleanupRefs'old :: ColEntrySet -> ObjId -> SemISEJL r ()
+cleanupRefs'old rs i0
   | isempty rs = return ()
   | otherwise  = foldCollections colA i0
   where
@@ -336,14 +335,98 @@ cleanupRefs rs i0
 
         -- cleanupSubCols :: SemISEJL r ()
         cleanupSubCols =
-          mapM_ cleanupSubCol es
-
-        -- cleanupSubCol :: ColEntry -> SemISEJL r ()
-        cleanupSubCol =
-          colEntry' (\ _ir -> return ()) go
+          traverse_ cleanupSubCol es
+          where
+            cleanupSubCol =
+              colEntry' (\ _ir -> return ()) go
 
         removedImg j n =
           mkColImgRef j n `memberColEntrySet` rs
+
+        removeEmptySubCols :: SemISEJL r ()
+        removeEmptySubCols = do
+          -- recompute colentries, maybe modified by calls of cleanupSubCols
+          es1 <- getImgVals i theColEntries
+          es2 <- emptySubCols es1
+          mapM_ rmRec es2
+
+        emptySubCols :: ColEntries -> SemISEJL r [ObjId]
+        emptySubCols = foldM checkESC []
+          where
+            checkESC :: [ObjId] -> ColEntry -> SemISEJL r [ObjId]
+            checkESC res =
+              colEntry'
+              (\ _  -> return res)
+              (\ ci -> do cn <- getImgVal ci
+                          return $
+                            if isCOL cn
+                               &&
+                               null (cn ^. theColEntries)
+                               &&
+                               isRemovable (cn ^. theMetaData)
+                            then ci : res
+                            else      res
+              )
+-- -}
+-- ----------------------------------------
+--
+-- change or remove an ImgRef value within a collection
+--
+-- outer Maybe: Just ...  -> value has changed
+--              Nothing   -> value not changed
+-- inner Maybe: Just ...  -> the new value
+--              Nothing   -> entry must be removed
+
+type AdjustImgRef = ObjId -> Maybe ImgRef -> Maybe (Maybe ImgRef)
+type AdjustColEnt = ObjId -> ColEntries   -> Maybe  ColEntries
+
+cleanupRefs' :: forall r. AdjustImgRef -> AdjustColEnt -> ObjId -> SemISEJL r ()
+cleanupRefs' adjIR adjCE i0 =
+  foldCollections colA i0
+  where
+    colA go i _md im be es = do
+      p <- objid2path i
+      cleanupIm p
+      cleanupBe p
+      cleanupEs p
+      cleanupSubCols
+      removeEmptySubCols
+      return ()
+      where
+
+        cleanupIm :: Path -> SemISEJL r ()
+        cleanupIm p = case adjIR i im of
+          Nothing -> return ()
+          Just new'im -> do
+            log'warn $ msgPath p "cleanupRefs: col img changed: "
+            log'warn $ "old: " <> toText im
+            log'warn $ "new: " <> toText new'im
+            adjustColImg (const new'im) i
+
+        cleanupBe :: Path -> SemISEJL r ()
+        cleanupBe p = case adjIR i be of
+          Nothing -> return ()
+          Just new'be -> do
+            log'warn $ msgPath p "cleanupRefs: col blog changed: "
+            log'warn $ "old: " <> toText be
+            log'warn $ "new: " <> toText new'be
+            adjustColBlog (const new'be) i
+
+        cleanupEs :: Path -> SemISEJL r ()
+        cleanupEs p = case adjCE i es of
+          Nothing -> return ()
+          Just new'es -> do
+            log'warn $ msgPath p "cleanupRefs: col entries changed: "
+            log'warn $ "old: " <> toText (es     ^. isoSeqList)
+            log'warn $ "new: " <> toText (new'es ^. isoSeqList)
+            adjustColEntries (const new'es) i
+
+        cleanupSubCols :: SemISEJL r ()
+        cleanupSubCols =
+          traverse_ cleanupSubCol es
+          where
+            cleanupSubCol =
+              colEntry' (\ _ir -> return ()) go
 
         removeEmptySubCols :: SemISEJL r ()
         removeEmptySubCols = do
