@@ -232,18 +232,24 @@ cleanupCollections i0 = do
       case n of
         COL _md im be es -> do
           cleanupIm i im
-          cleanupIm i be
+          cleanupBe i be
           cleanupEs i es
         _ ->
           return ()
       where
-        -- TODO: Bug, for be adjustColBlog should be called
-        -- TODO: ^^^ Bug in bug ???
+
         cleanupIm :: ObjId -> Maybe ImgRef -> SemISEJL r ()
         cleanupIm i' (Just ir) =
           unlessM (exImg ir) $
             adjustColImg (const Nothing) i'
         cleanupIm _ Nothing =
+          return ()
+
+        cleanupBe :: ObjId -> Maybe ImgRef -> SemISEJL r ()
+        cleanupBe i' (Just ir) =
+          unlessM (exImg ir) $
+            adjustColBlog (const Nothing) i'
+        cleanupBe _ Nothing =
           return ()
 
         cleanupEs :: ObjId -> ColEntries -> SemISEJL r ()
@@ -377,8 +383,8 @@ cleanupRefs'old rs i0
 -- inner Maybe: Just ...  -> the new value
 --              Nothing   -> entry must be removed
 
-type AdjustImgRef = ObjId -> Maybe ImgRef -> Maybe (Maybe ImgRef)
-type AdjustColEnt = ObjId -> ColEntries   -> Maybe  ColEntries
+type AdjustImgRef = Maybe ImgRef -> Maybe (Maybe ImgRef)
+type AdjustColEnt = ColEntries   -> Maybe  ColEntries
 
 cleanupRefs' :: forall r. AdjustImgRef -> AdjustColEnt -> ObjId -> SemISEJL r ()
 cleanupRefs' adjIR adjCE i0 =
@@ -395,30 +401,30 @@ cleanupRefs' adjIR adjCE i0 =
       where
 
         cleanupIm :: Path -> SemISEJL r ()
-        cleanupIm p = case adjIR i im of
+        cleanupIm p = case adjIR im of
           Nothing -> return ()
           Just new'im -> do
-            log'warn $ msgPath p "cleanupRefs: col img changed: "
-            log'warn $ "old: " <> toText im
-            log'warn $ "new: " <> toText new'im
+            log'trc $ msgPath p "cleanupRefs: col img changed: "
+            log'trc $ "old: " <> toText im
+            log'trc $ "new: " <> toText new'im
             adjustColImg (const new'im) i
 
         cleanupBe :: Path -> SemISEJL r ()
-        cleanupBe p = case adjIR i be of
+        cleanupBe p = case adjIR be of
           Nothing -> return ()
           Just new'be -> do
-            log'warn $ msgPath p "cleanupRefs: col blog changed: "
-            log'warn $ "old: " <> toText be
-            log'warn $ "new: " <> toText new'be
+            log'trc $ msgPath p "cleanupRefs: col blog changed: "
+            log'trc $ "old: " <> toText be
+            log'trc $ "new: " <> toText new'be
             adjustColBlog (const new'be) i
 
         cleanupEs :: Path -> SemISEJL r ()
-        cleanupEs p = case adjCE i es of
+        cleanupEs p = case adjCE es of
           Nothing -> return ()
           Just new'es -> do
-            log'warn $ msgPath p "cleanupRefs: col entries changed: "
-            log'warn $ "old: " <> toText (es     ^. isoSeqList)
-            log'warn $ "new: " <> toText (new'es ^. isoSeqList)
+            log'trc $ msgPath p "cleanupRefs: col entries changed: "
+            log'trc $ "old: " <> toText (es     ^. isoSeqList)
+            log'trc $ "new: " <> toText (new'es ^. isoSeqList)
             adjustColEntries (const new'es) i
 
         cleanupSubCols :: SemISEJL r ()
@@ -426,7 +432,7 @@ cleanupRefs' adjIR adjCE i0 =
           traverse_ cleanupSubCol es
           where
             cleanupSubCol =
-              colEntry' (\ _ir -> return ()) go
+              colEntry' (const $ return ()) go
 
         removeEmptySubCols :: SemISEJL r ()
         removeEmptySubCols = do
@@ -441,7 +447,7 @@ cleanupRefs' adjIR adjCE i0 =
             checkESC :: [ObjId] -> ColEntry -> SemISEJL r [ObjId]
             checkESC res =
               colEntry'
-              (\ _  -> return res)
+              (\ _i -> return res)
               (\ ci -> do cn <- getImgVal ci
                           return $
                             if isCOL cn

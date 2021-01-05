@@ -60,8 +60,6 @@ import Data.TextPath           ( ClassifiedName
                                , classifyPaths
                                )
 
-import           Data.Map.Strict (Map)
-import           Data.Set        (Set)
 import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
@@ -88,7 +86,42 @@ type ImgRefMap = Map ObjId (Set ImgRef)
 -- value is Nothing: delete ref
 -- value is Just ir: substitute ref by ir
 
-type ImgRefUpdateMap = Map ObjId (Map ImgRef (Maybe ImgRef))
+type ImgRefUpdateMap = Map ImgRef (Maybe ImgRef)
+
+buildImgRefUpdates :: ImgRefMap -> ImgRefMap -> ImgRefUpdateMap
+buildImgRefUpdates old'refs upd'refs =
+  M.foldrWithKey op1 mempty old'refs
+  where
+    op1 :: ObjId -> Set ImgRef -> ImgRefUpdateMap -> ImgRefUpdateMap
+    op1 i irs acc = case M.lookup i upd'refs of
+      -- all refs must be deleted
+      Nothing  ->
+        foldr (\ ir' -> M.insert ir' Nothing) acc irs
+
+      -- some refs maybe renamed, some removed or unchanged
+      Just urs ->
+        foldr (\ ir' -> ins ir' (upd ir')) acc irs
+        where
+          urs1    = foldr (\ ur' -> M.insert (_iname ur') ur') mempty urs
+
+          upd ir' = M.lookup (_iname ir') urs1
+
+          ins ir' (Just ur') acc'
+            | ir' == ur'    =                   acc'    -- ref remains as it is
+          ins ir' mur' acc' = M.insert ir' mur' acc'
+
+buildNewColEntries :: ImgRefMap -> ImgRefMap -> ImgRefUpdateMap -> ColEntries
+buildNewColEntries new'refs old'refs upd'refs =
+  foldr (\ ir acc -> mkColImgRef' ir Seq.<| acc) mempty res
+  where
+    res = new `S.difference` old `S.difference` upd
+    new = foldr (S.union) mempty new'refs
+    old = foldr (S.union) mempty old'refs
+    upd = foldr (\ mr acc ->
+                    maybe acc (flip S.insert acc) mr
+                ) mempty upd'refs
+
+-- --------------------
 
 collectImgRefs' :: Eff'ISEL r
                    => Path -> Sem r ImgRefMap
@@ -113,7 +146,7 @@ collectImgRefs =
          -> Sem r ImgRefMap
     colA  go  i _md im be cs = do
       p              <- objid2path i
-      log'verb       $  msgPath p "collectImgRefs: "
+      log'trc        $  msgPath p "collectImgRefs: "
       let imref      =  im ^.. traverse
       let beref      =  be ^.. traverse
       let (crs, irs) =  partition isColColRef (cs ^. isoSeqList)
@@ -125,7 +158,7 @@ collectImgRefs =
     -- jump from the dir hierachy to the associated collection hierarchy
     dirA  go i _es  _ts = do
       p <- objid2path i
-      log'verb $ msgPath p "collectImgRefs: "
+      log'trc $ msgPath p "collectImgRefs: "
 
       img2col <- img2colPath
       dp      <- objid2path i
@@ -137,6 +170,45 @@ collectImgRefs =
 
     -- do nothing for img nodes, just to get a complete definition
     imgA  _     _pts _md = return mempty
+
+-- --------------------
+
+updateAllImgRefs :: ImgRefUpdateMap -> SemISEJL r ()
+updateAllImgRefs um =
+  getRootImgColId >>= updateImgRefs um
+
+updateImgRefs :: ImgRefUpdateMap -> ObjId -> SemISEJL r ()
+updateImgRefs um i0
+  | isempty um = return ()
+  | otherwise  = cleanupRefs' adjIR adjCE i0
+  where
+    adjIR :: AdjustImgRef         -- Maybe ImgRef -> Maybe (Maybe ImgRef)
+    adjIR (Just ir) = M.lookup ir um
+    adjIR _         = Nothing
+
+
+    adjCE :: AdjustColEnt         -- ColEntries -> Maybe ColEntries
+    adjCE es
+      | any mustBeUpdated es =
+          -- only rebuild the list es if any refs must be deleted
+          Just $ foldr (\ ce es' -> upd ce <> es') mempty es
+
+      | otherwise =
+          Nothing
+
+      where
+        mustBeUpdated :: ColEntry -> Bool
+        mustBeUpdated = colEntry' (\ ir' -> M.member ir' um) (const False)
+
+        upd :: ColEntry -> ColEntries
+        upd ce = colEntry'
+          (\ ir' -> case M.lookup ir' um of
+                      Nothing         -> Seq.singleton ce
+                      Just Nothing    -> mempty
+                      Just (Just ur') -> Seq.singleton . mkColImgRef' $ ur'
+          )
+          (Seq.singleton . mkColColRef)
+          ce
 
 -- ----------------------------------------
 
@@ -199,14 +271,14 @@ cleanupRefs rs i0
   | otherwise  = cleanupRefs' adjIR adjCE i0
   where
     adjIR :: AdjustImgRef         -- ObjId -> Maybe ImgRef -> Maybe (Maybe ImgRef)
-    adjIR _oid (Just (ImgRef j n))
+    adjIR (Just (ImgRef j n))
       | removedImg j n = Just Nothing
       | otherwise      = Nothing
-    adjIR _oid _       = Nothing
+    adjIR _            = Nothing
 
 
     adjCE :: AdjustColEnt         --  ObjId -> ColEntries -> Maybe ColEntries
-    adjCE _oid es
+    adjCE es
       | any (`memberColEntrySet` rs) es =
           -- some refs must be deleted
           -- only rebuild the list es if any refs must be deleted
@@ -248,7 +320,7 @@ syncDirP ts p = do
   log'verb $ msgPath p "syncDir: at "
 
   -- remember all ImgRef's in dir to be synchronized
-  old'refs <- allColEntries' p
+  old'refs <- collectImgRefs' p   -- allColEntries' p
   log'verb $ "syncDir: old'refs: " <> toText old'refs
 
   -- sync the dir
@@ -265,20 +337,21 @@ syncDirP ts p = do
   -- now the associated collection for dir is up to date and
   -- contains all ImgRef's, which have been updated,
   -- now collect all synchronized refs in assoc colllections
-  upd'refs <- allColEntries' p
+  upd'refs <- collectImgRefs' p   -- allColEntries' p
   log'trc $ "syncDir: upd'refs: " <> toText upd'refs
 
-  let rem'refs = old'refs `diffColEntrySet` upd'refs
-  let new'refs = upd'refs `diffColEntrySet` old'refs
+  -- let rem'refs = old'refs `diffColEntrySet` upd'refs
+  -- let new'refs = upd'refs `diffColEntrySet` old'refs
 
-  -- rem'p <- trcColEntrySet rem'refs
-  -- new'p <- trcColEntrySet new'refs
+  let mod'refs = buildImgRefUpdates old'refs upd'refs
 
-  log'verb $ "syncDir: images removed: " <> toText rem'refs
-  log'verb   "syncDir: remove these refs in all collections"
-  cleanupAllRefs rem'refs
+  log'verb $ "syncDir: images removed or renamed: " <> toText mod'refs
+  log'verb   "syncDir: remove or rename these refs in all collections"
 
-  let es = toSeqColEntrySet new'refs
+  updateAllImgRefs mod'refs  -- cleanupAllRefs rem'refs
+
+  -- let es = toSeqColEntrySet new'refs
+  let es       = buildNewColEntries upd'refs old'refs mod'refs
 
   log'verb $ "syncDir: images added:   " <> toText es
   updateCollectionsByDate es
@@ -469,7 +542,7 @@ collectDirCont i = do
 syncImg :: Eff'Sync r
         => ObjId -> Path -> ClassifiedNames -> Sem r ()
 syncImg ip pp xs = do
-  trc'Obj i $ "syncImg: " <> toText (pp, xs)
+  trc'Obj i $ "syncImg: " <> toText (p, xs)
 
   -- new image ?
   whenM (not <$> existsEntry i) $
