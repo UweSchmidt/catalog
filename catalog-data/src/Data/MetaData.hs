@@ -775,7 +775,7 @@ no'restr
   , no'delete, no'sort, no'write
   , no'wrtdel, no'wrtsrt :: Access
 
-[no'write, no'sort, no'delete] = map toA [minBound .. maxBound]
+[no'write, no'delete, no'sort] = map toA [minBound .. maxBound]
   where
     toA :: AccessRestr -> Access
     toA = bit . fromEnum
