@@ -196,7 +196,6 @@ genCollectionsByDir' p = do
         (genCollectionsByDir . fst)
         mbi
 
-
 genCollectionsByDir :: Eff'ISEJLT r => ObjId -> Sem r ()
 genCollectionsByDir di = do
   img2col <- img2colPath
@@ -234,7 +233,8 @@ genCollectionsByDir di = do
       where
         -- collect all processed jpg images for a single img
 
-        imgA :: Eff'ISEJLT r => ObjId -> ImgParts -> MetaData -> Sem r ColEntries
+        imgA :: Eff'ISEJLT r
+             => ObjId -> ImgParts -> MetaData -> Sem r ColEntries
         imgA i pts _md = do
           trc'Obj i $ "genCol img: " <> toText res
           return $ isoSeqList # res
@@ -244,8 +244,9 @@ genCollectionsByDir di = do
         -- generate a coresponding collection with all entries
         -- entries are sorted by name
 
-        dirA :: Eff'ISEJLT r => (ObjId -> Sem r ColEntries) ->
-                ObjId -> DirEntries -> TimeStamp -> Sem r ColEntries
+        dirA :: Eff'ISEJLT r
+             => (ObjId -> Sem r ColEntries)
+             -> ObjId -> DirEntries -> TimeStamp -> Sem r ColEntries
         dirA go i es _ts = do
           p  <- objid2path i
           let cp = fp p
@@ -407,7 +408,7 @@ mkColByPath :: Eff'ISEJLT r
             -> Path
             -> Sem r ObjId
 mkColByPath insertCol setupCol p = do
-  log'trc $ msgPath p "mkColByPath "
+  log'trc $ msgPath p "mkColByPath: "
 
   -- check for legal path
   cid <- mkColByPath' insertCol p
@@ -424,7 +425,7 @@ mkColByPath' :: Eff'ISEJLT r
              -> Path
              -> Sem r ObjId
 mkColByPath' insertCol p = do
-  log'trc $ msgPath p "mkColByPath' "
+  log'trc $ msgPath p "mkColByPath': "
   -- check for legal path
   when (isempty $ tailPath p) $
     throw @Text $ msgPath p "mkColByPath: can't create collection"
@@ -439,7 +440,7 @@ mkColByPath' insertCol p = do
 
       let (p1, n) = p ^. viewBase
       ip <- mkColByPath insertCol (const $ return mempty) p1
-      log'verb $ msgPath p1 "mkColByPath" <> "/" <> toText n
+      log'trc $ msgPath p1 "mkColByPath" <> "/" <> toText n
 
       -- create collection
       ic <- mkImgCol ip n
@@ -471,7 +472,7 @@ updateCollectionsByDate es =
     dm <- colEntries2dateMap es
     dateMap2Collections p'bycreatedate dm
 
-    log'verb "cleanup bydate collections"
+    log'trc "remove empty bydate collections"
     removeEmptyColls p'bycreatedate
 
 
@@ -479,7 +480,7 @@ updateCollectionsByDate es =
 
 colEntries2dateMap :: Eff'ISEL r => ColEntries -> Sem r DateMap
 colEntries2dateMap es = do
-  log'verb "colEntries2dateMap: build DateMap"
+  log'trc "colEntries2dateMap: build DateMap"
 
   foldlM add1 IM.empty es
   where
@@ -503,7 +504,7 @@ dateMap2Collections pc dm =
     insCol (i, ces) = do
       (_yc, _mc, dc) <- mkDateCol ymd pc
       adjustColByDate ces dc
-      log'verb $
+      log'trc $
         "dateMap2Collections: collection updated: " <> toText ymd
       return ()
       where

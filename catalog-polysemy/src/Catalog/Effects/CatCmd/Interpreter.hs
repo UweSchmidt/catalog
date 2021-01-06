@@ -625,16 +625,15 @@ modify'snapshot t = IO.snapshotImgStore t
 modify'syncCol :: Eff'Sync r => ObjId -> Sem r ()
 modify'syncCol i = do
   ts <- whatTimeIsIt
-  syncCol' (SC.syncDirP ts) i
+  syncColDir (SC.syncDirP ts) i
 
-syncCol' :: Eff'Sync r => (Path -> Sem r ()) -> ObjId -> Sem r ()
-syncCol' sync i = do
+syncColDir :: Eff'Sync r => (Path -> Sem r ()) -> ObjId -> Sem r ()
+syncColDir sync i = do
   path <- objid2path i
   unless (isPathPrefix p'photos path) $
-    throwP i $ msgPath p'photos "syncCol': collection does not have path prefix "
+    throwP i $ msgPath p'photos "syncColDir: collection does not have path prefix "
 
   let path'dir = substPathPrefix p'photos p'arch'photos path
-  log'verb $ msgPath path'dir "syncCol': directory "
   sync path'dir
   checkImgStore
 
@@ -646,7 +645,7 @@ modify'syncExif = MS.forceSyncAllMetaData
 -- import new subcollection of a collection in /archive/photo
 
 modify'newSubCols :: Eff'Sync r => ObjId -> Sem r ()
-modify'newSubCols = syncCol' SC.syncNewDirs
+modify'newSubCols = syncColDir SC.syncNewDirs
 
 -- set checksum of an image part
 

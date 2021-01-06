@@ -25,15 +25,13 @@ module Catalog.SyncWithFileSys
   )
 where
 
-import Catalog.CopyRemove      ( cleanupColByPath
-                               , rmRec
+import Catalog.CopyRemove      ( rmRec
                                , AdjustImgRef
                                , AdjustColEnt
                                , cleanupRefs'
                                )
 import Catalog.Effects
-import Catalog.GenCollections  ( img2colPath
-                               , genSysCollections
+import Catalog.GenCollections  ( genSysCollections
                                , genCollectionsByDir'   -- remind the '
                                , updateCollectionsByDate
                                , updateImportsDir
@@ -46,12 +44,6 @@ import Catalog.MetaData.Sync   ( syncMetaData )
 import Catalog.TextPath        ( toFileSysTailPath )
 import Catalog.TimeStamp       ( whatTimeIsIt, lastModified )
 
-import Data.ColEntrySet        ( ColEntrySet
-                               , fromListColEntrySet
-                               , diffColEntrySet
-                               , memberColEntrySet
-                               , toSeqColEntrySet
-                               )
 import Data.ImgTree
 import Data.MetaData
 import Data.Prim
@@ -126,7 +118,7 @@ buildNewColEntries new'refs old'refs upd'refs =
 collectImgRefs' :: Eff'ISEL r
                    => Path -> Sem r ImgRefMap
 collectImgRefs' p = do
-  log'verb $ msgPath p "collectImgRefs': "
+  log'trc $ msgPath p "collectImgRefs': "
   mbi <- lookupByPath p
   maybe (return mempty) (collectImgRefs . fst) mbi
 
@@ -230,86 +222,6 @@ updateImgRefs um i0
 
 -- ----------------------------------------
 
-allColEntries' :: Eff'ISEL r
-               => Path -> Sem r ColEntrySet
-allColEntries' p = do
-  log'verb $ msgPath p "allColEntries': "
-  mbi <- lookupByPath p
-  maybe (return mempty) (allColEntries . fst) mbi
-
-allColEntries :: Eff'ISEL r
-              => ObjId -> Sem r ColEntrySet
-allColEntries =
-  foldMT imgA dirA rootA colA
-  where
-    -- collect all ImgRef's by recursing into subcollections
-    -- union subcollection results and imgrefs together
-    colA :: (EffIStore r, EffLogging r)
-         => (ObjId -> Sem r ColEntrySet)
-         -> ObjId
-         -> MetaData
-         -> Maybe ImgRef
-         -> Maybe ImgRef
-         -> ColEntries
-         -> Sem r ColEntrySet
-    colA  go  i _md im be cs = do
-      p              <- objid2path i
-      log'verb       $  msgPath p "allColEntries: "
-      let imref      =  im ^.. traverse . to mkColImgRef'
-      let beref      =  be ^.. traverse . to mkColImgRef'
-      let (crs, irs) =  partition isColColRef (cs ^. isoSeqList)
-      iss            <- traverse go (crs ^.. traverse . theColColRef)
-      return         $  foldl' (<>) (fromListColEntrySet $ imref <> beref <> irs) iss
-
-    -- jump from the dir hierachy to the associated collection hierarchy
-    dirA  go i _es  _ts = do
-      p <- objid2path i
-      log'verb $ msgPath p "allColEntries: "
-
-      img2col <- img2colPath
-      dp      <- objid2path i
-      ci      <- fst <$> getIdNode' (img2col dp)
-      go ci
-
-    -- traverse the collection hierarchy
-    rootA go _i _dir col = go col
-
-    -- do nothing for img nodes, just to get a complete definition
-    imgA  _     _pts _md = return mempty
-
--- --------------------
-
-cleanupAllRefs :: ColEntrySet -> SemISEJL r ()
-cleanupAllRefs rs =
-  getRootImgColId >>= cleanupRefs rs
-
-cleanupRefs :: ColEntrySet -> ObjId -> SemISEJL r ()
-cleanupRefs rs i0
-  | isempty rs = return ()
-  | otherwise  = cleanupRefs' adjIR adjCE i0
-  where
-    adjIR :: AdjustImgRef         -- ObjId -> Maybe ImgRef -> Maybe (Maybe ImgRef)
-    adjIR (Just (ImgRef j n))
-      | removedImg j n = Just Nothing
-      | otherwise      = Nothing
-    adjIR _            = Nothing
-
-
-    adjCE :: AdjustColEnt         --  ObjId -> ColEntries -> Maybe ColEntries
-    adjCE es
-      | any (`memberColEntrySet` rs) es =
-          -- some refs must be deleted
-          -- only rebuild the list es if any refs must be deleted
-          Just $ Seq.filter (not . (`memberColEntrySet` rs)) es
-
-      | otherwise =
-          Nothing
-
-    removedImg j n =
-      mkColImgRef j n `memberColEntrySet` rs
-
--- ----------------------------------------
-
 -- sync the whole photo archive with disk contents
 
 syncFS :: Eff'Sync r => ObjId -> Sem r ()
@@ -320,64 +232,62 @@ syncFS = idSyncFS True
 syncNode :: Eff'Sync r => ObjId -> Sem r ()
 syncNode = idSyncFS False
 
--- sync a dir tree, given as path, in the archive with disk contents
+-- sync the whole DIR hierachy with file system
 
 syncDir :: Eff'Sync r => Sem r ()
 syncDir = do
   ts <- whatTimeIsIt
-  -- check whether clipboard, and other collections are there
-  log'verb "syncDir: check/create the system collections"
+
+  -- check whether clipboard, and other system collections are there
   genSysCollections
 
   -- get the dir path for the (sub-)dir to be synchronized
   -- and start sync
   syncDirP ts p'arch'photos
 
+-- sync a dir tree, given as path, in the archive with disk contents
+
 syncDirP :: Eff'Sync r => TimeStamp -> Path -> Sem r ()
 syncDirP ts p = do
-  log'verb $ msgPath p "syncDir: at "
+  log'verb $ msgPath p "syncDir for: "
 
   -- remember all ImgRef's in dir to be synchronized
-  old'refs <- collectImgRefs' p   -- allColEntries' p
-  log'verb $ "syncDir: old'refs: " <> toText old'refs
+  old'refs <- collectImgRefs' p
+  log'trc $ "syncDir: refs before sync: " <> toText old'refs
 
   -- sync the dir
   syncDir' p
 
-  -- throw away all ImgRef's in associated collection of the synchronized dir
-  cp <- ($ p) <$> img2colPath
-  cleanupColByPath cp
+  -- collect all ImgRef' after dir sync
+  new'refs <- collectImgRefs' p
+  log'trc $ "syncDir: refs after sync " <> toText new'refs
 
-  log'verb $ msgPath p "syncDir: create the collections for the archive dir: "
-  genCollectionsByDir' p
-  log'verb "syncDir: create the collections finished"
+  -- compute refs to be deleted or renamed in collection hierachy
+  let mod'refs = buildImgRefUpdates old'refs new'refs
 
-  -- now the associated collection for dir is up to date and
-  -- contains all ImgRef's, which have been updated,
-  -- now collect all synchronized refs in assoc colllections
-  upd'refs <- collectImgRefs' p   -- allColEntries' p
-  log'trc $ "syncDir: upd'refs: " <> toText upd'refs
-
-  -- let rem'refs = old'refs `diffColEntrySet` upd'refs
-  -- let new'refs = upd'refs `diffColEntrySet` old'refs
-
-  let mod'refs = buildImgRefUpdates old'refs upd'refs
-
+  -- cleanup collections
   log'verb $ "syncDir: images removed or renamed: " <> toText mod'refs
-  log'verb   "syncDir: remove or rename these refs in all collections"
-
   updateAllImgRefs mod'refs  -- cleanupAllRefs rem'refs
 
-  -- let es = toSeqColEntrySet new'refs
-  let es       = buildNewColEntries upd'refs old'refs mod'refs
-
+  -- compute set of ImgRef's for new images
+  let es = buildNewColEntries new'refs old'refs mod'refs
   log'verb $ "syncDir: images added:   " <> toText es
+
+  -- generate dir collection
+  log'verb $ msgPath p "syncDir: create the assocciated collection for: "
+  genCollectionsByDir' p
+
+  -- insert the new images in the ByDate collections
+  log'verb $ msgPath p "syncDir: update the ByDate collections: "
   updateCollectionsByDate es
+
+  -- insert the new images into a new import collection
+  log'verb $ msgPath p "syncDir: update the imports collection: "
   updateImportsDir ts es
 
 syncDir' :: Eff'Sync r => Path -> Sem r ()
 syncDir' p = do
-  log'verb $
+  log'trc $
     msgPath p "syncDir': sync the archive dir with the file system: "
 
   mbi <- lookupByPath p
@@ -406,7 +316,7 @@ syncDir' p = do
 syncNewDirs :: Eff'Sync r => Path -> Sem r ()
 syncNewDirs p = do
   log'verb $
-    msgPath p"syncNewDirs: add new subdirs from filesystem into directory "
+    msgPath p "syncNewDirs: add new subdirs from filesystem into dir: "
 
   mbi <- lookupByPath p
   case mbi of
@@ -458,7 +368,7 @@ idSyncFS recursive i = getImgVal i >>= go
               setSyncTime t i
               checkEmptyDir i
             else do
-              log'verb $ "sync: fs dir not found: " <> toText sp
+              log'trc $ "sync: fs dir not found: " <> toText sp
               rmRec i
 
       | isROOT e = do
@@ -533,7 +443,7 @@ collectDirCont i = do
         partition (hasImgType isAnImgPart) rest2
 
   traverse_
-    (\ n -> log'verb $ "sync: fs entry ignored " <> toText (fst n))
+    (\ n -> log'trc $ "sync: fs entry ignored " <> toText (fst n))
     others
 
   realsubdirs <- filterM (isSubDir p') subdirs
@@ -618,7 +528,7 @@ checkEmptyDir :: Eff'ISEJL r => ObjId -> Sem r ()
 checkEmptyDir i =
   whenM (isempty <$> getImgVal i) $ do
     p <- objid2path i
-    log'verb $ msgPath p "sync: empty image dir ignored "
+    log'trc $ msgPath p "sync: empty DIR ignored: "
     rmImgNode i
 
 -- --------------------
@@ -658,7 +568,7 @@ parseImgSubDirCont p nm = do
     then
       classifyNames <$> readDir sp
     else do
-      log'verb $ "parseImgSubDirCont: not a directory: " <> toText sp
+      log'warn $ "parseImgSubDirCont: not a directory: " <> toText sp
       return []
   where
     nt = nm ^. isoText <> "/"

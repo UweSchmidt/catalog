@@ -39,7 +39,7 @@ allCleanupImgRefs = getRootId >>= cleanupImgRefs
 
 cleanupImgRefs :: ObjId -> SemISEJL r ()
 cleanupImgRefs i0 = do
-  verb'Obj i0 "cleanupImgRefs: remove outdated img refs for "
+  verb'Obj i0 "cleanupImgRefs: remove outdated img refs in "
 
   foldMTU ignoreImg dirA foldRoot colA i0
   where
