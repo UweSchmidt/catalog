@@ -61,19 +61,6 @@ module Data.MetaData
   , lookupRating
   , mkRating
 
---  , mkRating
---  , getRating
---  , isoRating
-
-{-
-  , getEXIFUpdateTime
-  , setEXIFUpdateTime
-
-  , compareByName
-  , compareByCreateDate
-
-  , filterMetaData
--}
   , parseTime
   , parseDate
   , parseDateTime
@@ -202,36 +189,6 @@ import           Text.SimpleParser
 import           Text.Printf         ( printf )
 -- import Debug.Trace
 
--- ----------------------------------------
--- ----------------------------------------
---
--- compare function on meta data
-{-
-compareByCreateDate :: MetaData -> MetaData -> Ordering
-compareByCreateDate =
-  compareBy [ compareJust' `on` getCreateMeta parseDateTime
-            , compare      `on` getFileName
-            ]
-{-# INLINE compareByCreateDate #-}
-
-compareByName :: MetaData -> MetaData -> Ordering
-compareByName =
-  compareBy [ compare `on` getFileName
-            ]
-{-# INLINE compareByName #-}
-
--- ----------------------------------------
---
--- filter meta data enries by image type
-
-filterMetaData :: ImgType -> MetaData -> MetaData
-filterMetaData ty md =
-  md ^. selectByParser ps
-  where
-    ps | isShowablePartOrRaw ty = psRaw
-       | isMeta              ty = psXmp
-       | otherwise              = mzero
--}
 -- ----------------------------------------
 --
 -- meta data parsers
@@ -530,17 +487,7 @@ keysAttrXmp@
   ] = [XMP'Format .. XMP'RawFileName]
 
 -- ----------------------------------------
-{-
-partByKey :: (MetaKey -> Bool) -> Iso' MetaData (MetaData, MetaData)
-partByKey p = iso part (uncurry (<>))
-  where
-    part = foldWithKeyMD f (mempty, mempty)
-      where
-        f k v acc
-          | p k       = acc & _1 . metaDataAt k .~ v
-          | otherwise = acc & _2 . metaDataAt k .~ v
--- -}
-
+--
 -- filter meta data enries by image type
 
 filterByImgType :: ImgType -> MetaData -> MetaData
@@ -570,13 +517,6 @@ filterByImgType ty =
 lookupByKeys :: [MetaKey] -> MetaData -> MetaValue
 lookupByKeys ns mt =
   mconcat $ map (flip lookupMD mt) ns
-{-
-  foldr f mempty $ map (flip lookupMD mt) ns
-  where
-    f mv r
-      | isempty mv = r
-      | otherwise  = mv
--- -}
 
 lookupCreate :: (Text -> res) -> MetaData -> res
 lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
@@ -615,16 +555,6 @@ lookupRating mt =
 
 mkRating :: Rating -> MetaData -> MetaData
 mkRating r md = md & metaDataAt descrRating .~ metaRating # r
-
-{-
-lookupUpdateTime :: MetaData -> TimeStamp
-lookupUpdateTime mt =
-  mt ^. metaDataAt imgEXIFUpdate . metaTimeStamp
-
-setUpdateTime :: TimeStamp -> MetaData -> MetaData
-setUpdateTime ts mt =
-  mt & metaDataAt Img'EXIFUpdate . metaTimeStamp .~ ts
--- -}
 
 lookupGPSposDeg :: MetaData -> Text
 lookupGPSposDeg =
@@ -819,13 +749,11 @@ modifyAccess :: (Access -> Access) -> MetaData -> MetaData
 modifyAccess f mt =
   mt & metaDataAt Descr'Access . metaAcc %~ f
 
-setAccess
-  , allowAccess
+allowAccess
   , restrAccess :: [AccessRestr] -> MetaData -> MetaData
 
-setAccess   rs = modifyAccess (.&. complement (isoAccessRestr # rs))
-allowAccess rs = modifyAccess (const $ isoAccessRestr # rs)
-restrAccess rs = modifyAccess ((isoAccessRestr # rs) .|.)
+allowAccess rs = modifyAccess (.&. complement (isoAccessRestr # rs))
+restrAccess rs = modifyAccess (.|. (isoAccessRestr # rs))
 
 clearAccess
   , addNoWriteAccess
@@ -835,7 +763,7 @@ clearAccess
   , subNoSortAccess
   , subNoDeleteAccess :: MetaData -> MetaData
 
-clearAccess       = setAccess   []
+clearAccess       = allowAccess [minBound .. maxBound]
 addNoWriteAccess  = restrAccess [NO'write]
 addNoSortAccess   = restrAccess [NO'sort]
 addNoDeleteAccess = restrAccess [NO'delete]
@@ -942,24 +870,7 @@ lookupMD k (MD m) = fromMaybe mempty $ IM.lookup (fromEnum k) m
 -- <> for meta tables
 unionMD :: MetaData -> MetaData -> MetaData
 unionMD (MD m1) (MD m2) = MD $ IM.unionWith (<>) m1 m2
-{-
-  foldWithKeyMD mergeMV m2 m1   -- fold over m1
-  where
-    mergeMV k1 v1 acc = insertMD k1 (v1 <> v2) acc
-      where
-        v2 = lookupMD k1 m2
 
-foldWithKeyMD :: (MetaKey -> MetaValue -> a -> a) -> a -> MetaData -> a
-foldWithKeyMD f acc (MD m) =
-  IM.foldlWithKey' f' acc m
-  where
-    f' acc' k' mv' = f (toEnum k') mv' acc'
--- -}
-
-{-
-keysMD :: MetaData -> [MetaKey]
-keysMD (MD m) = map toEnum $ IM.keys m
--}
 toListMD :: MetaData -> [(MetaKey, MetaValue)]
 toListMD (MD m) = map (first toEnum) $ IM.toAscList m
 
@@ -978,7 +889,6 @@ mt2tt (MD m) = MDT $ IM.foldlWithKey' ins M.empty m
       M.insert (metaKeyTextLookup k) (v ^. isoMetaValueText k) acc
       where
         k = toEnum i
-
 
 editMD :: MetaDataText -> MetaData -> MetaData
 editMD (MDT m) mt = M.foldlWithKey' ins mt m
@@ -1242,12 +1152,6 @@ instance IsoText MetaKey where
 instance IsEmpty MetaKey where
   isempty Key'Unknown = True
   isempty _           = False
-
--- instance ToJSON MetaKey where
---   toJSON = J.toJSON . metaKeyTextLookup
-
--- instance FromJSON MetaKey where
---   parseJSON v = metaKeyLookup <$> parseJSON v
 
 metaKeyLookup :: Text -> MetaKey
 metaKeyLookup t =
