@@ -135,7 +135,7 @@ collectImgRefs :: Eff'ISEL r
 collectImgRefs =
   foldMT imgA dirA rootA colA
   where
-    -- collect all ImgRef's by recursing into subcollections
+    -- collect all used ImgRef's by traversing the collection hierachy
     colA :: (EffIStore r, EffLogging r)
          => (ObjId -> Sem r ImgRefMap)
          -> ObjId
@@ -144,9 +144,9 @@ collectImgRefs =
          -> Maybe ImgRef
          -> ColEntries
          -> Sem r ImgRefMap
-    colA  go  i _md im be cs = do
+    colA go  i _md im be cs = do
       p              <- objid2path i
-      log'trc        $  msgPath p "collectImgRefs: "
+      log'trc        $  msgPath p "collectImgRefs: used refs in coll "
       let imref      =  im ^.. traverse
       let beref      =  be ^.. traverse
       let (crs, irs) =  partition isColColRef (cs ^. isoSeqList)
@@ -155,21 +155,39 @@ collectImgRefs =
       subs           <- traverse go (crs ^.. traverse . theColColRef)
       return         $  M.insert i irs2 $ M.unions subs
 
-    -- jump from the dir hierachy to the associated collection hierarchy
-    dirA  go i _es  _ts = do
+    -- collect all defined ImgRef's by traversing the dir hierachy
+    -- the refs to an IMG are processed in place
+    -- the sub DIR's are processed by the recursive call go i'
+    dirA go i es  _ts = do
       p <- objid2path i
-      log'trc $ msgPath p "collectImgRefs: "
+      log'trc $ msgPath p "collectImgRefs: defined refs in dir "
 
-      img2col <- img2colPath
-      dp      <- objid2path i
-      ci      <- fst <$> getIdNode' (img2col dp)
-      go ci
+      foldM (\ acc' i' -> do
+                m1 <- coll i'
+                return $ M.unionWith S.union m1 acc'
+            ) mempty es
+      where
+        coll i' = do
+          n' <- getImgVal i'
+          case n' of
+            IMG pts _md -> do
+              let irs =
+                    foldr (\ nm' -> S.insert (ImgRef i' nm')) mempty $
+                    pts ^.. thePartNamesI
+              return $ M.singleton i irs
+
+            _dir -> do        -- not a ref to an IMG, must be a ref to a sub DIR
+              go i'
 
     -- traverse the collection hierarchy
-    rootA go _i _dir col = go col
+    -- all defined and used image refs
+    rootA go _i dir col =
+      M.unionWith S.union <$> go dir <*> go col
 
     -- do nothing for img nodes, just to get a complete definition
-    imgA  _     _pts _md = return mempty
+    -- the IMG entries are processed in dirA
+    imgA _ _pts _md =
+      return mempty
 
 -- --------------------
 

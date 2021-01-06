@@ -521,7 +521,8 @@ deriving instance (Eq   ref) => Eq   (DirEntries' ref)
 deriving instance (Ord  ref) => Ord  (DirEntries' ref)
 deriving instance (Show ref) => Show (DirEntries' ref)
 
-deriving instance Functor DirEntries'
+deriving instance Functor  DirEntries'
+deriving instance Foldable DirEntries'
 
 instance IsEmpty (DirEntries' ref) where
   isempty (DE xs) = isempty xs

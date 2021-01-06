@@ -140,7 +140,6 @@ existsEntry i = do
   return $ isJust (s ^. theImgTree . entryAt i)
 {-# INLINE existsEntry #-}
 
-
 lookupByName :: Name -> ObjId -> SemIS r (Maybe (ObjId, ImgNode))
 lookupByName n i = do
   p <- (`snocPath` n) <$> objid2path i
