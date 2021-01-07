@@ -23,6 +23,7 @@ module Catalog.GenCollections
        , updateCollectionsByDate
        , updateImportsDir
        , img2colPath
+       , modifyMetaDataRec
        )
 where
 
@@ -47,10 +48,13 @@ import Data.MetaData          ( MetaData
                               , parseTime
                               , isoDateInt
 
-                              , no'change
+                              , all'restr
+                              , no'restr
                               , no'delete
-                              , no'wrtdel
-                              , no'wrtsrt
+                              , no'write
+                              , no'sort
+                              , no'user
+                              , (.|.)
 
                               , descrAccess     -- meta keys
                               , descrComment
@@ -73,13 +77,16 @@ genSysCollections :: Eff'ISEJLT r => Sem r ()
 genSysCollections = do
   log'verb $
     "genSysCollections: create/update system collections"
-    <> "(clipboard, albums, imports)"
+    <> "(clipboard, photos, timeline, imports)"
 
   -- the collection root is already there
   -- just set the meta data
   genCollectionRootMeta
   genClipboardCollection     -- clipboard
-  genPhotoCollection         -- hierachy for pictures imported from filesystem
+  genAlbumsCollection        -- collections created by user
+  genPhotoCollection         -- collection hierachy for images on filesystem
+  genByDateCollection        -- timeline
+  genImportsCollection       -- import history
 
 genCollectionRootMeta :: Eff'ISEJL r => Sem r ()
 genCollectionRootMeta = do
@@ -90,24 +97,52 @@ genCollectionRootMeta = do
     s = ""
     c = ""
     o = ""
-    a = no'delete
+    a = no'delete .|. no'user
 
 -- create the special collections for clipboard and trash
 
 genClipboardCollection :: Eff'ISEJLT r => Sem r ()
-genClipboardCollection = genSysCollection no'delete n'clipboard tt'clipboard
+genClipboardCollection =
+  genSysCollection (no'delete .|. no'user)
+  n'clipboard tt'clipboard
 
+-- collection tree created by user
+genAlbumsCollection :: Eff'ISEJLT r => Sem r ()
+genAlbumsCollection = genSysCollection no'restr n'albums tt'albums
+
+-- collection hierachy representing the photos hierachy on disk
 genPhotoCollection :: Eff'ISEJLT r => Sem r ()
-genPhotoCollection = genSysCollection no'change n'photos tt'photos
+genPhotoCollection = do
+  genSysCollection all'restr n'photos tt'photos
 
--- genAlbumsCollection :: Eff'ISEJLT r => Sem r ()
--- genAlbumsCollection = genSysCollection no'restr n'albums tt'albums
+  -- no user modifications in by date hierachy
+  -- may be removed when catalog is updated
+  -- with new access handling
+  getId p'photos >>= modifyMetaDataRec (setAcc all'restr)
 
+-- import collection is writeable
+-- to enable removing old imports
 genImportsCollection :: Eff'ISEJLT r => Sem r ()
-genImportsCollection = genSysCollection no'change n'imports tt'imports
+genImportsCollection = do
+  genSysCollection (no'delete .|. no'sort .|. no'user)
+    n'imports tt'imports
+
+  -- no user modifications in by date hierachy
+  -- may be removed when catalog is updated
+  -- with new access handling
+  i <- getId p'imports
+  modifyMetaDataRec (setAcc $ no'write  .|. no'sort) i
+  -- reset access right of p'imports
+  adjustMetaData (setAcc $ no'delete .|. no'sort .|. no'user) i
 
 genByDateCollection :: Eff'ISEJLT r => Sem r ()
-genByDateCollection = genSysCollection no'change n'bycreatedate tt'bydate
+genByDateCollection = do
+  genSysCollection all'restr n'bycreatedate tt'bydate
+
+  -- no user modifications in by date hierachy
+  -- may be removed when catalog is updated
+  -- with new access handling
+  getId p'bycreatedate >>= modifyMetaDataRec (setAcc all'restr)
 
 genSysCollection :: Eff'ISEJLT r => Access -> Name -> Text -> Sem r ()
 genSysCollection a n'sys tt'sys = do
@@ -120,7 +155,7 @@ genSysCollection a n'sys tt'sys = do
     Nothing -> do
       void $ mkColByPath insertColByAppend (const $ mkColMeta' md) sys'path
     Just (i, _n) ->
-      adjustMetaData (md <>) i
+      adjustMetaData (setAcc a) i
   where
     md = defaultColMeta t s c o a
       where
@@ -145,19 +180,19 @@ mkDateCol (y, m, d) pc = do
         where
           t = tt'year y'
           o = to'name
-          a = no'change
+          a = all'restr
 
     setupMonthCol y' m' _i = mkColMeta t "" "" o a
         where
           t = tt'month y' m'
           o = to'name
-          a = no'change
+          a = all'restr
 
     setupDayCol y' m' d' _i = mkColMeta t "" "" o a
         where
           t = tt'day y' m' d'
           o = to'dateandtime
-          a = no'change
+          a = all'restr
 
 -- ----------------------------------------
 
@@ -211,7 +246,7 @@ genCollectionsByDir di = do
       let t = path2Title p
           s = path2Subtitle p
           o = to'colandname
-          a = no'wrtdel
+          a = all'restr
       mkColMeta t s "" o a
 
     path2Title :: Path -> Text
@@ -398,8 +433,10 @@ defaultColMeta t s c o a =
   & metaTextAt descrSubtitle   .~ s
   & metaTextAt descrComment    .~ c
   & metaTextAt descrOrderedBy  .~ o
-  & metaDataAt descrAccess     .~ metaAcc # a
+  & setAcc                        a
 
+setAcc :: Access -> MetaData -> MetaData
+setAcc a md = md & metaDataAt descrAccess .~ metaAcc # a
 
 -- create collections recursively, similar to 'mkdir -p'
 mkColByPath :: Eff'ISEJLT r
@@ -537,6 +574,17 @@ mkImportCol ts pc = do
     tsn'' = ("Import " <> tsn) ^. isoText          -- Import 2020-05-13 12:50:42
     tsp   = pc `snocPath` tsn'
 
-    setupImpCol _i = mkColMeta tsn'' "" "" to'name no'wrtsrt
+    setupImpCol _i =
+      mkColMeta tsn'' "" "" to'name (no'write .|. no'sort)
+
+-- ----------------------------------------
+
+modifyMetaDataRec :: Eff'ISEJL r => (MetaData -> MetaData) -> ObjId -> Sem r ()
+modifyMetaDataRec mf i0 = do
+  foldCollections colA i0
+  where
+    colA go i md im be cs = do
+      adjustMetaData mf i
+      foldColColEntries go i md im be cs
 
 -- ----------------------------------------

@@ -70,6 +70,7 @@ module Data.ImgNode
        , isWriteableCol
        , isSortableCol
        , isRemovableCol
+       , isUserCol
        , ColRef'
        , ColRef
        , cColRef
@@ -81,6 +82,7 @@ import           Data.MetaData ( MetaData
                                , isWriteable
                                , isSortable
                                , isRemovable
+                               , isAUserCol
                                )
 import           Data.Prim
 
@@ -583,11 +585,14 @@ hasAccessRights p n =
   isCOL n && (p $ n ^. theColMetaData)
 
 isWriteableCol
-  , isSortableCol, isRemovableCol :: ImgNode' a -> Bool
+  , isSortableCol
+  , isRemovableCol
+  , isUserCol :: ImgNode' a -> Bool
 
 isWriteableCol = hasAccessRights isWriteable
 isSortableCol  = hasAccessRights isSortable
 isRemovableCol = hasAccessRights isRemovable
+isUserCol      = hasAccessRights isAUserCol
 
 -- ----------------------------------------
 --

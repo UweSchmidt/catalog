@@ -31,25 +31,22 @@ module Data.MetaData
   , allKeysMD
   , prettyMD
 
-  , no'change
-  , no'delete
+  , all'restr
   , no'restr
+  , no'delete
   , no'sort
   , no'write
-  , no'wrtdel
-  , no'wrtsrt
+  , no'user
+  , (.|.)
 
   , clearAccess
-  , addNoDeleteAccess
-  , addNoSortAccess
   , addNoWriteAccess
-  , subNoDeleteAccess
-  , subNoSortAccess
   , subNoWriteAccess
 
   , isWriteable
   , isSortable
   , isRemovable
+  , isAUserCol
 
   , lookupByKeys
   , lookupCreate
@@ -673,7 +670,7 @@ data MetaValue
   | MGps  !GPSposDec      -- GPS coordinate
   | MNull
 
-data AccessRestr = NO'write | NO'delete | NO'sort
+data AccessRestr = NO'write | NO'delete | NO'sort | NO'user
 
 type Access = Int
 
@@ -700,21 +697,20 @@ accessMap =
         f '\'' = '-'
         f c    = toLower c
 
-no'restr
-  , no'change
-  , no'delete, no'sort, no'write
-  , no'wrtdel, no'wrtsrt :: Access
+all'restr
+  , no'restr
+  , no'delete
+  , no'sort
+  , no'write
+  , no'user :: Access
 
-[no'write, no'delete, no'sort] = map toA [minBound .. maxBound]
+[no'write, no'delete, no'sort, no'user] = map toA [minBound .. maxBound]
   where
     toA :: AccessRestr -> Access
     toA = bit . fromEnum
 
-no'restr = 0
-no'change = no'delete .|. no'sort .|. no'write
-no'wrtdel = no'delete .|.             no'write
-no'wrtsrt =               no'sort .|. no'write
-
+all'restr = no'write .|. no'delete .|. no'sort .|. no'user
+no'restr  = 0
 
 -- indexed access to a single restriction
 
@@ -757,28 +753,23 @@ restrAccess rs = modifyAccess (.|. (isoAccessRestr # rs))
 
 clearAccess
   , addNoWriteAccess
-  , addNoSortAccess
-  , addNoDeleteAccess
-  , subNoWriteAccess
-  , subNoSortAccess
-  , subNoDeleteAccess :: MetaData -> MetaData
+  , subNoWriteAccess :: MetaData -> MetaData
 
 clearAccess       = allowAccess [minBound .. maxBound]
 addNoWriteAccess  = restrAccess [NO'write]
-addNoSortAccess   = restrAccess [NO'sort]
-addNoDeleteAccess = restrAccess [NO'delete]
 subNoWriteAccess  = allowAccess [NO'write]
-subNoSortAccess   = allowAccess [NO'sort]
-subNoDeleteAccess = allowAccess [NO'delete]
 
 isWriteable
-  , isSortable, isRemovable :: MetaData -> Bool
-isWriteable = isAccessable NO'write
-isSortable  = isAccessable NO'sort
-isRemovable = isAccessable NO'delete
+  , isSortable
+  , isRemovable
+  , isAUserCol :: MetaData -> Bool
+isWriteable = doesn'tHave NO'write
+isSortable  = doesn'tHave NO'sort
+isRemovable = doesn'tHave NO'delete
+isAUserCol  = doesn'tHave NO'user
 
-isAccessable :: AccessRestr -> MetaData -> Bool
-isAccessable r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
+doesn'tHave :: AccessRestr -> MetaData -> Bool
+doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
 
 -- --------------------
 --

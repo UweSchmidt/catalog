@@ -33,6 +33,7 @@ module Catalog.ImgTree.Access
   , lookupByPath
   , getIdNode
   , getIdNode'
+  , getId
   , alreadyTherePath
   , objid2path
   , objid2type
@@ -163,6 +164,9 @@ getIdNode msg p = do
 getIdNode' :: Path -> SemISE r (ObjId, ImgNode)
 getIdNode' p =
   getIdNode ("cant' find entry for path:") p
+
+getId :: Path -> SemISE r ObjId
+getId p = fst <$> getIdNode' p
 
 -- check path not there
 

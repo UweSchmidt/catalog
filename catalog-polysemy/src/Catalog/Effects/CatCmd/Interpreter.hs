@@ -22,15 +22,31 @@ import Catalog.Effects
 import Catalog.Effects.CatCmd
 import Catalog.GenCheckSum     ( Eff'CheckSum )
 import Catalog.CatalogIO       ( Eff'CatIO )
+import Catalog.GenCollections  ( modifyMetaDataRec )
 import Catalog.History         ( addToUndoList
                                , getFromUndoList
                                , getWholeUndoList
                                , dropFromUndoList
                                )
 import Catalog.Html            ( Eff'Html )
-import Catalog.ImgTree.Access
-import Catalog.ImgTree.Modify
-import Catalog.ImgTree.Fold
+import Catalog.ImgTree.Access  ( getIdNode'
+                               , getId
+                               , getImgVal
+                               , getImgParent
+                               , getMetaData
+                               , findFstColEntry
+                               , lookupByPath
+                               , mapObjId2Path
+                               , objid2path
+                               , processColEntryAt
+                               , processColImgEntryAt
+                               )
+import Catalog.ImgTree.Modify  ( adjustColEntries
+                               , adjustColImg
+                               , adjustColBlog
+                               , adjustMetaData
+                               , mkCollection
+                               )
 import Catalog.Invariant       ( checkImgStore )
 import Catalog.Journal         ( journal )
 import Catalog.MetaData.Sync   ( Eff'MDSync )
@@ -319,7 +335,14 @@ modify'changeWriteProtected ixs ro n =
       where
         adj = colEntry'
               (\ _ -> return ())            -- ignore ImgRef's
-              (adjustMetaData cf)
+              adjMD
+
+        adjMD i = do
+          b <- isUserCol <$> getImgVal i
+          unless b $
+            throwP i
+            "modify'changeWriteProtected: not allowed for system collections"
+          adjustMetaData cf i
 
 -- --------------------
 --
@@ -387,7 +410,7 @@ removeFromCol ixs oid n =
 
 checkMoveable :: Eff'ISE r => [Int] -> ImgNode -> Sem r Bool
 checkMoveable ixs n =
-  and <$> mapM check ixs
+  and <$> traverse check ixs
   where
     cs = n ^. theColEntries
 
@@ -400,7 +423,12 @@ checkMoveable ixs n =
              ckCol
 
         ckCol :: Eff'ISE r => ObjId -> Sem r Bool
-        ckCol i = isRemovableCol <$> getImgVal i
+        ckCol i = isRem <$> getImgVal i
+          where
+            --      (r ->) is an Applicative
+            isRem = (&&) <$> isRemovableCol <*> isUserCol
+
+        -- not write protected and not a system collection
 
 -- --------------------
 --
@@ -439,16 +467,7 @@ copyToCol xs di n =
               --
               -- the path of the copied collection
               let tp = dp `snocPath` (sp ^. viewBase . _2)
-              modifyMetaDataRec clearAccess tp
-
-modifyMetaDataRec :: Eff'ISEJL r => (MetaData -> MetaData) -> Path -> Sem r ()
-modifyMetaDataRec mf path = do
-  i <- fst <$> getIdNode "modifyMetaDataRec: entry not found" path
-  foldCollections colA i
-  where
-    colA go i md im be cs = do
-      adjustMetaData mf i
-      foldColColEntries go i md im be cs
+              getId tp >>= modifyMetaDataRec clearAccess
 
 checkWriteableCol :: Eff'ISE r => Text -> Path -> Sem r ObjId
 checkWriteableCol jsonCall dPath = do
@@ -461,11 +480,11 @@ checkRemoveable :: Eff'ISE r => Text -> [Int] -> ObjId -> ImgNode -> Sem r ()
 checkRemoveable jsonCall ixs i n = do
   -- check whether source collection is writeable (contents may change)
   unless (isWriteableCol n) $
-    throwP i (jsonCall <> ": source collection is write protected")
+    throwP i (jsonCall <> ": this collection is write protected")
 
   -- check whether entries (collections are removable)
   unlessM (checkMoveable ixs n) $
-    throwP i (jsonCall <> ": delete-protected entry found in")
+    throwP i (jsonCall <> ": an entry may not be moved or deleted")
 
 -- --------------------
 --
