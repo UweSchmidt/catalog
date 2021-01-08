@@ -45,8 +45,8 @@ instance (ToJSON (node ref), ToJSON ref) => ToJSON (RefTree node ref)
   where
     toJSON (RT r m) = J.object
       [ "rootRef"   J..= r
-      , "entries"   J..= M.toList m
-      ]
+      , "entries"   J..= M.toList m  -- entries are ordered in .json doc
+      ]                              -- better readability with pathid's
 
 instance (Ord ref, FromJSON (node ref), FromJSON ref) => FromJSON (RefTree node ref)
   where

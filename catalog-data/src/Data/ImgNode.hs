@@ -191,7 +191,7 @@ thePartsMd
           (\ x -> case x of
                   IMG pm md -> Right (pm, md)
                   _         -> Left  x
-              )
+          )
 {-# INLINE thePartsMd #-}
 
 theParts :: Traversal' (ImgNode' ref) ImgParts
@@ -324,11 +324,16 @@ instance Monoid ImgParts where
   mappend = (<>)
 
 instance ToJSON ImgParts where
-  toJSON (ImgParts pm) = toJSON . M.toList $ pm
+  toJSON ips = toJSON $ ips ^. isoImgParts
+  -- old
+  -- toJSON (ImgParts pm) = toJSON . M.toList $ pm
   {-# INLINE toJSON #-}
 
 instance FromJSON ImgParts where
-  parseJSON x = (ImgParts . M.fromList) <$> parseJSON x
+  parseJSON x =
+    (isoImgParts #) <$> parseJSON x          -- parse new: [ImgPart]
+    <|>
+    (ImgParts . M.fromList) <$> parseJSON x  -- parse old: Map Name ImgPart
 
 mkImgParts :: [ImgPart] -> ImgParts
 mkImgParts ps = isoImgParts # ps
