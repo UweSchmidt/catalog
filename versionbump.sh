@@ -2,7 +2,7 @@
 
 # set -x
 
-version="0.4.2.0"
+version="0.5.0.0"
 dat=$(date "+%Y-%m-%d")
 
 LANG="en_US.UTF-8"

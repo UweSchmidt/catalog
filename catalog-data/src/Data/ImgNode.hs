@@ -84,10 +84,12 @@ import           Data.MetaData ( MetaData
                                , isoMDT
                                , metaDataAt
                                , fileImgType
+                               , fileName
                                , fileTimeStamp
                                , fileCheckSum
                                , metaCheckSum
                                , metaImgType
+                               , metaName
                                , metaTimeStamp
                                , isWriteable
                                , isSortable
@@ -380,64 +382,59 @@ thePartNames = thePartNames' (const True)
 -- not only imgtype, timestamp and checksum, but also
 -- geometry, orientation, ratings, ...
 
-data ImgPart = IPM !Name !MetaData
+data ImgPart = IPM !MetaData
 
 deriving instance Show ImgPart
 
 instance FromJSON ImgPart where
-  parseJSON x = J.parseJSON x >>= toIPM
+  parseJSON x = toIPM <$> J.parseJSON x
     where
-      toIPM mdt@(MDT md)
-        | isempty n  = mzero
-        | otherwise  = return r3
+      toIPM mdt@(MDT md) = r3   -- TODO: = r
         where
-          n = isoText # (fromMaybe mempty $ M.lookup "Name"      md)
           m = isoMDT # mdt
-          r = IPM n m
+          r = IPM m
 
           -- TODO: cleanup when old JSON format isn't longer in use
           -- this code parses old and new JSON
           -- stuff for parsing old JSON with ImgPart = IP n t s c
           --
+          n :: Name
+          n = isoText # (fromMaybe mempty $ M.lookup "Name"  md)
+
+          t :: ImgType
+          t = isoText # (fromMaybe mempty $ M.lookup "ImgType"  md)
+
           s :: TimeStamp
           s = isoText # (fromMaybe mempty $ M.lookup "TimeStamp" md)
 
           c :: CheckSum
           c = isoText # (fromMaybe mempty $ M.lookup "CheckSum"  md)
 
-          t :: ImgType
-          t = isoText # (fromMaybe mempty $ M.lookup "ImgType"  md)
-
-          r1 = (if isempty t then id else theImgType      .~ t) r
+          r0 = (if isempty n then id else theImgName      .~ n) r
+          r1 = (if isempty t then id else theImgType      .~ t) r0
           r2 = (if isempty c then id else theImgCheckSum  .~ c) r1
           r3 = (if isempty s then id else theImgTimeStamp .~ s) r2
 
 instance ToJSON ImgPart where
-  toJSON (IPM n md) = toJSON mdt
-    where
-      mdt :: Map Text Text
-      mdt = md' & M.insert "Name" (n ^. isoText)
-        where
-          (MDT md') = md ^. isoMDT
+  toJSON (IPM md) = toJSON $ md ^. isoMDT
 
 mkImgPart :: Name -> ImgType -> ImgPart
 mkImgPart n t =
-  IPM n mempty & theImgType .~ t
+  IPM mempty & theImgName .~ n
+             & theImgType .~ t
 {-# INLINE mkImgPart #-}
 
+theImgMeta :: Lens' ImgPart MetaData
+theImgMeta k (IPM md) = (\ new -> IPM new) <$> k md
+{-# INLINE theImgMeta #-}
+
 theImgName :: Lens' ImgPart Name
-theImgName k (IPM n md) = (\ new -> IPM new md) <$> k n
+theImgName = theImgMeta . metaDataAt fileName . metaName
 {-# INLINE theImgName #-}
 
 theImgType :: Lens' ImgPart ImgType
 theImgType = theImgMeta . metaDataAt fileImgType . metaImgType
-
--- theImgType k (IPM n t md) = (\ new -> IPM n new md) <$> k t
 {-# INLINE theImgType #-}
-
-theImgMeta :: Lens' ImgPart MetaData
-theImgMeta k (IPM n md) = (\ new -> IPM n new) <$> k md
-{-# INLINE theImgMeta #-}
 
 theImgTimeStamp :: Lens' ImgPart TimeStamp
 theImgTimeStamp = theImgMeta . metaDataAt fileTimeStamp . metaTimeStamp

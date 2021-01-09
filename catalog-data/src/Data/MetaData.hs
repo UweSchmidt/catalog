@@ -19,10 +19,12 @@ module Data.MetaData
   , mdj2mdt
   , metaDataAt
   , metaTextAt
-  , metaImgType
-  , metaTimeStamp
+
   , metaAcc
   , metaCheckSum
+  , metaImgType
+  , metaName
+  , metaTimeStamp
 
   , editMD
   , filterByImgType
@@ -136,9 +138,9 @@ module Data.MetaData
   , fileDirectory
   , fileFileSize
   , fileFileModifyDate
-  , fileFileName
   , fileImgType
   , fileMIMEType
+  , fileName
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
@@ -409,9 +411,9 @@ fileCheckSum
   , fileDirectory
   , fileFileSize
   , fileFileModifyDate
-  , fileFileName
   , fileImgType
   , fileMIMEType
+  , fileName
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
@@ -422,10 +424,10 @@ keysAttrFile@
   [ fileCheckSum
   , fileDirectory
   , fileFileModifyDate
-  , fileFileName
   , fileFileSize
   , fileImgType
   , fileMIMEType
+  , fileName
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
@@ -641,10 +643,11 @@ data MetaKey
   | File'CheckSum
   | File'Directory
   | File'FileModifyDate
-  | File'FileName
+  | File'FileName                -- TODO: redundant File'Name does it
   | File'FileSize
   | File'ImgType
   | File'MIMEType                -- TODO: redundant, type is set in File'ImgType
+  | File'Name
   | File'RefImg
   | File'RefJpg
   | File'RefRaw
@@ -675,6 +678,7 @@ data MetaKey
 
 data MetaValue
   = MText !Text
+  | MNm   !Name
   | MInt  !Int
   | MRat  !Int            -- rating: 0..5
   | MOri  !Int            -- orientation: 0..3 <-> 0, 90, 180, 270 degrees CW
@@ -921,6 +925,7 @@ deriving instance Show MetaValue
 
 instance IsEmpty MetaValue where   -- default values are redundant
   isempty (MText "") = True
+  isempty (MNm  n)   = isempty n
   isempty (MInt 0)   = True
   isempty (MOri 0)   = True
   isempty (MRat 0)   = True
@@ -937,7 +942,7 @@ instance Semigroup MetaValue where
   mv1            <> MNull    = mv1
 
   mv1@(MText _)  <> MText _  = mv1     -- 1. wins
-
+  mv1@(MNm  _)   <> MNm  _   = mv1     -- 1. wins
   mv1@(MInt _)   <> MInt _   = mv1     -- 1. wins
   mv1@(MRat _)   <> MRat _   = mv1     -- 1. wins
   mv1@(MOri _)   <> MOri _   = mv1     -- 1. wins
@@ -963,6 +968,14 @@ metaText = iso
             _       -> mempty
   )
   MText
+
+metaName :: Iso' MetaValue Name
+metaName = iso
+  (\ x -> case x of
+            MNm n -> n
+            _     -> mempty
+  )
+  MNm
 
 metaInt :: Iso' MetaValue Int
 metaInt = iso
@@ -1121,15 +1134,16 @@ isoIntText = isoIntStr . isoText
 isoMetaValueText :: MetaKey -> Iso' MetaValue Text
 isoMetaValueText k = case k of
   Composite'GPSPosition -> metaGPSDecText
-  Descr'Access          -> metaAccess . isoAccText
+  Descr'Access          -> metaAccess    . isoAccText
   Descr'GPSPosition     -> metaGPSDecText
-  Descr'Keywords        -> metaKeywords . isoKeywText
+  Descr'Keywords        -> metaKeywords  . isoKeywText
   Descr'Rating          -> metaRatingText
   EXIF'ImageHeight      -> metaIntText
   EXIF'ImageWidth       -> metaIntText
   EXIF'Orientation      -> metaOri . isoOriText
-  File'CheckSum         -> metaCheckSum . isoText
-  File'ImgType          -> metaImgType . isoText
+  File'CheckSum         -> metaCheckSum  . isoText
+  File'ImgType          -> metaImgType   . isoText
+  File'Name             -> metaName      . isoText
   File'TimeStamp        -> metaTimeStamp . isoText
   Img'Rating            -> metaText          -- used in genPages
   Img'EXIFUpdate        -> metaTimeStamp . isoText

@@ -48,7 +48,7 @@ import Data.MetaData ( MetaData
                      , exifWhiteBalance
 
                      , fileFileModifyDate
-                     , fileRefImg
+                     , fileName
                      , fileRefJpg
                      , fileRefRaw
 
@@ -811,7 +811,7 @@ picMeta md = mconcat mdTab
       , mdval  "Aufnahmezähler"        makerNotesShutterCount
       , mdval  "Geometrie"             compositeImageSize
       , mdval  "Original-Datei"        fileRefRaw
-      , mdval  "Bild-Datei"            fileRefImg
+      , mdval  "Bild-Datei"            fileName
       , mdval  "Bild-Kopie"            fileRefJpg
       , mdval  "Bearbeitet"            fileFileModifyDate
       , mdRat  "Bewertung"
