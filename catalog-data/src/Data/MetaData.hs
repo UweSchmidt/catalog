@@ -9,7 +9,7 @@ module Data.MetaData
   ( MetaKey
   , MetaValue
   , MetaData
-  , MetaDataText
+  , MetaDataText(..)
   , MetaDataJSON
   , Rating
   , Access
@@ -19,8 +19,10 @@ module Data.MetaData
   , mdj2mdt
   , metaDataAt
   , metaTextAt
+  , metaImgType
   , metaTimeStamp
   , metaAcc
+  , metaCheckSum
 
   , editMD
   , filterByImgType
@@ -130,14 +132,17 @@ module Data.MetaData
   , exifUserComment
   , exifWhiteBalance
 
+  , fileCheckSum
   , fileDirectory
   , fileFileSize
   , fileFileModifyDate
   , fileFileName
+  , fileImgType
   , fileMIMEType
-  , fileRefRaw
   , fileRefImg
   , fileRefJpg
+  , fileRefRaw
+  , fileTimeStamp
 
   , imgRating
   , imgEXIFUpdate
@@ -400,26 +405,32 @@ keysAttrExif@
   , exifWhiteBalance
   ] = [EXIF'Artist .. EXIF'WhiteBalance]
 
-fileDirectory
+fileCheckSum
+  , fileDirectory
   , fileFileSize
   , fileFileModifyDate
   , fileFileName
-  , fileMIMEType
-  , fileRefRaw
-  , fileRefImg
-  , fileRefJpg :: MetaKey
-
-keysAttrFile :: [MetaKey]
-keysAttrFile@
-  [ fileDirectory
-  , fileFileModifyDate
-  , fileFileName
-  , fileFileSize
+  , fileImgType
   , fileMIMEType
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
-  ] = [File'Directory .. File'RefRaw]
+  , fileTimeStamp :: MetaKey
+
+keysAttrFile :: [MetaKey]
+keysAttrFile@
+  [ fileCheckSum
+  , fileDirectory
+  , fileFileModifyDate
+  , fileFileName
+  , fileFileSize
+  , fileImgType
+  , fileMIMEType
+  , fileRefImg
+  , fileRefJpg
+  , fileRefRaw
+  , fileTimeStamp
+  ] = [File'CheckSum .. File'TimeStamp]
 
 imgRating
   , imgEXIFUpdate :: MetaKey
@@ -627,14 +638,17 @@ data MetaKey
   | EXIF'Orientation
   | EXIF'UserComment
   | EXIF'WhiteBalance
+  | File'CheckSum
   | File'Directory
   | File'FileModifyDate
   | File'FileName
   | File'FileSize
-  | File'MIMEType
+  | File'ImgType
+  | File'MIMEType                -- TODO: redundant, type is set in File'ImgType
   | File'RefImg
   | File'RefJpg
   | File'RefRaw
+  | File'TimeStamp
   | Img'EXIFUpdate
   | Img'Rating
   | MakerNotes'ColorSpace
@@ -668,6 +682,8 @@ data MetaValue
   | MAcc  !Access         -- access restrictions
   | MTs   !TimeStamp      -- time stamp
   | MGps  !GPSposDec      -- GPS coordinate
+  | MCS   !CheckSum
+  | MTyp !ImgType
   | MNull
 
 data AccessRestr = NO'write | NO'delete | NO'sort | NO'user
@@ -905,11 +921,14 @@ deriving instance Show MetaValue
 
 instance IsEmpty MetaValue where   -- default values are redundant
   isempty (MText "") = True
+  isempty (MInt 0)   = True
   isempty (MOri 0)   = True
   isempty (MRat 0)   = True
   isempty (MKeyw []) = True
   isempty (MAcc a)   = a == no'restr
   isempty (MTs t)    = t == mempty
+  isempty (MCS cs)   = isempty cs
+  isempty (MTyp t)   = isempty t
   isempty  MNull     = True
   isempty _          = False
 
@@ -925,6 +944,8 @@ instance Semigroup MetaValue where
   mv1@(MAcc _)   <> MAcc _   = mv1     -- 1. wins
   mv1@(MTs  _)   <> MTs  _   = mv1     -- 1. wins
   mv1@(MGps _)   <> MGps _   = mv1     -- 1. wins
+  mv1@(MCS  _)   <> MCS  _   = mv1     -- 1. wins
+  mv1@(MTyp _)   <> MTyp _   = mv1     -- 1. wins
   MKeyw w1       <> MKeyw w2 = MKeyw $ unionKW w1 w2
 
   _              <> mv2      = mv2     -- mixing types, no effect
@@ -951,6 +972,22 @@ metaInt = iso
   )
   MInt
 
+metaImgType :: Iso' MetaValue ImgType
+metaImgType = iso
+  (\ x -> case x of
+            MTyp t -> t
+            _      -> mempty
+  )
+  MTyp
+
+metaCheckSum :: Iso' MetaValue CheckSum
+metaCheckSum = iso
+  (\ x -> case x of
+            MCS cs -> cs
+            _      -> mempty
+  )
+  MCS
+
 metaIntText :: Iso' MetaValue Text
 metaIntText = metaInt . isoIntText
 
@@ -961,9 +998,6 @@ metaKeywords = iso
             _        -> mempty
   )
   MKeyw
-
-metaKeywordsText :: Iso' MetaValue Text
-metaKeywordsText = metaKeywords . isoKeywText
 
 metaRating :: Iso' MetaValue Int
 metaRating = iso
@@ -989,9 +1023,6 @@ metaOri = iso
   )
   (\ i -> MOri $ (i `max` 0) `min` 3)
 
-metaOriText :: Iso' MetaValue Text
-metaOriText = metaOri . isoOriText
-
 metaTimeStamp :: Iso' MetaValue TimeStamp
 metaTimeStamp = iso
   (\ x -> case x of
@@ -999,9 +1030,6 @@ metaTimeStamp = iso
             _     -> mempty
   )
   MTs
-
-metaTimeStampText :: Iso' MetaValue Text
-metaTimeStampText = metaTimeStamp . isoText
 
 metaGPS :: Iso' MetaValue (Maybe GPSposDec)
 metaGPS = iso
@@ -1039,9 +1067,6 @@ metaAcc = iso
 
 metaAccess :: Iso' MetaValue [AccessRestr]
 metaAccess = metaAcc . isoAccessRestr
-
-metaAccessText :: Iso' MetaValue Text
-metaAccessText = metaAccess . isoAccText
 
 isoKeywText :: Iso' [Text] Text
 isoKeywText = iso toT frT
@@ -1096,15 +1121,18 @@ isoIntText = isoIntStr . isoText
 isoMetaValueText :: MetaKey -> Iso' MetaValue Text
 isoMetaValueText k = case k of
   Composite'GPSPosition -> metaGPSDecText
-  Descr'Access          -> metaAccessText
+  Descr'Access          -> metaAccess . isoAccText
   Descr'GPSPosition     -> metaGPSDecText
-  Descr'Keywords        -> metaKeywordsText
+  Descr'Keywords        -> metaKeywords . isoKeywText
   Descr'Rating          -> metaRatingText
   EXIF'ImageHeight      -> metaIntText
   EXIF'ImageWidth       -> metaIntText
-  EXIF'Orientation      -> metaOriText
+  EXIF'Orientation      -> metaOri . isoOriText
+  File'CheckSum         -> metaCheckSum . isoText
+  File'ImgType          -> metaImgType . isoText
+  File'TimeStamp        -> metaTimeStamp . isoText
   Img'Rating            -> metaText          -- used in genPages
-  Img'EXIFUpdate        -> metaTimeStampText
+  Img'EXIFUpdate        -> metaTimeStamp . isoText
   QuickTime'ImageHeight -> metaIntText
   QuickTime'ImageWidth  -> metaIntText
   XMP'Rating            -> metaRatingText

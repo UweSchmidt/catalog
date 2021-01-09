@@ -21,24 +21,30 @@ deriving instance Ord  ImgType
 deriving instance Show ImgType
 deriving instance Read ImgType
 
+instance IsoString ImgType where
+  isoString = iso show (fromMaybe IMGboring . readMaybe)
+
+instance IsoText ImgType
+
 instance ToJSON ImgType where
   toJSON = toJSON . show
   {-# INLINE toJSON #-}
 
 instance FromJSON ImgType where
-  parseJSON o = read <$> parseJSON o
-{-
+  parseJSON o = parseJSON o >>= maybe mzero return
+  {-# INLINE parseJSON #-}
+
 instance Semigroup ImgType where
-  IMGother <> t2 = t2
-  t1       <> _  = t1
+  t1 <> t2
+    | isempty t1 = t2
+    | otherwise  = t1
 
 instance Monoid ImgType where
-  mempty  = IMGother
+  mempty  = IMGboring
   mappend = (<>)
 
 instance IsEmpty ImgType where
-  isempty = (== IMGother)
--- -}
+  isempty = (== mempty)
 
 -- is .jpg file
 isJpg :: ImgType -> Bool

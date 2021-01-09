@@ -78,7 +78,17 @@ module Data.ImgNode
 where
 
 import           Control.Monad.Except
+
 import           Data.MetaData ( MetaData
+                               , MetaDataText(MDT)
+                               , isoMDT
+                               , metaDataAt
+                               , fileImgType
+                               , fileTimeStamp
+                               , fileCheckSum
+                               , metaCheckSum
+                               , metaImgType
+                               , metaTimeStamp
                                , isWriteable
                                , isSortable
                                , isRemovable
@@ -343,7 +353,7 @@ isoImgParts :: Iso' ImgParts [ImgPart]
 isoImgParts =
   iso (\ (ImgParts pm) -> pm) ImgParts
   .
-  isoMapElems (\ (IP n _ _ _) -> n)
+  isoMapElems (^. theImgName) -- (\ (IPN n _ _) -> n)
 {-# INLINE isoImgParts #-}
 
 isoImgPartsMap :: Iso' ImgParts (Map Name ImgPart)
@@ -364,44 +374,77 @@ thePartNames = thePartNames' (const True)
 {-# INLINE thePartNames #-}
 
 -- ----------------------------------------
+--
+-- new ImgPart datatype
+-- MetaData is used for all attributes of a part
+-- not only imgtype, timestamp and checksum, but also
+-- geometry, orientation, ratings, ...
 
-data ImgPart     = IP !Name !ImgType !TimeStamp !CheckSum
+data ImgPart = IPM !Name !MetaData
 
 deriving instance Show ImgPart
 
-instance ToJSON ImgPart where
-  toJSON (IP n t s c) = J.object $
-    [ "Name"      J..= n
-    , "ImgType"   J..= t
-    ]
-    ++ ("TimeStamp" .=?! s)       -- optional field
-    ++ ("CheckSum"  .=?! c)       --     "      "
-
 instance FromJSON ImgPart where
-  parseJSON = J.withObject "ImgPart" $ \ o ->
-    IP <$> o J..:   "Name"
-       <*> o J..:   "ImgType"
-       <*> o   .:?! "TimeStamp"   -- optional field
-       <*> o   .:?! "CheckSum"    --    "       "
+  parseJSON x = J.parseJSON x >>= toIPM
+    where
+      toIPM mdt@(MDT md)
+        | isempty n  = mzero
+        | otherwise  = return r3
+        where
+          n = isoText # (fromMaybe mempty $ M.lookup "Name"      md)
+          m = isoMDT # mdt
+          r = IPM n m
+
+          -- TODO: cleanup when old JSON format isn't longer in use
+          -- this code parses old and new JSON
+          -- stuff for parsing old JSON with ImgPart = IP n t s c
+          --
+          s :: TimeStamp
+          s = isoText # (fromMaybe mempty $ M.lookup "TimeStamp" md)
+
+          c :: CheckSum
+          c = isoText # (fromMaybe mempty $ M.lookup "CheckSum"  md)
+
+          t :: ImgType
+          t = isoText # (fromMaybe mempty $ M.lookup "ImgType"  md)
+
+          r1 = (if isempty t then id else theImgType      .~ t) r
+          r2 = (if isempty c then id else theImgCheckSum  .~ c) r1
+          r3 = (if isempty s then id else theImgTimeStamp .~ s) r2
+
+instance ToJSON ImgPart where
+  toJSON (IPM n md) = toJSON mdt
+    where
+      mdt :: Map Text Text
+      mdt = md' & M.insert "Name" (n ^. isoText)
+        where
+          (MDT md') = md ^. isoMDT
 
 mkImgPart :: Name -> ImgType -> ImgPart
-mkImgPart n t = IP n t mempty mempty
+mkImgPart n t =
+  IPM n mempty & theImgType .~ t
 {-# INLINE mkImgPart #-}
 
 theImgName :: Lens' ImgPart Name
-theImgName k (IP n t s c) = (\ new -> IP new t s c) <$> k n
+theImgName k (IPM n md) = (\ new -> IPM new md) <$> k n
 {-# INLINE theImgName #-}
 
 theImgType :: Lens' ImgPart ImgType
-theImgType k (IP n t s c) = (\ new -> IP n new s c) <$> k t
+theImgType = theImgMeta . metaDataAt fileImgType . metaImgType
+
+-- theImgType k (IPM n t md) = (\ new -> IPM n new md) <$> k t
 {-# INLINE theImgType #-}
 
+theImgMeta :: Lens' ImgPart MetaData
+theImgMeta k (IPM n md) = (\ new -> IPM n new) <$> k md
+{-# INLINE theImgMeta #-}
+
 theImgTimeStamp :: Lens' ImgPart TimeStamp
-theImgTimeStamp k (IP n t s c) = (\ new -> IP n t new c) <$> k s
+theImgTimeStamp = theImgMeta . metaDataAt fileTimeStamp . metaTimeStamp
 {-# INLINE theImgTimeStamp #-}
 
 theImgCheckSum :: Lens' ImgPart CheckSum
-theImgCheckSum k (IP n t s c) = (\ new -> IP n t s new) <$> k c
+theImgCheckSum = theImgMeta . metaDataAt fileCheckSum . metaCheckSum
 {-# INLINE theImgCheckSum #-}
 
 -- ----------------------------------------
