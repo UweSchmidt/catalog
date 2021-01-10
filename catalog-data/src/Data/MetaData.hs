@@ -4,6 +4,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Data.MetaData
   ( MetaKey
@@ -54,12 +55,11 @@ module Data.MetaData
 
   , lookupByKeys
   , lookupCreate
-  , lookupFileName
-  , lookupGPSposDeg
-  , lookupGeoOri
   , lookupGeo
+  , lookupGeoOri
   , lookupOri
   , lookupRating
+  , lookupGPSposDeg
   , mkRating
 
   , parseTime
@@ -139,7 +139,6 @@ module Data.MetaData
   , fileFileSize
   , fileFileModifyDate
   , fileImgType
-  , fileMIMEType
   , fileName
   , fileRefImg
   , fileRefJpg
@@ -412,7 +411,6 @@ fileCheckSum
   , fileFileSize
   , fileFileModifyDate
   , fileImgType
-  , fileMIMEType
   , fileName
   , fileRefImg
   , fileRefJpg
@@ -426,7 +424,6 @@ keysAttrFile@
   , fileFileModifyDate
   , fileFileSize
   , fileImgType
-  , fileMIMEType
   , fileName
   , fileRefImg
   , fileRefJpg
@@ -536,13 +533,6 @@ lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
         , exifCreateDate
         ] mt
 
-lookupFileName :: MetaData -> Maybe Text
-lookupFileName mt
-  | isempty n = Nothing
-  | otherwise  = Just n
-  where
-   n = mt ^. metaTextAt File'FileName
-
 lookupGeoOri :: MetaData -> (Geo, Int)
 lookupGeoOri = lookupGeo &&& lookupOri
 
@@ -551,10 +541,6 @@ lookupGeo mt =
   toGeo $ mt ^. metaTextAt compositeImageSize
   where
     toGeo sz = fromMaybe geo'org (readGeo'' $ sz ^. isoString)
-
-
-lookupOri :: MetaData -> Int
-lookupOri mt = mt ^. metaDataAt exifOrientation . metaOri
 
 lookupRating :: MetaData -> Rating
 lookupRating mt =
@@ -565,6 +551,9 @@ lookupRating mt =
 
 mkRating :: Rating -> MetaData -> MetaData
 mkRating r md = md & metaDataAt descrRating .~ metaRating # r
+
+lookupOri :: MetaData -> Int
+lookupOri mt = mt ^. metaDataAt exifOrientation . metaOri
 
 lookupGPSposDeg :: MetaData -> Text
 lookupGPSposDeg =
@@ -643,10 +632,8 @@ data MetaKey
   | File'CheckSum
   | File'Directory
   | File'FileModifyDate
-  | File'FileName                -- TODO: redundant File'Name does it
   | File'FileSize
   | File'ImgType
-  | File'MIMEType                -- TODO: redundant, type is set in File'ImgType
   | File'Name
   | File'RefImg
   | File'RefJpg
@@ -686,9 +673,15 @@ data MetaValue
   | MAcc  !Access         -- access restrictions
   | MTs   !TimeStamp      -- time stamp
   | MGps  !GPSposDec      -- GPS coordinate
-  | MCS   !CheckSum
-  | MTyp !ImgType
-  | MNull
+  | MCS   !CheckSum       -- checksum
+  | MTyp  !ImgType        -- image (or file) type
+  | MNull                 -- missing or default value
+
+-- invariant for MetaValue:
+-- isempty mv => mv == MNull
+--
+-- the invariant will be guaranteed by the setter parts
+-- of "meta***" iso's
 
 data AccessRestr = NO'write | NO'delete | NO'sort | NO'user
 
@@ -924,22 +917,22 @@ deriving instance Eq   MetaValue
 deriving instance Show MetaValue
 
 instance IsEmpty MetaValue where   -- default values are redundant
-  isempty (MText "") = True
+  isempty (MText t)  = isempty t
   isempty (MNm  n)   = isempty n
-  isempty (MInt 0)   = True
-  isempty (MOri 0)   = True
-  isempty (MRat 0)   = True
-  isempty (MKeyw []) = True
+  isempty (MInt _)   = False       -- no default value for Int
+  isempty (MOri o)   = o == 0
+  isempty (MRat r)   = r == 0
+  isempty (MKeyw ws) = null ws
   isempty (MAcc a)   = a == no'restr
   isempty (MTs t)    = t == mempty
   isempty (MCS cs)   = isempty cs
   isempty (MTyp t)   = isempty t
+  isempty (MGps _)   = False       -- no default value for GPS data
   isempty  MNull     = True
-  isempty _          = False
 
 instance Semigroup MetaValue where
-  MNull          <> mv2      = mv2
-  mv1            <> MNull    = mv1
+  MNull          <> mv2      = mv2     -- 1. arg null: take the other one
+  mv1            <> MNull    = mv1     -- 2. arg null: take the other one
 
   mv1@(MText _)  <> MText _  = mv1     -- 1. wins
   mv1@(MNm  _)   <> MNm  _   = mv1     -- 1. wins
@@ -947,11 +940,11 @@ instance Semigroup MetaValue where
   mv1@(MRat _)   <> MRat _   = mv1     -- 1. wins
   mv1@(MOri _)   <> MOri _   = mv1     -- 1. wins
   mv1@(MAcc _)   <> MAcc _   = mv1     -- 1. wins
-  mv1@(MTs  _)   <> MTs  _   = mv1     -- 1. wins
   mv1@(MGps _)   <> MGps _   = mv1     -- 1. wins
   mv1@(MCS  _)   <> MCS  _   = mv1     -- 1. wins
   mv1@(MTyp _)   <> MTyp _   = mv1     -- 1. wins
-  MKeyw w1       <> MKeyw w2 = MKeyw $ unionKW w1 w2
+  MTs   t1       <> MTs   t2 = MTs   $ t1 <> t2       -- newest wins
+  MKeyw w1       <> MKeyw w2 = MKeyw $ unionKW w1 w2  -- keywords are collected
 
   _              <> mv2      = mv2     -- mixing types, no effect
 
@@ -960,97 +953,157 @@ instance Monoid MetaValue where
 
 -- MetaKey determines the MetaValue representation
 -- no instance of FromJSON, due to decoding dependency on the key
+--
+-- getter and setter for MataValue
 
 metaText :: Iso' MetaValue Text
 metaText = iso
-  (\ x -> case x of
-            MText t -> t
-            _       -> mempty
+  (\ case
+      MText t -> t
+      _       -> mempty
   )
-  MText
+  (\ t -> if isempty t
+          then mempty
+          else MText t
+  )
+{-# INLINE metaText #-}
 
 metaName :: Iso' MetaValue Name
 metaName = iso
-  (\ x -> case x of
-            MNm n -> n
-            _     -> mempty
+  (\ case
+      MNm n -> n
+      _     -> mempty
   )
-  MNm
+  (\ n -> if isempty n
+          then mempty
+          else MNm n
+  )
+{-# INLINE metaName #-}
 
-metaInt :: Iso' MetaValue Int
+metaInt :: Iso' MetaValue (Maybe Int)
 metaInt = iso
-  (\ x -> case x of
-            MInt i -> i
-            _      -> 0
+  (\ case
+      MInt i -> Just i
+      _      -> Nothing
   )
-  MInt
-
-metaImgType :: Iso' MetaValue ImgType
-metaImgType = iso
-  (\ x -> case x of
-            MTyp t -> t
-            _      -> mempty
-  )
-  MTyp
-
-metaCheckSum :: Iso' MetaValue CheckSum
-metaCheckSum = iso
-  (\ x -> case x of
-            MCS cs -> cs
-            _      -> mempty
-  )
-  MCS
-
-metaIntText :: Iso' MetaValue Text
-metaIntText = metaInt . isoIntText
-
-metaKeywords :: Iso' MetaValue [Text]
-metaKeywords = iso
-  (\ x -> case x of
-            MKeyw kw -> kw
-            _        -> mempty
-  )
-  MKeyw
+  (maybe mempty MInt)
+{-# INLINE metaInt #-}
 
 metaRating :: Iso' MetaValue Int
 metaRating = iso
-  (\ x -> case x of
-            MRat i -> i
-            _      -> 0
+  (\case
+      MRat i -> i
+      _      -> 0
   )
-  (\ i -> MRat $ (i `max` 0) `min` ratingMax)
-
-metaRatingText :: Iso' MetaValue Text
-metaRatingText = metaRating . isoIntText'
-  where
-    isoIntText' = iso (^. isoIntText) frT
-    frT t = (isoIntText # t)    -- rating as number
-            `max`
-            (isoStars # t)      -- rating as sequence of *'s
+  (\ i -> let i' = (i `max` 0) `min` ratingMax
+          in if i' == 0
+             then mempty
+             else MRat i'
+  )
+{-# INLINE metaRating #-}
 
 metaOri :: Iso' MetaValue Int
 metaOri = iso
-  (\ x -> case x of
-            MOri i -> i
-            _      -> 0
+  (\ case
+      MOri i -> i
+      _      -> 0
   )
-  (\ i -> MOri $ (i `max` 0) `min` 3)
+  (\ i -> let i' = (i `max` 0) `min` 3
+          in if i' == 0
+             then mempty
+             else MOri i'
+  )
+{-# INLINE metaOri #-}
+
+metaKeywords :: Iso' MetaValue [Text]
+metaKeywords = iso
+  (\ case
+      MKeyw kw -> kw
+      _        -> []
+  )
+  (\ ws -> if null ws
+           then mempty
+           else MKeyw ws
+  )
+{-# INLINE metaKeywords #-}
+
+metaAcc :: Iso' MetaValue Access
+metaAcc = iso
+  (\ case
+      MAcc a -> a
+      _      -> no'restr
+  )
+  (\ a -> if a == no'restr
+          then mempty
+          else MAcc a
+  )
+{-# INLINE metaAcc #-}
+
+metaAccess :: Iso' MetaValue [AccessRestr]
+metaAccess = metaAcc . isoAccessRestr
+{-# INLINE metaAccess #-}
 
 metaTimeStamp :: Iso' MetaValue TimeStamp
 metaTimeStamp = iso
-  (\ x -> case x of
-            MTs t -> t
-            _     -> mempty
+  (\ case
+      MTs t -> t
+      _     -> mempty
   )
-  MTs
+  (\ t -> if isempty t
+          then mempty
+          else MTs t
+  )
+{-# INLINE metaTimeStamp #-}
 
-metaGPS :: Iso' MetaValue (Maybe GPSposDec)
+metaGPS :: Iso' MetaValue (Maybe GPSposDec)  -- no default for GPS
 metaGPS = iso
   (\ x -> case x of
             MGps p -> Just p
             _      -> Nothing
   )
   (maybe mempty MGps)
+{-# INLINE metaGPS #-}
+
+metaCheckSum :: Iso' MetaValue CheckSum
+metaCheckSum = iso
+  (\ case
+      MCS cs -> cs
+      _      -> mempty
+  )
+  (\ c -> if isempty c
+          then mempty
+          else MCS c
+  )
+{-# INLINE metaCheckSum #-}
+
+metaImgType :: Iso' MetaValue ImgType
+metaImgType = iso
+  (\ case
+      MTyp t -> t
+      _      -> mempty
+  )
+  (\ t -> if isempty t
+          then mempty
+          else MTyp t
+  )
+{-# INLINE metaImgType #-}
+
+-- --------------------
+--
+-- MetaValue <-> Text
+
+metaIntText :: Iso' MetaValue Text
+metaIntText = metaInt . isoMaybeIntText
+{-# INLINE metaIntText #-}
+
+metaRatingText :: Iso' MetaValue Text
+metaRatingText =
+  metaRating . iso (^. isoIntText) frT
+  where
+    frT :: Text -> Int
+    frT t = (isoIntText # t)    -- rating as number           "5"   -> 5
+            `max`               -- illegal text               "?"   -> 0
+            (isoStars # t)      -- rating as sequence of *'s  "***" -> 3
 
 metaGPSDecText :: Iso' MetaValue Text
 metaGPSDecText = metaGPS . isoGPSDec . isoText
@@ -1070,21 +1123,18 @@ metaGPSDegText = metaGPS . isoGPSDeg . isoText
         toS v = maybe mempty (\ p -> prismString # (isoDegDec # p)) v
         frS s = (^. isoDegDec) <$> (s ^? prismString)
 
-metaAcc :: Iso' MetaValue Access
-metaAcc = iso
-  (\ x -> case x of
-            MAcc a -> a
-            _      -> no'restr
-  )
-  MAcc
+-- --------------------
+--
+-- auxiliary iso's for conversion of MetaData <-> Text
 
-metaAccess :: Iso' MetaValue [AccessRestr]
-metaAccess = metaAcc . isoAccessRestr
-
+{-# INLINE isoKeywText #-}
 isoKeywText :: Iso' [Text] Text
 isoKeywText = iso toT frT
   where
+    toT :: [Text] -> Text
     toT = T.intercalate ", "
+
+    frT :: Text -> [Text]
     frT =
       filter (not . T.null)       -- remove empty words
       .
@@ -1092,6 +1142,7 @@ isoKeywText = iso toT frT
       .
       T.split (== ',')            -- split at ","
 
+{-# INLINE isoOriText #-}
 isoOriText :: Iso' Int Text
 isoOriText = iso toT frT
   where
@@ -1113,6 +1164,7 @@ isoOriText = iso toT frT
     d270 = "Rotate 90 CCW"
     d271 = "Rotate 270 CW"
 
+{-# INLINE isoAccText #-}
 isoAccText :: Iso' [AccessRestr] Text
 isoAccText = iso toT frT
   where
@@ -1122,14 +1174,33 @@ isoAccText = iso toT frT
     frT :: Text -> [AccessRestr]
     frT = mapMaybe (flip lookup accessMap) . T.words
 
-isoIntStr :: Iso' Int String
-isoIntStr = iso show (fromMaybe 0 . readMaybe)
+
+-- 0 acts as default value
+-- 0 is mapped to the empty Text
+-- strings representing numbers are converted into the number
+-- all other strings are mapped to 0
 
 isoIntText :: Iso' Int Text
 isoIntText = isoIntStr . isoText
+  where
+    isoIntStr :: Iso' Int String
+    isoIntStr =
+      iso
+      (\ i -> if i == 0
+              then mempty
+              else show i
+      )
+      (fromMaybe 0 . readMaybe)
+{-# INLINE isoIntText #-}
+
+isoMaybeIntText :: Iso' (Maybe Int) Text
+isoMaybeIntText =
+  iso (maybe mempty show) readMaybe . isoText
+{-# INLINE isoMaybeIntText #-}
 
 -- --------------------
 --
+-- mapping of MetaValue variants to MetaKey's
 
 isoMetaValueText :: MetaKey -> Iso' MetaValue Text
 isoMetaValueText k = case k of
@@ -1140,7 +1211,7 @@ isoMetaValueText k = case k of
   Descr'Rating          -> metaRatingText
   EXIF'ImageHeight      -> metaIntText
   EXIF'ImageWidth       -> metaIntText
-  EXIF'Orientation      -> metaOri . isoOriText
+  EXIF'Orientation      -> metaOri       . isoOriText
   File'CheckSum         -> metaCheckSum  . isoText
   File'ImgType          -> metaImgType   . isoText
   File'Name             -> metaName      . isoText
@@ -1153,9 +1224,13 @@ isoMetaValueText k = case k of
   Key'Unknown           -> iso (const mempty) (const mempty)
   _                     -> metaText
 
+-- --------------------
+
 unionKW :: [Text] -> [Text] -> [Text]
 unionKW ws1 ws2 = nub (ws1 ++ ws2)
+{-# INLINE unionKW #-}
 
+-- used when editing metadata: add/rem keywords
 mergeKW :: [Text] -> [Text] -> [Text]
 mergeKW ws1 ws2 = ws
   where

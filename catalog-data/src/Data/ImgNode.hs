@@ -382,7 +382,7 @@ thePartNames = thePartNames' (const True)
 -- not only imgtype, timestamp and checksum, but also
 -- geometry, orientation, ratings, ...
 
-data ImgPart = IPM !MetaData
+newtype ImgPart = IPM MetaData
 
 deriving instance Show ImgPart
 
