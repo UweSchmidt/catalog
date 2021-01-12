@@ -369,7 +369,7 @@ infixr 2 .||.
 -- | Lift boolean 'or' over predicates.
 
 (.||.) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
-p .||. q = \ v -> p v || q v
+p .||. q = (||) <$> p <*> q
 
 
 -- | group a list of entries by a mapping the

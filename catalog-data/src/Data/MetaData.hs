@@ -10,14 +10,14 @@ module Data.MetaData
   ( MetaKey
   , MetaValue
   , MetaData
+  , MetaDataT
   , MetaDataText(..)
-  , MetaDataJSON
   , Rating
-  , Access
-  , AccessRestr
 
-  , isoMDT
-  , mdj2mdt
+  , module Data.Access
+  , module Data.Bits
+
+  , isoMetaDataMDT
   , metaDataAt
   , metaTextAt
 
@@ -28,21 +28,16 @@ module Data.MetaData
   , metaTimeStamp
 
   , editMD
+  , splitMDT
   , filterByImgType
   , filterKeysMD
+  , splitMetaData
+  , cleanupMetaData
 
   , someKeysMD
   , globKeysMD
   , allKeysMD
   , prettyMD
-
-  , all'restr
-  , no'restr
-  , no'delete
-  , no'sort
-  , no'write
-  , no'user
-  , (.|.)
 
   , clearAccess
   , addNoWriteAccess
@@ -67,7 +62,6 @@ module Data.MetaData
   , parseDateTime
   , isoDateInt
   , isoStars
-
 
     -- metadata keys
   , compositeAperture
@@ -166,24 +160,31 @@ module Data.MetaData
   , xmpGPSLatitude
   , xmpGPSLongitude
   , xmpGPSAltitude
-  , xmpFormat
-  , xmpRawFileName
   , xmpRating
   )
 where
 
 import           Data.Prim
-import           Data.Bits           ( bit, (.|.), (.&.), complement
-                                     , testBit, setBit, clearBit
+import           Data.Access         ( Access
+                                     , AccessRestr(..)
+                                     , all'restr
+                                     , no'restr
+                                     , accessRestr
+                                     , no'delete
+                                     , no'sort
+                                     , no'user
+                                     , no'write
+                                     , isoAccessRestr
+                                     , isoAccText
                                      )
-import           Data.Maybe          (mapMaybe)
+import           Data.Bits           ( (.|.), (.&.), complement )
+
 import qualified Data.Aeson          as J
 import           Data.HashMap.Strict ( HashMap )
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap.Strict  as IM
 import qualified Data.List           as L
 import qualified Data.Map            as M
-import qualified Data.Scientific     as SC
 import qualified Data.Text           as T
 import qualified Data.Text.Fill      as T
 import qualified Data.Vector         as V
@@ -333,8 +334,8 @@ descrTitle
   , descrCatalogVersion
   , descrCatalogWrite :: MetaKey
 
-keysAttrCol :: [MetaKey]
-keysAttrCol@
+keysAttrDescr :: [MetaKey]
+keysAttrDescr@
   [ descrAccess
   , descrCatalogVersion
   , descrCatalogWrite
@@ -476,28 +477,87 @@ keysAttrQuickTime@
   , quickTimeVideoFrameRate
   ] = [QuickTime'Duration .. QuickTime'VideoFrameRate]
 
-xmpFormat
-  , xmpGPSAltitude
+xmpGPSAltitude
   , xmpGPSLatitude
   , xmpGPSLongitude
-  , xmpRating
-  , xmpRawFileName :: MetaKey
+  , xmpRating :: MetaKey
 
 keysAttrXmp :: [MetaKey]
 keysAttrXmp@
-  [ xmpFormat
-  , xmpGPSAltitude
+  [ xmpGPSAltitude
   , xmpGPSLatitude
   , xmpGPSLongitude
   , xmpRating
-  , xmpRawFileName
-  ] = [XMP'Format .. XMP'RawFileName]
+  ] = [XMP'GPSAltitude .. XMP'Rating]
+
+-- ----------------------------------------
+--
+-- split metadata in image metadata and part specific metadata
+
+splitMetaData :: ImgType -> MetaData' a -> (MetaData' a, MetaData' a)
+splitMetaData ty md =
+  partitionMD (not <$> snd (keysByImgType ty)) md
+
+-- filter relevant metadata from exiftool output
+cleanupMetaData :: ImgType -> MetaData' a -> MetaData' a
+cleanupMetaData ty =
+  filterKeysMD (i'keys .||. p'keys)  -- all interesting stuff
+  where
+    (i'keys, p'keys) = keysByImgType ty
+
+keysByImgType :: ImgType -> (MetaKeySet, MetaKeySet)
+keysByImgType ty
+  | isJpg ty
+    ||
+    isImg   ty = (ks'cexm,  ks'part)
+  | isMovie ty = (ks'cexmq, ks'part)
+  | isMeta  ty = (ks'gpsr,  ks'file)
+  | isTxt   ty = (ks'descr, ks'file)
+  | isRaw   ty = (ks'cexm,  ks'part)
+  | otherwise  = (ks'all,   ks'part)
+  where
+    ks'all   = const True
+    ks'part  = ks'file  .||. ks'geo .||. ks'rat
+
+    ks'comp  = (`elem` keysAttrComposite)
+    ks'descr = (`elem` keysAttrDescr)
+    ks'exif  = (`elem` keysAttrExif)
+    ks'file  = (`elem` keysAttrFile)
+    ks'maker = (`elem` keysAttrMaker)
+    ks'qtime = (`elem` keysAttrQuickTime)
+
+    ks'cexm  = ks'comp  .||. ks'descr .||. ks'exif .||. ks'maker
+    ks'cexmq = ks'cexmq .||. ks'qtime
+    ks'gps   = (`elem` [ compositeGPSAltitude
+                       , compositeGPSLatitude
+                       , compositeGPSLongitude
+                       , compositeGPSPosition
+                       , descrGPSPosition
+                       , xmpGPSAltitude
+                       , xmpGPSLatitude
+                       , xmpGPSLongitude
+                       ]
+               )
+    ks'rat   = (== descrRating)
+
+    ks'gpsr  = ks'gps             -- gps data in .xmp files
+               .||.
+               (== xmpRating)     -- rating in .xmp files
+
+    ks'geo   = (`elem` [ compositeImageSize
+                       , compositeMegapixels
+                       , exifImageHeight
+                       , exifImageWidth
+                       , exifOrientation
+                       , makerNotesColorSpace
+                       ]
+               )
 
 -- ----------------------------------------
 --
 -- filter meta data enries by image type
 
-filterByImgType :: ImgType -> MetaData -> MetaData
+filterByImgType :: ImgType -> MetaData' a -> MetaData' a
 filterByImgType ty =
   filterKeysMD (`elem` ks)
   where
@@ -507,7 +567,7 @@ filterByImgType ty =
 
     ksRaw = mconcat
       [ keysAttrComposite
-      , keysAttrCol
+      , keysAttrDescr
       , keysAttrExif
       , keysAttrFile
       , keysAttrImg
@@ -521,9 +581,16 @@ filterByImgType ty =
       , keysAttrXmp
       ]
 
+-- lookup a sequence of keys
+-- combine MetaValues with <>
+-- in most cases: take the first defined value
+
 lookupByKeys :: [MetaKey] -> MetaData -> MetaValue
 lookupByKeys ns mt =
   mconcat $ map (flip lookupMD mt) ns
+
+-- access the create date of an image
+-- usually formated as YYYY:MM:DD hh:mm:ss(.ss)
 
 lookupCreate :: (Text -> res) -> MetaData -> res
 lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
@@ -533,6 +600,7 @@ lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
         , exifCreateDate
         ] mt
 
+-- access image geometry and orientation
 lookupGeoOri :: MetaData -> (Geo, Int)
 lookupGeoOri = lookupGeo &&& lookupOri
 
@@ -546,7 +614,7 @@ lookupRating :: MetaData -> Rating
 lookupRating mt =
   lookupByKeys      -- imgRating is used in genPages and has type Text
   [ descrRating     -- descr:Rating has priority over
-  , xmpRating       -- XMP:Rating from LR
+  , xmpRating       -- XMP:Rating from LR, image attr
   ] mt ^. metaRating
 
 mkRating :: Rating -> MetaData -> MetaData
@@ -561,11 +629,53 @@ lookupGPSposDeg =
 
 -- ----------------------------------------
 
-newtype MetaData  = MD (IM.IntMap MetaValue)
+newtype MetaData' a = MD (IM.IntMap a)
+
+class IsoValueText v where
+  isoValueText :: MetaKey -> Iso' v Text
+
+instance IsoValueText MetaValue where
+  isoValueText = isoMetaValueText
+
+instance IsoValueText Text where
+  isoValueText = const id
+
+isoMetaDataMDT :: IsoValueText a
+               => Iso' (MetaData' a) MetaDataText
+isoMetaDataMDT = iso toMDT frMDT
+  where
+    toMDT (MD m) = MDT m'
+      where
+        m' = IM.foldrWithKey' ins M.empty m
+          where
+            ins k0 v
+              | isempty k = id
+              | otherwise = M.insert (metaKeyToText k) (v ^. isoValueText k)
+              where
+                k = toEnum k0
+
+    frMDT (MDT m) = MD m'
+      where
+        m' = M.foldrWithKey' ins IM.empty m
+          where
+            ins k0 v
+              | isempty k = id
+              | otherwise = IM.insert (fromEnum k) (isoValueText k # v)
+              where
+                k = metaKeyLookup k0
+
+instance IsoValueText a => FromJSON (MetaData' a) where
+  parseJSON o = (isoMetaDataMDT #) <$> parseJSON o
+
+instance IsoValueText a => ToJSON (MetaData' a) where
+  toJSON m = toJSON $ m ^. isoMetaDataMDT
+
+-- --------------------
+
+type MetaData  = MetaData' MetaValue
+type MetaDataT = MetaData' Text
 
 newtype MetaDataText = MDT (M.Map Text Text)
-
-type MetaDataJSON = M.Map Text J.Value
 
 data MetaKey
   = Composite'Aperture
@@ -619,9 +729,9 @@ data MetaKey
   | EXIF'FocalLength
   | EXIF'FocalLengthIn35mmFormat
   | EXIF'GPSVersionID
+  | EXIF'ImageHeight         -- TODO: redundant?
+  | EXIF'ImageWidth          --  "        "
   | EXIF'ISO
-  | EXIF'ImageHeight
-  | EXIF'ImageWidth
   | EXIF'Make
   | EXIF'MaxApertureValue
   | EXIF'MeteringMode
@@ -654,14 +764,13 @@ data MetaKey
   | QuickTime'ImageHeight
   | QuickTime'ImageWidth
   | QuickTime'VideoFrameRate
-  | XMP'Format
   | XMP'GPSAltitude
   | XMP'GPSLatitude
   | XMP'GPSLongitude
   | XMP'Rating
-  | XMP'RawFileName
   | Key'Unknown          -- must be the last value
 
+type MetaKeySet = MetaKey -> Bool
 
 data MetaValue
   = MText !Text
@@ -683,76 +792,11 @@ data MetaValue
 -- the invariant will be guaranteed by the setter parts
 -- of "meta***" iso's
 
-data AccessRestr = NO'write | NO'delete | NO'sort | NO'user
-
-type Access = Int
-
 type Rating = Int -- 0 .. 5
 
 -- --------------------
-
-deriving instance Show    AccessRestr
-deriving instance Eq      AccessRestr
-deriving instance Ord     AccessRestr
-deriving instance Enum    AccessRestr
-deriving instance Bounded AccessRestr
-
-accessNames :: [Text]
-accessNames = map fst accessMap
-
-accessMap :: [(Text, AccessRestr)]
-accessMap =
-  map (\ a -> (toT a, a)) [minBound .. maxBound]
-  where
-    toT :: AccessRestr -> Text
-    toT = T.pack . map f . show
-      where
-        f '\'' = '-'
-        f c    = toLower c
-
-all'restr
-  , no'restr
-  , no'delete
-  , no'sort
-  , no'write
-  , no'user :: Access
-
-[no'write, no'delete, no'sort, no'user] = map toA [minBound .. maxBound]
-  where
-    toA :: AccessRestr -> Access
-    toA = bit . fromEnum
-
-all'restr = no'write .|. no'delete .|. no'sort .|. no'user
-no'restr  = 0
-
--- indexed access to a single restriction
-
-accessRestr :: AccessRestr -> Lens' Access Bool
-accessRestr r k a =
-  (\ b -> ( if b
-            then setBit
-            else clearBit
-          ) a (fromEnum r)
-  ) <$>
-  k (testBit a (fromEnum r))
-
-
-isoAccessRestr :: Iso' Access [AccessRestr]
-isoAccessRestr = iso toS frS
-  where
-    toS :: Access -> [AccessRestr]
-    toS a = foldr add [] [minBound .. maxBound]
-      where
-        add r acc
-          | a ^. accessRestr r = r : acc
-          | otherwise          =     acc
-
-    frS rs = foldl' sb no'restr rs
-      where
-        sb :: Access -> AccessRestr -> Access
-        sb a r = a & accessRestr r .~ True
-
-
+--
+-- ops for access rights in metadata
 
 modifyAccess :: (Access -> Access) -> MetaData -> MetaData
 modifyAccess f mt =
@@ -786,19 +830,6 @@ doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
 
 -- --------------------
 --
--- rating ops
-
-ratingMax :: Rating
-ratingMax = 5
-
-isoStars :: Iso' Rating Text
-isoStars = isoStars' . isoText
-  where
-    isoStars' = iso (flip replicate '*')
-                (min ratingMax . length . filter (== '*'))
-
--- --------------------
---
 -- instances for MetaDataText
 
 instance FromJSON MetaDataText where
@@ -816,23 +847,6 @@ instance FromJSON MetaDataText where
 instance ToJSON MetaDataText where
   toJSON (MDT m) = J.toJSON m
 
-mdj2mdt :: MetaDataJSON -> MetaDataText
-mdj2mdt = MDT . M.map j2t
-  where
-    j2t :: J.Value -> Text
-    j2t (J.String t) = t
-    j2t (J.Number n) = showSc n ^. isoText
-    j2t _            = mempty
-
-    showSc n =
-      either showF showI $ SC.floatingOrInteger n
-      where
-        showF :: Double -> String
-        showF _ = show n
-
-        showI :: Integer -> String
-        showI = show
-
 -- --------------------
 --
 -- instances for MetaData
@@ -849,11 +863,11 @@ instance Semigroup MetaData where
 instance Monoid MetaData where
   mempty = MD IM.empty
 
-instance ToJSON MetaData where
-  toJSON m = J.toJSON (m ^. isoMDT)
+-- instance ToJSON MetaData where
+--  toJSON m = J.toJSON (m ^. isoMDT)
 
-instance FromJSON MetaData where
-  parseJSON o = (isoMDT #) <$> parseJSON o
+-- instance FromJSON MetaData where
+--  parseJSON o = (isoMDT #) <$> parseJSON o
 
 -- lens combining insertMD and lookupMD
 metaDataAt :: MetaKey -> Lens' MetaData MetaValue
@@ -878,10 +892,16 @@ unionMD (MD m1) (MD m2) = MD $ IM.unionWith (<>) m1 m2
 toListMD :: MetaData -> [(MetaKey, MetaValue)]
 toListMD (MD m) = map (first toEnum) $ IM.toAscList m
 
-filterKeysMD :: (MetaKey -> Bool) -> MetaData -> MetaData
+filterKeysMD :: MetaKeySet -> MetaData' a -> MetaData' a
 filterKeysMD p (MD m) = MD $ IM.filterWithKey (\ i _v -> p $ toEnum i) m
 
+partitionMD :: MetaKeySet -> MetaData' a -> (MetaData' a, MetaData' a)
+partitionMD ks (MD m) = (MD m1, MD m2)
+  where
+    (m1, m2) = IM.partitionWithKey (\ i _v -> ks $ toEnum i) m
+
 -- --------------------
+{- old stuff: unse isoMetaDataMDT
 
 isoMDT :: Iso' MetaData MetaDataText
 isoMDT = iso mt2tt (flip editMD mempty)
@@ -893,9 +913,10 @@ mt2tt (MD m) = MDT $ IM.foldlWithKey' ins M.empty m
       M.insert (metaKeyTextLookup k) (v ^. isoMetaValueText k) acc
       where
         k = toEnum i
+-- -}
 
-editMD :: MetaDataText -> MetaData -> MetaData
-editMD (MDT m) mt = M.foldlWithKey' ins mt m
+editMD :: MetaDataT -> MetaData -> MetaData
+editMD (MD m) mt = IM.foldlWithKey' ins mt m
   where
     ins acc k0 v0
       | v0 == "-" =                      -- remove key from metadata
@@ -907,7 +928,10 @@ editMD (MDT m) mt = M.foldlWithKey' ins mt m
       | otherwise =                      -- insert or set new value
           acc & metaDataAt k .~ isoMetaValueText k # v0
       where
-        k = metaKeyLookup k0
+        k = toEnum k0
+
+splitMDT :: MetaDataText -> (MetaDataT, MetaDataT)
+splitMDT mdt = splitMetaData IMGother (isoMetaDataMDT # mdt)
 
 -- --------------------
 --
@@ -1142,7 +1166,6 @@ isoKeywText = iso toT frT
       .
       T.split (== ',')            -- split at ","
 
-{-# INLINE isoOriText #-}
 isoOriText :: Iso' Int Text
 isoOriText = iso toT frT
   where
@@ -1163,16 +1186,7 @@ isoOriText = iso toT frT
     d180 = "Rotate 180" -- `T.isPrefixOf` t = 2
     d270 = "Rotate 90 CCW"
     d271 = "Rotate 270 CW"
-
-{-# INLINE isoAccText #-}
-isoAccText :: Iso' [AccessRestr] Text
-isoAccText = iso toT frT
-  where
-    toT :: [AccessRestr] -> Text
-    toT = T.unwords . map (\ r -> accessNames !! fromEnum r)
-
-    frT :: Text -> [AccessRestr]
-    frT = mapMaybe (flip lookup accessMap) . T.words
+{-# INLINE isoOriText #-}
 
 
 -- 0 acts as default value
@@ -1242,6 +1256,20 @@ mergeKW ws1 ws2 = ws
       first (map (T.drop 1))
       .
       partition ((== "-"). T.take 1)
+
+-- --------------------
+--
+-- rating ops
+
+ratingMax :: Rating
+ratingMax = 5
+
+isoStars :: Iso' Rating Text
+isoStars = isoStars' . isoText
+  where
+    isoStars' = iso (flip replicate '*')
+                (min ratingMax . length . filter (== '*'))
+{-# INLINE isoStars #-}
 
 -- --------------------
 --

@@ -101,16 +101,15 @@ flipGeo (Geo w h) = Geo h w
 -- ----------------------------------------
 
 data AspectRatio = Fix | Pad | Crop | Flex
-                 deriving (Eq, Ord, Enum, Bounded, Show, Read)
+  deriving (Eq, Ord, Enum, Bounded, Show, Read)
 
 instance IsoString AspectRatio where
   isoString = iso toS frS
     where
       toS = (\ (x : xs) -> toLower x : xs) . show
-      frS = read . (\ (x : xs) -> toUpper x : xs)
+      frS = fromMaybe Pad . readMaybe . (\ (x : xs) -> toUpper x : xs)
 
-instance IsoText AspectRatio where
-  isoText = isoString . isoText
+instance IsoText AspectRatio
 
 arParser :: SP AspectRatio
 arParser =
@@ -137,8 +136,7 @@ instance IsoString GeoAR where
         where
           (ar, '-' : g) = break (== '-') s
 
-instance IsoText GeoAR where
-  isoText = isoString . isoText
+instance IsoText GeoAR
 
 instance FromJSON GeoAR where
   parseJSON v = do

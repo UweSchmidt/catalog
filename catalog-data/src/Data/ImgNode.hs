@@ -42,6 +42,7 @@ module Data.ImgNode
        , thePartNames'
        , thePartNames
        , thePartNamesI
+       , theImgMeta
        , theImgName
        , theImgPart
        , theImgType
@@ -81,7 +82,7 @@ import           Control.Monad.Except
 
 import           Data.MetaData ( MetaData
                                , MetaDataText(MDT)
-                               , isoMDT
+                               , isoMetaDataMDT
                                , metaDataAt
                                , fileImgType
                                , fileName
@@ -386,12 +387,13 @@ newtype ImgPart = IPM MetaData
 
 deriving instance Show ImgPart
 
+-- {- the old variant with parsing of old JSON input, TODO: cleanup
 instance FromJSON ImgPart where
   parseJSON x = toIPM <$> J.parseJSON x
     where
       toIPM mdt@(MDT md) = r3   -- TODO: = r
         where
-          m = isoMDT # mdt
+          m = isoMetaDataMDT # mdt
           r = IPM m
 
           -- TODO: cleanup when old JSON format isn't longer in use
@@ -416,7 +418,17 @@ instance FromJSON ImgPart where
           r3 = (if isempty s then id else theImgTimeStamp .~ s) r2
 
 instance ToJSON ImgPart where
-  toJSON (IPM md) = toJSON $ md ^. isoMDT
+  toJSON (IPM md) = toJSON md
+-- -}
+
+{-
+instance FromJSON ImgPart where
+  parseJSON x = IPM <$> J.parseJSON x
+
+instance ToJSON ImgPart where
+  toJSON (IPM md) = toJSON md
+-- -}
+
 
 mkImgPart :: Name -> ImgType -> ImgPart
 mkImgPart n t =

@@ -48,8 +48,7 @@ instance IsEmpty ImgType where
 
 -- is .jpg file
 isJpg :: ImgType -> Bool
-isJpg IMGjpg = True
-isJpg _      = False
+isJpg = (== IMGjpg)
 
 -- is .png, .gif, .tiff or other image file
 isImg :: ImgType -> Bool
@@ -58,24 +57,25 @@ isImg _      = False
 
 -- is .txt or .md file
 isTxt :: ImgType -> Bool
-isTxt IMGtxt = True
-isTxt _      = False
+isTxt = (== IMGtxt)
+
+isMovie :: ImgType -> Bool
+isMovie = (== IMGmovie)
+
+isRaw :: ImgType -> Bool
+isRaw = (== IMGraw)
 
 -- is other file
 isOther :: ImgType -> Bool
-isOther IMGother  = True
-isOther IMGboring = True
-isOther _         = False
+isOther = (`elem` [IMGother, IMGboring])
 
 -- is sub dir with images developed as .jpg
 isJpgSubDir :: ImgType -> Bool
-isJpgSubDir IMGjpgdir = True
-isJpgSubDir _         = False
+isJpgSubDir = (== IMGjpgdir)
 
 -- is subdir to be traveresd for more images
 isImgSubDir :: ImgType -> Bool
-isImgSubDir IMGimgdir = True
-isImgSubDir _         = False
+isImgSubDir = (== IMGimgdir)
 
 -- file for extracting metadata
 isRawMeta :: ImgType -> Bool

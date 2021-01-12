@@ -23,24 +23,25 @@ import Data.Prim     ( Name
                      )
 import Data.History  ( HistoryID )
 
-data Journal' ref = MkIMG         ref Name
-                  | MkDIR         ref Name
-                  | MkCOL         ref Name
-                  | RmObj         ref
-                  | AdjImgParts   ref ImgParts
-                  | AdjDirEntries ref DirEntries
-                  | AdjMetaData   ref MetaData
-                  | AdjColImg     ref (Maybe (ImgRef' ref))
-                  | AdjColBlog    ref (Maybe (ImgRef' ref))
-                  | AdjColEntries ref (ColEntries' ref)
-                  | SetSyncTime   ref TimeStamp
-                  | InitImgStore  Name Name Name
-                  | LoadImgStore  FilePath
-                  | SaveImgStore  FilePath
-                  | SaveBlogText  ref Name Text
-                  | NewUndo       HistoryID
-                  | DoUndo        HistoryID
-                  | DropUndo      HistoryID
+data Journal' ref = MkIMG           ref Name
+                  | MkDIR           ref Name
+                  | MkCOL           ref Name
+                  | RmObj           ref
+                  | AdjImgParts     ref ImgParts
+                  | AdjDirEntries   ref DirEntries
+                  | AdjMetaData     ref MetaData
+                  | AdjPartMetaData Name ref MetaData
+                  | AdjColImg       ref (Maybe (ImgRef' ref))
+                  | AdjColBlog      ref (Maybe (ImgRef' ref))
+                  | AdjColEntries   ref (ColEntries' ref)
+                  | SetSyncTime     ref TimeStamp
+                  | InitImgStore    Name Name Name
+                  | LoadImgStore    FilePath
+                  | SaveImgStore    FilePath
+                  | SaveBlogText    ref Name Text
+                  | NewUndo         HistoryID
+                  | DoUndo          HistoryID
+                  | DropUndo        HistoryID
                   | NoOp
                   | JSeq (Journal' ref) (Journal' ref)
 

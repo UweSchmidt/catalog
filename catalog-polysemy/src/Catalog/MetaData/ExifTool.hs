@@ -21,14 +21,19 @@ module Catalog.MetaData.ExifTool
 where
 
 import Catalog.Effects
-import Catalog.TextPath  (toFileSysPath)
-import Data.MetaData
+import Catalog.TextPath  ( toFileSysPath )
+import Data.MetaData     ( MetaData
+                         , MetaDataText(..)
+                         , isoMetaDataMDT
+                         )
 import Data.Prim
 
-import Polysemy.ExecProg (execProg)
+import Polysemy.ExecProg ( execProg )
 
-import qualified Data.Aeson as J
-import qualified Data.Text  as T
+import qualified Data.Aeson       as J
+import qualified Data.Map         as M
+import qualified Data.Scientific  as SC
+import qualified Data.Text        as T
 
 -- ----------------------------------------
 
@@ -78,10 +83,31 @@ bsToMetaData =
   .
   either Left
          (\ xs -> case xs of
-             [x] -> Right . (isoMDT #) . mdj2mdt $ x
+             [x] -> Right . (isoMetaDataMDT #) . mdj2mdt $ x
              _   -> Left "single element list expected"
          )
   .
   J.eitherDecodeStrict' @ [MetaDataJSON]
+
+-- ---------------------
+
+type MetaDataJSON = M.Map Text J.Value
+
+mdj2mdt :: MetaDataJSON -> MetaDataText
+mdj2mdt = MDT . M.map j2t
+  where
+    j2t :: J.Value -> Text
+    j2t (J.String t) = t
+    j2t (J.Number n) = showSc n ^. isoText
+    j2t _            = mempty
+
+    showSc n =
+      either showF showI $ SC.floatingOrInteger n
+      where
+        showF :: Double -> String
+        showF _ = show n
+
+        showI :: Integer -> String
+        showI = show
 
 ------------------------------------------------------------------------

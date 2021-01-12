@@ -34,6 +34,7 @@ import Catalog.ImgTree.Access  ( getIdNode'
                                , getImgVal
                                , getImgParent
                                , getMetaData
+                               , getImgMetaData
                                , findFstColEntry
                                , lookupByPath
                                , mapObjId2Path
@@ -45,6 +46,7 @@ import Catalog.ImgTree.Modify  ( adjustColEntries
                                , adjustColImg
                                , adjustColBlog
                                , adjustMetaData
+                               , adjustPartMetaData
                                , mkCollection
                                )
 import Catalog.Invariant       ( checkImgStore )
@@ -78,7 +80,8 @@ import Data.MetaData   ( MetaData
                        -- , MetaDataText
                        -- , metaDataAt
                        , editMD
-                       , isoMDT
+                       , isoMetaDataMDT
+                       , splitMDT
                        , lookupRating
                        , mkRating
                        , clearAccess
@@ -575,9 +578,10 @@ modify'renamecol newName i = do
 
 modify'setMetaData :: Eff'ISEJL r
                    => [Int] -> MetaDataText -> ImgNode -> Sem r ()
-modify'setMetaData ixs md n =
-  modify'setMetaData' ixs (editMD md) n
-
+modify'setMetaData ixs mdt n =
+  modify'setMetaData'' ixs (editMD mdi) (editMD mdp) n
+  where
+    (mdp, mdi) = splitMDT mdt
 
 modify'setMetaData' :: Eff'ISEJL r
                     => [Int] -> (MetaData -> MetaData) -> ImgNode -> Sem r ()
@@ -589,8 +593,26 @@ modify'setMetaData' ixs ed n =
     setm pos = maybe (return ()) sm $ cs ^? ix pos
       where
         sm = colEntry'
-             (adjustMetaData ed . _iref)
-             (adjustMetaData ed        )
+             (adjustPartMetaData ed)
+             (adjustMetaData     ed)
+
+
+modify'setMetaData'' :: Eff'ISEJL r
+                     => [Int]
+                     -> (MetaData -> MetaData)
+                     -> (MetaData -> MetaData)
+                     -> ImgNode -> Sem r ()
+modify'setMetaData'' ixs edi edp n =
+  traverse_ setm $ toPosList ixs
+  where
+    cs = n ^. theColEntries
+
+    setm pos = maybe (return ()) sm $ cs ^? ix pos
+      where
+        sm = colEntry'
+             (adjustPartMetaData edp)
+             (adjustMetaData     edi)
+
 
 -- set meta data fields for a collection or a single collection entry
 
@@ -600,29 +622,21 @@ modify'setMetaData1 pos md oid n
   | pos < 0   = adjustMetaData ed oid           -- update coll  metadata
   | otherwise = modify'setMetaData ixs md n     -- update entry metadata
   where
-    ed  = editMD md
-    ixs = replicate pos (0-1) ++ [1]
-
-modify'setMetaData1' :: Eff'ISEJL r
-                     => Int -> (MetaData -> MetaData) -> ObjId -> ImgNode -> Sem r ()
-modify'setMetaData1' pos ed oid n
-  | pos < 0   = adjustMetaData ed oid           -- update coll  metadata
-  | otherwise = modify'setMetaData' ixs ed n    -- update entry metadata
-  where
+    ed  = editMD (isoMetaDataMDT # md)
     ixs = replicate pos (0-1) ++ [1]
 
 -- set the rating field for a list of selected collection entries
 
 modify'setRating :: Eff'ISEJL r => [Int] -> Rating -> ImgNode -> Sem r ()
 modify'setRating ixs r =
-  modify'setMetaData' ixs (mkRating r)
+  modify'setMetaData'' ixs id (mkRating r)
 
 -- set the rating field for a collection or a single collection entry
 
 modify'setRating1 :: Eff'ISEJL r
                   => Int -> Rating -> ObjId -> ImgNode -> Sem r ()
 modify'setRating1 pos r oid n
-  | pos < 0   = modify'setMetaData1' pos (mkRating r) oid n
+  | pos < 0   = adjustMetaData (mkRating r) oid
   | otherwise = modify'setRating ixs r n
   where
     ixs = replicate pos (0-1) ++ [1]
@@ -748,13 +762,21 @@ read'metadata' :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaData
 read'metadata' pos i n
   | pos < 0   = getMetaData i
   | otherwise = processColEntryAt
-                (\ (ImgRef i' _) -> getMetaData i')
-                (\ i'            -> getMetaData i')
+                getImgMetaData
+                getMetaData
                 pos
                 n
 
+read'metadata'' :: Eff'ISE r => ColEntry -> Sem r MetaData
+read'metadata'' ce = do
+  colEntry'
+    getImgMetaData
+    getMetaData
+    ce
+
 read'metadata :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaDataText
-read'metadata pos i n = (^. isoMDT) <$> read'metadata' pos i n
+read'metadata pos i n =
+  (^. isoMetaDataMDT) <$> read'metadata' pos i n
 
 -- get the rating field of a collection entry
 
@@ -768,9 +790,7 @@ read'ratings :: Eff'ISE r => ImgNode -> Sem r [Rating]
 read'ratings n =
   traverse f (n ^. theColEntries . isoSeqList)
   where
-    f = colEntry' (getR . _iref) getR
-      where
-        getR i' = lookupRating <$> getMetaData i'
+    f ce = lookupRating <$> colEntry' getImgMetaData getMetaData ce
 
 read'checkImgPart :: Eff'CheckSum r
                   => Bool -> Path -> Name -> ImgNode -> Sem r CheckSumRes

@@ -21,8 +21,7 @@
 ------------------------------------------------------------------------------
 
 module Catalog.ImgTree.Modify
-  (
-    mkImgDir
+  ( mkImgDir
   , mkImgCol
   , mkImg
   , rmImgNode
@@ -31,6 +30,7 @@ module Catalog.ImgTree.Modify
   , adjustImg
   , adjustDirEntries
   , adjustMetaData
+  , adjustPartMetaData
   , adjustColImg
   , adjustColBlog
   , adjustColEntries
@@ -179,7 +179,7 @@ adjustNodeVal mkj theComp f i = do
 
           -- the critical case
           vs ->
-            log'warn $ "adjustNodeVal: mulitple components have been changed in "
+            log'warn $ "adjustNodeVal: multiple components have been changed in "
                        <> i ^. isoText
                        <> ": "
                        <> toText vs
@@ -195,6 +195,10 @@ adjustDirEntries = adjustNodeVal AdjDirEntries theDirEntries
 adjustMetaData :: (MetaData -> MetaData) -> ObjId -> SemISEJL r ()
 adjustMetaData = adjustNodeVal AdjMetaData theMetaData
 {-# INLINE adjustMetaData #-}
+
+adjustPartMetaData :: (MetaData -> MetaData) -> ImgRef -> SemISEJL r ()
+adjustPartMetaData mf (ImgRef i nm) =
+  adjustNodeVal (AdjPartMetaData nm) (theImgPart nm . theImgMeta) mf i
 
 adjustColImg :: (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> SemISEJL r ()
 adjustColImg = adjustNodeVal AdjColImg theColImg

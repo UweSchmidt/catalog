@@ -84,6 +84,7 @@ library
                , optparse-applicative
                , polysemy             >= 1.2.3
                , process
+               , scientific
                , stm
                , text
                , transformers

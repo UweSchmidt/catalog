@@ -39,7 +39,7 @@ import Data.Prim
 import Data.ImgNode hiding (theMetaData)
 import Data.MetaData ( MetaKey
                      , MetaData
-                     , isoMDT
+                     , isoMetaDataMDT
                      , metaTextAt
                      , filterKeysMD
                      , prettyMD
@@ -188,7 +188,7 @@ evalMediaPath p = do
 evalMetaData :: CCmdEffects r => PathPos -> [MetaKey] -> Sem r MetaData
 evalMetaData pp@(p, cx) keys = do
   log'trc $ untext ["evalMetaData:", from isoText . isoPathPos # pp]
-  r <- (\ mt ->  (isoMDT # mt) & filterKeysMD (`elem` keys))
+  r <- (\ mt ->  (isoMetaDataMDT # mt) & filterKeysMD (`elem` keys))
        <$>
        theMetaData (fromMaybe (-1) cx) p
   log'trc $ untext ["res =", show r ^. isoText]
@@ -204,7 +204,7 @@ evalSetMetaData1 pp@(p, cx) key val = do
                    , val
                    ]
   let md1 = mempty & metaTextAt key .~ val
-  _r <- setMetaData1 (fromMaybe (-1) cx) (md1 ^. isoMDT) p
+  _r <- setMetaData1 (fromMaybe (-1) cx) (md1 ^. isoMetaDataMDT) p
   return ()
 
 ------------------------------------------------------------------------------

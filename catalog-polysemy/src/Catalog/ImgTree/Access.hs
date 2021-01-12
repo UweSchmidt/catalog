@@ -25,6 +25,7 @@ module Catalog.ImgTree.Access
   , getImgVals
   , getImgSubDirs
   , getMetaData
+  , getImgMetaData
   , getRootId
   , getRootImgDirId
   , getRootImgColId
@@ -224,6 +225,11 @@ objid2contNames i =
 
 getMetaData :: ObjId -> SemISE r MetaData
 getMetaData i = getImgVals i theMetaData
+
+getImgMetaData :: ImgRef -> SemISE r MetaData
+getImgMetaData (ImgRef i nm) =
+  (<>) <$> getImgVals i (theImgPart nm . theImgMeta)
+       <*> getMetaData i
 
 -- ----------------------------------------
 
