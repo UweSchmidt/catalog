@@ -96,6 +96,7 @@ module Data.MetaData
   , descrWikipedia
   , descrGoogleMaps
   , descrComment
+  , descrCommentImg
   , descrCreateDate
   , descrOrderedBy
   , descrAccess
@@ -316,6 +317,7 @@ descrTitle
   , descrWikipedia
   , descrGoogleMaps
   , descrComment
+  , descrCommentImg
   , descrCreateDate
   , descrOrderedBy
   , descrAccess
@@ -333,6 +335,7 @@ keysAttrDescr@
   , descrCatalogVersion
   , descrCatalogWrite
   , descrComment
+  , descrCommentImg
   , descrCreateDate
   , descrDuration
   , descrGPSAltitude
@@ -529,7 +532,7 @@ keysByImgType ty
   | otherwise  = (ks'all,   ks'part)
   where
     ks'all   = const True
-    ks'part  = ks'file  .||. ks'geo .||. ks'rat
+    ks'part  = ks'file  .||. ks'geo .||. ks'rat .||. ks'cpi
 
     ks'comp  = (`elem` keysAttrComposite)
     ks'descr = (`elem` keysAttrDescr)
@@ -547,6 +550,7 @@ keysByImgType ty
                        ]
                )
     ks'rat   = (== descrRating)
+    ks'cpi   = (== descrCommentImg) -- comment for a copy
 
     ks'gpsr  = ks'gps             -- gps data in .xmp files
                .||.
@@ -704,6 +708,7 @@ data MetaKey
   | Descr'CatalogVersion
   | Descr'CatalogWrite
   | Descr'Comment
+  | Descr'CommentImg
   | Descr'CreateDate
   | Descr'Duration
   | Descr'GPSAltitude

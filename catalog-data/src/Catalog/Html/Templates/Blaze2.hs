@@ -32,6 +32,7 @@ import Data.MetaData ( MetaData
                      , compositeMegapixels
 
                      , descrComment
+                     , descrCommentImg
                      , descrLocation
                      , descrSubtitle
                      , descrTitle
@@ -803,7 +804,8 @@ picMeta md = mconcat mdTab
       , mdval  "Untertitel"            descrSubtitle
       , mdval  "Titel engl."           descrTitleEnglish
       , mdval  "Titel lat."            descrTitleLatin
-      , mdval  "Kommentar"             descrComment
+      , mdval  "Kommentar (Aufnahme)"  descrComment
+      , mdval  "Kommentar (Kopie)"     descrCommentImg
       , mdval  "Ort"                   descrLocation
       , mdLink "Web"                   descrWeb
       , mdLink "Wikipedia"             descrWikipedia

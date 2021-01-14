@@ -81,7 +81,7 @@ a.bs450:hover, button.bs450:hover {
 /* adjust the width if longer names for keys are added to meta data modal*/
 .metadata-key-bs450 {
     float: right;
-    width: 7em;
+    width: 10em;
 }
 
 .img-box-bs450 {

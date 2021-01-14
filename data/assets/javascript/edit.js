@@ -1956,6 +1956,7 @@ function setMetaData() {
     var keys = [ "Title",
                  "Subtitle",
                  "Comment",
+                 "CommentImg",
                  "GPSPosition",
                  "Location",
                  "Rating",
@@ -2042,6 +2043,8 @@ function fillMetaData1(md, args) {
     $('#descr-Rating').val(dr);
     var dc = md["Descr:Comment"] || "";
     $('#descr-Comment').val(dc);
+    var dci = md["Descr:CommentImg"] || "";
+    $('#descr-CommentImg').val(dci);
     var dgp = md["Descr:GPSPosition"] || "";
     $('#descr-GPSPosition').val(dgp);
     var dlc = md["Descr:Location"] || "";
