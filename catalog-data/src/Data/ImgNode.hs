@@ -39,6 +39,7 @@ module Data.ImgNode
        , isoImgPartsMap
        , isoDirEntries
        , theParts
+       , traverseParts
        , thePartNames'
        , thePartNames
        , thePartNamesI
@@ -362,9 +363,13 @@ isoImgParts =
 isoImgPartsMap :: Iso' ImgParts (Map Name ImgPart)
 isoImgPartsMap = iso (\ (ImgParts pm) -> pm) ImgParts
 
+traverseParts :: Traversal' ImgParts ImgPart
+traverseParts = isoImgParts . traverse
+{-# INLINE traverseParts #-}
+
 thePartNames' :: (ImgType -> Bool) -> Traversal' ImgParts Name
 thePartNames' typTest =
-  isoImgParts . traverse . isA (^. theImgType . to typTest) . theImgName
+  traverseParts . isA (^. theImgType . to typTest) . theImgName
 {-# INLINE thePartNames' #-}
 
 -- images with 1 of the given types can be rendered

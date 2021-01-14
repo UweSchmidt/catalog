@@ -29,9 +29,11 @@ import Catalog.TimeStamp
 import Data.ImgNode
 import Data.MetaData             ( MetaData
                                  , metaDataAt
-                                 , metaTimeStamp
-                                 , filterByImgType
-                                 , imgEXIFUpdate
+                                 , descrRating
+                                 , theImgEXIFUpdate
+                                 , normMetaData
+                                 , splitMetaData
+                                 , cleanupOldMetaData
                                  )
 import Data.Prim
 
@@ -55,10 +57,10 @@ getMDpart :: ( EffCatEnv   r
           => (ImgType -> Bool)
           -> Path
           -> ImgPart
-          -> Sem r MetaData
-getMDpart p imgPath pt
-  | p $ pt ^. theImgType =
-      filterByImgType ty <$> getExifMetaData partPath
+          -> Sem r (MetaData, MetaData)
+getMDpart pf imgPath pt
+  | pf (pt ^. theImgType) =
+      splitMetaData ty <$> getExifMetaData partPath
 
   | otherwise =
       return mempty
@@ -66,6 +68,34 @@ getMDpart p imgPath pt
     ty       = pt ^. theImgType
     tn       = pt ^. theImgName
     partPath = substPathName tn . tailPath $ imgPath
+
+setPartMD ::( EffIStore   r   -- any effects missing?
+            , EffError    r
+            , EffJournal  r
+            , EffLogging  r
+            , EffTime     r
+            , EffCatEnv   r
+            , EffExecProg r
+            , EffFileSys  r
+            )
+          => Path
+          -> ObjId
+          -> MetaData
+          -> ImgPart
+          -> Sem r MetaData
+setPartMD imgPath i acc pt = do
+  (md'i, md'pt) <- ( splitMetaData ty
+                     .
+                     normMetaData acc ty
+                   )
+                   <$> getExifMetaData partPath
+  adjustPartMetaData (md'pt <>) (ImgRef i tn)
+  return (md'i <> acc)
+  where
+    ty       = pt ^. theImgType
+    tn       = pt ^. theImgName
+    partPath = substPathName tn . tailPath $ imgPath
+
 
 setMD :: ( EffIStore   r   -- any effects missing?
          , EffError    r
@@ -76,38 +106,24 @@ setMD :: ( EffIStore   r   -- any effects missing?
          , EffExecProg r
          , EffFileSys  r
          )
-      => (ImgType -> Bool)
-      -> ObjId
-      -> [ImgPart]
-      -> Sem r Bool
-setMD p i ps = do
+      => ObjId
+      -> ImgParts
+      -> MetaData
+      -> Sem r ()
+setMD i ps md'old = do
   ip  <- objid2path i
+  ts  <- whatTimeIsIt
 
-  -- get old metadata
-  md0 <- getMetaData i
+  -- throw away all old attributes
+  -- TODO: maybe thrown away when catalog metadata is updated to new format
+  let md0 = cleanupOldMetaData md'old
 
   -- merge metadata of all image parts with old metadata
-  mdn <- mconcat <$> mapM (getMDpart p ip) ps
-
-  if isempty mdn
-    then
-    return True
-    else
-    do let md1 = mdn <> md0
-       if md1 /= md0
-          ||
-          isempty (md0 ^. metaDataAt imgEXIFUpdate . metaTimeStamp)
-         then
-         -- something has changed since last update
-         -- so add timestamp and store new metadata
-         do ts <- whatTimeIsIt
-            let md2 = md1 & metaDataAt imgEXIFUpdate . metaTimeStamp .~ ts
-            adjustMetaData (const $ md2) i
-            log'verb $
-              msgPath ip "setMD: update exif data for "
-         else
-         do log'trc $
-              msgPath ip "setMD: no change in exif data "
-       return False
+  md'new <- foldlMOf traverseParts (setPartMD ip i) md0 ps
+  let md' = md'new
+            & theImgEXIFUpdate .~ ts
+            & metaDataAt descrRating .~ mempty    -- TODO: cleanup
+  adjustMetaData (const $ md') i
+  log'trc $ msgPath ip "setMD: update exif data done: "
 
 ------------------------------------------------------------------------

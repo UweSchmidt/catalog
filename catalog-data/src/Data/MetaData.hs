@@ -27,12 +27,16 @@ module Data.MetaData
   , metaName
   , metaTimeStamp
 
+  , theImgEXIFUpdate
+
   , editMD
   , splitMDT
   , filterByImgType
   , filterKeysMD
   , splitMetaData
+  , normMetaData
   , cleanupMetaData
+  , cleanupOldMetaData
 
   , someKeysMD
   , globKeysMD
@@ -71,9 +75,6 @@ module Data.MetaData
   , compositeFlash
   , compositeFocalLength35efl
   , compositeFOV
-  , compositeGPSAltitude
-  , compositeGPSLatitude
-  , compositeGPSLongitude
   , compositeGPSPosition
   , compositeHyperfocalDistance
   , compositeImageSize
@@ -100,6 +101,8 @@ module Data.MetaData
   , descrAccess
   , descrDuration
   , descrRating
+  , descrRatingImg
+  , descrGPSAltitude
   , descrGPSPosition
   , descrCatalogVersion
   , descrCatalogWrite
@@ -116,9 +119,6 @@ module Data.MetaData
   , exifFNumber
   , exifFocalLength
   , exifFocalLengthIn35mmFormat
-  , exifGPSVersionID
-  , exifImageHeight
-  , exifImageWidth
   , exifISO
   , exifMake
   , exifMaxApertureValue
@@ -129,11 +129,10 @@ module Data.MetaData
   , exifWhiteBalance
 
   , fileCheckSum
-  , fileDirectory
   , fileFileSize
-  , fileFileModifyDate
   , fileImgType
   , fileName
+  , fileNameRaw
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
@@ -157,8 +156,6 @@ module Data.MetaData
   , quickTimeImageHeight
   , quickTimeVideoFrameRate
 
-  , xmpGPSLatitude
-  , xmpGPSLongitude
   , xmpGPSAltitude
   , xmpRating
   )
@@ -277,9 +274,6 @@ compositeAperture
   , compositeFlash
   , compositeFocalLength35efl
   , compositeFOV
-  , compositeGPSAltitude
-  , compositeGPSLatitude
-  , compositeGPSLongitude
   , compositeGPSPosition
   , compositeHyperfocalDistance
   , compositeImageSize
@@ -297,12 +291,9 @@ keysAttrComposite@
   , compositeAutoFocus
   , compositeCircleOfConfusion
   , compositeDOF
+  , compositeFOV
   , compositeFlash
   , compositeFocalLength35efl
-  , compositeFOV
-  , compositeGPSAltitude
-  , compositeGPSLatitude
-  , compositeGPSLongitude
   , compositeGPSPosition
   , compositeHyperfocalDistance
   , compositeImageSize
@@ -330,6 +321,8 @@ descrTitle
   , descrAccess
   , descrDuration
   , descrRating
+  , descrRatingImg
+  , descrGPSAltitude
   , descrGPSPosition
   , descrCatalogVersion
   , descrCatalogWrite :: MetaKey
@@ -342,12 +335,14 @@ keysAttrDescr@
   , descrComment
   , descrCreateDate
   , descrDuration
+  , descrGPSAltitude
   , descrGPSPosition
   , descrGoogleMaps
   , descrKeywords
   , descrLocation
   , descrOrderedBy
   , descrRating
+  , descrRatingImg
   , descrSubtitle
   , descrTitle
   , descrTitleEnglish
@@ -368,9 +363,6 @@ exifArtist
   , exifFNumber
   , exifFocalLength
   , exifFocalLengthIn35mmFormat
-  , exifGPSVersionID
-  , exifImageHeight
-  , exifImageWidth
   , exifISO
   , exifMake
   , exifMaxApertureValue
@@ -394,9 +386,6 @@ keysAttrExif@
   , exifFNumber
   , exifFocalLength
   , exifFocalLengthIn35mmFormat
-  , exifGPSVersionID
-  , exifImageHeight
-  , exifImageWidth
   , exifISO
   , exifMake
   , exifMaxApertureValue
@@ -408,11 +397,10 @@ keysAttrExif@
   ] = [EXIF'Artist .. EXIF'WhiteBalance]
 
 fileCheckSum
-  , fileDirectory
   , fileFileSize
-  , fileFileModifyDate
   , fileImgType
   , fileName
+  , fileNameRaw
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
@@ -421,11 +409,10 @@ fileCheckSum
 keysAttrFile :: [MetaKey]
 keysAttrFile@
   [ fileCheckSum
-  , fileDirectory
-  , fileFileModifyDate
   , fileFileSize
   , fileImgType
   , fileName
+  , fileNameRaw
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
@@ -478,15 +465,11 @@ keysAttrQuickTime@
   ] = [QuickTime'Duration .. QuickTime'VideoFrameRate]
 
 xmpGPSAltitude
-  , xmpGPSLatitude
-  , xmpGPSLongitude
   , xmpRating :: MetaKey
 
 keysAttrXmp :: [MetaKey]
 keysAttrXmp@
   [ xmpGPSAltitude
-  , xmpGPSLatitude
-  , xmpGPSLongitude
   , xmpRating
   ] = [XMP'GPSAltitude .. XMP'Rating]
 
@@ -505,13 +488,42 @@ cleanupMetaData ty =
   where
     (i'keys, p'keys) = keysByImgType ty
 
+cleanupOldMetaData :: MetaData' a -> MetaData' a
+cleanupOldMetaData = filterKeysMD (`elem` keysAttrDescr)
+
+-- normalize metadata
+-- TODO: cleanup ratings propagation, when catalog is converted to new format
+
+normMetaData :: MetaData -> ImgType -> MetaData -> MetaData
+normMetaData old'md ty md0
+  | isRaw  ty = md
+                & cpy fileName       fileNameRaw
+  | isMeta ty = md
+                & ins xmpGPSAltitude descrGPSAltitude
+                & cpy xmpRating      descrRatingImg
+                -- set the GPS position and altitute
+                -- of the img to the pos in .xmp from Lightroom
+                -- set img rating from LR
+  | otherwise = md
+  where
+    -- TODO: cleanup when converted
+    md = md0
+         & metaDataAt descrRating .~ (old'md ^. metaDataAt descrRating)
+
+    -- overwrite dst
+    cpy src dst md' = md' & metaTextAt dst .~ (md' ^. metaTextAt src)
+
+    -- insert, when not already set
+    ins src dst md' = md' <> (mempty & metaTextAt dst .~ (md' ^. metaTextAt src))
+
+
 keysByImgType :: ImgType -> (MetaKeySet, MetaKeySet)
 keysByImgType ty
   | isJpg ty
     ||
     isImg   ty = (ks'cexm,  ks'part)
   | isMovie ty = (ks'cexmq, ks'part)
-  | isMeta  ty = (ks'gpsr,  ks'file)
+  | isMeta  ty = (ks'gpsr,  ks'file .||. ks'gps)
   | isTxt   ty = (ks'descr, ks'file)
   | isRaw   ty = (ks'cexm,  ks'part)
   | otherwise  = (ks'all,   ks'part)
@@ -528,14 +540,10 @@ keysByImgType ty
 
     ks'cexm  = ks'comp  .||. ks'descr .||. ks'exif .||. ks'maker
     ks'cexmq = ks'cexmq .||. ks'qtime
-    ks'gps   = (`elem` [ compositeGPSAltitude
-                       , compositeGPSLatitude
-                       , compositeGPSLongitude
-                       , compositeGPSPosition
+    ks'gps   = (`elem` [ compositeGPSPosition
+                       , descrGPSAltitude
                        , descrGPSPosition
                        , xmpGPSAltitude
-                       , xmpGPSLatitude
-                       , xmpGPSLongitude
                        ]
                )
     ks'rat   = (== descrRating)
@@ -546,8 +554,6 @@ keysByImgType ty
 
     ks'geo   = (`elem` [ compositeImageSize
                        , compositeMegapixels
-                       , exifImageHeight
-                       , exifImageWidth
                        , exifOrientation
                        , makerNotesColorSpace
                        ]
@@ -614,7 +620,7 @@ lookupRating :: MetaData -> Rating
 lookupRating mt =
   lookupByKeys      -- imgRating is used in genPages and has type Text
   [ descrRating     -- descr:Rating has priority over
-  , xmpRating       -- XMP:Rating from LR, image attr
+  , descrRatingImg  -- rating from LR valid for all parts
   ] mt ^. metaRating
 
 mkRating :: Rating -> MetaData -> MetaData
@@ -640,7 +646,7 @@ instance IsoValueText MetaValue where
 instance IsoValueText Text where
   isoValueText = const id
 
-isoMetaDataMDT :: IsoValueText a
+isoMetaDataMDT :: (IsEmpty a, IsoValueText a)
                => Iso' (MetaData' a) MetaDataText
 isoMetaDataMDT = iso toMDT frMDT
   where
@@ -654,20 +660,19 @@ isoMetaDataMDT = iso toMDT frMDT
               where
                 k = toEnum k0
 
-    frMDT (MDT m) = MD m'
+    frMDT (MDT m) = md
       where
-        m' = M.foldrWithKey' ins IM.empty m
+        md = M.foldrWithKey' ins (MD mempty) m
           where
-            ins k0 v
-              | isempty k = id
-              | otherwise = IM.insert (fromEnum k) (isoValueText k # v)
+            ins k0 v0 = insertMD k v
               where
                 k = metaKeyLookup k0
+                v = isoValueText k # v0
 
-instance IsoValueText a => FromJSON (MetaData' a) where
+instance (IsEmpty a, IsoValueText a) => FromJSON (MetaData' a) where
   parseJSON o = (isoMetaDataMDT #) <$> parseJSON o
 
-instance IsoValueText a => ToJSON (MetaData' a) where
+instance (IsEmpty a, IsoValueText a) => ToJSON (MetaData' a) where
   toJSON m = toJSON $ m ^. isoMetaDataMDT
 
 -- --------------------
@@ -685,9 +690,6 @@ data MetaKey
   | Composite'FOV
   | Composite'Flash
   | Composite'FocalLength35efl
-  | Composite'GPSAltitude
-  | Composite'GPSLatitude
-  | Composite'GPSLongitude
   | Composite'GPSPosition
   | Composite'HyperfocalDistance
   | Composite'ImageSize
@@ -704,12 +706,14 @@ data MetaKey
   | Descr'Comment
   | Descr'CreateDate
   | Descr'Duration
+  | Descr'GPSAltitude
   | Descr'GPSPosition
   | Descr'GoogleMaps
   | Descr'Keywords
   | Descr'Location
   | Descr'OrderedBy
   | Descr'Rating
+  | Descr'RatingImg
   | Descr'Subtitle
   | Descr'Title
   | Descr'TitleEnglish
@@ -724,13 +728,10 @@ data MetaKey
   | EXIF'ExposureMode
   | EXIF'ExposureProgram
   | EXIF'ExposureTime
-  | EXIF'FNumber
   | EXIF'Flash
+  | EXIF'FNumber
   | EXIF'FocalLength
   | EXIF'FocalLengthIn35mmFormat
-  | EXIF'GPSVersionID
-  | EXIF'ImageHeight         -- TODO: redundant?
-  | EXIF'ImageWidth          --  "        "
   | EXIF'ISO
   | EXIF'Make
   | EXIF'MaxApertureValue
@@ -740,11 +741,10 @@ data MetaKey
   | EXIF'UserComment
   | EXIF'WhiteBalance
   | File'CheckSum
-  | File'Directory
-  | File'FileModifyDate
   | File'FileSize
   | File'ImgType
   | File'Name
+  | File'NameRaw
   | File'RefImg
   | File'RefJpg
   | File'RefRaw
@@ -765,8 +765,6 @@ data MetaKey
   | QuickTime'ImageWidth
   | QuickTime'VideoFrameRate
   | XMP'GPSAltitude
-  | XMP'GPSLatitude
-  | XMP'GPSLongitude
   | XMP'Rating
   | Key'Unknown          -- must be the last value
 
@@ -851,16 +849,16 @@ instance ToJSON MetaDataText where
 --
 -- instances for MetaData
 
-deriving instance Eq   MetaData   -- used in Catalog.MetaData.Exif
-deriving instance Show MetaData
+deriving instance Eq   a => Eq   (MetaData' a)   -- used in Catalog.MetaData.Exif
+deriving instance Show a => Show (MetaData' a)
 
-instance IsEmpty MetaData where
+instance IsEmpty (MetaData' a) where
   isempty (MD m) = IM.null m
 
-instance Semigroup MetaData where
+instance Semigroup a => Semigroup (MetaData' a) where
   (<>) = unionMD
 
-instance Monoid MetaData where
+instance Semigroup a => Monoid (MetaData' a) where
   mempty = MD IM.empty
 
 -- instance ToJSON MetaData where
@@ -876,20 +874,20 @@ metaDataAt mk k mt = (\ v -> insertMD mk v mt) <$> k (lookupMD mk mt)
 metaTextAt :: MetaKey -> Lens' MetaData Text
 metaTextAt k = metaDataAt k . isoMetaValueText k
 
-insertMD :: MetaKey -> MetaValue -> MetaData -> MetaData
+insertMD :: IsEmpty a => MetaKey -> a -> MetaData' a -> MetaData' a
 insertMD k v mt@(MD m)
   | isempty k   = mt                               -- no redundant stuff in metatable
   | isempty v   = MD $ IM.delete (fromEnum k)   m  -- dto
   | otherwise   = MD $ IM.insert (fromEnum k) v m
 
-lookupMD :: MetaKey -> MetaData -> MetaValue
+lookupMD :: Monoid a => MetaKey -> MetaData' a -> a
 lookupMD k (MD m) = fromMaybe mempty $ IM.lookup (fromEnum k) m
 
 -- <> for meta tables
-unionMD :: MetaData -> MetaData -> MetaData
+unionMD :: Semigroup a => MetaData' a -> MetaData' a -> MetaData' a
 unionMD (MD m1) (MD m2) = MD $ IM.unionWith (<>) m1 m2
 
-toListMD :: MetaData -> [(MetaKey, MetaValue)]
+toListMD :: MetaData' a -> [(MetaKey, a)]
 toListMD (MD m) = map (first toEnum) $ IM.toAscList m
 
 filterKeysMD :: MetaKeySet -> MetaData' a -> MetaData' a
@@ -899,6 +897,13 @@ partitionMD :: MetaKeySet -> MetaData' a -> (MetaData' a, MetaData' a)
 partitionMD ks (MD m) = (MD m1, MD m2)
   where
     (m1, m2) = IM.partitionWithKey (\ i _v -> ks $ toEnum i) m
+
+
+theImgEXIFUpdate :: Lens' MetaData TimeStamp
+theImgEXIFUpdate = metaDataAt imgEXIFUpdate . metaTimeStamp
+{-# INLINE theImgEXIFUpdate #-}
+
+
 
 -- --------------------
 {- old stuff: unse isoMetaDataMDT
@@ -1223,12 +1228,12 @@ isoMetaValueText k = case k of
   Descr'GPSPosition     -> metaGPSDecText
   Descr'Keywords        -> metaKeywords  . isoKeywText
   Descr'Rating          -> metaRatingText
-  EXIF'ImageHeight      -> metaIntText
-  EXIF'ImageWidth       -> metaIntText
+  Descr'RatingImg       -> metaRatingText
   EXIF'Orientation      -> metaOri       . isoOriText
   File'CheckSum         -> metaCheckSum  . isoText
   File'ImgType          -> metaImgType   . isoText
   File'Name             -> metaName      . isoText
+  File'NameRaw          -> metaName      . isoText
   File'TimeStamp        -> metaTimeStamp . isoText
   Img'Rating            -> metaText          -- used in genPages
   Img'EXIFUpdate        -> metaTimeStamp . isoText

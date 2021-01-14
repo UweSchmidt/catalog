@@ -30,10 +30,8 @@ import Catalog.MetaData.Exif   ( setMD )
 
 import Data.ImgNode
 import Catalog.Logging         ( trc'Obj )
-import Data.MetaData           ( metaDataAt
-                               , metaTimeStamp
-                               , imgEXIFUpdate
-                               )
+import Data.MetaData           ( MetaData
+                               , theImgEXIFUpdate )
 import Data.Prim
 
 -- ----------------------------------------
@@ -59,7 +57,7 @@ syncAllMetaData i0 = do
 
   foldMT imgA dirA rootA colA i0
   where
-    imgA i ps _md = syncMetaData' i (ps ^. isoImgParts)
+    imgA = syncMetaData'
 
     -- traverse the DIR
     dirA go _i es _ts = traverse_ go (es ^. isoDirEntries)
@@ -79,31 +77,27 @@ syncAllMetaData i0 = do
 
 syncMetaData :: Eff'MDSync r => ObjId -> Sem r ()
 syncMetaData i = do
-  ps <- getImgVals i (theParts . isoImgParts)
-  unless (null ps) $ do
-    syncMetaData' i ps
+  ps <- getImgVals i theParts
+  md <- getImgVals i theMetaData
+  unless (isempty ps) $
+    syncMetaData' i ps md
 
 
-syncMetaData' :: Eff'MDSync r => ObjId -> [ImgPart] -> Sem r ()
-syncMetaData' i ps = do
+syncMetaData' :: Eff'MDSync r => ObjId -> ImgParts -> MetaData -> Sem r ()
+syncMetaData' i ps md'old = do
   trc'Obj i $ "syncMetaData': " <> toText ps
-  md   <-  getMetaData i
-  trc'Obj i $ "syncMetaData': " <> toText md
-  let ts = md ^. metaDataAt imgEXIFUpdate . metaTimeStamp
-  fu    <- (^. catForceMDU) <$> ask
-  let update = fu || (ts < ps ^. traverse . theImgTimeStamp)
+  -- md   <-  getMetaData i
+  trc'Obj i $ "syncMetaData': " <> toText md'old
 
-  -- trc $ "syncMetadata: " ++ show (ts, ps ^. traverse . theImgTimeStamp, update)
+  forceUpdate <- (^. catForceMDU) <$> ask
+  let ts      =  md'old ^. theImgEXIFUpdate
+  let ts'ps   =  ps     ^. traverseParts . theImgTimeStamp
+  let update = forceUpdate || ts < ts'ps
+
+  log'trc $ "syncMetadata: " <> toText (ts, ts'ps, update)
 
   -- collect meta data from raw and xmp parts
-  when update $ do
-    e0 <- setMD isRawMeta i ps  -- set metadata from raw files
-
-    when e0 $ do                -- no raw file found
-      e1 <- setMD isImg i ps    -- set meta from .tif, .png, ....
-
-      when e1 $ do              -- no img file found (.tif, .png, ...)
-        setMD isJpg i ps        -- set meta from .jpg
-          >> return ()
+  when update $
+    setMD i ps md'old
 
 ------------------------------------------------------------------------

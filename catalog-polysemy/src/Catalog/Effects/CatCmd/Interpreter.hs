@@ -581,8 +581,9 @@ modify'setMetaData :: Eff'ISEJL r
 modify'setMetaData ixs mdt n =
   modify'setMetaData'' ixs (editMD mdi) (editMD mdp) n
   where
-    (mdp, mdi) = splitMDT mdt
+    (mdi, mdp) = splitMDT mdt
 
+ {-
 modify'setMetaData' :: Eff'ISEJL r
                     => [Int] -> (MetaData -> MetaData) -> ImgNode -> Sem r ()
 modify'setMetaData' ixs ed n =
@@ -595,7 +596,7 @@ modify'setMetaData' ixs ed n =
         sm = colEntry'
              (adjustPartMetaData ed)
              (adjustMetaData     ed)
-
+-- -}
 
 modify'setMetaData'' :: Eff'ISEJL r
                      => [Int]
@@ -610,9 +611,12 @@ modify'setMetaData'' ixs edi edp n =
     setm pos = maybe (return ()) sm $ cs ^? ix pos
       where
         sm = colEntry'
-             (adjustPartMetaData edp)
-             (adjustMetaData     edi)
+             adjustImgMetaData      -- img entry
+             (adjustMetaData edi)   -- col entry
 
+        adjustImgMetaData ir@(ImgRef i _nm) = do
+          adjustPartMetaData edp ir
+          adjustMetaData     edi i
 
 -- set meta data fields for a collection or a single collection entry
 

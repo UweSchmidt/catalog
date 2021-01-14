@@ -17,14 +17,19 @@ where
 
 import Data.MetaData ( MetaData
                      , MetaKey
+
+                     , metaDataAt
                      , metaTextAt
+                     , lookupGPSposDeg
+                     , metaTimeStamp
+
 
                      , compositeDOF
-                     , compositeGPSAltitude
                      , compositeGPSPosition
                      , compositeImageSize
                      , compositeLensID
                      , compositeLensSpec
+                     , compositeMegapixels
 
                      , descrComment
                      , descrLocation
@@ -32,6 +37,7 @@ import Data.MetaData ( MetaData
                      , descrTitle
                      , descrTitleEnglish
                      , descrTitleLatin
+                     , descrGPSAltitude
                      , descrWeb
                      , descrWikipedia
 
@@ -47,12 +53,11 @@ import Data.MetaData ( MetaData
                      , exifModel
                      , exifWhiteBalance
 
-                     , fileFileModifyDate
+                     , fileFileSize
                      , fileName
                      , fileRefJpg
                      , fileRefRaw
-
-                     , lookupGPSposDeg
+                     , fileTimeStamp
 
                      , imgRating
 
@@ -773,12 +778,24 @@ picMeta md = mconcat mdTab
         key   = imgRating
         val   = md ^. metaTextAt key
 
+    mdTs :: Text -> Html
+    mdTs descr =
+      toEntry descr key val $
+      toHtml val
+      where
+        key = fileTimeStamp
+        ts  = md ^. metaDataAt key . metaTimeStamp
+        val
+          | isempty ts = mempty
+          | otherwise  = timeStampToText ts
+
     mdMap :: Text -> Html
     mdMap descr =
       toEntry descr compositeGPSPosition val $
       gpsToHtml val
       where
         val  = lookupGPSposDeg md
+
 
     mdTab :: [Html]
     mdTab =
@@ -792,7 +809,7 @@ picMeta md = mconcat mdTab
       , mdLink "Wikipedia"             descrWikipedia
       , mdval  "Aufnahmedatum"         exifCreateDate
       , mdMap  "Position"
-      , mdval  "Höhe"                  compositeGPSAltitude
+      , mdval  "Höhe"                  descrGPSAltitude
       , mdval  "Kamera"                exifModel
       , mdval  "Objektiv"              compositeLensSpec
       , mdval  "Objektiv Typ"          compositeLensID
@@ -810,10 +827,12 @@ picMeta md = mconcat mdTab
       , mdval  "Weißabgleich"          exifWhiteBalance
       , mdval  "Aufnahmezähler"        makerNotesShutterCount
       , mdval  "Geometrie"             compositeImageSize
-      , mdval  "Original-Datei"        fileRefRaw
-      , mdval  "Bild-Datei"            fileName
+      , mdval  "Bilddatei"             fileName
+      , mdval  "Megapixel"             compositeMegapixels
+      , mdval  "Dateigröße"            fileFileSize
       , mdval  "Bild-Kopie"            fileRefJpg
-      , mdval  "Bearbeitet"            fileFileModifyDate
+      , mdval  "Raw-Datei"             fileRefRaw
+      , mdTs   "Bearbeitet"
       , mdRat  "Bewertung"
       ]
 

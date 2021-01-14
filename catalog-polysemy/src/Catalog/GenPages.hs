@@ -34,10 +34,13 @@ import Data.ImgNode
 import Data.ImgTree
 import Data.MetaData                  ( MetaData
                                       , metaTextAt
+                                      , metaDataAt
+                                      , metaName
                                       , descrComment
                                       , descrDuration
                                       , descrSubtitle
                                       , descrTitle
+                                      , fileNameRaw
                                       , fileRefImg
                                       , fileRefJpg
                                       , fileRefRaw
@@ -74,7 +77,6 @@ import Catalog.TextPath               ( toFileSysPath )
 import Catalog.TimeStamp              ( nowAsIso8601 )
 
 -- libraries
-import qualified Data.List            as L
 import qualified Data.Sequence        as Seq
 import qualified Data.Text            as T
 import qualified Text.Blaze.Html      as Blaze
@@ -274,8 +276,8 @@ toImgMeta :: (Eff'ISE r, EffNonDet r)
 toImgMeta r =
   case r ^. rPos of
     Just _pos
-      -> do ImgRef iOid _nm <- (^. rImgRef) <$> setImgRef r
-            getMetaData iOid
+      -> do ir <- (^. rImgRef) <$> setImgRef r
+            getImgMetaData ir
     Nothing
       -> return $ r ^. rColNode . theMetaData
 
@@ -902,24 +904,19 @@ data ImgAttr =
 
 collectImgAttr :: Eff'ISE r => Req'IdNode'ImgRef a -> Sem r ImgAttr
 collectImgAttr r = do
-  theMeta <- getMetaData iOid
+  theMeta <- getImgMetaData ir
   theUrl  <- toUrlPath' (toMediaReq r)  -- !!! not toUrlPath due to RMovie
   theSrc  <- toSourcePath r
-  theInod <- getImgVal iOid
-  let onm =  orgName (theInod ^. theParts) :: Maybe Name
+  let rnm  = theMeta ^. metaDataAt fileNameRaw . metaName
+  let rp
+        | isempty rnm = mempty
+        | otherwise   = substPathName rnm theSrc ^. isoText
   return $
     ImgAttr
     { _imgMediaUrl = theUrl ^. isoText
     , _imgMeta     = theMeta
                      & metaTextAt fileRefImg .~ (theSrc ^. isoText)
-                     & ( maybe id
-                         (\ n ->
-                             metaTextAt fileRefRaw
-                             .~
-                             (substPathName n theSrc ^. isoText)
-                         )
-                         onm
-                       )
+                     & metaTextAt fileRefRaw .~ rp
     , _imgTitle    = take1st
                      [ theMeta ^. metaTextAt descrTitle
                      , nm ^. isoText
@@ -932,21 +929,7 @@ collectImgAttr r = do
                      ]
     }
   where
-    ImgRef iOid nm = r ^. rImgRef
-
--- select the name of the raw (original) image
-
-orgName :: ImgParts -> Maybe Name
-orgName pts =
-  pts  ^? thePartNames' (`elem` [IMGraw, IMGmovie, IMGtxt])
-  <|>
-  pts  ^? thePartNames' (== IMGimg)
-  <|>
-  ( listToMaybe $
-    L.sortBy (compare `on` nameLen) (pts ^.. thePartNames' isJpg)
-  )
-    where
-      nameLen nm = T.length (nm ^. isoText)
+    ir@(ImgRef _iOid nm) = r ^. rImgRef
 
 -- --------------------
 
