@@ -228,7 +228,7 @@ type JsonModifyAPI
       :<|>
       "syncCol"              :> SimplePost ()
       :<|>
-      "syncExif"             :> SimplePost ()
+      "syncExif"             :> ParamPost (Bool, Bool) ()
       :<|>
       "newSubCols"           :> SimplePost ()
       :<|>

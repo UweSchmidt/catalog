@@ -131,7 +131,7 @@ evalLs p = do
     subcols n
       | isCOL  n  =        n ^.. theColEntries . traverse . theColColRef
       | isROOT n  =        n ^.. theRootImgCol <> n ^.. theRootImgDir
-      | isDIR  n  = sort $ n ^.. theDirEntries . isoDirEntries . traverse
+      | isDIR  n  = sort $ n ^.. theDirEntries . traverse
       | otherwise = []
 
 {-# INLINE evalLs #-}
@@ -365,7 +365,7 @@ evalCheckSum' k p e
       mconcat <$>
         traverse
           (\ p' -> theEntry p' >>= evalCheckSum' k p')
-          (sort $ e ^.. theDirEntries . isoDirEntries . traverse)
+          (sort $ e ^.. theDirEntries . traverse)
           -- ^  traversal with ascending path names
 
   | otherwise = pure ()

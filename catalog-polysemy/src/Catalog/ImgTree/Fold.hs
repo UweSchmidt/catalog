@@ -248,7 +248,7 @@ ignoreDir _go _i _es _ts = return mempty
 {-# INLINE ignoreDir #-}
 
 foldDir :: Monoid a => (ObjId -> Sem r a) -> p1 -> DirEntries -> p3 -> Sem r a
-foldDir go _i es _ts = fold <$> traverse go (es ^. isoDirEntries)
+foldDir go _i es _ts = fold <$> traverse go es
 {-# INLINE foldDir #-}
 
 -- --------------------

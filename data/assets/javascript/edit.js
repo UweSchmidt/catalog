@@ -1178,7 +1178,7 @@ function exifCollectionWithFilesystem(path) {
     // start syncing on server side
     statusMsg('recomputing exif data for: ' + path);
     addHistCmd("sync exif data in " + splitName(path));
-    modifyServer('syncExif', path, [],
+    modifyServer('syncExif', path, [true, true],
                 function(log) {
                     statusMsg('recomputing exif data done');
                     console.log(log);

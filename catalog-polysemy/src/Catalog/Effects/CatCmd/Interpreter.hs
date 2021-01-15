@@ -150,8 +150,8 @@ evalCatCmd =
     SyncCollection p ->
       path2id p >>= modify'syncCol
 
-    SyncExif p ->
-      path2id p >>= modify'syncExif
+    SyncExif recursive force p ->
+      path2id p >>= modify'syncExif recursive force
 
     NewSubCollections p ->
       path2id p >>= modify'newSubCols
@@ -676,8 +676,9 @@ syncColDir sync i = do
 
 -- sync a subcollection of /archive/photo with filesystem
 
-modify'syncExif :: Eff'MDSync r => ObjId -> Sem r ()
-modify'syncExif = MS.forceSyncAllMetaData
+modify'syncExif :: Eff'MDSync r
+                => Bool -> Bool -> ObjId -> Sem r ()
+modify'syncExif = MS.syncTheMetaData
 
 -- import new subcollection of a collection in /archive/photo
 

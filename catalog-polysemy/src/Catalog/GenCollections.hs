@@ -292,7 +292,7 @@ genCollectionsByDir di = do
           ic <- mkColByPath insertColByName setupDirCol cp
 
           -- get collection entries, and insert them into collection
-          cs  <- fold <$> traverse go (es ^. isoDirEntries)
+          cs  <- fold <$> traverse go es
 
           trc'Obj ic "genCol dir: set dir contents"
           adjustColByName cs ic

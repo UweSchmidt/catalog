@@ -298,7 +298,7 @@ checkUpLinkObjIds =
         dirA go i es ts = do
           s0 <- toObjIds i
                 <$>
-                traverse getImgParent (es ^. isoDirEntries)
+                traverse getImgParent es
           s1 <- foldDir go i es ts
           return $ s0 <> s1
 

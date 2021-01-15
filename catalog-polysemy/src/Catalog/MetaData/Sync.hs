@@ -16,7 +16,7 @@
 
 module Catalog.MetaData.Sync
   ( Eff'MDSync
-  , forceSyncAllMetaData
+  , syncTheMetaData
   , syncAllMetaData
   , syncMetaData
   )
@@ -46,12 +46,16 @@ type Eff'MDSync r = ( EffIStore   r
                     , EffFileSys  r
                     )
 
-forceSyncAllMetaData :: Eff'MDSync r => ObjId -> Sem r ()
-forceSyncAllMetaData i =
-  local @CatEnv (catForceMDU .~ True) (syncAllMetaData i)
+syncTheMetaData :: Eff'MDSync r
+                => Bool -> Bool -> ObjId -> Sem r ()
+syncTheMetaData recursive force i
+  | force     = local @CatEnv (catForceMDU .~ True) $
+                syncAllMetaData recursive i
+  | otherwise = syncAllMetaData recursive i
 
-syncAllMetaData :: Eff'MDSync r => ObjId -> Sem r ()
-syncAllMetaData i0 = do
+syncAllMetaData :: Eff'MDSync r
+                => Bool -> ObjId -> Sem r ()
+syncAllMetaData recursive i0 = do
   p <- objid2path i0
   log'trc $ "syncAllMetaData for: " <> toText (i0, p)
 
@@ -60,7 +64,9 @@ syncAllMetaData i0 = do
     imgA = syncMetaData'
 
     -- traverse the DIR
-    dirA go _i es _ts = traverse_ go (es ^. isoDirEntries)
+    dirA go _i es _ts
+      | recursive = traverse_ go           es
+      | otherwise = traverse_ syncMetaData es
 
     -- we only need to traverse the DIR hierachy
     rootA go _i dir _col = go dir
@@ -70,7 +76,9 @@ syncAllMetaData i0 = do
       traverse_ (go . (\(ImgRef i' _name) -> i')) im
       traverse_ go' es
         where
-          go' = colEntry' (go . _iref) go
+          go' = colEntry'
+                (go . _iref)
+                ( \ i' -> when recursive $ go i')
 
 -- i must be an objid pointing to am ImgNode
 -- else this becomes a noop

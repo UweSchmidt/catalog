@@ -114,7 +114,7 @@ data CatCmd m a where
   SetRating1           ::  Int  -> Rating       -> Path -> CatCmd m ()
   Snapshot             ::          Text         -> Path -> CatCmd m ()
   SyncCollection       ::                          Path -> CatCmd m ()
-  SyncExif             ::                          Path -> CatCmd m ()
+  SyncExif             :: Bool  -> Bool         -> Path -> CatCmd m ()
   NewSubCollections    ::                          Path -> CatCmd m ()
   UpdateCheckSum       :: CheckSum  -> Name     -> Path -> CatCmd m ()
   UpdateTimeStamp      :: TimeStamp -> Name     -> Path -> CatCmd m ()
