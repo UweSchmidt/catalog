@@ -32,6 +32,7 @@ module Client.Effects.ClientCmd
   , ccUpdCSum
   , ccMediaPath
   , ccUndoList
+  , ccExifUpdate
 
     -- * reexported catalog types
   , Geo
@@ -79,6 +80,7 @@ data ClientCmd m a where
                -> Bool    -> Bool             -> ClientCmd m ()
   CcMediaPath  :: Path                        -> ClientCmd m ()
   CcUndoList   ::                                ClientCmd m ()
+  CcExifUpdate :: Path    -> Bool     -> Bool -> ClientCmd m ()
 
 makeSem ''ClientCmd
 

@@ -192,7 +192,7 @@ cmdClient = subparser $
     ( ( let cc onlyUpdate forceUpdate p n =
               CcUpdCSum p n onlyUpdate forceUpdate
         in
-        cc <$> optOnlyUpdate <*> optForceUpdateP <*> argPath1 <*> argPart
+          cc <$> optOnlyUpdate <*> optForceUpdateP <*> argPath1 <*> argPart
       )
       `withInfo`
       ( "Compute, check and/or update checksums "
@@ -244,7 +244,29 @@ cmdClient = subparser $
       `withInfo`
       "List undo history."
     )
-
+  <>
+  command "exif-update"
+    ( ( let cc recUpdate forceUpdate p =
+             CcExifUpdate p recUpdate forceUpdate
+        in
+          cc
+          <$> flag False True
+              ( long "recursive"
+                <> short 'r'
+                <> help ( "Recursively update all (sub-) directories." )
+              )
+          <*> flag False True
+              ( long "force"
+                <> short 'f'
+                <> help ( "Force recomputing EXIF metadata even when no"
+                          <> " file has been changed since last update."
+                        )
+              )
+          <*> argPath1
+      )
+      `withInfo`
+      ( "Update EXIF info for images and image dirs." )
+    )
 ----------------------------------------
 --
 -- argument parsers

@@ -57,9 +57,10 @@ import Catalog.Effects.CatCmd
 import Client.Effects.ClientCmd
 
 -- libraries
+import           Data.Either
 import qualified Data.Aeson.Encode.Pretty as J
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Encoding as TL
+import qualified Data.Text.Lazy           as TL
+import qualified Data.Text.Lazy.Encoding  as TL
 
 ------------------------------------------------------------------------------
 
@@ -118,6 +119,10 @@ evalClientCmd =
     CcUndoList -> do
       es <- listUndoEntries
       sequenceA_ . map (uncurry prettyUndo) $ es
+
+    CcExifUpdate p recursive force -> do
+      ps <- globExpand p
+      traverse_ (evalExifUpdate recursive force) ps
 
 {-# INLINE evalClientCmd #-}
 
@@ -206,6 +211,41 @@ evalSetMetaData1 pp@(p, cx) key val = do
   let md1 = mempty & metaTextAt key .~ val
   _r <- setMetaData1 (fromMaybe (-1) cx) (md1 ^. isoMetaDataMDT) p
   return ()
+
+------------------------------------------------------------------------------
+
+evalExifUpdate :: forall r. CCmdEffects r => Bool -> Bool -> Path -> Sem r ()
+evalExifUpdate recursive force = exifUpdate
+  where
+    sync = syncExif False force
+
+    exifUpdate p = do
+      log'trc $ untext [ "evalExifUpdate", p ^. isoText]
+      n <- theEntry p
+
+      when (isIMG n) $ do           -- exif update IMG entry
+        sync p
+
+      when (isDIR n) $ do           -- exif update DIR entry
+        writeln $ untext [p ^. isoText <> ":", "update metadata"]
+
+        es <- traverse partEntry (n ^.. theDirEntries . traverse)
+
+        -- sync IMG entries
+        traverse_ sync $ lefts es
+
+        -- sync DIR entries recursively
+        when recursive $ do
+          traverse_ exifUpdate $ rights es
+
+      when (isCOL n || isROOT n) $ do
+        log'warn $ untext
+          ["EXIF update only for images and dirs, ignored:", p ^. isoText]
+
+    partEntry :: Path -> Sem r (Either Path Path)
+    partEntry p = do
+      isi <- isIMG <$> theEntry p
+      return $ (if isi then Left else Right) p
 
 ------------------------------------------------------------------------------
 
