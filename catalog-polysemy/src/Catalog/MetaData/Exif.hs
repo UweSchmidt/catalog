@@ -86,10 +86,12 @@ setPartMD ::( EffIStore   r   -- any effects missing?
 setPartMD imgPath i acc pt = do
   (md'i, md'pt) <- ( splitMetaData ty
                      .
-                     normMetaData acc ty
+                     normMetaData acc ty          -- normalize meta keys
+                     .
+                     (<> pt ^. theImgMeta)        -- update old part meta
                    )
                    <$> getExifMetaData partPath
-  adjustPartMetaData (md'pt <>) (ImgRef i tn)
+  adjustPartMetaData (const md'pt) (ImgRef i tn)
   return (md'i <> acc)
   where
     ty       = pt ^. theImgType

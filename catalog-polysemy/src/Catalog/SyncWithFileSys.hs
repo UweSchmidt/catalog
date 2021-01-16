@@ -441,6 +441,7 @@ collectDirCont i = do
         partition (hasImgType isImgSubDir) rest
   let (imgfiles, rest3) =
         partition (hasImgType isAnImgPart) rest2
+  let imgfiles' = partClassifiedNames imgfiles
 
   traverse_
     (\ n -> log'trc $ "sync: fs entry ignored " <> toText (fst n))
@@ -452,11 +453,12 @@ collectDirCont i = do
     log'trc $ "collectDirCont: files ignored " <> toText rest3
   unless (null realsubdirs) $
     log'trc $ "collectDirCont: subdirs "       <> toText realsubdirs
-  unless (null imgfiles) $
-    log'trc $ "collectDirCont: imgfiles "      <> toText imgfiles
+
+  unless (null imgfiles') $
+    log'trc $ "collectDirCont: imgfiles "      <> toText imgfiles'
 
   return ( realsubdirs ^.. traverse . _1
-         , partClassifiedNames imgfiles
+         , imgfiles'
          )
   where
     isSubDir :: (EffFileSys r, EffCatEnv r)

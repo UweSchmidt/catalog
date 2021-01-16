@@ -133,13 +133,13 @@ module Data.MetaData
   , fileFileSize
   , fileImgType
   , fileName
-  , fileNameRaw
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
   , fileTimeStamp
 
   , imgRating
+  , imgNameRaw
   , imgEXIFUpdate
 
   , makerNotesColorSpace
@@ -403,7 +403,6 @@ fileCheckSum
   , fileFileSize
   , fileImgType
   , fileName
-  , fileNameRaw
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
@@ -415,7 +414,6 @@ keysAttrFile@
   , fileFileSize
   , fileImgType
   , fileName
-  , fileNameRaw
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
@@ -423,11 +421,13 @@ keysAttrFile@
   ] = [File'CheckSum .. File'TimeStamp]
 
 imgRating
+  , imgNameRaw
   , imgEXIFUpdate :: MetaKey
 
 keysAttrImg :: [MetaKey]
 keysAttrImg@
   [ imgEXIFUpdate
+  , imgNameRaw
   , imgRating
   ] = [Img'EXIFUpdate .. Img'Rating]
 
@@ -500,7 +500,7 @@ cleanupOldMetaData = filterKeysMD (`elem` keysAttrDescr)
 normMetaData :: MetaData -> ImgType -> MetaData -> MetaData
 normMetaData old'md ty md0
   | isRaw  ty = md
-                & cpy fileName       fileNameRaw
+                & cpy fileName       imgNameRaw
   | isMeta ty = md
                 & ins xmpGPSAltitude descrGPSAltitude
                 & cpy xmpRating      descrRatingImg
@@ -532,7 +532,10 @@ keysByImgType ty
   | otherwise  = (ks'all,   ks'part)
   where
     ks'all   = const True
-    ks'part  = ks'file  .||. ks'geo .||. ks'rat .||. ks'cpi
+    ks'part  = ks'file
+               .||. ks'geo
+               .||. ks'rat
+               .||. ks'cpi
 
     ks'comp  = (`elem` keysAttrComposite)
     ks'descr = (`elem` keysAttrDescr)
@@ -541,7 +544,12 @@ keysByImgType ty
     ks'maker = (`elem` keysAttrMaker)
     ks'qtime = (`elem` keysAttrQuickTime)
 
-    ks'cexm  = ks'comp  .||. ks'descr .||. ks'exif .||. ks'maker
+    ks'cexm  = ks'comp
+               .||. ks'descr
+               .||. ks'exif
+               .||. ks'maker
+               .||. (== imgNameRaw)
+
     ks'cexmq = ks'cexmq .||. ks'qtime
     ks'gps   = (`elem` [ compositeGPSPosition
                        , descrGPSAltitude
@@ -550,11 +558,10 @@ keysByImgType ty
                        ]
                )
     ks'rat   = (== descrRating)
-    ks'cpi   = (== descrCommentImg) -- comment for a copy
+    ks'cpi   = (== descrCommentImg)    -- comment for a copy
 
-    ks'gpsr  = ks'gps             -- gps data in .xmp files
-               .||.
-               (== xmpRating)     -- rating in .xmp files
+    ks'gpsr  = ks'gps                  -- gps data in .xmp files
+               .||. (== xmpRating)     -- rating in .xmp files
 
     ks'geo   = (`elem` [ compositeImageSize
                        , compositeMegapixels
@@ -749,12 +756,12 @@ data MetaKey
   | File'FileSize
   | File'ImgType
   | File'Name
-  | File'NameRaw
   | File'RefImg
   | File'RefJpg
   | File'RefRaw
   | File'TimeStamp
   | Img'EXIFUpdate
+  | Img'NameRaw
   | Img'Rating
   | MakerNotes'ColorSpace
   | MakerNotes'DaylightSavings
@@ -1238,9 +1245,9 @@ isoMetaValueText k = case k of
   File'CheckSum         -> metaCheckSum  . isoText
   File'ImgType          -> metaImgType   . isoText
   File'Name             -> metaName      . isoText
-  File'NameRaw          -> metaName      . isoText
   File'TimeStamp        -> metaTimeStamp . isoText
   Img'Rating            -> metaText          -- used in genPages
+  Img'NameRaw           -> metaName      . isoText
   Img'EXIFUpdate        -> metaTimeStamp . isoText
   QuickTime'ImageHeight -> metaIntText
   QuickTime'ImageWidth  -> metaIntText

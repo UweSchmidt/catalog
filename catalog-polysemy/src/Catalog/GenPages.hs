@@ -40,7 +40,7 @@ import Data.MetaData                  ( MetaData
                                       , descrDuration
                                       , descrSubtitle
                                       , descrTitle
-                                      , fileNameRaw
+                                      , imgNameRaw
                                       , fileRefImg
                                       , fileRefJpg
                                       , fileRefRaw
@@ -907,7 +907,7 @@ collectImgAttr r = do
   theMeta <- getImgMetaData ir
   theUrl  <- toUrlPath' (toMediaReq r)  -- !!! not toUrlPath due to RMovie
   theSrc  <- toSourcePath r
-  let rnm  = theMeta ^. metaDataAt fileNameRaw . metaName
+  let rnm  = theMeta ^. metaDataAt imgNameRaw . metaName
   let rp
         | isempty rnm = mempty
         | otherwise   = substPathName rnm theSrc ^. isoText
