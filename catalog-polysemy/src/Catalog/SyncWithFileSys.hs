@@ -436,11 +436,11 @@ collectDirCont i = do
   log'trc $ "collectDirCont: entries found " <> toText es
 
   let (others, rest) =
-        partition (hasImgType isOther) es
+        partition (hasMimeType isOtherMT) es
   let (subdirs, rest2) =
-        partition (hasImgType isImgSubDir) rest
+        partition (hasMimeType isImgSubDirMT) rest
   let (imgfiles, rest3) =
-        partition (hasImgType isAnImgPart) rest2
+        partition (hasMimeType isAnImgPartMT) rest2
   let imgfiles' = partClassifiedNames imgfiles
 
   traverse_
@@ -462,7 +462,7 @@ collectDirCont i = do
          )
   where
     isSubDir :: (EffFileSys r, EffCatEnv r)
-             => Path -> (Name, (Name, ImgType)) -> Sem r Bool
+             => Path -> (Name, (Name, MimeType)) -> Sem r Bool
     isSubDir p' (n, _) = do
       sp <- toFileSysTailPath (p' `snocPath` n)
       dirExist sp
@@ -489,7 +489,7 @@ syncImg ip pp xs = do
   -- or a movie,
   -- then update entry, else (e.g. raw only) ignore it
 
-  if has (traverse . _2 . _2 . isA isShowablePart {- OrRaw -}) xs
+  if has (traverse . _2 . _2 . isA isShowablePartMT {- OrRaw -}) xs
     then do
       adjustImg (<> mkImgParts ps) i
       syncParts i pp
@@ -556,7 +556,7 @@ parseDirCont p = do
 
     classifyNames :: [Text] -> (ClassifiedNames, ClassifiedNames)
     classifyNames =
-      partition (hasImgType (not . isJpgSubDir)) -- select jpg img subdirs
+      partition (hasMimeType (not . isJpgSubDirMT)) -- select jpg img subdirs
       .
       classifyPaths
 
@@ -576,15 +576,15 @@ parseImgSubDirCont p nm = do
     nt = nm ^. isoText <> "/"
 
     classifyNames =
-      filter (\ n -> isShowablePart (n ^. _2 . _2))
+      filter (\ n -> isShowablePartMT (n ^. _2 . _2))
       .
       classifyPaths
       .
       map (nt <>)
 
-hasImgType :: (ImgType -> Bool) -> ClassifiedName -> Bool
-hasImgType p = p . snd . snd
-{-# INLINE hasImgType #-}
+hasMimeType :: (MimeType -> Bool) -> ClassifiedName -> Bool
+hasMimeType p = p . snd . snd
+{-# INLINE hasMimeType #-}
 
 partClassifiedNames :: ClassifiedNames -> [ClassifiedNames]
 partClassifiedNames = unfoldr part . sortBy (compare `on` (^. key))

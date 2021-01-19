@@ -391,8 +391,8 @@ findFstTxtEntry = findFstColEntry isTxtEntry
       colEntry
       (\ i n -> do
           nd <- getImgVal i
-          let ty = nd ^? theParts . isoImgPartsMap . ix n . theImgType
-          return $ maybe False isTxt ty
+          let ty = nd ^? theParts . isoImgPartsMap . ix n . theMimeType
+          return $ maybe False isTxtMT ty
       )
       (const $ return False)
 

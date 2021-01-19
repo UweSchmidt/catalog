@@ -32,7 +32,7 @@ module Data.TextPath
   , ClassifiedNames
   , classifyPath
   , classifyPaths
-  , pathName2ImgType
+  , path2MimeType
 
   , addExt
   , addJpg
@@ -51,7 +51,8 @@ where
 
 import Data.Prim
 
-import qualified Data.FilePath    as F ( splitPathNameExtTypeD
+import qualified Data.FilePath    as F ( splitPathNameExtMimeD
+                                       , splitPathNameExtMime
                                        , addJpg
                                        , ymdNameMb
                                        , baseNameMb
@@ -65,21 +66,21 @@ import qualified System.FilePath  as FP
 -- alias for filepaths as Text values
 type TextPath        = Text
 
-type ClassifiedName  = (Name, (Name, ImgType))
+type ClassifiedName  = (Name, (Name, MimeType))
 type ClassifiedNames = [ClassifiedName]
 
 -- classify paths: compute base name and type
 -- and remove boring names
 classifyPaths :: [TextPath] -> [ClassifiedName]
-classifyPaths = filter (not . isBoring . snd . snd) . map classifyPath
+classifyPaths = filter (not . isBoringMT . snd . snd) . map classifyPath
 
 classifyPath :: TextPath -> ClassifiedName
-classifyPath tp = (isoText # tp, (isoString # bn, imgType))
+classifyPath tp = (isoText # tp, (isoString # bn, mimeType))
   where
-    ((_p, (bn, _bx), _ex), imgType) = F.splitPathNameExtTypeD (tp ^. isoString)
+    ((_p, (bn, _bx), _ex), mimeType) = F.splitPathNameExtMimeD (tp ^. isoString)
 
-pathName2ImgType :: TextPath -> ImgType
-pathName2ImgType = snd . snd . classifyPath
+path2MimeType :: TextPath -> MimeType
+path2MimeType = snd . F.splitPathNameExtMime . (^. isoString)
 
 -- ----------------------------------------
 --
@@ -129,7 +130,7 @@ baseNameMb p =
 
 testC :: IO ()
 testC = do
-  -- c <- readFile "/Users/uwe/tmp/tnames"
+  c <- readFile "/Users/uwe/tmp/tnames"
   let c = unlines . map (^. isoString) $ files
   sequence_ $ map putStrLn (toC c)
 

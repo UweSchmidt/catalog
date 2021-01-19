@@ -2,8 +2,8 @@
 -- | classify file names and compute a file type for a file name/path
 
 module Data.FilePath
-  ( splitPathNameExtTypeD
-  , splitPathNameExtType
+  ( splitPathNameExtMimeD
+  , splitPathNameExtMime
   , addJpg
   , ymdNameMb
   , baseNameMb
@@ -57,7 +57,7 @@ addJpg fn
   | isJ fn  = fn
   | otherwise = fn <> ".jpg"
   where
-    isJ = (== IMGjpg) . snd . splitPathNameExtType
+    isJ = isJpgMT . snd . splitPathNameExtMime
 
 -- ----------------------------------------
 
@@ -143,13 +143,27 @@ imgSubdir =
          )
 
 
+imgDirName :: SP String
+imgDirName = (:) <$> alphaNumChar
+                 <*> many (oneOf' "-+._" <|> alphaNumChar)
+
+
+type SplitName = (String, (String, String), String)
+ {-
+splitPathNameExtTypeD :: String -> (SplitName, ImgType)
+splitPathNameExtTypeD = second mt2it . splitPathNameExtMimeD
+
+splitPathNameExtType :: String -> (SplitName, ImgType)
+splitPathNameExtType = second mt2it . splitPathNameExtMime
+
+
 imgTypeExt' :: [(ImgType, [String])]
 imgTypeExt' =
   [ (IMGimg,   [".png", ".gif", ".tiff", ".tif", ".ppm", ".pgm", ".pbm"])
   , (IMGjpg,   [".jpg", ".jpeg"])
   , (IMGtxt,   [".txt", ".md"])
   , (IMGmovie, [".mp4"])
-  , (IMGraw,   [".nef", ".rw2"])
+  , (IMGraw,   [".nef", ".cr2", ".rw2"])
   , (IMGmeta,  [".xmp"])
 
     -- all media and meta files not used in catalog,
@@ -162,17 +176,11 @@ imgTypeLT = concatMap f imgTypeExt'
   where
     f (t, es) = map (,t) es
 
-imgDirName :: SP String
-imgDirName = (:) <$> alphaNumChar
-                 <*> many (oneOf' "-+._" <|> alphaNumChar)
-
 splitExtP :: SP (String, (String, ImgType))
 splitExtP = anyStringThen' $ pext <* eof
   where
     pext      = foldr (<|>) mzero $ map pe imgTypeLT
     pe (e, t) = (,t) <$> try (lowerOrUpperCaseWord e)
-
-type SplitName = (String, (String, String), String)
 
 splitPathNameExtP :: SP (SplitName, ImgType)
 splitPathNameExtP = do
@@ -204,16 +212,16 @@ splitPathNameExtTypeD = toSubdirType . toImgSubdirType . splitPathNameExtType
         isSubdir = isJust $ parseMaybe imgDirName n
     toSubdirType x = x
 
-
 splitPathNameExtType :: String -> (SplitName, ImgType)
 splitPathNameExtType n =
   fromMaybe ((mempty, (n, mempty),mempty), IMGboring) $
   parseMaybe splitPathNameExtP n
+-- -}
 
 -- ----------------------------------------
 -- test code
 
-{-
+ {-
 
 joinPathNameExt :: SplitName -> String
 joinPathNameExt (d, (n, n'), e) = d <> n <> n' <> e
@@ -245,9 +253,57 @@ tsplit xs = do
           where
             fmt ((_d, (n, _n'), _e), _ex) = n
 
-    (bs, ns) = partition ((== IMGboring) . snd) $
-               map splitPathNameExtType ls
+    (bs, ns) = partition ((== Unknown'mime_type) . snd) $
+               map splitPathNameExtMime ls
     ls = lines xs
 
 -- -}
+-- ----------------------------------------
+
+imgMimeLT :: [(String, MimeType)]
+imgMimeLT = concatMap f imgMimeExt'
+  where
+    f (t, es) = map (,t) es
+
+splitExtMimeP :: SP (String, (String, MimeType))
+splitExtMimeP = anyStringThen' $ pext <* eof
+  where
+    pext      = foldr (<|>) mzero $ map pe imgMimeLT
+    pe (e, t) = (,t) <$> try (lowerOrUpperCaseWord e)
+
+splitPathNameExtMimeP :: SP (SplitName, MimeType)
+splitPathNameExtMimeP = do
+  p            <- path'
+  (nm, (e, t)) <- splitExtMimeP
+  let n        =  fromMaybe (nm, mempty) $ parseMaybe imgName nm
+  return ((p, n, e), t)
+  where
+    p' :: SP String
+    p' = try $ (<>) <$> many (satisfy (/= '/'))
+                    <*> some (satisfy (== '/'))
+
+    path' :: SP String
+    path' = concat <$> many p'
+
+splitPathNameExtMimeD :: String -> (SplitName, MimeType)
+splitPathNameExtMimeD = toSubdirType . toImgSubdirType . splitPathNameExtMime
+  where
+
+    toImgSubdirType (sn@(_, (n, ""), ""), Unknown'mime_type)
+      | isSubdir  = (sn, Dir'x_image_copies)
+      where
+        isSubdir = isJust $ parseMaybe imgSubdir n
+    toImgSubdirType x = x
+
+    toSubdirType (sn@(_, (n, ""), ""), Unknown'mime_type)
+      | isSubdir  = (sn, Dir'x_subdir)
+      where
+        isSubdir = isJust $ parseMaybe imgDirName n
+    toSubdirType x = x
+
+splitPathNameExtMime :: String -> (SplitName, MimeType)
+splitPathNameExtMime n =
+  fromMaybe ((mempty, (n, mempty),mempty), Unknown'mime_type) $
+  parseMaybe splitPathNameExtMimeP n
+
 -- ----------------------------------------

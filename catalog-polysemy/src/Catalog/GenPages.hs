@@ -48,7 +48,7 @@ import Data.MetaData                  ( MetaData
                                       , lookupRating
                                       , imgRating
                                       )
-import Data.TextPath                  ( pathName2ImgType
+import Data.TextPath                  ( path2MimeType
                                       , baseNameMb
                                       , ymdNameMb
                                       , takeDir
@@ -506,13 +506,12 @@ toMediaReq :: Req'IdNode'ImgRef a -> Req'IdNode'ImgRef a
 toMediaReq r =
   r & rType .~ t
   where
-    t =
-      case pathName2ImgType (r ^. rImgRef . to _iname . isoText) of
-        IMGjpg   -> RImg
-        IMGimg   -> RImg
-        IMGmovie -> RMovie
-        IMGtxt   -> RPage
-        _        -> RPage  -- unknown media type, should not occur
+    mt = path2MimeType (r ^. rImgRef . to _iname . isoText)
+    t | isJpgMT   mt
+        ||
+        isImgMT   mt = RImg
+      | isMovieMT mt = RMovie
+      | otherwise    = RPage
 
 -- ----------------------------------------
 --
@@ -528,55 +527,53 @@ genReqImg r = do
 
   log'trc $ msgPath srcPath "genReqImg sp="
 
-  case ity of
-    IMGjpg ->
-      createCopyFromImg geo srcPath imgPath
+  case path2MimeType (r ^. rImgRef . to _iname . isoText) of
+    ity
+      | isJpgMT ity ->
+          createCopyFromImg geo srcPath imgPath
+      | isImgMT ity ->
+          createCopyFromImg geo srcPath imgPath
+      | isMovieMT ity -> do
+          mir <- toMovieIconReq r
+          case mir of
+            -- rule .1
+            Just r' -> do
+              srcPath' <- toSourcePath r'
+              log'trc $ msgPath srcPath' "genReqImg: icon for movie sp="
+              createVideoIconFromImg geo srcPath' imgPath
 
-    IMGimg ->
-      createCopyFromImg geo srcPath imgPath
+            Nothing -> do
+              -- rule .2
+              let thumbNail :: Eff'Img r => Sem r Path
+                  thumbNail = do
+                    tmpPath <- toCachedImgPath
+                               ( r & rType .~ RMovie
+                                   & rGeo  .~ geo'org
+                               )
+                    -- extract thumbnail from mp4
+                    withCache  getThumbnailImage       srcPath tmpPath
+                    withCache (createVideoIcon geo) tmpPath imgPath
+                    return imgPath
 
-    IMGmovie -> do
-      mir <- toMovieIconReq r
-      case mir of
-        -- rule .1
-        Just r' -> do
-          srcPath' <- toSourcePath r'
-          log'trc $ msgPath srcPath' "genReqImg: icon for movie sp="
-          createVideoIconFromImg geo srcPath' imgPath
+              let fallBack :: Eff'Img r => Text -> Sem r Path
+                  fallBack _e = createVideoIconFromImg geo p'qmark imgPath
 
-        Nothing -> do
-        -- rule .2
-          let thumbNail :: Eff'Img r => Sem r Path
-              thumbNail = do
-                tmpPath <- toCachedImgPath
-                           ( r & rType .~ RMovie
-                               & rGeo  .~ geo'org
-                           )
-                -- extract thumbnail from mp4
-                withCache  getThumbnailImage       srcPath tmpPath
-                withCache (createVideoIcon geo) tmpPath imgPath
-                return imgPath
+              catch @Text thumbNail fallBack
 
-          let fallBack :: Eff'Img r => Text -> Sem r Path
-              fallBack _e = createVideoIconFromImg geo p'qmark imgPath
+      | isTxtMT ity -> do
+          -- read text from source file
+          -- if no text there,
+          -- fall back to create icon from object path
 
-          catch @Text thumbNail fallBack
+          str <- getTxtFromFile srcPath
+          if isempty str
+            then createIconFromObj    r       imgPath
+            else createIconFromString geo str imgPath
 
-    IMGtxt -> do
-      -- read text from source file
-      -- if no text there,
-      -- fall back to create icon from object path
-
-      str <- getTxtFromFile srcPath
-      if isempty str
-        then createIconFromObj    r       imgPath
-        else createIconFromString geo str imgPath
-
-    _ ->
-      abortR "genReqIcon: no icon for image type" r
+      | otherwise ->
+          abortR "genReqIcon: no icon for image type" r
   where
     geo = mkGeoAR (r ^. rGeo) (reqType2AR $ r ^. rType)
-    ity = pathName2ImgType (r ^. rImgRef . to _iname . isoText)
 
 ----------------------------------------
 --
@@ -596,7 +593,7 @@ toMovieIconReq :: Eff'ISE r
 toMovieIconReq r = do
   n <- getImgVal i
   let nms = n ^.. theParts
-               .  thePartNames' (\ ty -> isJpg ty || isImg ty)
+               .  thePartNames' (\ ty -> isJpgMT ty || isImgMT ty)
   return (fmap (\ nm -> r & rImgRef .~ ImgRef i nm) $ listToMaybe nms)
   where
     ImgRef i _nm = r ^. rImgRef

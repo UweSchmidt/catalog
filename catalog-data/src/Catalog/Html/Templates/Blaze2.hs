@@ -23,7 +23,6 @@ import Data.MetaData ( MetaData
                      , lookupGPSposDeg
                      , metaTimeStamp
 
-
                      , compositeDOF
                      , compositeGPSPosition
                      , compositeImageSize
@@ -55,10 +54,15 @@ import Data.MetaData ( MetaData
                      , exifWhiteBalance
 
                      , fileFileSize
+                     , fileMimeType
                      , fileName
                      , fileRefJpg
                      , fileRefRaw
                      , fileTimeStamp
+
+                     , gifAnimationIterations
+                     , gifDuration
+                     , gifFrameCount
 
                      , imgRating
 
@@ -70,9 +74,8 @@ import Data.MetaData ( MetaData
 import           Data.Prim
 import           Catalog.Version (date, version)
 
+import           Text.Printf                     ( printf )
 import qualified Data.Text                       as T
-
-
 import           Text.Blaze.Html5                hiding (map, head)
 import qualified Text.Blaze.Html5                as H
 import           Text.Blaze.Html5.Attributes     hiding (title, rows, accept)
@@ -790,6 +793,22 @@ picMeta md = mconcat mdTab
           | isempty ts = mempty
           | otherwise  = timeStampToText ts
 
+    mdMPX :: Text -> Html
+    mdMPX descr =
+      toEntry descr key val $
+      toHtml val
+      where
+        key = compositeMegapixels
+        mpx = md ^. metaTextAt key
+        val
+          | isempty mpx = mempty
+          | otherwise   = mpx & isoString %~ fmt
+        fmt s = fromMaybe "" $ printf "%f" <$> px
+          where
+            px :: Maybe Double
+            px = readMaybe s
+
+
     mdMap :: Text -> Html
     mdMap descr =
       toEntry descr compositeGPSPosition val $
@@ -830,8 +849,12 @@ picMeta md = mconcat mdTab
       , mdval  "Aufnahmezähler"        makerNotesShutterCount
       , mdval  "Geometrie"             compositeImageSize
       , mdval  "Bilddatei"             fileName
-      , mdval  "Megapixel"             compositeMegapixels
+      , mdval  "Dateityp"              fileMimeType
+      , mdMPX  "Megapixel"
       , mdval  "Dateigröße"            fileFileSize
+      , mdval  "Animation: Wiederh."   gifAnimationIterations
+      , mdval  "Animation: Dauer"      gifDuration
+      , mdval  "Animation: # Bilder"   gifFrameCount
       , mdval  "Bild-Kopie"            fileRefJpg
       , mdval  "Raw-Datei"             fileRefRaw
       , mdTs   "Bearbeitet"

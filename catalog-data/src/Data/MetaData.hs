@@ -24,6 +24,7 @@ module Data.MetaData
   , metaAcc
   , metaCheckSum
   , metaImgType
+  , metaMimeType
   , metaName
   , metaTimeStamp
 
@@ -37,6 +38,7 @@ module Data.MetaData
   , normMetaData
   , cleanupMetaData
   , cleanupOldMetaData
+  , it2mtMetaData
 
   , someKeysMD
   , globKeysMD
@@ -132,11 +134,16 @@ module Data.MetaData
   , fileCheckSum
   , fileFileSize
   , fileImgType
+  , fileMimeType
   , fileName
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
   , fileTimeStamp
+
+  , gifAnimationIterations
+  , gifDuration
+  , gifFrameCount
 
   , imgRating
   , imgNameRaw
@@ -175,6 +182,8 @@ import           Data.Access         ( Access
                                      , isoAccessRestr
                                      , isoAccText
                                      )
+import           Data.TextPath       ( path2MimeType )
+
 import           Data.Bits           ( (.|.), (.&.), complement )
 
 import qualified Data.Aeson          as J
@@ -191,78 +200,130 @@ import           Text.SimpleParser
 import           Text.Printf         ( printf )
 -- import Debug.Trace
 
--- ----------------------------------------
+-- --------------------
+
+newtype MetaData' a = MD (IM.IntMap a)
+
+type    MetaData    = MetaData' MetaValue
+type    MetaDataT   = MetaData' Text
+
+newtype MetaDataText = MDT (M.Map Text Text)
+
+data MetaKey
+  = Composite'Aperture
+  | Composite'AutoFocus
+  | Composite'CircleOfConfusion
+  | Composite'DOF
+  | Composite'FOV
+  | Composite'Flash
+  | Composite'FocalLength35efl
+  | Composite'GPSPosition
+  | Composite'HyperfocalDistance
+  | Composite'ImageSize
+  | Composite'LensID
+  | Composite'LensSpec
+  | Composite'LightValue
+  | Composite'Megapixels
+  | Composite'ShutterSpeed
+  | Composite'SubSecCreateDate
+  | Composite'SubSecDateTimeOriginal
+  | Descr'Access
+  | Descr'CatalogVersion
+  | Descr'CatalogWrite
+  | Descr'Comment
+  | Descr'CommentImg
+  | Descr'CreateDate
+  | Descr'Duration
+  | Descr'GPSAltitude
+  | Descr'GPSPosition
+  | Descr'GoogleMaps
+  | Descr'Keywords
+  | Descr'Location
+  | Descr'OrderedBy
+  | Descr'Rating
+  | Descr'RatingImg
+  | Descr'Subtitle
+  | Descr'Title
+  | Descr'TitleEnglish
+  | Descr'TitleLatin
+  | Descr'Web
+  | Descr'Wikipedia
+  | EXIF'Artist
+  | EXIF'BitsPerSample
+  | EXIF'Copyright
+  | EXIF'CreateDate
+  | EXIF'ExposureCompensation
+  | EXIF'ExposureMode
+  | EXIF'ExposureProgram
+  | EXIF'ExposureTime
+  | EXIF'Flash
+  | EXIF'FNumber
+  | EXIF'FocalLength
+  | EXIF'FocalLengthIn35mmFormat
+  | EXIF'ISO
+  | EXIF'Make
+  | EXIF'MaxApertureValue
+  | EXIF'MeteringMode
+  | EXIF'Model
+  | EXIF'Orientation
+  | EXIF'UserComment
+  | EXIF'WhiteBalance
+  | File'CheckSum
+  | File'FileSize
+  | File'ImgType
+  | File'MimeType
+  | File'Name
+  | File'RefImg
+  | File'RefJpg
+  | File'RefRaw
+  | File'TimeStamp
+  | GIF'AnimationIterations
+  | GIF'Duration
+  | GIF'FrameCount
+  | Img'EXIFUpdate
+  | Img'NameRaw
+  | Img'Rating
+  | MakerNotes'ColorSpace
+  | MakerNotes'DaylightSavings
+  | MakerNotes'FocusDistance
+  | MakerNotes'FocusMode
+  | MakerNotes'Quality
+  | MakerNotes'SerialNumber
+  | MakerNotes'ShootingMode
+  | MakerNotes'ShutterCount
+  | MakerNotes'TimeZone
+  | QuickTime'Duration
+  | QuickTime'ImageHeight
+  | QuickTime'ImageWidth
+  | QuickTime'VideoFrameRate
+  | XMP'GPSAltitude
+  | XMP'Rating
+  | Key'Unknown          -- must be the last value
+
+type MetaKeySet = MetaKey -> Bool
+
+data MetaValue
+  = MText !Text
+  | MNm   !Name
+  | MInt  !Int
+  | MRat  !Int            -- rating: 0..5
+  | MOri  !Int            -- orientation: 0..3 <-> 0, 90, 180, 270 degrees CW
+  | MKeyw ![Text]         -- keywords
+  | MAcc  !Access         -- access restrictions
+  | MTs   !TimeStamp      -- time stamp
+  | MGps  !GPSposDec      -- GPS coordinate
+  | MCS   !CheckSum       -- checksum
+  | MTyp  !ImgType        -- image (or file) type
+  | MMime !MimeType       -- image mime type
+  | MNull                 -- missing or default value
+
+-- invariant for MetaValue:
+-- isempty mv => mv == MNull
 --
--- meta data parsers
+-- the invariant will be guaranteed by the setter parts
+-- of "meta***" iso's
 
-type YMD = (String, String, String)
-type HMS = (String, String, String, String)
-type YMD'HMS = (YMD, HMS)
-
-parseDateTime :: Text -> Maybe YMD'HMS
-parseDateTime = parseMaybe dateTimeParser . (isoText #)
-
--- take the day part from a date/time input
-parseDate :: Text -> Maybe (String, String, String)
-parseDate = parseMaybe (fst <$> dateTimeParser) . (isoText #)
-{-# INLINE parseDate #-}
-
-isoDateInt :: Iso' (String, String, String) Int
-isoDateInt = iso toInt frInt
-  where
-    toInt (y, m, d) =
-      (read y * 100 + read m) * 100 + read d
-
-    frInt i = ( printf "%04d" y
-              , printf "%02d" m
-              , printf "%02d" d
-              )
-      where
-        (my, d) = i  `divMod` 100
-        (y,  m) = my `divMod` 100
-
--- take the time part of a full date/time input
-parseTime :: Text -> Maybe (String, String, String, String)
-parseTime = parseMaybe (snd <$> dateTimeParser) . (isoText #)
-{-# INLINE parseTime #-}
-
-timeParser :: SP HMS
-timeParser = do
-  h  <-             count 2 digitChar
-  m  <- char ':' *> count 2 digitChar
-  s  <- char ':' *> count 2 digitChar
-  ms <- SP.option ".0" $
-        char '.' *> some    digitChar
-  let (h', m', s') = (read h, read m, read s) :: (Int, Int, Int)
-  if h' >= 0 && h' <= 24
-     &&
-     m' >= 0 && m' <  60
-     &&
-     s' >= 0 && s' <  60
-    then return (h, m, s, ms)
-    else mzero
-
-dateParser :: SP YMD
-dateParser = do
-  y <-               count 4 digitChar
-  m <- oneOf' del *> count 2 digitChar
-  d <- oneOf' del *> count 2 digitChar
-  let (y', m', d') = (read y, read m, read d) :: (Int, Int, Int)
-  if y' >= 1800 && y' < 3001
-     &&
-     m' >= 1    && m' <= 12
-     &&
-     d' >= 1    && d' <= 31
-    then return (y, m, d)
-    else mzero
-  where
-    del = "-:"
-
-dateTimeParser :: SP YMD'HMS
-dateTimeParser = do
-  ymd <- dateParser
-  hms <- some spaceChar *> timeParser <* anyString  -- maybe followed by time zone
-  return (ymd, hms)
+type Rating = Int -- 0 .. 5
 
 -- ----------------------------------------
 --
@@ -402,6 +463,7 @@ keysAttrExif@
 fileCheckSum
   , fileFileSize
   , fileImgType
+  , fileMimeType
   , fileName
   , fileRefImg
   , fileRefJpg
@@ -413,12 +475,24 @@ keysAttrFile@
   [ fileCheckSum
   , fileFileSize
   , fileImgType
+  , fileMimeType
   , fileName
   , fileRefImg
   , fileRefJpg
   , fileRefRaw
   , fileTimeStamp
   ] = [File'CheckSum .. File'TimeStamp]
+
+gifAnimationIterations
+  , gifDuration
+  , gifFrameCount :: MetaKey
+
+keysAttrGIF :: [MetaKey]
+keysAttrGIF@
+  [ gifAnimationIterations
+  , gifDuration
+  , gifFrameCount
+  ] = [GIF'AnimationIterations .. GIF'FrameCount]
 
 imgRating
   , imgNameRaw
@@ -478,175 +552,27 @@ keysAttrXmp@
 
 -- ----------------------------------------
 --
--- split metadata in image metadata and part specific metadata
+-- instances and basic functions for MetaData
 
-splitMetaData :: ImgType -> MetaData' a -> (MetaData' a, MetaData' a)
-splitMetaData ty md =
-  partitionMD (not <$> snd (keysByImgType ty)) md
+instance (IsEmpty a, IsoValueText a) => FromJSON (MetaData' a) where
+  parseJSON o = (isoMetaDataMDT #) <$> parseJSON o
 
--- filter relevant metadata from exiftool output
-cleanupMetaData :: ImgType -> MetaData' a -> MetaData' a
-cleanupMetaData ty =
-  filterKeysMD (i'keys .||. p'keys)  -- all interesting stuff
-  where
-    (i'keys, p'keys) = keysByImgType ty
+instance (IsEmpty a, IsoValueText a) => ToJSON (MetaData' a) where
+  toJSON m = toJSON $ m ^. isoMetaDataMDT
 
-cleanupOldMetaData :: MetaData' a -> MetaData' a
-cleanupOldMetaData = filterKeysMD (`elem` keysAttrDescr)
+deriving instance Eq   a => Eq   (MetaData' a)   -- used in Catalog.MetaData.Exif
+deriving instance Show a => Show (MetaData' a)
 
--- normalize metadata
--- TODO: cleanup ratings propagation, when catalog is converted to new format
+instance IsEmpty (MetaData' a) where
+  isempty (MD m) = IM.null m
 
-normMetaData :: MetaData -> ImgType -> MetaData -> MetaData
-normMetaData old'md ty md0
-  | isRaw  ty = md
-                & cpy fileName       imgNameRaw
-  | isMeta ty = md
-                & ins xmpGPSAltitude descrGPSAltitude
-                & cpy xmpRating      descrRatingImg
-                -- set the GPS position and altitute
-                -- of the img to the pos in .xmp from Lightroom
-                -- set img rating from LR
-  | otherwise = md
-  where
-    -- TODO: cleanup when converted
-    md = md0
-         & metaDataAt descrRating .~ (old'md ^. metaDataAt descrRating)
+instance Semigroup a => Semigroup (MetaData' a) where
+  (<>) = unionMD
 
-    -- overwrite dst
-    cpy src dst md' = md' & metaTextAt dst .~ (md' ^. metaTextAt src)
+instance Semigroup a => Monoid (MetaData' a) where
+  mempty = MD IM.empty
 
-    -- insert, when not already set
-    ins src dst md' = md' <> (mempty & metaTextAt dst .~ (md' ^. metaTextAt src))
-
-
-keysByImgType :: ImgType -> (MetaKeySet, MetaKeySet)
-keysByImgType ty
-  | isJpg ty
-    ||
-    isImg   ty = (ks'cexm,  ks'part)
-  | isMovie ty = (ks'cexmq, ks'part)
-  | isMeta  ty = (ks'gpsr,  ks'file .||. ks'gps)
-  | isTxt   ty = (ks'descr, ks'file)
-  | isRaw   ty = (ks'cexm,  ks'part)
-  | otherwise  = (ks'all,   ks'part)
-  where
-    ks'all   = const True
-    ks'part  = ks'file
-               .||. ks'geo
-               .||. ks'rat
-               .||. ks'cpi
-
-    ks'comp  = (`elem` keysAttrComposite)
-    ks'descr = (`elem` keysAttrDescr)
-    ks'exif  = (`elem` keysAttrExif)
-    ks'file  = (`elem` keysAttrFile)
-    ks'maker = (`elem` keysAttrMaker)
-    ks'qtime = (`elem` keysAttrQuickTime)
-
-    ks'cexm  = ks'comp
-               .||. ks'descr
-               .||. ks'exif
-               .||. ks'maker
-               .||. (== imgNameRaw)
-
-    ks'cexmq = ks'cexmq .||. ks'qtime
-    ks'gps   = (`elem` [ compositeGPSPosition
-                       , descrGPSAltitude
-                       , descrGPSPosition
-                       , xmpGPSAltitude
-                       ]
-               )
-    ks'rat   = (== descrRating)
-    ks'cpi   = (== descrCommentImg)    -- comment for a copy
-
-    ks'gpsr  = ks'gps                  -- gps data in .xmp files
-               .||. (== xmpRating)     -- rating in .xmp files
-
-    ks'geo   = (`elem` [ compositeImageSize
-                       , compositeMegapixels
-                       , exifOrientation
-                       , makerNotesColorSpace
-                       ]
-               )
-
--- ----------------------------------------
---
--- filter meta data enries by image type
-
-filterByImgType :: ImgType -> MetaData' a -> MetaData' a
-filterByImgType ty =
-  filterKeysMD (`elem` ks)
-  where
-    ks | isShowablePartOrRaw ty = ksRaw
-       | isMeta              ty = ksXmp
-       | otherwise              = mzero
-
-    ksRaw = mconcat
-      [ keysAttrComposite
-      , keysAttrDescr
-      , keysAttrExif
-      , keysAttrFile
-      , keysAttrImg
-      , keysAttrMaker
-      , keysAttrQuickTime
-      , keysAttrXmp
-      ]
-
-    ksXmp = mconcat
-      [ keysAttrComposite
-      , keysAttrXmp
-      ]
-
--- lookup a sequence of keys
--- combine MetaValues with <>
--- in most cases: take the first defined value
-
-lookupByKeys :: [MetaKey] -> MetaData -> MetaValue
-lookupByKeys ns mt =
-  mconcat $ map (flip lookupMD mt) ns
-
--- access the create date of an image
--- usually formated as YYYY:MM:DD hh:mm:ss(.ss)
-
-lookupCreate :: (Text -> res) -> MetaData -> res
-lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
-  where
-    v = lookupByKeys
-        [ compositeSubSecCreateDate
-        , exifCreateDate
-        ] mt
-
--- access image geometry and orientation
-lookupGeoOri :: MetaData -> (Geo, Int)
-lookupGeoOri = lookupGeo &&& lookupOri
-
-lookupGeo :: MetaData -> Geo
-lookupGeo mt =
-  toGeo $ mt ^. metaTextAt compositeImageSize
-  where
-    toGeo sz = fromMaybe geo'org (readGeo'' $ sz ^. isoString)
-
-lookupRating :: MetaData -> Rating
-lookupRating mt =
-  lookupByKeys      -- imgRating is used in genPages and has type Text
-  [ descrRating     -- descr:Rating has priority over
-  , descrRatingImg  -- rating from LR valid for all parts
-  ] mt ^. metaRating
-
-mkRating :: Rating -> MetaData -> MetaData
-mkRating r md = md & metaDataAt descrRating .~ metaRating # r
-
-lookupOri :: MetaData -> Int
-lookupOri mt = mt ^. metaDataAt exifOrientation . metaOri
-
-lookupGPSposDeg :: MetaData -> Text
-lookupGPSposDeg =
-  (^. metaGPSDegText) . lookupByKeys [descrGPSPosition, compositeGPSPosition]
-
--- ----------------------------------------
-
-newtype MetaData' a = MD (IM.IntMap a)
+-- conversions to/from MetaDataText
 
 class IsoValueText v where
   isoValueText :: MetaKey -> Iso' v Text
@@ -680,208 +606,17 @@ isoMetaDataMDT = iso toMDT frMDT
                 k = metaKeyLookup k0
                 v = isoValueText k # v0
 
-instance (IsEmpty a, IsoValueText a) => FromJSON (MetaData' a) where
-  parseJSON o = (isoMetaDataMDT #) <$> parseJSON o
-
-instance (IsEmpty a, IsoValueText a) => ToJSON (MetaData' a) where
-  toJSON m = toJSON $ m ^. isoMetaDataMDT
-
--- --------------------
-
-type MetaData  = MetaData' MetaValue
-type MetaDataT = MetaData' Text
-
-newtype MetaDataText = MDT (M.Map Text Text)
-
-data MetaKey
-  = Composite'Aperture
-  | Composite'AutoFocus
-  | Composite'CircleOfConfusion
-  | Composite'DOF
-  | Composite'FOV
-  | Composite'Flash
-  | Composite'FocalLength35efl
-  | Composite'GPSPosition
-  | Composite'HyperfocalDistance
-  | Composite'ImageSize
-  | Composite'LensID
-  | Composite'LensSpec
-  | Composite'LightValue
-  | Composite'Megapixels
-  | Composite'ShutterSpeed
-  | Composite'SubSecCreateDate
-  | Composite'SubSecDateTimeOriginal
-  | Descr'Access
-  | Descr'CatalogVersion
-  | Descr'CatalogWrite
-  | Descr'Comment
-  | Descr'CommentImg
-  | Descr'CreateDate
-  | Descr'Duration
-  | Descr'GPSAltitude
-  | Descr'GPSPosition
-  | Descr'GoogleMaps
-  | Descr'Keywords
-  | Descr'Location
-  | Descr'OrderedBy
-  | Descr'Rating
-  | Descr'RatingImg
-  | Descr'Subtitle
-  | Descr'Title
-  | Descr'TitleEnglish
-  | Descr'TitleLatin
-  | Descr'Web
-  | Descr'Wikipedia
-  | EXIF'Artist
-  | EXIF'BitsPerSample
-  | EXIF'Copyright
-  | EXIF'CreateDate
-  | EXIF'ExposureCompensation
-  | EXIF'ExposureMode
-  | EXIF'ExposureProgram
-  | EXIF'ExposureTime
-  | EXIF'Flash
-  | EXIF'FNumber
-  | EXIF'FocalLength
-  | EXIF'FocalLengthIn35mmFormat
-  | EXIF'ISO
-  | EXIF'Make
-  | EXIF'MaxApertureValue
-  | EXIF'MeteringMode
-  | EXIF'Model
-  | EXIF'Orientation
-  | EXIF'UserComment
-  | EXIF'WhiteBalance
-  | File'CheckSum
-  | File'FileSize
-  | File'ImgType
-  | File'Name
-  | File'RefImg
-  | File'RefJpg
-  | File'RefRaw
-  | File'TimeStamp
-  | Img'EXIFUpdate
-  | Img'NameRaw
-  | Img'Rating
-  | MakerNotes'ColorSpace
-  | MakerNotes'DaylightSavings
-  | MakerNotes'FocusDistance
-  | MakerNotes'FocusMode
-  | MakerNotes'Quality
-  | MakerNotes'SerialNumber
-  | MakerNotes'ShootingMode
-  | MakerNotes'ShutterCount
-  | MakerNotes'TimeZone
-  | QuickTime'Duration
-  | QuickTime'ImageHeight
-  | QuickTime'ImageWidth
-  | QuickTime'VideoFrameRate
-  | XMP'GPSAltitude
-  | XMP'Rating
-  | Key'Unknown          -- must be the last value
-
-type MetaKeySet = MetaKey -> Bool
-
-data MetaValue
-  = MText !Text
-  | MNm   !Name
-  | MInt  !Int
-  | MRat  !Int            -- rating: 0..5
-  | MOri  !Int            -- orientation: 0..3 <-> 0, 90, 180, 270 degrees CW
-  | MKeyw ![Text]         -- keywords
-  | MAcc  !Access         -- access restrictions
-  | MTs   !TimeStamp      -- time stamp
-  | MGps  !GPSposDec      -- GPS coordinate
-  | MCS   !CheckSum       -- checksum
-  | MTyp  !ImgType        -- image (or file) type
-  | MNull                 -- missing or default value
-
--- invariant for MetaValue:
--- isempty mv => mv == MNull
+--------------------
 --
--- the invariant will be guaranteed by the setter parts
--- of "meta***" iso's
+-- basic MetaData ops and lenses
 
-type Rating = Int -- 0 .. 5
-
--- --------------------
---
--- ops for access rights in metadata
-
-modifyAccess :: (Access -> Access) -> MetaData -> MetaData
-modifyAccess f mt =
-  mt & metaDataAt Descr'Access . metaAcc %~ f
-
-allowAccess
-  , restrAccess :: [AccessRestr] -> MetaData -> MetaData
-
-allowAccess rs = modifyAccess (.&. complement (isoAccessRestr # rs))
-restrAccess rs = modifyAccess (.|. (isoAccessRestr # rs))
-
-clearAccess
-  , addNoWriteAccess
-  , subNoWriteAccess :: MetaData -> MetaData
-
-clearAccess       = allowAccess [minBound .. maxBound]
-addNoWriteAccess  = restrAccess [NO'write]
-subNoWriteAccess  = allowAccess [NO'write]
-
-isWriteable
-  , isSortable
-  , isRemovable
-  , isAUserCol :: MetaData -> Bool
-isWriteable = doesn'tHave NO'write
-isSortable  = doesn'tHave NO'sort
-isRemovable = doesn'tHave NO'delete
-isAUserCol  = doesn'tHave NO'user
-
-doesn'tHave :: AccessRestr -> MetaData -> Bool
-doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
-
--- --------------------
---
--- instances for MetaDataText
-
-instance FromJSON MetaDataText where
-  parseJSON j =
-    ( \ o -> MDT <$> parseJSON o    -- parse a {...} as Map Text Text
-    ) j
-    <|>                             -- old version: parse a [{...}] as Map Text Text
-                                    -- this is a wart, but donwards compatible
-    ( J.withArray "[MetaDataText]" $ \ v ->
-        case V.length v of
-          1 -> parseJSON (V.head v)
-          _ -> mzero
-    ) j
-
-instance ToJSON MetaDataText where
-  toJSON (MDT m) = J.toJSON m
-
--- --------------------
---
--- instances for MetaData
-
-deriving instance Eq   a => Eq   (MetaData' a)   -- used in Catalog.MetaData.Exif
-deriving instance Show a => Show (MetaData' a)
-
-instance IsEmpty (MetaData' a) where
-  isempty (MD m) = IM.null m
-
-instance Semigroup a => Semigroup (MetaData' a) where
-  (<>) = unionMD
-
-instance Semigroup a => Monoid (MetaData' a) where
-  mempty = MD IM.empty
-
--- instance ToJSON MetaData where
---  toJSON m = J.toJSON (m ^. isoMDT)
-
--- instance FromJSON MetaData where
---  parseJSON o = (isoMDT #) <$> parseJSON o
 
 -- lens combining insertMD and lookupMD
+
 metaDataAt :: MetaKey -> Lens' MetaData MetaValue
 metaDataAt mk k mt = (\ v -> insertMD mk v mt) <$> k (lookupMD mk mt)
+
+-- lens with conversion of MetaValue to Text
 
 metaTextAt :: MetaKey -> Lens' MetaData Text
 metaTextAt k = metaDataAt k . isoMetaValueText k
@@ -910,45 +645,24 @@ partitionMD ks (MD m) = (MD m1, MD m2)
   where
     (m1, m2) = IM.partitionWithKey (\ i _v -> ks $ toEnum i) m
 
-
-theImgEXIFUpdate :: Lens' MetaData TimeStamp
-theImgEXIFUpdate = metaDataAt imgEXIFUpdate . metaTimeStamp
-{-# INLINE theImgEXIFUpdate #-}
-
-
-
 -- --------------------
-{- old stuff: unse isoMetaDataMDT
+--
+-- instances for MetaDataText
 
-isoMDT :: Iso' MetaData MetaDataText
-isoMDT = iso mt2tt (flip editMD mempty)
+instance FromJSON MetaDataText where
+  parseJSON j =
+    ( \ o -> MDT <$> parseJSON o    -- parse a {...} as Map Text Text
+    ) j
+    <|>                             -- old version: parse a [{...}] as Map Text Text
+                                    -- this is a wart, but donwards compatible
+    ( J.withArray "[MetaDataText]" $ \ v ->
+        case V.length v of
+          1 -> parseJSON (V.head v)
+          _ -> mzero
+    ) j
 
-mt2tt :: MetaData -> MetaDataText
-mt2tt (MD m) = MDT $ IM.foldlWithKey' ins M.empty m
-  where
-    ins acc i v =
-      M.insert (metaKeyTextLookup k) (v ^. isoMetaValueText k) acc
-      where
-        k = toEnum i
--- -}
-
-editMD :: MetaDataT -> MetaData -> MetaData
-editMD (MD m) mt = IM.foldlWithKey' ins mt m
-  where
-    ins acc k0 v0
-      | v0 == "-" =                      -- remove key from metadata
-          acc & metaDataAt k .~ mempty
-
-      | k == descrKeywords =             -- add and remove keywords
-          acc & metaDataAt k . metaKeywords %~ mergeKW (isoKeywText # v0)
-
-      | otherwise =                      -- insert or set new value
-          acc & metaDataAt k .~ isoMetaValueText k # v0
-      where
-        k = toEnum k0
-
-splitMDT :: MetaDataText -> (MetaDataT, MetaDataT)
-splitMDT mdt = splitMetaData IMGother (isoMetaDataMDT # mdt)
+instance ToJSON MetaDataText where
+  toJSON (MDT m) = J.toJSON m
 
 -- --------------------
 --
@@ -958,17 +672,18 @@ deriving instance Eq   MetaValue
 deriving instance Show MetaValue
 
 instance IsEmpty MetaValue where   -- default values are redundant
-  isempty (MText t)  = isempty t
-  isempty (MNm  n)   = isempty n
-  isempty (MInt _)   = False       -- no default value for Int
-  isempty (MOri o)   = o == 0
-  isempty (MRat r)   = r == 0
+  isempty (MText  t) = isempty t
+  isempty (MNm    n) = isempty n
+  isempty (MInt   _) = False       -- no default value for Int
+  isempty (MOri   o) = o == 0
+  isempty (MRat   r) = r == 0
   isempty (MKeyw ws) = null ws
-  isempty (MAcc a)   = a == no'restr
-  isempty (MTs t)    = t == mempty
-  isempty (MCS cs)   = isempty cs
-  isempty (MTyp t)   = isempty t
-  isempty (MGps _)   = False       -- no default value for GPS data
+  isempty (MAcc   a) = a == no'restr
+  isempty (MTs    t) = t == mempty
+  isempty (MCS   cs) = isempty cs
+  isempty (MTyp   t) = isempty t
+  isempty (MMime  m) = isempty m
+  isempty (MGps   _) = False       -- no default value for GPS data
   isempty  MNull     = True
 
 instance Semigroup MetaValue where
@@ -984,6 +699,7 @@ instance Semigroup MetaValue where
   mv1@(MGps _)   <> MGps _   = mv1     -- 1. wins
   mv1@(MCS  _)   <> MCS  _   = mv1     -- 1. wins
   mv1@(MTyp _)   <> MTyp _   = mv1     -- 1. wins
+  mv1@(MMime _)  <> MMime _  = mv1     -- 1. wins
   MTs   t1       <> MTs   t2 = MTs   $ t1 <> t2       -- newest wins
   MKeyw w1       <> MKeyw w2 = MKeyw $ unionKW w1 w2  -- keywords are collected
 
@@ -996,6 +712,35 @@ instance Monoid MetaValue where
 -- no instance of FromJSON, due to decoding dependency on the key
 --
 -- getter and setter for MataValue
+
+-- --------------------
+--
+-- mapping of MetaValue variants to MetaKey's
+
+isoMetaValueText :: MetaKey -> Iso' MetaValue Text
+isoMetaValueText k = case k of
+  Composite'GPSPosition -> metaGPSDecText
+  Descr'Access          -> metaAccess    . isoAccText
+  Descr'GPSPosition     -> metaGPSDecText
+  Descr'Keywords        -> metaKeywords  . isoKeywText
+  Descr'Rating          -> metaRatingText
+  Descr'RatingImg       -> metaRatingText
+  EXIF'Orientation      -> metaOri       . isoOriText
+  File'CheckSum         -> metaCheckSum  . isoText
+  File'ImgType          -> metaImgType   . isoText
+  File'MimeType         -> metaMimeType  . isoText
+  File'Name             -> metaName      . isoText
+  File'TimeStamp        -> metaTimeStamp . isoText
+  Img'Rating            -> metaText          -- used in genPages
+  Img'NameRaw           -> metaName      . isoText
+  Img'EXIFUpdate        -> metaTimeStamp . isoText
+  QuickTime'ImageHeight -> metaIntText
+  QuickTime'ImageWidth  -> metaIntText
+  XMP'Rating            -> metaRatingText
+  Key'Unknown           -> iso (const mempty) (const mempty)
+  _                     -> metaText
+
+-- --------------------
 
 metaText :: Iso' MetaValue Text
 metaText = iso
@@ -1129,6 +874,18 @@ metaImgType = iso
   )
 {-# INLINE metaImgType #-}
 
+metaMimeType :: Iso' MetaValue MimeType
+metaMimeType = iso
+  (\ case
+      MMime m -> m
+      _       -> mempty
+  )
+  (\ t -> if isempty t
+          then mempty
+          else MMime t
+  )
+{-# INLINE metaMimeType #-}
+
 -- --------------------
 --
 -- MetaValue <-> Text
@@ -1163,6 +920,261 @@ metaGPSDegText = metaGPS . isoGPSDeg . isoText
       where
         toS v = maybe mempty (\ p -> prismString # (isoDegDec # p)) v
         frS s = (^. isoDegDec) <$> (s ^? prismString)
+
+-- ----------------------------------------
+--
+-- split metadata in image metadata and part specific metadata
+
+splitMetaData :: MimeType -> MetaData' a -> (MetaData' a, MetaData' a)
+splitMetaData ty md =
+  partitionMD (not <$> snd (keysByMimeType ty)) md
+
+-- filter relevant metadata from exiftool output
+cleanupMetaData :: MimeType -> MetaData' a -> MetaData' a
+cleanupMetaData ty =
+  filterKeysMD (i'keys .||. p'keys)  -- all interesting stuff
+  where
+    (i'keys, p'keys) = keysByMimeType ty
+
+cleanupOldMetaData :: MetaData' a -> MetaData' a
+cleanupOldMetaData = filterKeysMD (`elem` keysAttrDescr)
+
+-- normalize metadata
+-- TODO: cleanup ratings propagation, when catalog is converted to new format
+
+normMetaData :: MetaData -> MimeType -> MetaData -> MetaData
+normMetaData old'md ty md0
+  | isRawMT  ty = md
+                  & cpy fileName       imgNameRaw
+                  -- add raw filename to img metadata
+
+  | isMetaMT ty = md
+                  & ins xmpGPSAltitude descrGPSAltitude
+                  & cpy xmpRating      descrRatingImg
+                  -- set the GPS position and altitute
+                  -- of the img to the pos in .xmp from Lightroom
+                  -- set img rating from LR
+
+  | isGifMT ty && not (isempty anim)
+                = md
+                  & metaDataAt fileMimeType . metaMimeType .~ wackelGif
+                  -- when animated gif
+                  -- change MIME type
+                  -- animated gifs are handled similar to videos
+                  -- (no conversion to .jpg)
+
+  | otherwise   = md
+  where
+    -- TODO: cleanup when converted
+    md = md0
+         & metaDataAt descrRating .~ (old'md ^. metaDataAt descrRating)
+
+    -- overwrite dst
+    cpy src dst md' = md' & metaTextAt dst .~ (md' ^. metaTextAt src)
+
+    -- insert, when not already set
+    ins src dst md' = md' <> (mempty & metaTextAt dst .~ (md' ^. metaTextAt src))
+
+    -- animation iterations metadata, used for checking wackelgif
+    anim = md ^. metaTextAt gifAnimationIterations
+
+it2mtMetaData :: MetaData -> MetaData
+it2mtMetaData md
+  | isempty mt = md
+                 & metaDataAt fileMimeType . metaMimeType .~ path2MimeType pn
+                 & metaDataAt fileImgType .~ mempty
+  | otherwise = md
+  where
+    mt = md ^. metaDataAt fileMimeType . metaMimeType
+    pn = md ^. metaTextAt fileName
+
+-- --------------------
+
+editMD :: MetaDataT -> MetaData -> MetaData
+editMD (MD m) mt = IM.foldlWithKey' ins mt m
+  where
+    ins acc k0 v0
+      | v0 == "-" =                      -- remove key from metadata
+          acc & metaDataAt k .~ mempty
+
+      | k == descrKeywords =             -- add and remove keywords
+          acc & metaDataAt k . metaKeywords %~ mergeKW (isoKeywText # v0)
+
+      | otherwise =                      -- insert or set new value
+          acc & metaDataAt k .~ isoMetaValueText k # v0
+      where
+        k = toEnum k0
+
+splitMDT :: MetaDataText -> (MetaDataT, MetaDataT)
+splitMDT mdt = splitMetaData mempty (isoMetaDataMDT # mdt)
+
+-- --------------------
+
+keysByMimeType :: MimeType -> (MetaKeySet, MetaKeySet)
+keysByMimeType ty
+  | isJpgMT ty
+    ||
+    isImgMT   ty = (ks'cexm,  ks'part)
+  | isMovieMT ty = (ks'cexmq, ks'part)
+  | isMetaMT  ty = (ks'gpsr,  ks'file .||. ks'gps)
+  | isTxtMT   ty = (ks'descr, ks'file)
+  | isRawMT   ty = (ks'cexm,  ks'part)
+  | otherwise    = (ks'all,   ks'part)
+  where
+    ks'all   = const True
+    ks'part  = ks'file
+               .||. ks'gif
+               .||. ks'geo
+               .||. ks'rat
+               .||. ks'cpi
+
+    ks'comp  = (`elem` keysAttrComposite)
+    ks'descr = (`elem` keysAttrDescr)
+    ks'exif  = (`elem` keysAttrExif)
+    ks'file  = (`elem` keysAttrFile)
+    ks'gif   = (`elem` keysAttrGIF)
+    ks'maker = (`elem` keysAttrMaker)
+    ks'qtime = (`elem` keysAttrQuickTime)
+
+    ks'cexm  = ks'comp
+               .||. ks'descr
+               .||. ks'exif
+               .||. ks'maker
+               .||. (== imgNameRaw)
+
+    ks'cexmq = ks'cexmq .||. ks'qtime
+    ks'gps   = (`elem` [ compositeGPSPosition
+                       , descrGPSAltitude
+                       , descrGPSPosition
+                       , xmpGPSAltitude
+                       ]
+               )
+    ks'rat   = (== descrRating)
+    ks'cpi   = (== descrCommentImg)    -- comment for a copy
+
+    ks'gpsr  = ks'gps                  -- gps data in .xmp files
+               .||. (== xmpRating)     -- rating in .xmp files
+
+    ks'geo   = (`elem` [ compositeImageSize
+                       , compositeMegapixels
+                       , exifOrientation
+                       , makerNotesColorSpace
+                       ]
+               )
+
+-- ----------------------------------------
+--
+-- filter meta data enries by image type
+
+filterByImgType :: MimeType -> MetaData' a -> MetaData' a
+filterByImgType ty =
+  filterKeysMD (`elem` ks)
+  where
+    ks | isShowablePartOrRawMT ty = ksRaw
+       | isMetaMT              ty = ksXmp
+       | otherwise                = mzero
+
+    ksRaw = mconcat
+      [ keysAttrComposite
+      , keysAttrDescr
+      , keysAttrExif
+      , keysAttrFile
+      , keysAttrImg
+      , keysAttrMaker
+      , keysAttrQuickTime
+      , keysAttrXmp
+      ]
+
+    ksXmp = mconcat
+      [ keysAttrComposite
+      , keysAttrXmp
+      ]
+
+-- lookup a sequence of keys
+-- combine MetaValues with <>
+-- in most cases: take the first defined value
+
+lookupByKeys :: [MetaKey] -> MetaData -> MetaValue
+lookupByKeys ns mt =
+  mconcat $ map (flip lookupMD mt) ns
+
+-- access the create date of an image
+-- usually formated as YYYY:MM:DD hh:mm:ss(.ss)
+
+lookupCreate :: (Text -> res) -> MetaData -> res
+lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
+  where
+    v = lookupByKeys
+        [ compositeSubSecCreateDate
+        , exifCreateDate
+        ] mt
+
+-- access image geometry and orientation
+lookupGeoOri :: MetaData -> (Geo, Int)
+lookupGeoOri = lookupGeo &&& lookupOri
+
+lookupGeo :: MetaData -> Geo
+lookupGeo mt =
+  toGeo $ mt ^. metaTextAt compositeImageSize
+  where
+    toGeo sz = fromMaybe geo'org (readGeo'' $ sz ^. isoString)
+
+lookupRating :: MetaData -> Rating
+lookupRating mt =
+  lookupByKeys      -- imgRating is used in genPages and has type Text
+  [ descrRating     -- descr:Rating has priority over
+  , descrRatingImg  -- rating from LR valid for all parts
+  ] mt ^. metaRating
+
+mkRating :: Rating -> MetaData -> MetaData
+mkRating r md = md & metaDataAt descrRating .~ metaRating # r
+
+lookupOri :: MetaData -> Int
+lookupOri mt = mt ^. metaDataAt exifOrientation . metaOri
+
+lookupGPSposDeg :: MetaData -> Text
+lookupGPSposDeg =
+  (^. metaGPSDegText) . lookupByKeys [descrGPSPosition, compositeGPSPosition]
+
+theImgEXIFUpdate :: Lens' MetaData TimeStamp
+theImgEXIFUpdate = metaDataAt imgEXIFUpdate . metaTimeStamp
+{-# INLINE theImgEXIFUpdate #-}
+
+-- --------------------
+--
+-- ops for access rights in metadata
+
+modifyAccess :: (Access -> Access) -> MetaData -> MetaData
+modifyAccess f mt =
+  mt & metaDataAt Descr'Access . metaAcc %~ f
+
+allowAccess
+  , restrAccess :: [AccessRestr] -> MetaData -> MetaData
+
+allowAccess rs = modifyAccess (.&. complement (isoAccessRestr # rs))
+restrAccess rs = modifyAccess (.|. (isoAccessRestr # rs))
+
+clearAccess
+  , addNoWriteAccess
+  , subNoWriteAccess :: MetaData -> MetaData
+
+clearAccess       = allowAccess [minBound .. maxBound]
+addNoWriteAccess  = restrAccess [NO'write]
+subNoWriteAccess  = allowAccess [NO'write]
+
+isWriteable
+  , isSortable
+  , isRemovable
+  , isAUserCol :: MetaData -> Bool
+isWriteable = doesn'tHave NO'write
+isSortable  = doesn'tHave NO'sort
+isRemovable = doesn'tHave NO'delete
+isAUserCol  = doesn'tHave NO'user
+
+doesn'tHave :: AccessRestr -> MetaData -> Bool
+doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
+
+
 
 -- --------------------
 --
@@ -1228,32 +1240,6 @@ isoMaybeIntText :: Iso' (Maybe Int) Text
 isoMaybeIntText =
   iso (maybe mempty show) readMaybe . isoText
 {-# INLINE isoMaybeIntText #-}
-
--- --------------------
---
--- mapping of MetaValue variants to MetaKey's
-
-isoMetaValueText :: MetaKey -> Iso' MetaValue Text
-isoMetaValueText k = case k of
-  Composite'GPSPosition -> metaGPSDecText
-  Descr'Access          -> metaAccess    . isoAccText
-  Descr'GPSPosition     -> metaGPSDecText
-  Descr'Keywords        -> metaKeywords  . isoKeywText
-  Descr'Rating          -> metaRatingText
-  Descr'RatingImg       -> metaRatingText
-  EXIF'Orientation      -> metaOri       . isoOriText
-  File'CheckSum         -> metaCheckSum  . isoText
-  File'ImgType          -> metaImgType   . isoText
-  File'Name             -> metaName      . isoText
-  File'TimeStamp        -> metaTimeStamp . isoText
-  Img'Rating            -> metaText          -- used in genPages
-  Img'NameRaw           -> metaName      . isoText
-  Img'EXIFUpdate        -> metaTimeStamp . isoText
-  QuickTime'ImageHeight -> metaIntText
-  QuickTime'ImageWidth  -> metaIntText
-  XMP'Rating            -> metaRatingText
-  Key'Unknown           -> iso (const mempty) (const mempty)
-  _                     -> metaText
 
 -- --------------------
 
@@ -1368,5 +1354,78 @@ metaKeyToTextTable =
   IM.fromList $
   map (\ k -> (fromEnum k, metaKeyToText k)) [minBound .. pred maxBound]
 
+
+-- ----------------------------------------
+--
+-- meta data parsers
+
+type YMD = (String, String, String)
+type HMS = (String, String, String, String)
+type YMD'HMS = (YMD, HMS)
+
+parseDateTime :: Text -> Maybe YMD'HMS
+parseDateTime = parseMaybe dateTimeParser . (isoText #)
+
+-- take the day part from a date/time input
+parseDate :: Text -> Maybe (String, String, String)
+parseDate = parseMaybe (fst <$> dateTimeParser) . (isoText #)
+{-# INLINE parseDate #-}
+
+isoDateInt :: Iso' (String, String, String) Int
+isoDateInt = iso toInt frInt
+  where
+    toInt (y, m, d) =
+      (read y * 100 + read m) * 100 + read d
+
+    frInt i = ( printf "%04d" y
+              , printf "%02d" m
+              , printf "%02d" d
+              )
+      where
+        (my, d) = i  `divMod` 100
+        (y,  m) = my `divMod` 100
+
+-- take the time part of a full date/time input
+parseTime :: Text -> Maybe (String, String, String, String)
+parseTime = parseMaybe (snd <$> dateTimeParser) . (isoText #)
+{-# INLINE parseTime #-}
+
+timeParser :: SP HMS
+timeParser = do
+  h  <-             count 2 digitChar
+  m  <- char ':' *> count 2 digitChar
+  s  <- char ':' *> count 2 digitChar
+  ms <- SP.option ".0" $
+        char '.' *> some    digitChar
+  let (h', m', s') = (read h, read m, read s) :: (Int, Int, Int)
+  if h' >= 0 && h' <= 24
+     &&
+     m' >= 0 && m' <  60
+     &&
+     s' >= 0 && s' <  60
+    then return (h, m, s, ms)
+    else mzero
+
+dateParser :: SP YMD
+dateParser = do
+  y <-               count 4 digitChar
+  m <- oneOf' del *> count 2 digitChar
+  d <- oneOf' del *> count 2 digitChar
+  let (y', m', d') = (read y, read m, read d) :: (Int, Int, Int)
+  if y' >= 1800 && y' < 3001
+     &&
+     m' >= 1    && m' <= 12
+     &&
+     d' >= 1    && d' <= 31
+    then return (y, m, d)
+    else mzero
+  where
+    del = "-:"
+
+dateTimeParser :: SP YMD'HMS
+dateTimeParser = do
+  ymd <- dateParser
+  hms <- some spaceChar *> timeParser <* anyString  -- maybe followed by time zone
+  return (ymd, hms)
 
 -- ----------------------------------------

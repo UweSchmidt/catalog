@@ -437,10 +437,20 @@ buildResize3 vico rot d'g s'geo d s'
     -- for .tiff convert needs the layer # to be taken
     -- if the image contains a thumbnail,
     -- there are 2 layers in the .tiff file
+    --
+    -- for wackelgifs a frame number is needed,
+    -- else all frames are extracted
+    --
+    -- TODO: don't check the extension but use the mime type
+    -- to determine the layer selection
+
     tiffLayer x
       | ".tif"  `T.isSuffixOf` x
         ||
-        ".tiff" `T.isSuffixOf` x = x <> "[0]"
+        ".tiff" `T.isSuffixOf` x
+        ||
+        ".gif"  `T.isSuffixOf` x = x <> "[0]"
+
       | otherwise                = x
 
 -- ----------------------------------------

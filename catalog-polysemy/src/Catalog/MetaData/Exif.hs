@@ -54,18 +54,18 @@ getMDpart :: ( EffCatEnv   r
              , EffFileSys  r
              , EffExecProg r
              )
-          => (ImgType -> Bool)
+          => (MimeType -> Bool)
           -> Path
           -> ImgPart
           -> Sem r (MetaData, MetaData)
 getMDpart pf imgPath pt
-  | pf (pt ^. theImgType) =
+  | pf (pt ^. theMimeType) =
       splitMetaData ty <$> getExifMetaData partPath
 
   | otherwise =
       return mempty
   where
-    ty       = pt ^. theImgType
+    ty       = pt ^. theMimeType
     tn       = pt ^. theImgName
     partPath = substPathName tn . tailPath $ imgPath
 
@@ -94,7 +94,7 @@ setPartMD imgPath i acc pt = do
   adjustPartMetaData (const md'pt) (ImgRef i tn)
   return (md'i <> acc)
   where
-    ty       = pt ^. theImgType
+    ty       = pt ^. theMimeType
     tn       = pt ^. theImgName
     partPath = substPathName tn . tailPath $ imgPath
 

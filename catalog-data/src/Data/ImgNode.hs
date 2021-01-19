@@ -47,6 +47,7 @@ module Data.ImgNode
        , theImgName
        , theImgPart
        , theImgType
+       , theMimeType
        , theImgTimeStamp
        , theImgCheckSum
        , theDir
@@ -84,13 +85,16 @@ import           Control.Monad.Except
 import           Data.MetaData ( MetaData
                                , MetaDataText(MDT)
                                , isoMetaDataMDT
+                               , it2mtMetaData
                                , metaDataAt
-                               , fileImgType
+                               -- , fileImgType
+                               , fileMimeType
                                , fileName
                                , fileTimeStamp
                                , fileCheckSum
                                , metaCheckSum
-                               , metaImgType
+                               -- , metaImgType
+                               , metaMimeType
                                , metaName
                                , metaTimeStamp
                                , isWriteable
@@ -367,14 +371,14 @@ traverseParts :: Traversal' ImgParts ImgPart
 traverseParts = isoImgParts . traverse
 {-# INLINE traverseParts #-}
 
-thePartNames' :: (ImgType -> Bool) -> Traversal' ImgParts Name
+thePartNames' :: (MimeType -> Bool) -> Traversal' ImgParts Name
 thePartNames' typTest =
-  traverseParts . isA (^. theImgType . to typTest) . theImgName
+  traverseParts . isA (^. theMimeType . to typTest) . theImgName
 {-# INLINE thePartNames' #-}
 
 -- images with 1 of the given types can be rendered
 thePartNamesI :: Traversal' ImgParts Name
-thePartNamesI = thePartNames' isShowablePart
+thePartNamesI = thePartNames' isShowablePartMT
 {-# INLINE thePartNamesI #-}
 
 thePartNames :: Traversal' ImgParts Name
@@ -385,7 +389,7 @@ thePartNames = thePartNames' (const True)
 --
 -- new ImgPart datatype
 -- MetaData is used for all attributes of a part
--- not only imgtype, timestamp and checksum, but also
+-- not only mime type, timestamp and checksum, but also
 -- geometry, orientation, ratings, ...
 
 newtype ImgPart = IPM MetaData
@@ -399,7 +403,7 @@ instance FromJSON ImgPart where
       toIPM mdt@(MDT md) = r3   -- TODO: = r
         where
           m = isoMetaDataMDT # mdt
-          r = IPM m
+          r = IPM $ it2mtMetaData m
 
           -- TODO: cleanup when old JSON format isn't longer in use
           -- this code parses old and new JSON
@@ -426,7 +430,8 @@ instance ToJSON ImgPart where
   toJSON (IPM md) = toJSON md
 -- -}
 
-{-
+{- TODO: new version after cleanup
+
 instance FromJSON ImgPart where
   parseJSON x = IPM <$> J.parseJSON x
 
@@ -435,10 +440,10 @@ instance ToJSON ImgPart where
 -- -}
 
 
-mkImgPart :: Name -> ImgType -> ImgPart
+mkImgPart :: Name -> MimeType -> ImgPart
 mkImgPart n t =
   IPM mempty & theImgName .~ n
-             & theImgType .~ t
+             & theMimeType .~ t
 {-# INLINE mkImgPart #-}
 
 theImgMeta :: Lens' ImgPart MetaData
@@ -449,9 +454,15 @@ theImgName :: Lens' ImgPart Name
 theImgName = theImgMeta . metaDataAt fileName . metaName
 {-# INLINE theImgName #-}
 
+-- TODO: cleanup in new catalog format
 theImgType :: Lens' ImgPart ImgType
-theImgType = theImgMeta . metaDataAt fileImgType . metaImgType
+theImgType = theMimeType . isoMimeType
+--theImgType = theImgMeta . metaDataAt fileImgType . metaImgType
 {-# INLINE theImgType #-}
+
+theMimeType :: Lens' ImgPart MimeType
+theMimeType = theImgMeta . metaDataAt fileMimeType . metaMimeType
+{-# INLINE theMimeType #-}
 
 theImgTimeStamp :: Lens' ImgPart TimeStamp
 theImgTimeStamp = theImgMeta . metaDataAt fileTimeStamp . metaTimeStamp
