@@ -914,12 +914,15 @@ collectImgAttr r = do
     , _imgMeta     = theMeta
                      & metaTextAt fileRefImg .~ (theSrc ^. isoText)
                      & metaTextAt fileRefRaw .~ rp
+
     , _imgTitle    = take1st
                      [ theMeta ^. metaTextAt descrTitle
                      , nm ^. isoText
                      ]
+
     , _imgSubTitle = theMeta ^. metaTextAt descrSubtitle
     , _imgComment  = theMeta ^. metaTextAt descrComment
+
     , _imgDuration = take1st
                      [ theMeta ^. metaTextAt descrDuration
                      , "1.0"

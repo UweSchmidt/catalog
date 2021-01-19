@@ -55,7 +55,8 @@ import Data.MetaData ( MetaData
 
                      , fileFileSize
                      , fileMimeType
-                     , fileName
+                     -- , fileName
+                     , fileRefImg
                      , fileRefJpg
                      , fileRefRaw
                      , fileTimeStamp
@@ -848,7 +849,7 @@ picMeta md = mconcat mdTab
       , mdval  "Weißabgleich"          exifWhiteBalance
       , mdval  "Aufnahmezähler"        makerNotesShutterCount
       , mdval  "Geometrie"             compositeImageSize
-      , mdval  "Bilddatei"             fileName
+      , mdval  "Bilddatei"             fileRefImg
       , mdval  "Dateityp"              fileMimeType
       , mdMPX  "Megapixel"
       , mdval  "Dateigröße"            fileFileSize

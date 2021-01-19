@@ -145,9 +145,9 @@ module Data.MetaData
   , gifDuration
   , gifFrameCount
 
-  , imgRating
-  , imgNameRaw
   , imgEXIFUpdate
+  , imgNameRaw
+  , imgRating
 
   , makerNotesColorSpace
   , makerNotesDaylightSavings
@@ -494,9 +494,9 @@ keysAttrGIF@
   , gifFrameCount
   ] = [GIF'AnimationIterations .. GIF'FrameCount]
 
-imgRating
+imgEXIFUpdate
   , imgNameRaw
-  , imgEXIFUpdate :: MetaKey
+  , imgRating :: MetaKey
 
 keysAttrImg :: [MetaKey]
 keysAttrImg@
