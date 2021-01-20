@@ -50,11 +50,14 @@ import Data.Prim
 import Data.TextPath           ( ClassifiedName
                                , ClassifiedNames
                                , classifyPaths
+                               , isImgCopiesDir
+                               , (<//>)
                                )
 
 import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
+import qualified Data.Text       as T
 
 -- ----------------------------------------
 
@@ -432,40 +435,26 @@ collectDirCont :: (EffLogging r, EffCatEnv r, EffIStore r, EffFileSys r)
 collectDirCont i = do
   -- trc'Obj i "collectDirCont: group entries in dir "
   p' <- objid2path i
-  es <- parseDirCont p'
-  log'trc $ "collectDirCont: entries found " <> toText es
 
-  let (others, rest) =
-        partition (hasMimeType isOtherMT) es
-  let (subdirs, rest2) =
-        partition (hasMimeType isImgSubDirMT) rest
-  let (imgfiles, rest3) =
-        partition (hasMimeType isAnImgPartMT) rest2
-  let imgfiles' = partClassifiedNames imgfiles
+  (subdirs, es) <- parseDir p'
+
+  log'trc $ "collectDirCont: files   found: " <> toText es
+  log'trc $ "collectDirCont: subdirs found: " <> toText subdirs
+
+  let (others,   es1) = partition (hasMimeType isOtherMT    ) es
+  let (imgfiles, es2) = partition (hasMimeType isAnImgPartMT) es1
+  let imgfiles'       = partClassifiedNames imgfiles
 
   traverse_
-    (\ n -> log'trc $ "sync: fs entry ignored " <> toText (fst n))
-    others
+    (\ n -> log'warn $ "sync: fs entry ignored " <> toText (fst n))
+    es2
 
-  realsubdirs <- filterM (isSubDir p') subdirs
-
-  unless (null rest3) $
-    log'trc $ "collectDirCont: files ignored " <> toText rest3
-  unless (null realsubdirs) $
-    log'trc $ "collectDirCont: subdirs "       <> toText realsubdirs
-
+  unless (null others) $
+    log'trc $ "collectDirCont: unused files: "   <> toText others
   unless (null imgfiles') $
-    log'trc $ "collectDirCont: imgfiles "      <> toText imgfiles'
+    log'trc $ "collectDirCont: imgfiles "        <> toText imgfiles'
 
-  return ( realsubdirs ^.. traverse . _1
-         , imgfiles'
-         )
-  where
-    isSubDir :: (EffFileSys r, EffCatEnv r)
-             => Path -> (Name, (Name, MimeType)) -> Sem r Bool
-    isSubDir p' (n, _) = do
-      sp <- toFileSysTailPath (p' `snocPath` n)
-      dirExist sp
+  return (subdirs, imgfiles')
 
 -- ----------------------------------------
 
@@ -535,52 +524,58 @@ checkEmptyDir i =
 
 -- --------------------
 --
--- low level directory and file ops
+-- low level dir access
 
-parseDirCont :: (EffFileSys r, EffLogging r, EffCatEnv r)
-             => Path -> Sem r ClassifiedNames
-parseDirCont p = do
+parseDir0 :: (EffFileSys r, EffLogging r, EffCatEnv r)
+          => TextPath -> Sem r ([Text], [Text])
+parseDir0 sp = do
+  ns0 <- readDir sp
+  -- log'trc $ "parseDir0: " <> toText ns0
+
+  let ns = filter noDotFile ns0
+  -- log'trc $ "parseDir0: " <> toText ns
+
+  (fs, rs) <- partitionM (\ n -> fileExist $ sp <//> n) ns
+  (ds, _ ) <- partitionM (\ n ->  dirExist $ sp <//> n) rs
+  -- log'trc $ "parseDir0: " <> toText (ds, fs)
+
+  return (ds, fs)
+  where
+    noDotFile n = not ("." `T.isPrefixOf` n)
+
+parseDir :: (EffFileSys r, EffLogging r, EffCatEnv r)
+          => Path -> Sem r ([Name], ClassifiedNames)
+parseDir p = do
   sp <- toFileSysTailPath p
-  (es, jpgdirs)  <- classifyNames <$> readDir sp
 
-  log'trc $ "parseDirCont: " <> toText (es, jpgdirs)
+  log'trc $ "parseDir: path = " <> sp
 
-  jss <- traverse
-         (parseImgSubDirCont p)                       -- process jpg subdirs
-         (jpgdirs ^.. traverse . _1)
+  -- get the files and the dirs
+  (ds0, fs0) <- parseDir0 sp
 
-  log'trc $ "parseDirCont: " <> toText jss
+  -- get the subdirs for image copies and the real sub dirs
+  let (dsi, ds) = partition isImgCopiesDir ds0
 
-  return $ es <> mconcat jss
-  where
+  -- the dir parser for img copies subdirs
+  -- extend file names with subdir name and ignore sub-subdirs
+  let parseSubDir n = do
+        (_ds', fs') <- parseDir0 (sp <//> n)
+        return $
+          map (n <//>) fs'
 
-    classifyNames :: [Text] -> (ClassifiedNames, ClassifiedNames)
-    classifyNames =
-      partition (hasMimeType (not . isJpgSubDirMT)) -- select jpg img subdirs
-      .
-      classifyPaths
+  -- collect all file names contained in these dirs
+  fss <- traverse parseSubDir dsi
+  log'trc $ "parseDir: fss = " <> toText fss
 
+  -- collect all file names in this dir and img copy subdirs
+  let fs = fs0 <> mconcat fss
 
-parseImgSubDirCont :: (EffFileSys r, EffLogging r, EffCatEnv r)
-                   => Path -> Name -> Sem r ClassifiedNames
-parseImgSubDirCont p nm = do
-  sp <- toFileSysTailPath (p `snocPath` nm)
-  ex <- dirExist sp
-  if ex
-    then
-      classifyNames <$> readDir sp
-    else do
-      log'warn $ "parseImgSubDirCont: not a directory: " <> toText sp
-      return []
-  where
-    nt = nm ^. isoText <> "/"
+  -- classifiy all potentital img file names by name and extension
+  let cns = classifyPaths fs
 
-    classifyNames =
-      filter (\ n -> isShowablePartMT (n ^. _2 . _2))
-      .
-      classifyPaths
-      .
-      map (nt <>)
+  -- return all real subdirs and all classified files
+  return (map (isoText #) ds, cns)
+
 
 hasMimeType :: (MimeType -> Bool) -> ClassifiedName -> Bool
 hasMimeType p = p . snd . snd

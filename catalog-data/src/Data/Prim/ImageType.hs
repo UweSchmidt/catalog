@@ -21,9 +21,6 @@ data MimeType
   | Application'x_hugin
   | Application'x_affinity_photo
 
-  | Dir'x_subdir             -- subdirectory containing images
-  | Dir'x_image_copies       -- subdirectory containing developped image copies
-
   | Image'gif
   | Image'jpg
   | Image'png
@@ -138,16 +135,6 @@ isOtherMT = (`elem` [ Application'json
                     , Unknown'mime_type
                     ])
 
--- is sub dir with images developed as .jpg
-isJpgSubDirMT :: MimeType -> Bool
-isJpgSubDirMT = (== Dir'x_image_copies)
-{-# INLINE isJpgSubDirMT #-}
-
--- is subdir to be traveresd for more images
-isImgSubDirMT :: MimeType -> Bool
-isImgSubDirMT = (== Dir'x_subdir)
-{-# INLINE isImgSubDirMT #-}
-
 -- combined predicates
 
 -- file for extracting metadata
@@ -201,8 +188,6 @@ imgMimeExt' =
   , (Application'x_dxo,            [".dop", ".dxo"])
   , (Application'x_hugin,          [".pto"])
   , (Application'x_affinity_photo, [".aphoto"])
-  , (Dir'x_subdir,                 [])
-  , (Dir'x_image_copies,           [])
   , (Image'gif,                    [".gif"])
   , (Image'jpg,                    [".jpg", ".jpeg"])
   , (Image'png,                    [".png"])
@@ -317,14 +302,6 @@ isRaw = isRawMT . it2mt
 isOther :: ImgType -> Bool
 isOther = isOtherMT . it2mt
 
--- is sub dir with images developed as .jpg
-isJpgSubDir :: ImgType -> Bool
-isJpgSubDir = isJpgSubDirMT . it2mt
-
--- is subdir to be traveresd for more images
-isImgSubDir :: ImgType -> Bool
-isImgSubDir = isImgSubDirMT . it2mt
-
 -- file for extracting metadata
 isRawMeta :: ImgType -> Bool
 isRawMeta = isRawMetaMT . it2mt
@@ -355,12 +332,11 @@ it2mt IMGraw    = Image'x_nikon_nef
 it2mt IMGmeta   = Application'x_lightroom
 it2mt IMGjpg    = Image'jpg
 it2mt IMGimg    = Image'png
-it2mt IMGimgdir = Dir'x_subdir
-it2mt IMGjpgdir = Dir'x_image_copies
 it2mt IMGtxt    = Text'x_markdown
 it2mt IMGmovie  = Video'mp4
 it2mt IMGother  = Application'x_dxo
 it2mt IMGboring = Unknown'mime_type
+it2mt _         = Unknown'mime_type
 
 mt2it :: MimeType -> ImgType
 mt2it Application'json             = IMGother
@@ -368,8 +344,6 @@ mt2it Application'x_lightroom      = IMGmeta
 mt2it Application'x_dxo            = IMGother
 mt2it Application'x_hugin          = IMGother
 mt2it Application'x_affinity_photo = IMGother
-mt2it Dir'x_subdir                 = IMGimgdir
-mt2it Dir'x_image_copies           = IMGjpgdir
 mt2it Image'gif                    = IMGimg
 mt2it Image'jpg                    = IMGjpg
 mt2it Image'png                    = IMGimg

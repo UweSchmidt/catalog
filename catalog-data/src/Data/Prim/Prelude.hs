@@ -28,6 +28,8 @@ module Data.Prim.Prelude
        , isJust
        , listToMaybe
 
+       , module Data.Either
+
          -- * Control.Monad
        , module Control.Applicative
        , module Control.Monad
@@ -97,6 +99,7 @@ module Data.Prim.Prelude
          -- * Monad ops
        , whenM
        , unlessM
+       , partitionM
        , filterSeqM
 
          -- * pretty printing helper
@@ -120,6 +123,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.UTF8 as BU
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Lazy.UTF8 as LBU
+import           Data.Either
 import           Data.Foldable
 import           Data.Function
 import           Data.List
@@ -452,6 +456,13 @@ unlessM b c = do
   b' <- b
   unless b' c
 {-# INLINE unlessM #-}
+
+partitionM :: Monad m
+           => (a -> m Bool) -> [a] -> m ([a], [a])
+partitionM p xs =
+  partitionEithers <$> mapM toLR xs
+  where
+    toLR x = (\ b -> (if b then Left else Right) x) <$> p x
 
 -- ----------------------------------------
 

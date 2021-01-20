@@ -33,6 +33,7 @@ module Data.TextPath
   , classifyPath
   , classifyPaths
   , path2MimeType
+  , isImgCopiesDir
 
   , addExt
   , addJpg
@@ -51,8 +52,8 @@ where
 
 import Data.Prim
 
-import qualified Data.FilePath    as F ( splitPathNameExtMimeD
-                                       , splitPathNameExtMime
+import qualified Data.FilePath    as F ( splitPathNameExtMime
+                                       , isImgCopiesDir
                                        , addJpg
                                        , ymdNameMb
                                        , baseNameMb
@@ -77,10 +78,13 @@ classifyPaths = filter (not . isBoringMT . snd . snd) . map classifyPath
 classifyPath :: TextPath -> ClassifiedName
 classifyPath tp = (isoText # tp, (isoString # bn, mimeType))
   where
-    ((_p, (bn, _bx), _ex), mimeType) = F.splitPathNameExtMimeD (tp ^. isoString)
+    ((_p, (bn, _bx), _ex), mimeType) = F.splitPathNameExtMime (tp ^. isoString)
 
 path2MimeType :: TextPath -> MimeType
 path2MimeType = snd . F.splitPathNameExtMime . (^. isoString)
+
+isImgCopiesDir :: TextPath -> Bool
+isImgCopiesDir p = F.isImgCopiesDir (p ^. isoString)
 
 -- ----------------------------------------
 --
