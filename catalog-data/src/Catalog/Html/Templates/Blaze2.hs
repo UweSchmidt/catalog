@@ -70,6 +70,9 @@ import Data.MetaData ( MetaData
                      , makerNotesFocusDistance
                      , makerNotesShootingMode
                      , makerNotesShutterCount
+
+                     , quickTimeDuration
+                     , quickTimeVideoFrameRate
                      )
 
 import           Data.Prim
@@ -856,6 +859,8 @@ picMeta md = mconcat mdTab
       , mdval  "Animation: Wiederh."   gifAnimationIterations
       , mdval  "Animation: Dauer"      gifDuration
       , mdval  "Animation: # Bilder"   gifFrameCount
+      , mdval  "Video-Dauer"           quickTimeDuration
+      , mdval  "Frame-Rate"            quickTimeVideoFrameRate
       , mdval  "Bild-Kopie"            fileRefJpg
       , mdval  "Raw-Datei"             fileRefRaw
       , mdTs   "Bearbeitet"
