@@ -57,7 +57,6 @@ import Catalog.Effects.CatCmd
 import Client.Effects.ClientCmd
 
 -- libraries
-import           Data.Either
 import qualified Data.Aeson.Encode.Pretty as J
 import qualified Data.Text.Lazy           as TL
 import qualified Data.Text.Lazy.Encoding  as TL

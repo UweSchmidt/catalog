@@ -227,7 +227,14 @@ genAllCollectionsByDir =
 genCollectionsByDir' :: Eff'ISEJLT r => Path -> Sem r ()
 genCollectionsByDir' p = do
   mbi <- lookupByPath p
-  maybe (return ())
+  maybe ( do cp   <- ($ p) <$> img2colPath -- img dir is empty
+             mbci <- lookupByPath cp       -- lookup ass. collection
+             maybe
+               (return ())
+               (rmImgNode . fst)           -- if coll exists, remove it
+               mbci
+             return ()
+        )
         (genCollectionsByDir . fst)
         mbi
 
