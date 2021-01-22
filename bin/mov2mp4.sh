@@ -52,7 +52,7 @@ do
     if [[ ! -f "$ic" ]]
     then
         set -x # [[ $run -eq 1 ]] && echo $tomp4 -i "$fn" "$ic"
-        $tomp4 -loglevel warning -ss 0 -i "$i" -qscale:v 4 -frames:v 1 "$ic"
+        $tomp4 -loglevel warning -ss 1 -i "$i" -qscale:v 4 -frames:v 1 "$ic"
         set +x
         ls -l "$dn/${bn}".*
     fi
