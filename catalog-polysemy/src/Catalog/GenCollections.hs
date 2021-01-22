@@ -227,14 +227,7 @@ genAllCollectionsByDir =
 genCollectionsByDir' :: Eff'ISEJLT r => Path -> Sem r ()
 genCollectionsByDir' p = do
   mbi <- lookupByPath p
-  maybe ( do cp   <- ($ p) <$> img2colPath -- img dir is empty
-             mbci <- lookupByPath cp       -- lookup ass. collection
-             maybe
-               (return ())
-               (rmImgNode . fst)           -- if coll exists, remove it
-               mbci
-             return ()
-        )
+  maybe (return ())
         (genCollectionsByDir . fst)
         mbi
 
@@ -242,8 +235,16 @@ genCollectionsByDir :: Eff'ISEJLT r => ObjId -> Sem r ()
 genCollectionsByDir di = do
   img2col <- img2colPath
   dp      <- objid2path di
-  void $ mkColByPath insertColByName setupDirCol (img2col dp)
+  let cp  = img2col dp
+  log'trc $
+    "genCollectionsByDir: create byDir collection for " <> toText cp
+
+  void $ mkColByPath insertColByName setupDirCol cp
   void $ genCol img2col di
+
+  log'trc $
+    "genCollectionsByDir: remove empty bydir collections in" <> toText cp
+  removeEmptyColls cp
   where
 
     -- meta data for generated collections
