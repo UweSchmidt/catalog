@@ -230,7 +230,7 @@ catalogServer env runR runM runB =
       :<|>
       runR2 TheBlogSource
       :<|>
-      runR2 TheMetaData
+      runR2 TheMetaDataText
       :<|>
       runR2 TheRating
       :<|>

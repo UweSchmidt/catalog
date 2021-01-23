@@ -30,20 +30,20 @@ module Data.MetaData
 
   , theImgEXIFUpdate
 
-  , editMD
+  , editMetaData
   , splitMDT
   , filterByImgType
-  , filterKeysMD
+  , filterKeysMetaData
   , splitMetaData
   , normMetaData
   , cleanupMetaData
   , cleanupOldMetaData
   , it2mtMetaData
 
-  , someKeysMD
-  , globKeysMD
-  , allKeysMD
-  , prettyMD
+  , someKeysMetaData
+  , globKeysMetaData
+  , allKeysMetaData
+  , prettyMetaData
 
   , clearAccess
   , addNoWriteAccess
@@ -637,8 +637,8 @@ unionMD (MD m1) (MD m2) = MD $ IM.unionWith (<>) m1 m2
 toListMD :: MetaData' a -> [(MetaKey, a)]
 toListMD (MD m) = map (first toEnum) $ IM.toAscList m
 
-filterKeysMD :: MetaKeySet -> MetaData' a -> MetaData' a
-filterKeysMD p (MD m) = MD $ IM.filterWithKey (\ i _v -> p $ toEnum i) m
+filterKeysMetaData :: MetaKeySet -> MetaData' a -> MetaData' a
+filterKeysMetaData p (MD m) = MD $ IM.filterWithKey (\ i _v -> p $ toEnum i) m
 
 partitionMD :: MetaKeySet -> MetaData' a -> (MetaData' a, MetaData' a)
 partitionMD ks (MD m) = (MD m1, MD m2)
@@ -932,12 +932,12 @@ splitMetaData ty md =
 -- filter relevant metadata from exiftool output
 cleanupMetaData :: MimeType -> MetaData' a -> MetaData' a
 cleanupMetaData ty =
-  filterKeysMD (i'keys .||. p'keys)  -- all interesting stuff
+  filterKeysMetaData (i'keys .||. p'keys)  -- all interesting stuff
   where
     (i'keys, p'keys) = keysByMimeType ty
 
 cleanupOldMetaData :: MetaData' a -> MetaData' a
-cleanupOldMetaData = filterKeysMD (`elem` keysAttrDescr)
+cleanupOldMetaData = filterKeysMetaData (`elem` keysAttrDescr)
 
 -- normalize metadata
 -- TODO: cleanup ratings propagation, when catalog is converted to new format
@@ -990,8 +990,8 @@ it2mtMetaData md
 
 -- --------------------
 
-editMD :: MetaDataT -> MetaData -> MetaData
-editMD (MD m) mt = IM.foldlWithKey' ins mt m
+editMetaData :: MetaDataT -> MetaData -> MetaData
+editMetaData (MD m) mt = IM.foldlWithKey' ins mt m
   where
     ins acc k0 v0
       | v0 == "-" =                      -- remove key from metadata
@@ -1068,7 +1068,7 @@ keysByMimeType ty
 
 filterByImgType :: MimeType -> MetaData' a -> MetaData' a
 filterByImgType ty =
-  filterKeysMD (`elem` ks)
+  filterKeysMetaData (`elem` ks)
   where
     ks | isShowablePartOrRawMT ty = ksRaw
        | isMetaMT              ty = ksXmp
@@ -1304,19 +1304,19 @@ metaKeyTextLookup k =
 
 -- --------------------
 
-allKeysMD :: [MetaKey]
-allKeysMD = [minBound .. pred maxBound]
+allKeysMetaData :: [MetaKey]
+allKeysMetaData = [minBound .. pred maxBound]
 
-someKeysMD :: (Text -> Bool) -> [MetaKey]
-someKeysMD p = filter (p . metaKeyToText) allKeysMD
+someKeysMetaData :: (Text -> Bool) -> [MetaKey]
+someKeysMetaData p = filter (p . metaKeyToText) allKeysMetaData
 
-globKeysMD :: SP String -> [MetaKey]
-globKeysMD gp = someKeysMD p
+globKeysMetaData :: SP String -> [MetaKey]
+globKeysMetaData gp = someKeysMetaData p
   where
     p t = matchP gp (t ^. isoString)
 
-prettyMD :: MetaData -> [Text]
-prettyMD mt = zipWith (<:>) ks vs
+prettyMetaData :: MetaData -> [Text]
+prettyMetaData mt = zipWith (<:>) ks vs
   where
     kvs = toListMD mt
     ks  = T.fillRightList ' ' $ map (^. _1 . isoText) kvs

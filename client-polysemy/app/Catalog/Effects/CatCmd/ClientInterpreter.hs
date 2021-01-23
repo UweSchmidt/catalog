@@ -100,7 +100,7 @@ evalClientCatCmd =
       paramJSONget "blogcontents" p pos
     TheBlogSource pos p ->
       paramJSONget "blogsource" p pos
-    TheMetaData pos p ->
+    TheMetaDataText pos p ->
       paramJSONget "metadata" p pos
     TheRating pos p ->
       paramJSONget "rating" p pos

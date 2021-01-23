@@ -52,7 +52,7 @@ module Catalog.Effects.CatCmd
   , isCollection
   , theBlogContents
   , theBlogSource
-  , theMetaData
+  , theMetaDataText
   , theRating
   , theRatings
   , theMediaPath
@@ -127,7 +127,7 @@ data CatCmd m a where
   IsCollection         ::                          Path -> CatCmd m Bool
   TheBlogContents      ::          Int          -> Path -> CatCmd m Text
   TheBlogSource        ::          Int          -> Path -> CatCmd m Text
-  TheMetaData          ::          Int          -> Path -> CatCmd m MetaDataText
+  TheMetaDataText      ::          Int          -> Path -> CatCmd m MetaDataText
   TheRating            ::          Int          -> Path -> CatCmd m Rating
   TheRatings           ::                          Path -> CatCmd m [Rating]
   TheMediaPath         ::                          Path -> CatCmd m [Path]

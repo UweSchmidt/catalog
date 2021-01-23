@@ -16,8 +16,8 @@ import Client.Effects.ClientCmd.Interpreter
 
 import Data.MetaData
        ( MetaKey
-       , allKeysMD
-       , globKeysMD
+       , allKeysMetaData
+       , globKeysMetaData
        )
 
 import Data.Prim
@@ -77,7 +77,7 @@ cmdClient = subparser $
             ( long "keys"
               <> short 'k'
               <> metavar "GLOB-PATTERN"
-              <> value allKeysMD
+              <> value allKeysMetaData
               <> help "Select metadata keys by a glob style pattern matching"
             )
         <*> argPathPos
@@ -371,6 +371,6 @@ globParser' check = eitherReader parse
     parse arg =
       case parseMaybe parseGlobNoCase arg of
         Nothing -> Left $ "Wrong glob style pattern: " <> arg
-        Just gp -> check arg (globKeysMD gp)
+        Just gp -> check arg (globKeysMetaData gp)
 
 ------------------------------------------------------------------------------

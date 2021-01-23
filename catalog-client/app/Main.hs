@@ -13,8 +13,8 @@ import           Data.Prim          hiding ( argument )
 import           Data.ImgNode
 import           Data.MetaData             ( metaDataAt
                                            , prettyMD
-                                           , allKeysMD
-                                           , globKeysMD
+                                           , allKeysMetaData
+                                           , globKeysMetaData
                                            , selectByNames
                                            )
 import           Data.Aeson                ( decode
@@ -200,7 +200,7 @@ evalCMetaData pp@(p, cx) keys = do
       trc $ unwords ["evalCMetaData:", from isoString . isoPathPos # pp]
       r <- (^. selectByNames keys)
            <$>
-           (reqCmd $ TheMetaData (fromMaybe (-1) cx) p)
+           (reqCmd $ TheMetaDataText (fromMaybe (-1) cx) p)
       trc $ unwords ["res =", show r]
       return r
 
@@ -443,7 +443,7 @@ reqCmd (TheBlogContents pos p) =
 reqCmd (TheBlogSource pos p) =
   paramJSONget "blogsource" p pos
 
-reqCmd (TheMetaData pos p) =
+reqCmd (TheMetaDataText pos p) =
   paramJSONget "metadata" p pos
 
 reqCmd (TheRating pos p) =
@@ -907,7 +907,7 @@ mdP = flip CC'lsmd
       ( long "keys"
         <> short 'k'
         <> metavar "GLOB-PATTERN"
-        <> value allKeysMD
+        <> value allKeysMetaData
         <> help "Select metadata keys by a glob style pattern matching"
       )
   <*> pathPP
@@ -1040,6 +1040,6 @@ globParser' check = eitherReader parse
     parse arg =
       case parseMaybe parseGlobNoCase arg of
         Nothing -> Left $ "Wrong glob style pattern: " ++ arg
-        Just gp -> check arg (globKeysMD gp)
+        Just gp -> check arg (globKeysMetaData gp)
 
 -- ----------------------------------------

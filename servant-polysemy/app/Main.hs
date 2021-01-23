@@ -255,7 +255,7 @@ catalogServer env runReadC runModyC runBGC =
       :<|>
       runR2 theBlogSource
       :<|>
-      runR2 theMetaData
+      runR2 theMetaDataText
       :<|>
       runR2 theRating
       :<|>

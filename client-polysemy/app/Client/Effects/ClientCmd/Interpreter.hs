@@ -36,15 +36,21 @@ import Polysemy.State
 
 -- catalog-data
 import Data.Prim
-import           Data.ImgNode hiding (theMetaData)
-import qualified Data.ImgNode as N
-import Data.MetaData {-( MetaKey
+import Data.ImgNode
+import Data.MetaData ( MetaKey
                      , MetaData
                      , isoMetaDataMDT
                      , metaTextAt
-                     , filterKeysMD
-                     , prettyMD
-                     )-}
+                     , metaDataAt
+                     , metaMimeType
+                     , filterKeysMetaData
+                     , prettyMetaData
+
+                       -- MetaKey values
+                     , compositeImageSize
+                     , fileMimeType
+                     , fileName
+                     )
 
 import Text.SimpleParser
        ( parseMaybe
@@ -88,7 +94,7 @@ evalClientCmd =
 
     CcLsmd pp keys -> do
       md <- evalMetaData pp keys
-      sequenceA_ . map (writeln . (^. isoText)) $ prettyMD md
+      sequenceA_ . map (writeln . (^. isoText)) $ prettyMetaData md
 
     CcSetmd1 pp key val ->
       evalSetMetaData1 pp key val
@@ -197,9 +203,9 @@ evalMediaPath p = do
 evalMetaData :: CCmdEffects r => PathPos -> [MetaKey] -> Sem r MetaData
 evalMetaData pp@(p, cx) keys = do
   log'trc $ untext ["evalMetaData:", from isoText . isoPathPos # pp]
-  r <- (\ mt ->  (isoMetaDataMDT # mt) & filterKeysMD (`elem` keys))
+  r <- (\ mt ->  (isoMetaDataMDT # mt) & filterKeysMetaData (`elem` keys))
        <$>
-       theMetaData (fromMaybe (-1) cx) p
+       theMetaDataText (fromMaybe (-1) cx) p
   log'trc $ untext ["res =", show r ^. isoText]
   return r
 
@@ -518,7 +524,7 @@ checkMeta p e
 
   where
     mdi :: MetaData
-    mdi = e ^. N.theMetaData
+    mdi = e ^. theMetaData
 
     checkMetaPart :: CCmdEffects r => MetaData -> MetaData -> Sem r ()
     checkMetaPart _mdi mdp

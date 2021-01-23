@@ -79,7 +79,7 @@ import Data.Journal    ( Journal'(..) )
 import Data.MetaData   ( MetaData
                        -- , MetaDataText
                        -- , metaDataAt
-                       , editMD
+                       , editMetaData
                        , isoMetaDataMDT
                        , splitMDT
                        , lookupRating
@@ -186,7 +186,7 @@ evalCatCmd =
     TheBlogSource pos p ->
       getIdNode' p >>= uncurry (read'blogsource pos)
 
-    TheMetaData pos p ->
+    TheMetaDataText pos p ->
       getIdNode' p >>= uncurry (read'metadata pos)
 
     TheRating pos p ->
@@ -579,7 +579,7 @@ modify'renamecol newName i = do
 modify'setMetaData :: Eff'ISEJL r
                    => [Int] -> MetaDataText -> ImgNode -> Sem r ()
 modify'setMetaData ixs mdt n =
-  modify'setMetaData'' ixs (editMD mdi) (editMD mdp) n
+  modify'setMetaData'' ixs (editMetaData mdi) (editMetaData mdp) n
   where
     (mdi, mdp) = splitMDT mdt
 
@@ -626,7 +626,7 @@ modify'setMetaData1 pos md oid n
   | pos < 0   = adjustMetaData ed oid           -- update coll  metadata
   | otherwise = modify'setMetaData ixs md n     -- update entry metadata
   where
-    ed  = editMD (isoMetaDataMDT # md)
+    ed  = editMetaData (isoMetaDataMDT # md)
     ixs = replicate pos (0-1) ++ [1]
 
 -- set the rating field for a list of selected collection entries
