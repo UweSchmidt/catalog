@@ -170,7 +170,7 @@ basicDocReq ext rt geo path0 =
   getReq (path' <> ext)
   where
     path' = ("docs" `consPath` img' `consPath` geo' `consPath` path0) ^. isoText
-    img'  = rt   ^. isoString . from isoString
-    geo'  = geo  ^. isoString . from isoString
+    img'  = isoText # (rt   ^. isoText)
+    geo'  = isoText # (geo  ^. isoText)
 
 -- ----------------------------------------
