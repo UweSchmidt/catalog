@@ -36,14 +36,15 @@ import Polysemy.State
 
 -- catalog-data
 import Data.Prim
-import Data.ImgNode hiding (theMetaData)
-import Data.MetaData ( MetaKey
+import           Data.ImgNode hiding (theMetaData)
+import qualified Data.ImgNode as N
+import Data.MetaData {-( MetaKey
                      , MetaData
                      , isoMetaDataMDT
                      , metaTextAt
                      , filterKeysMD
                      , prettyMD
-                     )
+                     )-}
 
 import Text.SimpleParser
        ( parseMaybe
@@ -122,6 +123,10 @@ evalClientCmd =
     CcExifUpdate p recursive force -> do
       ps <- globExpand p
       traverse_ (evalExifUpdate recursive force) ps
+
+    CcCheckMeta p -> do
+      ps <- globExpand p
+      traverse_ (\ p' -> theEntry p' >>= checkMeta p') ps
 
 {-# INLINE evalClientCmd #-}
 
@@ -486,6 +491,50 @@ checksumFile :: Member FileSystem r
 checksumFile p = do
   r <- mkCheckSum <$> readFileBS p
   return $! r
+
+------------------------------------------------------------------------------
+
+checkMeta :: forall r. CCmdEffects r => Path -> ImgNodeP -> Sem r ()
+checkMeta p e
+  | isIMG e = do
+      traverse_
+        (checkMetaPart mdi)
+        (e ^.. theParts . traverseParts . theImgMeta)
+
+  | isDIR e = do
+      writeln $ untext [p ^. isoText <> ":", "CHECK dir"]
+
+      traverse_
+        (\ p' -> theEntry p' >>= checkMeta p')
+        (sort $ e ^.. theDirEntries . traverse)
+
+  | isROOT e = do
+      let p' = e ^. theRootImgDir
+      theEntry p' >>= checkMeta p'
+
+
+  | otherwise =
+      return ()
+
+  where
+    mdi :: MetaData
+    mdi = e ^. N.theMetaData
+
+    checkMetaPart :: CCmdEffects r => MetaData -> MetaData -> Sem r ()
+    checkMetaPart _mdi mdp
+      | hasSizeMT ty
+        &&
+        isempty geo  = do
+          writeln $ untext [ p ^. isoText
+                           , "part=", nm
+                           , ": no metadata tag found for "
+                           , compositeImageSize ^. isoText
+                           ]
+      | otherwise = return ()
+      where
+        nm  = mdp ^. metaTextAt fileName
+        ty  = mdp ^. metaDataAt fileMimeType . metaMimeType
+        geo = mdp ^. metaDataAt compositeImageSize
 
 ------------------------------------------------------------------------------
 

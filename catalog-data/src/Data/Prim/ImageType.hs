@@ -174,6 +174,15 @@ isShowablePartOrRawMT = isShowablePartMT
                         isRawMT
 {-# INLINE isShowablePartOrRawMT #-}
 
+hasSizeMT :: MimeType -> Bool
+hasSizeMT =  isJpgMT
+             .||.
+             isImgMT
+             .||.
+             isMovieMT
+             .||.
+             isRawMT
+
 -- files which are ignored when syncing with filesystem
 isBoringMT :: MimeType -> Bool
 isBoringMT = isempty

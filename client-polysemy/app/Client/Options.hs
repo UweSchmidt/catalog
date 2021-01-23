@@ -267,6 +267,16 @@ cmdClient = subparser $
       `withInfo`
       ( "Update EXIF info for images and image dirs." )
     )
+  <>
+  command "check-meta"
+    ( (CcCheckMeta <$> argPath)
+      `withInfo`
+      ( "Check consitency of image metadata, default path is: "
+        <> show defaultPath
+        <> ". Glob style patterns are allowed in path."
+      )
+    )
+
 ----------------------------------------
 --
 -- argument parsers
