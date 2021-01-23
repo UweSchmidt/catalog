@@ -36,20 +36,24 @@ import Data.MetaData                  ( MetaData
                                       , metaTextAt
                                       , metaDataAt
                                       , metaName
+                                      , metaMimeType
+                                      , lookupGeo
+                                      , lookupGeoOri
+                                      , lookupRating
+
+                                        -- MetaKey's
                                       , descrComment
                                       , descrDuration
                                       , descrSubtitle
                                       , descrTitle
-                                      , imgNameRaw
+                                      , fileMimeType
                                       , fileRefImg
                                       , fileRefJpg
                                       , fileRefRaw
-                                      , lookupGeo
-                                      , lookupRating
+                                      , imgNameRaw
                                       , imgRating
                                       )
-import Data.TextPath                  ( path2MimeType
-                                      , baseNameMb
+import Data.TextPath                  ( baseNameMb
                                       , ymdNameMb
                                       , takeDir
                                       )
@@ -63,8 +67,12 @@ import Catalog.Html.Templates.Blaze2  ( colPage'
 -- catalog-polysemy
 import Catalog.Effects
 import Catalog.GenImages              ( Eff'Img
+                                      , GeoOri
                                       , createResizedImage
                                       , createVideoIcon
+                                      , createResizedImage1
+                                      , createVideoIcon1
+
                                       , genIcon
                                       , genBlogHtml
                                       , getThumbnailImage
@@ -260,10 +268,10 @@ setColRef' theC r = do
 -- used in page generation for prefetching the next image
 -- before moving to the next image page
 
-toMediaUrl :: (Eff'ISE r, EffNonDet r)
+toMediaUrl :: (Eff'Img r, EffNonDet r)
            => Req'IdNode a -> Sem r TextPath
 toMediaUrl r = do
-  r' <- toMediaReq <$> setImgRef r
+  r' <- setImgRef r >>= toMediaReq
   case r' ^. rType of
     RImg -> return $ toUrlPath r'  -- .jpg images
                                    -- toUrlPath is sufficient, no need for toUrlPath'
@@ -444,7 +452,7 @@ toUrlPath'' r0 =
 -- except movies, these are served as static files and are
 -- referenced directly by the path to the movie
 
-toUrlPath' :: EffIStore r => Req'IdNode'ImgRef a -> Sem r TextPath
+toUrlPath' :: Eff'Img r => Req'IdNode'ImgRef a -> Sem r TextPath
 toUrlPath' r
   | RMovie <- r ^. rType = toUrlImgPath r
   | otherwise            = return $ toUrlPath r
@@ -502,12 +510,13 @@ toCachedImgPath r = do
 -- the url for a media file, *.jpg or *.mp4 or ...
 -- is determined by the request type
 
-toMediaReq :: Req'IdNode'ImgRef a -> Req'IdNode'ImgRef a
-toMediaReq r =
-  r & rType .~ t
+toMediaReq :: Eff'Img r => Req'IdNode'ImgRef a -> Sem r (Req'IdNode'ImgRef a)
+toMediaReq r = do
+  md <- getImgMetaData (r ^. rImgRef)
+  return (r & rType .~ ty (md ^. metaDataAt fileMimeType . metaMimeType))
   where
-    mt = path2MimeType (r ^. rImgRef . to _iname . isoText)
-    t | isJpgMT   mt
+    ty mt
+      | isJpgMT   mt
         ||
         isImgMT   mt = RImg
       | isMovieMT mt = RMovie
@@ -522,28 +531,40 @@ toMediaReq r =
 genReqImg :: Eff'Img r
           => Req'IdNode'ImgRef a -> Sem r Path
 genReqImg r = do
+  srcMd   <- getImgMetaData (r ^. rImgRef)
   srcPath <- toSourcePath    r
   imgPath <- toCachedImgPath r
 
   log'trc $ msgPath srcPath "genReqImg sp="
 
-  case path2MimeType (r ^. rImgRef . to _iname . isoText) of
+  case srcMd ^. metaDataAt fileMimeType . metaMimeType of
     ity
-      | isJpgMT ity ->
-          createCopyFromImg geo srcPath imgPath
-      | isImgMT ity ->
-          createCopyFromImg geo srcPath imgPath
+      | isJpgMT ity
+        ||
+        isImgMT ity -> do
+          createCopyFromImg
+            (lookupGeoOri srcMd)
+            geo
+            srcPath
+            imgPath
+
       | isMovieMT ity -> do
           mir <- toMovieIconReq r
           case mir of
-            -- rule .1
+            -- rule .1: use a .jpg copy of movie file
             Just r' -> do
               srcPath' <- toSourcePath r'
+              srcMd'   <- getImgMetaData (r ^. rImgRef)
+
               log'trc $ msgPath srcPath' "genReqImg: icon for movie sp="
-              createVideoIconFromImg geo srcPath' imgPath
+              createVideoIconFromImg1
+                (lookupGeoOri srcMd')
+                geo
+                srcPath'
+                imgPath
 
             Nothing -> do
-              -- rule .2
+              -- rule .2: try to extract a thumbnail out of the video file
               let thumbNail :: Eff'Img r => Sem r Path
                   thumbNail = do
                     tmpPath <- toCachedImgPath
@@ -551,12 +572,13 @@ genReqImg r = do
                                    & rGeo  .~ geo'org
                                )
                     -- extract thumbnail from mp4
-                    withCache  getThumbnailImage       srcPath tmpPath
+                    withCache  getThumbnailImage    srcPath tmpPath
                     withCache (createVideoIcon geo) tmpPath imgPath
                     return imgPath
 
               let fallBack :: Eff'Img r => Text -> Sem r Path
-                  fallBack _e = createVideoIconFromImg geo p'qmark imgPath
+                  fallBack _e = do
+                    createVideoIconFromImg geo p'qmark imgPath
 
               catch @Text thumbNail fallBack
 
@@ -675,12 +697,16 @@ createIconFromObj r dstPath = do
 -- the copy is stored under the path of the image
 
 createCopyFromImg :: Eff'Img r
-                   => GeoAR -> Path -> Path -> Sem r Path
-createCopyFromImg = createCopyFromImg' createResizedImage
+                   => GeoOri -> GeoAR -> Path -> Path -> Sem r Path
+createCopyFromImg s'geo = createCopyFromImg' (createResizedImage1 s'geo)
 
 createVideoIconFromImg :: Eff'Img r
                    => GeoAR -> Path -> Path -> Sem r Path
 createVideoIconFromImg = createCopyFromImg' createVideoIcon
+
+createVideoIconFromImg1 :: Eff'Img r
+                   => GeoOri -> GeoAR -> Path -> Path -> Sem r Path
+createVideoIconFromImg1 s'geo = createCopyFromImg' (createVideoIcon1 s'geo)
 
 createCopyFromImg' :: Eff'Img r
                    => (GeoAR -> Path -> Path -> Sem r ())
@@ -899,10 +925,10 @@ data ImgAttr =
           }
   deriving Show
 
-collectImgAttr :: Eff'ISE r => Req'IdNode'ImgRef a -> Sem r ImgAttr
+collectImgAttr :: Eff'Img r => Req'IdNode'ImgRef a -> Sem r ImgAttr
 collectImgAttr r = do
   theMeta <- getImgMetaData ir
-  theUrl  <- toUrlPath' (toMediaReq r)  -- !!! not toUrlPath due to RMovie
+  theUrl  <- toMediaReq r >>= toUrlPath'   -- !!! not toUrlPath due to RMovie
   theSrc  <- toSourcePath r
   let rnm  = theMeta ^. metaDataAt imgNameRaw . metaName
   let rp
@@ -993,7 +1019,8 @@ genReqImgPage' r = do
                            & metaTextAt fileRefJpg .~ (this'mediaUrl ^. isoText)
                            & metaTextAt imgRating  .~ rating
 
-  case toMediaReq r ^. rType of
+  mrq <- toMediaReq r
+  case mrq ^. rType of
 
     --image page
     RImg -> do

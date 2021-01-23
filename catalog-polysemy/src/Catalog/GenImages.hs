@@ -17,10 +17,14 @@
 
 module Catalog.GenImages
   ( Eff'Img
+  , GeoOri
 
   , getThumbnailImage
   , createResizedImage
   , createVideoIcon
+  , createResizedImage1
+  , createVideoIcon1
+
   , genIcon
   , genBlogText
   , genBlogHtml
@@ -117,39 +121,58 @@ getThumbnailImage src dst = do
 
 -- ----------------------------------------
 
+type GeoOri = (Geo, Int)
+
 createResizedImage :: Eff'Img r => GeoAR -> Path -> Path -> Sem r ()
-createResizedImage = createResizedImage' mempty
+createResizedImage = createResized1 mempty
+
+createResizedImage1 :: Eff'Img r => GeoOri -> GeoAR -> Path -> Path -> Sem r ()
+createResizedImage1 = createResized2 mempty
 
 createVideoIcon :: Eff'Img r => GeoAR -> Path -> Path -> Sem r ()
-createVideoIcon = createResizedImage' p'vico
+createVideoIcon = createResized1 p'vico
 
-createResizedImage' :: Eff'Img r => Path -> GeoAR -> Path -> Path -> Sem r ()
-createResizedImage' vico d'geo src dst = do
+createVideoIcon1 :: Eff'Img r => GeoOri -> GeoAR -> Path -> Path -> Sem r ()
+createVideoIcon1 = createResized2 p'vico
+
+createResized1 :: Eff'Img r
+               => Path
+               -> GeoAR
+               -> Path
+               -> Path
+               -> Sem r ()
+createResized1 vico d'geo src dst = do
+  s'geo <- lookupGeoOri <$> getExifMetaData src
+  createResized2 vico s'geo d'geo src dst
+
+createResized2 :: Eff'Img r
+                    => Path
+                    -> GeoOri
+                    -> GeoAR
+                    -> Path
+                    -> Path
+                    -> Sem r ()
+createResized2 vico (s'geo, ori) d'geo src dst = do
   vc           <- if isempty vico
                   then return mempty
                   else toFileSysPath vico
   sp           <- toFileSysPath src
   dp           <- toFileSysPath dst
-  (s'geo, ori) <- lookupGeoOri <$> getExifMetaData src
-  createResized vc ori s'geo sp dp
-  where
 
-    createResized :: Eff'Img r
-                  => TextPath -> Int -> Geo -> TextPath -> TextPath -> Sem r ()
-    createResized vc rot s'geo sp dp
+  let shellCmd    = buildResizeCmd vc ori d'geo s'geo dp sp
+  let shellScript = toBash shellCmd
 
+  if isempty shellCmd
+    then
+    do
       -- resize is a noop so a link is sufficient
-      | isempty shellCmd = do
-          log'trc "createResizedImage: make link to src"
-          linkFile sp dp
-
+      log'trc "createResizedImage: make link to src"
+      linkFile sp dp
+    else
+    do
       -- resize done with external prog convert
-      | otherwise = do
-          log'trc $ "createResizedImage: " <> shellScript
-          void $ execScript shellScript
-      where
-        shellCmd    = buildResizeCmd vc rot d'geo s'geo dp sp
-        shellScript = toBash shellCmd
+      log'trc $ "createResizedImage: " <> shellScript
+      void $ execScript shellScript
 
 -- ----------------------------------------
 

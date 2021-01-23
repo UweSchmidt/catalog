@@ -978,6 +978,7 @@ normMetaData old'md ty md0
     -- animation iterations metadata, used for checking wackelgif
     anim = md ^. metaTextAt gifAnimationIterations
 
+-- TODO: cleanup for catalog format 0.5
 it2mtMetaData :: MetaData -> MetaData
 it2mtMetaData md
   | isempty mt = md
