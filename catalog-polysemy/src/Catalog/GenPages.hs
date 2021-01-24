@@ -36,7 +36,6 @@ import Data.MetaData                  ( MetaData
                                       , metaTextAt
                                       , metaDataAt
                                       , metaName
-                                      , metaMimeType
                                       , lookupGeo
                                       , lookupGeoOri
                                       , lookupMimeType
@@ -81,7 +80,6 @@ import Catalog.GenImages              ( Eff'Img
                                       )
 import Catalog.Html                   ( isPano )
 import Catalog.ImgTree.Access
-import Catalog.MetaData.ExifTool      ( getExifMetaData )
 import Catalog.TextPath               ( toFileSysPath )
 import Catalog.TimeStamp              ( nowAsIso8601 )
 
