@@ -39,6 +39,7 @@ import Data.MetaData                  ( MetaData
                                       , metaMimeType
                                       , lookupGeo
                                       , lookupGeoOri
+                                      , lookupMimeType
                                       , lookupRating
 
                                         -- MetaKey's
@@ -46,7 +47,6 @@ import Data.MetaData                  ( MetaData
                                       , descrDuration
                                       , descrSubtitle
                                       , descrTitle
-                                      , fileMimeType
                                       , fileRefImg
                                       , fileRefJpg
                                       , fileRefRaw
@@ -62,6 +62,7 @@ import Catalog.Html.Templates.Blaze2  ( colPage'
                                       , txtPage'
                                       , picPage'
                                       , movPage'
+                                      , gifPage'
                                       )
 
 -- catalog-polysemy
@@ -449,13 +450,14 @@ toUrlPath'' r0 =
       | otherwise             = r'
 
 -- all pages and media files are accesed by collection path and img ix
--- except movies, these are served as static files and are
+-- except movies and wackelgifs, these are served as static files and are
 -- referenced directly by the path to the movie
 
 toUrlPath' :: Eff'Img r => Req'IdNode'ImgRef a -> Sem r TextPath
-toUrlPath' r
-  | RMovie <- r ^. rType = toUrlImgPath r
-  | otherwise            = return $ toUrlPath r
+toUrlPath' r = case r ^. rType of
+  RMovie -> toUrlImgPath r
+  RGif   -> toUrlImgPath r
+  _      -> return $ toUrlPath r
 
 toUrlImgPath :: EffIStore r => Req'IdNode'ImgRef a -> Sem r TextPath
 toUrlImgPath r = do
@@ -470,6 +472,7 @@ toUrlExt RIconp = ".jpg"
 toUrlExt RImg   = ".jpg"
 toUrlExt RBlog  = ".html"
 toUrlExt RMovie = ".mp4"
+toUrlExt RGif   = ".gif"
 toUrlExt _      = ""
 
 -- --------------------
@@ -513,20 +516,21 @@ toCachedImgPath r = do
 toMediaReq :: Eff'Img r => Req'IdNode'ImgRef a -> Sem r (Req'IdNode'ImgRef a)
 toMediaReq r = do
   md <- getImgMetaData (r ^. rImgRef)
-  return (r & rType .~ ty (md ^. metaDataAt fileMimeType . metaMimeType))
+  return (r & rType .~ ty (lookupMimeType md))
   where
     ty mt
       | isJpgMT   mt
         ||
-        isImgMT   mt = RImg
-      | isMovieMT mt = RMovie
-      | otherwise    = RPage
+        isImgMT       mt = RImg
+      | isWackelGifMT mt = RGif
+      | isMovieMT     mt = RMovie
+      | otherwise        = RPage
 
 -- ----------------------------------------
 --
 -- commands for icon and image generation
 
--- dispatch icon generation over media type (jpg, txt, md, mp4)
+-- dispatch icon generation over media type (jpg, txt, md, mp4, wackelgif)
 
 genReqImg :: Eff'Img r
           => Req'IdNode'ImgRef a -> Sem r Path
@@ -537,11 +541,13 @@ genReqImg r = do
 
   log'trc $ msgPath srcPath "genReqImg sp="
 
-  case srcMd ^. metaDataAt fileMimeType . metaMimeType of
+  case lookupMimeType srcMd of
     ity
       | isJpgMT ity
         ||
-        isImgMT ity -> do
+        isImgMT ity
+        ||
+        isWackelGifMT ity -> do   -- for Wackelgif icons a .jpg copy is generated
           createCopyFromImg
             (lookupGeoOri srcMd)
             geo
@@ -928,7 +934,7 @@ data ImgAttr =
 collectImgAttr :: Eff'Img r => Req'IdNode'ImgRef a -> Sem r ImgAttr
 collectImgAttr r = do
   theMeta <- getImgMetaData ir
-  theUrl  <- toMediaReq r >>= toUrlPath'   -- !!! not toUrlPath due to RMovie
+  theUrl  <- toMediaReq r >>= toUrlPath'  -- not toUrlPath due to RMovie, RGif
   theSrc  <- toSourcePath r
   let rnm  = theMeta ^. metaDataAt imgNameRaw . metaName
   let rp
@@ -1018,6 +1024,7 @@ genReqImgPage' r = do
   let metaData           = this'meta -- add jpg filename and rating as stars
                            & metaTextAt fileRefJpg .~ (this'mediaUrl ^. isoText)
                            & metaTextAt imgRating  .~ rating
+  let org'geo            = lookupGeo metaData
 
   mrq <- toMediaReq r
   case mrq ^. rType of
@@ -1025,7 +1032,6 @@ genReqImgPage' r = do
     --image page
     RImg -> do
       org'imgpath       <- toSourcePath r
-      org'geo           <- lookupGeo <$> getExifMetaData org'imgpath
 
       -- .jpg images may be shown in original size
       let org'mediaUrl   = toUrlPath
@@ -1069,13 +1075,14 @@ genReqImgPage' r = do
         pano'mediaUrl
         metaData
 
-    -- mp4 video
-    RMovie -> do
-      org'imgpath       <- toSourcePath r
-      org'geo           <- lookupGeo <$> getExifMetaData org'imgpath
+    -- wackelgif or mp4 video
+    rty
+      | rty == RMovie
+        ||
+        rty == RGif -> do
 
       return $
-        movPage'
+        (if rty == RMovie then movPage' else gifPage')
         base'ref
         this'title
         now'

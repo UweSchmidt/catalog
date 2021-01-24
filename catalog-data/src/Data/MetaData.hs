@@ -58,6 +58,7 @@ module Data.MetaData
   , lookupCreate
   , lookupGeo
   , lookupGeoOri
+  , lookupMimeType
   , lookupOri
   , lookupRating
   , lookupGPSposDeg
@@ -1119,6 +1120,9 @@ lookupGeo mt =
   toGeo $ mt ^. metaTextAt compositeImageSize
   where
     toGeo sz = fromMaybe geo'org (readGeo'' $ sz ^. isoString)
+
+lookupMimeType :: MetaData -> MimeType
+lookupMimeType md = md ^. metaDataAt fileMimeType . metaMimeType
 
 lookupRating :: MetaData -> Rating
 lookupRating mt =

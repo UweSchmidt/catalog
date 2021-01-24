@@ -111,6 +111,11 @@ isMovieMT = (`elem` [ Video'mp4
 
 isGifMT :: MimeType -> Bool
 isGifMT = (== Image'gif)
+{-# INLINE isGifMT #-}
+
+isWackelGifMT :: MimeType -> Bool
+isWackelGifMT = (== Video'x_gif)
+{-# INLINE isWackelGifMT #-}
 
 isRawMT :: MimeType -> Bool
 isRawMT = (`elem` [ Image'x_canon_cr2
