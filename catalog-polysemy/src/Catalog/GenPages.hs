@@ -1031,8 +1031,6 @@ genReqImgPage' r = do
 
     --image page
     RImg -> do
-      org'imgpath       <- toSourcePath r
-
       -- .jpg images may be shown in original size
       let org'mediaUrl   = toUrlPath
                            (r & rType .~ RImg
