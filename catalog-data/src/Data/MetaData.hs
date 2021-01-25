@@ -160,6 +160,7 @@ module Data.MetaData
   , makerNotesShutterCount
   , makerNotesTimeZone
 
+  , quickTimeCreateDate
   , quickTimeDuration
   , quickTimeImageWidth
   , quickTimeImageHeight
@@ -293,6 +294,7 @@ data MetaKey
   | MakerNotes'ShootingMode
   | MakerNotes'ShutterCount
   | MakerNotes'TimeZone
+  | QuickTime'CreateDate
   | QuickTime'Duration
   | QuickTime'ImageHeight
   | QuickTime'ImageWidth
@@ -529,18 +531,20 @@ keysAttrMaker@
   , makerNotesTimeZone
   ] = [MakerNotes'ColorSpace .. MakerNotes'TimeZone]
 
-quickTimeDuration
+quickTimeCreateDate
+  , quickTimeDuration
   , quickTimeImageWidth
   , quickTimeImageHeight
   , quickTimeVideoFrameRate :: MetaKey
 
 keysAttrQuickTime :: [MetaKey]
 keysAttrQuickTime@
-  [ quickTimeDuration
+  [ quickTimeCreateDate
+  , quickTimeDuration
   , quickTimeImageWidth
   , quickTimeImageHeight
   , quickTimeVideoFrameRate
-  ] = [QuickTime'Duration .. QuickTime'VideoFrameRate]
+  ] = [QuickTime'CreateDate .. QuickTime'VideoFrameRate]
 
 xmpGPSAltitude
   , xmpRating :: MetaKey
@@ -1109,6 +1113,7 @@ lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
     v = lookupByKeys
         [ compositeSubSecCreateDate
         , exifCreateDate
+        , quickTimeCreateDate
         ] mt
 
 -- access image geometry and orientation
