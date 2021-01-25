@@ -26,6 +26,8 @@ module Client.Effects.ClientCmd
   , ccLsmd
   , ccSetmd1
   , ccDelmd1
+  , ccSetColImg
+  , ccSetColBlog
   , ccDownload
   , ccSnapshot
   , ccCheckSum
@@ -72,6 +74,8 @@ data ClientCmd m a where
   CcLsmd       :: PathPos -> [MetaKey]        -> ClientCmd m ()
   CcSetmd1     :: PathPos ->  MetaKey -> Text -> ClientCmd m ()
   CcDelmd1     :: PathPos ->  MetaKey         -> ClientCmd m ()
+  CcSetColImg  :: PathPos -> Path             -> ClientCmd m ()
+  CcSetColBlog :: PathPos -> Path             -> ClientCmd m ()
   CcDownload   :: Path    -> ReqType  -> Geo
                -> Text    -> Bool     -> Bool -> ClientCmd m ()
   CcSnapshot   :: Text                        -> ClientCmd m ()

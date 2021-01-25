@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 ------------------------------------------------------------------------------
 
@@ -101,6 +102,44 @@ cmdClient = subparser $
         <> show defaultPath
         <> ", key may be given as glob pattern"
       )
+    )
+  <>
+  command "set-col-img"
+    ( ( CcSetColImg
+        <$> (second Just <$> argImgPath "IMG-PATH")
+        <*> argPath1
+      )
+      `withInfo`
+      ( "Set a collection image."
+        <> " The image path must point to a .jpg image"
+      )
+    )
+  <>
+  command "del-col-img"
+    ( ( CcSetColImg (mempty, Just (-1))
+        <$> argPath1
+      )
+      `withInfo`
+      ( "Clear the collection image." )
+    )
+  <>
+  command "set-col-blog"
+    ( ( CcSetColImg
+        <$> (second Just <$> argImgPath "DOC-PATH")
+        <*> argPath1
+      )
+      `withInfo`
+      ( "Set a collection blog page."
+        <> " The blog path must point to a .txt or .md document"
+      )
+    )
+  <>
+  command "del-col-blog"
+    ( ( CcSetColImg (mempty, Just (-1))
+        <$> argPath1
+      )
+      `withInfo`
+      ( "Clear the collection blog document." )
     )
   <>
   command "del-md"
@@ -281,11 +320,17 @@ cmdClient = subparser $
 --
 -- argument parsers
 
+argImgPath :: String -> Parser (Path, Int)
+argImgPath path = argument imgPathReader (metavar path)
+
 argPath :: Parser Path
 argPath = argPath1 <|> pure defaultPath
 
+argPath1' :: String -> Parser Path
+argPath1' path = argument str (metavar path)
+
 argPath1 :: Parser Path
-argPath1 = argument str (metavar "PATH")
+argPath1 = argPath1' "PATH"
 
 argPathPos :: Parser PathPos
 argPathPos = (^. isoPathPos) <$> argPath
@@ -301,8 +346,8 @@ argValue = argument str (metavar "VALUE")
 
 argPart :: Parser Name
 argPart = mkName <$> argument str (metavar "PART")
-        <|>
-        pure mempty
+          <|>
+          pure mempty
 
 -- ----------------------------------------
 --
@@ -332,6 +377,18 @@ optForceUpdateP =
 -- ----------------------------------------
 --
 -- app specific option parsers
+
+imgPathReader :: ReadM (Path, Int)
+imgPathReader = eitherReader parse
+  where
+    parse arg =
+      maybe
+        (Left $ "No image path format: " <> arg)
+        Right
+        arg'
+      where
+        arg' = fmap (p,) cx
+        (p, cx) = (isoString # arg) ^. isoPathPos
 
 imgReqReader :: ReadM ReqType
 imgReqReader = eitherReader parse

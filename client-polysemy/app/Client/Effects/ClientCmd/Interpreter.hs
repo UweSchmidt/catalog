@@ -102,6 +102,12 @@ evalClientCmd =
     CcDelmd1 pp key ->
       evalSetMetaData1 pp key "-"
 
+    CcSetColImg pp p ->
+      evalSetColImg pp p
+
+    CcSetColBlog pp p ->
+      evalSetColBlog pp p
+
     CcDownload p rt geo dir withSeqNo overwrite ->
       evalDownload p rt geo dir withSeqNo overwrite
 
@@ -203,9 +209,11 @@ evalMediaPath p = do
 evalMetaData :: CCmdEffects r => PathPos -> [MetaKey] -> Sem r MetaData
 evalMetaData pp@(p, cx) keys = do
   log'trc $ untext ["evalMetaData:", from isoText . isoPathPos # pp]
+
   r <- (\ mt ->  (isoMetaDataMDT # mt) & filterKeysMetaData (`elem` keys))
        <$>
        theMetaDataText (fromMaybe (-1) cx) p
+
   log'trc $ untext ["res =", show r ^. isoText]
   return r
 
@@ -220,6 +228,26 @@ evalSetMetaData1 pp@(p, cx) key val = do
                    ]
   let md1 = mempty & metaTextAt key .~ val
   _r <- setMetaData1 (fromMaybe (-1) cx) (md1 ^. isoMetaDataMDT) p
+  return ()
+
+------------------------------------------------------------------------------
+
+evalSetColImg :: CCmdEffects r => PathPos -> Path -> Sem r ()
+evalSetColImg pp@(sp, cx) cp = do
+  log'trc $ untext [ "evalSetColImg:"
+                   , (isoPathPos # pp) ^. isoText
+                   , cp ^. isoText
+                   ]
+  setCollectionImg sp (fromMaybe (-1) cx) cp
+  return ()
+
+evalSetColBlog :: CCmdEffects r => PathPos -> Path -> Sem r ()
+evalSetColBlog pp@(sp, cx) cp = do
+  log'trc $ untext [ "evalSetColImg:"
+                   , (isoPathPos # pp) ^. isoText
+                   , cp ^. isoText
+                   ]
+  setCollectionBlog sp (fromMaybe (-1) cx) cp
   return ()
 
 ------------------------------------------------------------------------------
