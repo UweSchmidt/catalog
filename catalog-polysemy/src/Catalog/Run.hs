@@ -13,9 +13,6 @@
 #-} -- default extensions (only for emacs)
 
 ------------------------------------------------------------------------------
---
--- the preliminary main module for testing
--- should be moved to an app
 
 module Catalog.Run
   ( CatApp
@@ -46,7 +43,7 @@ import Catalog.History        ( UndoHistory
                               , undoListNoop
                               , undoListWithState
                               )
-import Catalog.Journal        ( journalToStdout
+import Catalog.Journal        ( journalToHandle
                               , journalToDevNull
                               )
 
@@ -60,7 +57,7 @@ import Control.Concurrent.STM       (atomically)
 import Control.Concurrent.STM.TMVar
 import Control.Concurrent.STM.TChan
 import Data.IORef                   (IORef)
-import System.IO                    (stderr, hFlush)
+import System.IO                    (Handle, stderr, hFlush)
 
 import qualified Control.Exception as Ex
 import qualified Data.Text         as T ()
@@ -92,7 +89,7 @@ runApp ims env =
   . runError @Text
   . logToStdErr
   . logWithLevel (env ^. appEnvLogLevel)
-  . runLogEnvFS env
+  . runLogEnvFS  (Just stderr) (env ^. appEnvCat)
   . undoListNoop
   . evalCatCmd
 
@@ -107,17 +104,18 @@ r = runApp emptyImgStore defaultAppEnv
 --
 -- run on server side: catalog reading command
 
-runRead :: TMVar ImgStore
+runRead :: Maybe Handle
+        -> TMVar ImgStore
         -> TChan Job
         -> AppEnv
         -> CatApp a
         -> IO (Either Text a)
-runRead var logQ env =
+runRead jh var logQ env =
   runM
   . evalStateTMVar  var
   . runError        @Text
   . runLogging      logQ (env ^. appEnvLogLevel)
-  . runLogEnvFS     env
+  . runLogEnvFS     jh   (env ^. appEnvCat)
   . undoListNoop
   . evalCatCmd
 
@@ -127,19 +125,20 @@ runRead var logQ env =
 --
 -- run on server side: catalog modifying command
 
-runMody :: IORef UndoHistory
+runMody :: Maybe Handle
+        -> IORef UndoHistory
         -> TMVar ImgStore
         -> TMVar ImgStore
         -> TChan Job
         -> AppEnv
         -> CatApp a
         -> IO (Either Text a)
-runMody hist rvar mvar logQ env =
+runMody jh hist rvar mvar logQ env =
   runM' mvar
   . modifyStateTMVar rvar mvar
   . runError        @Text
   . runLogging      logQ (env ^. appEnvLogLevel)
-  . runLogEnvFS     env
+  . runLogEnvFS     jh   (env ^. appEnvCat)
   . runStateIORef   hist
   . undoListWithState
   . evalCatCmd
@@ -166,18 +165,19 @@ runM' var cmd =
 
 --------------------
 
-runBG :: TMVar ImgStore
+runBG :: Maybe Handle
+      -> TMVar ImgStore
       -> TChan Job
       -> TChan Job
       -> AppEnv
       -> CatApp a
       -> IO ()
-runBG var qu logQ env =
+runBG jh var qu logQ env =
   runM
   . evalStateTChan var qu
   . runError       @Text
   . runLogging     logQ (env ^. appEnvLogLevel)
-  . runLogEnvFS    env
+  . runLogEnvFS    jh   (env ^. appEnvCat)
   . undoListNoop
   . evalCatCmd
 
@@ -200,7 +200,8 @@ runLogQ lev qu t =
 -- common run parts
 
 runLogEnvFS :: (EffError r, EffIStore r, EffLogging r, Member (Embed IO) r)
-            => AppEnv
+            => Maybe Handle
+            -> CatEnv
             -> Sem (ExecProg
                     : FileSystem
                     : Time
@@ -209,9 +210,9 @@ runLogEnvFS :: (EffError r, EffIStore r, EffLogging r, Member (Embed IO) r)
                     : r
                    ) a
             -> Sem  r a
-runLogEnvFS env =
-  runJournal        (env ^. appEnvJournal)
-  . runReader       @CatEnv (env ^. appEnvCat)
+runLogEnvFS jHandle catEnv =
+  runJournal        jHandle
+  . runReader       catEnv
   . runOS
 
 {-# INLINE runLogEnvFS #-}
@@ -233,12 +234,10 @@ runLogging logQ lev =
 
 
 runJournal :: (Member (Embed IO) r)
-           => Bool
+           => Maybe Handle
            -> Sem (Consume JournalP ': r) a
            -> Sem r a
-runJournal withJournal
-  | withJournal = journalToStdout
-  | otherwise   = journalToDevNull
+runJournal = maybe journalToDevNull journalToHandle
 
 {-# INLINE runJournal #-}
 

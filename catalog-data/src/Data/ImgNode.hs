@@ -46,7 +46,6 @@ module Data.ImgNode
        , theImgMeta
        , theImgName
        , theImgPart
-       , theImgType
        , theMimeType
        , theImgTimeStamp
        , theImgCheckSum
@@ -83,20 +82,18 @@ where
 import           Control.Monad.Except
 
 import           Data.MetaData ( MetaData
-                               , MetaDataText(MDT)
-                               , isoMetaDataMDT
-                               , it2mtMetaData
                                , metaDataAt
-                               -- , fileImgType
+
                                , fileMimeType
                                , fileName
                                , fileTimeStamp
                                , fileCheckSum
                                , metaCheckSum
-                               -- , metaImgType
+
                                , metaMimeType
                                , metaName
                                , metaTimeStamp
+
                                , isWriteable
                                , isSortable
                                , isRemovable
@@ -396,48 +393,11 @@ newtype ImgPart = IPM MetaData
 
 deriving instance Show ImgPart
 
--- {- the old variant with parsing of old JSON input, TODO: cleanup
-instance FromJSON ImgPart where
-  parseJSON x = toIPM <$> J.parseJSON x
-    where
-      toIPM mdt@(MDT md) = r3   -- TODO: = r
-        where
-          m = isoMetaDataMDT # mdt
-          r = IPM $ it2mtMetaData m
-
-          -- TODO: cleanup when old JSON format isn't longer in use
-          -- this code parses old and new JSON
-          -- stuff for parsing old JSON with ImgPart = IP n t s c
-          --
-          n :: Name
-          n = isoText # (fromMaybe mempty $ M.lookup "Name"  md)
-
-          t :: ImgType
-          t = isoText # (fromMaybe mempty $ M.lookup "ImgType"  md)
-
-          s :: TimeStamp
-          s = isoText # (fromMaybe mempty $ M.lookup "TimeStamp" md)
-
-          c :: CheckSum
-          c = isoText # (fromMaybe mempty $ M.lookup "CheckSum"  md)
-
-          r0 = (if isempty n then id else theImgName      .~ n) r
-          r1 = (if isempty t then id else theImgType      .~ t) r0
-          r2 = (if isempty c then id else theImgCheckSum  .~ c) r1
-          r3 = (if isempty s then id else theImgTimeStamp .~ s) r2
-
-instance ToJSON ImgPart where
-  toJSON (IPM md) = toJSON md
--- -}
-
-{- TODO: new version after cleanup
-
 instance FromJSON ImgPart where
   parseJSON x = IPM <$> J.parseJSON x
 
 instance ToJSON ImgPart where
   toJSON (IPM md) = toJSON md
--- -}
 
 
 mkImgPart :: Name -> MimeType -> ImgPart
@@ -453,12 +413,6 @@ theImgMeta k (IPM md) = (\ new -> IPM new) <$> k md
 theImgName :: Lens' ImgPart Name
 theImgName = theImgMeta . metaDataAt fileName . metaName
 {-# INLINE theImgName #-}
-
--- TODO: cleanup in new catalog format
-theImgType :: Lens' ImgPart ImgType
-theImgType = theMimeType . isoMimeType
---theImgType = theImgMeta . metaDataAt fileImgType . metaImgType
-{-# INLINE theImgType #-}
 
 theMimeType :: Lens' ImgPart MimeType
 theMimeType = theImgMeta . metaDataAt fileMimeType . metaMimeType
@@ -482,6 +436,9 @@ deriving instance (Ord  ref) => Ord  (ImgRef' ref)
 deriving instance Functor     ImgRef'
 deriving instance Foldable    ImgRef'
 deriving instance Traversable ImgRef'
+
+instance (ToJSON ref) => ToJSON (ImgRef' ref) where
+  toJSON (ImgRef i n) = J.toJSON (i, n)
 
 instance (Show ref) => Show (ImgRef' ref) where
   show (ImgRef r n) = show (r, n)

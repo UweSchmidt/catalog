@@ -18,12 +18,15 @@ import qualified Data.Text as T
 
 ----------------------------------------
 
-optJournal :: Parser Bool
+optJournal :: Parser (Maybe Text)
 optJournal =
-  switch
+  Just . T.pack <$>
+  strOption
   ( long "journal"
     <> short 'j'
-    <> help "Turn on journaling of archive changes"
+    <> metavar "JOURNAL"
+    <> value "-"
+    <> help "Write journal of archive changes to file. Default is stdout."
   )
 
 optMountPath :: Parser Text

@@ -95,6 +95,10 @@ isImgMT = (`elem` [ Image'gif
                   , Image'x_portable_pixmap
                   ])
 
+isTiffMT :: MimeType -> Bool
+isTiffMT = (== Image'tiff)
+{-# INLINE isTiffMT #-}
+
 
 -- is .txt or .md file
 isTxtMT :: MimeType -> Bool

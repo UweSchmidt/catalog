@@ -34,7 +34,7 @@ import Data.Prim
 
 data AppEnv = AppEnv
   { _appEnvLogLevel :: LogLevel
-  , _appEnvJournal  :: Bool
+  , _appEnvJournal  :: Maybe TextPath
   , _appEnvPort     :: Int
   , _appEnvCat      :: CatEnv
   }
@@ -60,6 +60,6 @@ defaultCatEnv = CatEnv
                 }
 
 defaultAppEnv :: AppEnv
-defaultAppEnv = AppEnv LogErr True 3001 defaultCatEnv
+defaultAppEnv = AppEnv LogErr Nothing 3001 defaultCatEnv
 
 ------------------------------------------------------------------------------

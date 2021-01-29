@@ -135,7 +135,6 @@ mkCollection' merge target'path = do
     getIdNode "mkCollection: parent doesn't exist" parent'path
 
   -- parent is a collection
-  -- TODO exists check
   unless (isCOL parent'node) $
     throw $ msgPath parent'path "mkCollection: parent isn't a collection"
 

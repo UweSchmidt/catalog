@@ -38,7 +38,6 @@ module Data.MetaData
   , normMetaData
   , cleanupMetaData
   , cleanupOldMetaData
-  , it2mtMetaData
 
   , someKeysMetaData
   , globKeysMetaData
@@ -184,8 +183,6 @@ import           Data.Access         ( Access
                                      , isoAccessRestr
                                      , isoAccText
                                      )
-import           Data.TextPath       ( path2MimeType )
-
 import           Data.Bits           ( (.|.), (.&.), complement )
 
 import qualified Data.Aeson          as J
@@ -944,11 +941,8 @@ cleanupMetaData ty =
 cleanupOldMetaData :: MetaData' a -> MetaData' a
 cleanupOldMetaData = filterKeysMetaData (`elem` keysAttrDescr)
 
--- normalize metadata
--- TODO: cleanup ratings propagation, when catalog is converted to new format
-
-normMetaData :: MetaData -> MimeType -> MetaData -> MetaData
-normMetaData old'md ty md0
+normMetaData :: MimeType -> MetaData -> MetaData
+normMetaData ty md
   | isRawMT  ty = md
                   & cpy fileName       imgNameRaw
                   -- add raw filename to img metadata
@@ -964,16 +958,12 @@ normMetaData old'md ty md0
                 = md
                   & metaDataAt fileMimeType . metaMimeType .~ wackelGif
                   -- when animated gif
-                  -- change MIME type
+                  -- change MIME type to video/x-gif
                   -- animated gifs are handled similar to videos
                   -- (no conversion to .jpg)
 
   | otherwise   = md
   where
-    -- TODO: cleanup when converted
-    md = md0
-         & metaDataAt descrRating .~ (old'md ^. metaDataAt descrRating)
-
     -- overwrite dst
     cpy src dst md' = md' & metaTextAt dst .~ (md' ^. metaTextAt src)
 
@@ -982,17 +972,6 @@ normMetaData old'md ty md0
 
     -- animation iterations metadata, used for checking wackelgif
     anim = md ^. metaTextAt gifAnimationIterations
-
--- TODO: cleanup for catalog format 0.5
-it2mtMetaData :: MetaData -> MetaData
-it2mtMetaData md
-  | isempty mt = md
-                 & metaDataAt fileMimeType . metaMimeType .~ path2MimeType pn
-                 & metaDataAt fileImgType .~ mempty
-  | otherwise = md
-  where
-    mt = md ^. metaDataAt fileMimeType . metaMimeType
-    pn = md ^. metaTextAt fileName
 
 -- --------------------
 

@@ -28,12 +28,9 @@ import Catalog.TimeStamp
 
 import Data.ImgNode
 import Data.MetaData             ( MetaData
-                                 , metaDataAt
-                                 , descrRating
                                  , theImgEXIFUpdate
                                  , normMetaData
                                  , splitMetaData
-                                 , cleanupOldMetaData
                                  )
 import Data.Prim
 
@@ -86,7 +83,7 @@ setPartMD ::( EffIStore   r   -- any effects missing?
 setPartMD imgPath i acc pt = do
   (md'i, md'pt) <- ( splitMetaData ty
                      .
-                     normMetaData acc ty          -- normalize meta keys
+                     normMetaData ty              -- normalize meta keys
                      .
                      (<> pt ^. theImgMeta)        -- update old part meta
                    )
@@ -116,15 +113,13 @@ setMD i ps md'old = do
   ip  <- objid2path i
   ts  <- whatTimeIsIt
 
-  -- throw away all old attributes
-  -- TODO: maybe thrown away when catalog metadata is updated to new format
-  let md0 = cleanupOldMetaData md'old
-
   -- merge metadata of all image parts with old metadata
-  md'new <- foldlMOf traverseParts (setPartMD ip i) md0 ps
-  let md' = md'new
-            & theImgEXIFUpdate .~ ts
-            & metaDataAt descrRating .~ mempty    -- TODO: cleanup
+  md'new <- foldlMOf traverseParts (setPartMD ip i) md'old ps
+
+  -- add EXIF update timestamp
+  let md' = md'new & theImgEXIFUpdate .~ ts
+
+  -- set new metadata
   adjustMetaData (const $ md') i
   log'trc $ msgPath ip "setMD: update exif data done: "
 

@@ -37,6 +37,7 @@ import Polysemy.State.RunTMVar ( createJobQueue )
 import Catalog.CatalogIO       ( initImgStore )
 import Catalog.CatEnv          ( CatEnv
                                , appEnvCat
+                               , appEnvJournal
                                , appEnvLogLevel
                                , appEnvPort
                                , catMountPath
@@ -62,6 +63,7 @@ import Control.Concurrent.STM.TMVar (newTMVarIO)
 import Control.Monad.IO.Class       (liftIO)
 import Data.IORef
 import System.Exit                  (die)
+import System.IO
 
 -- servant libs
 import Servant
@@ -351,20 +353,22 @@ main = do
 
   hist  <- newIORef emptyHistory
 
+  jh    <- openJournal (env ^. appEnvJournal)
+
   let runRC :: CatApp a -> Handler a
-      runRC = ioeither2Handler . runRead rvar logQ env
+      runRC = ioeither2Handler . runRead jh rvar logQ env
 
   let runMC :: CatApp a -> Handler a
-      runMC = ioeither2Handler . runMody hist rvar mvar logQ env
+      runMC = ioeither2Handler . runMody jh hist rvar mvar logQ env
 
   let runBQ :: CatApp a -> Handler ()
-      runBQ = liftIO . runBG rvar qu logQ env
+      runBQ = liftIO . runBG jh rvar qu logQ env
 
   -- set the fontname to be used when
   -- generating icons from text
 
   env1 <- do
-    efn <- runRead rvar logQ env selectFont
+    efn <- runRead jh rvar logQ env selectFont
     return $
       either
       (const env)
@@ -373,7 +377,7 @@ main = do
 
   -- load the catalog from json file
   do
-    eres <-runMody hist rvar mvar logQ env1 initImgStore
+    eres <-runMody jh hist rvar mvar logQ env1 initImgStore
     either
       (die . (^. isoString))    -- no catalog loaded
       return
@@ -399,5 +403,12 @@ ioeither2Handler cmd = do
     raise500 :: Text -> Handler a
     raise500 msg =
       throwError $ err500 { errBody = msg ^. isoString . from isoString }
+
+openJournal :: Maybe TextPath -> IO (Maybe Handle)
+openJournal = traverse open
+  where
+    open fp
+      | fp == "-" = return stderr
+      | otherwise = openFile (fp ^. isoString) WriteMode
 
 ------------------------------------------------------------------------------

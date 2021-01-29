@@ -46,6 +46,7 @@ import Polysemy.ExecProg         (execScript)
 
 -- catalog modules
 import Data.MetaData             (lookupGeoOri)
+import Data.TextPath             (path2MimeType)
 import Data.Prim
 import Data.CT
 
@@ -463,18 +464,13 @@ buildResize3 vico rot d'g s'geo d s'
     --
     -- for wackelgifs a frame number is needed,
     -- else all frames are extracted
-    --
-    -- TODO: don't check the extension but use the mime type
-    -- to determine the layer selection
 
-    tiffLayer x
-      | ".tif"  `T.isSuffixOf` x
-        ||
-        ".tiff" `T.isSuffixOf` x
-        ||
-        ".gif"  `T.isSuffixOf` x = x <> "[0]"
-
-      | otherwise                = x
+    tiffLayer fp
+      | ( isTiffMT
+          .||.
+          isGifMT
+        ) $ path2MimeType fp = fp <> "[0]"
+      | otherwise            = fp
 
 -- ----------------------------------------
 {-

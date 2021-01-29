@@ -115,11 +115,6 @@ genPhotoCollection :: Eff'ISEJLT r => Sem r ()
 genPhotoCollection = do
   genSysCollection all'restr n'photos tt'photos
 
-  -- no user modifications in by date hierachy
-  -- may be removed when catalog is updated
-  -- with new access handling
-  getId p'photos >>= modifyMetaDataRec (setAcc all'restr)
-
 -- import collection is writeable
 -- to enable removing old imports
 genImportsCollection :: Eff'ISEJLT r => Sem r ()
@@ -127,22 +122,9 @@ genImportsCollection = do
   genSysCollection (no'delete .|. no'sort .|. no'user)
     n'imports tt'imports
 
-  -- no user modifications in by date hierachy
-  -- may be removed when catalog is updated
-  -- with new access handling
-  i <- getId p'imports
-  modifyMetaDataRec (setAcc $ no'write  .|. no'sort) i
-  -- reset access right of p'imports
-  adjustMetaData (setAcc $ no'delete .|. no'sort .|. no'user) i
-
 genByDateCollection :: Eff'ISEJLT r => Sem r ()
 genByDateCollection = do
   genSysCollection all'restr n'bycreatedate tt'bydate
-
-  -- no user modifications in by date hierachy
-  -- may be removed when catalog is updated
-  -- with new access handling
-  getId p'bycreatedate >>= modifyMetaDataRec (setAcc all'restr)
 
 genSysCollection :: Eff'ISEJLT r => Access -> Name -> Text -> Sem r ()
 genSysCollection a n'sys tt'sys = do
@@ -165,7 +147,8 @@ genSysCollection a n'sys tt'sys = do
         o = ""
 
 -- create directory hierachy for Y/M/D
-mkDateCol :: Eff'ISEJLT r => (String, String, String) -> Path -> Sem r (ObjId, ObjId, ObjId)
+mkDateCol :: Eff'ISEJLT r
+          => (String, String, String) -> Path -> Sem r (ObjId, ObjId, ObjId)
 mkDateCol (y, m, d) pc = do
   yc <- mkColByPath insertColByName (setupYearCol  y    ) py
   mc <- mkColByPath insertColByName (setupMonthCol y m  ) pm
