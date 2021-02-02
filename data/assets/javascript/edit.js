@@ -30,29 +30,6 @@ function initSystemCollections() {
 }
 */
 
-function fromServerMetaData(md0) {
-    var md = md0;
-
-    if (serverVersion.version < "0.3.6") {
-        // meta data was wrapped into a single element list (why?)
-        if (md0.constructor === Array) {
-            md = md0[0];
-        }
-    }
-    return md;
-}
-
-function toServerMetaData(md0) {
-    var md = md0;
-
-    if (serverVersion.version < "0.3.6") {
-        // meta data has to be wrapped into a single element list (why?)
-        md = [md0];
-    }
-    return md;
-}
-
-
 // ----------------------------------------
 //
 // version test on bootstrap 4.5.0
@@ -2622,7 +2599,7 @@ function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
 
 function setMetaOnServer(path, ixs, metadata) {
     addHistCmd("set metadata in " + splitName(path));
-    modifyServer("setMetaData", path, [ixs, toServerMetaData(metadata)],
+    modifyServer("setMetaData", path, [ixs, metadata],
                  function () {
                      getColFromServer(path, refreshCollectionF);
                  });
@@ -2678,7 +2655,7 @@ function getHistoryFromServer(cont) {
 function getColFromServer(path, showCol) {
     readServer("collection", path,
                function (col) {
-                   col.metadata = fromServerMetaData(col.metadata);
+                   col.metadata = col.metadata;
                    showCol(path, col);
                });
 }
@@ -2713,7 +2690,7 @@ function fillMetaFromServer(args) {
                 args.path,
                 args.pos,
                 function (res) {
-                    fillMetaData1(fromServerMetaData(res), args);
+                    fillMetaData1(res, args);
                 }
                );
 }
@@ -2724,7 +2701,7 @@ function getMetaFromServer(args) {
                 args.path,
                 args.pos,
                 function (res) {
-                    showMetaData(fromServerMetaData(res), args);
+                    showMetaData(res, args);
                 }
                );
 }
@@ -2777,7 +2754,7 @@ function getMovieMeta(args) {
                 args.path,
                 args.pos,
                 function (res) {
-                    insertMovieRef(fromServerMetaData(res), args);
+                    insertMovieRef(res, args);
                 }
                );
 }

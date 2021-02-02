@@ -38,12 +38,6 @@ bump catalog-polysemy/catalog-polysemy.cabal
 bump client-polysemy/client-polysemy.cabal
 bump servant-polysemy/servant-polysemy.cabal
 
-# mtl based libs/execs, no longer supported since 0.4.0.0
-# bump catalog-mtl/catalog-mtl.cabal
-# bump catalog-servant/catalog-servant.cabal
-# bump catalog-client/catalog-client.cabal
-# bump catalog-client/app/Main.hs
-
 # common libs and sources
 bump catalog-data/catalog-data.cabal
 bump catalog-data/src/Catalog/Version.hs
