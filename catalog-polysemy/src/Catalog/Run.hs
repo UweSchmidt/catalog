@@ -16,6 +16,7 @@
 
 module Catalog.Run
   ( CatApp
+  , JournalHandle
   , runApp
   , runRead
   , runMody
@@ -43,7 +44,8 @@ import Catalog.History        ( UndoHistory
                               , undoListNoop
                               , undoListWithState
                               )
-import Catalog.Journal        ( journalToHandle
+import Catalog.Journal        ( journalToBGQueue
+                              , journalToHandle
                               , journalToDevNull
                               )
 
@@ -80,18 +82,20 @@ type CatApp a = Sem '[ CatCmd
 
 ----------------------------------------
 --
--- run a single command
+-- run a single command, for testing
 
 runApp :: ImgStore -> AppEnv -> CatApp a -> IO (ImgStore, Either Text a)
-runApp ims env =
+runApp ims env cmd = do
+  logQ <- createJobQueue
   runM
-  . runState ims
-  . runError @Text
-  . logToStdErr
-  . logWithLevel (env ^. appEnvLogLevel)
-  . runLogEnvFS  (Just stderr) (env ^. appEnvCat)
-  . undoListNoop
-  . evalCatCmd
+    . runState ims
+    . runError @Text
+    . logToStdErr
+    . logWithLevel (env ^. appEnvLogLevel)
+    . runLogEnvFS (Just $ Left stderr) logQ (env ^. appEnvCat)
+    . undoListNoop
+    . evalCatCmd
+    $ cmd
 
 -- --------------------
 --
@@ -104,9 +108,9 @@ r = runApp emptyImgStore defaultAppEnv
 --
 -- run on server side: catalog reading command
 
-runRead :: Maybe Handle
+runRead :: JournalHandle
         -> TMVar ImgStore
-        -> TChan Job
+        -> BGQueue
         -> AppEnv
         -> CatApp a
         -> IO (Either Text a)
@@ -115,7 +119,7 @@ runRead jh var logQ env =
   . evalStateTMVar  var
   . runError        @Text
   . runLogging      logQ (env ^. appEnvLogLevel)
-  . runLogEnvFS     jh   (env ^. appEnvCat)
+  . runLogEnvFS    jh logQ (env ^. appEnvCat)
   . undoListNoop
   . evalCatCmd
 
@@ -125,11 +129,11 @@ runRead jh var logQ env =
 --
 -- run on server side: catalog modifying command
 
-runMody :: Maybe Handle
+runMody :: JournalHandle
         -> IORef UndoHistory
         -> TMVar ImgStore
         -> TMVar ImgStore
-        -> TChan Job
+        -> BGQueue
         -> AppEnv
         -> CatApp a
         -> IO (Either Text a)
@@ -138,7 +142,7 @@ runMody jh hist rvar mvar logQ env =
   . modifyStateTMVar rvar mvar
   . runError        @Text
   . runLogging      logQ (env ^. appEnvLogLevel)
-  . runLogEnvFS     jh   (env ^. appEnvCat)
+  . runLogEnvFS    jh logQ (env ^. appEnvCat)
   . runStateIORef   hist
   . undoListWithState
   . evalCatCmd
@@ -165,7 +169,7 @@ runM' var cmd =
 
 --------------------
 
-runBG :: Maybe Handle
+runBG :: JournalHandle
       -> TMVar ImgStore
       -> TChan Job
       -> TChan Job
@@ -177,7 +181,7 @@ runBG jh var qu logQ env =
   . evalStateTChan var qu
   . runError       @Text
   . runLogging     logQ (env ^. appEnvLogLevel)
-  . runLogEnvFS    jh   (env ^. appEnvCat)
+  . runLogEnvFS   jh logQ (env ^. appEnvCat)
   . undoListNoop
   . evalCatCmd
 
@@ -200,18 +204,19 @@ runLogQ lev qu t =
 -- common run parts
 
 runLogEnvFS :: (EffError r, EffIStore r, EffLogging r, Member (Embed IO) r)
-            => Maybe Handle
-            -> CatEnv
-            -> Sem (ExecProg
-                    : FileSystem
-                    : Time
-                    : Reader CatEnv
-                    : Consume JournalP
-                    : r
-                   ) a
-            -> Sem  r a
-runLogEnvFS jHandle catEnv =
-  runJournal        jHandle
+             => JournalHandle
+             -> BGQueue
+             -> CatEnv
+             -> Sem (ExecProg
+                     : FileSystem
+                     : Time
+                     : Reader CatEnv
+                     : Consume JournalP
+                     : r
+                    ) a
+             -> Sem  r a
+runLogEnvFS jHandle logQ catEnv =
+  runJournal       jHandle logQ
   . runReader       catEnv
   . runOS
 
@@ -233,11 +238,21 @@ runLogging logQ lev =
 {-# INLINE runLogging #-}
 
 
+type JournalHandle = Maybe (Either Handle Handle)
+
 runJournal :: (Member (Embed IO) r)
-           => Maybe Handle
+           => JournalHandle
+           -> BGQueue
            -> Sem (Consume JournalP ': r) a
            -> Sem r a
-runJournal = maybe journalToDevNull journalToHandle
+runJournal jh logQ =
+  case jh of
+    Nothing
+      -> journalToDevNull
+    Just (Left std)
+      -> journalToBGQueue logQ std
+    Just (Right hdl)
+      -> journalToHandle hdl
 
 {-# INLINE runJournal #-}
 

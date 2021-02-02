@@ -25,8 +25,12 @@ optJournal =
   ( long "journal"
     <> short 'j'
     <> metavar "JOURNAL"
-    <> value "-"
-    <> help "Write journal of archive changes to file. Default is stdout."
+    <> showDefault
+    <> value "2"
+    <> help ( "Write journal of archive changes,"
+              <> " \"1\" to stdout, \"2\" to stderr,"
+              <> " else file."
+            )
   )
 
 optMountPath :: Parser Text

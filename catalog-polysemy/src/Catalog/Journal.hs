@@ -24,13 +24,13 @@
 module Catalog.Journal
 where
 
--- import Control.Monad.Trans.Except (Except, runExcept)
-
 import Catalog.Effects
 import Catalog.ImgTree.Access (objid2path)
 
 import Data.Journal
 import Data.Prim
+
+import Polysemy.Consume.BGQueue (BGQueue, writeToBGQueue)
 
 import System.IO (Handle, hFlush, stdout, stderr)
 
@@ -46,27 +46,44 @@ journal jc = do
   jcp <- traverse objid2path jc
   consume @JournalP jcp
 
--- journal interpreter
+-- journal interpreters
 
+-- --------------------
+-- journal to background queue for output syncronised with
+-- other streams, e.g. logging
+
+journalToBGQueue :: Member (Embed IO) r
+                 => BGQueue -> Handle -> InterpreterFor (Consume JournalP) r
+journalToBGQueue q h = writeToBGQueue q (outJournal h)
+
+-- --------------------
 -- journal to file handle
+
 journalToHandle :: Member (Embed IO) r
                 => Handle -> InterpreterFor (Consume JournalP) r
-journalToHandle h = consumeIO $ \ j -> outJournal h j
+journalToHandle h = consumeIO $ outJournal h
 
+-- --------------------
 -- journal to stdout
+
 journalToStdout :: Member (Embed IO) r
                 => InterpreterFor (Consume JournalP) r
 journalToStdout = journalToHandle stdout
 
+-- --------------------
 -- journal to stderr
+
 journalToStderr :: Member (Embed IO) r
                 => InterpreterFor (Consume JournalP) r
 journalToStderr = journalToHandle stderr
 
+-- --------------------
 -- throw away journal
+
 journalToDevNull :: InterpreterFor (Consume JournalP) r
 journalToDevNull = consumeNull
 
+-- --------------------
 -- journal format and output
 
 outJournal :: Handle -> JournalP -> IO ()

@@ -47,6 +47,7 @@ import Catalog.Effects.CatCmd
 import Catalog.GenImages       ( selectFont )
 import Catalog.History         ( emptyHistory )
 import Catalog.Run             ( CatApp
+                               , JournalHandle
                                , runRead
                                , runMody
                                , runBG
@@ -404,11 +405,16 @@ ioeither2Handler cmd = do
     raise500 msg =
       throwError $ err500 { errBody = msg ^. isoString . from isoString }
 
-openJournal :: Maybe TextPath -> IO (Maybe Handle)
-openJournal = traverse open
-  where
-    open fp
-      | fp == "-" = return stderr
-      | otherwise = openFile (fp ^. isoString) WriteMode
+openJournal :: Maybe TextPath -> IO JournalHandle
+openJournal tp = case tp of
+  Nothing
+    -> return Nothing
+  Just p
+    | p == "1"
+      -> return $ Just (Left stdout)
+    | p == "2"
+      -> return $ Just (Left stderr)
+    | otherwise
+      -> (Just . Right) <$> openFile (p ^. isoString) WriteMode
 
 ------------------------------------------------------------------------------
