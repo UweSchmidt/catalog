@@ -1,5 +1,8 @@
+# LTS with ghc-8.10.3
+resolver: lts-17.1
+
 # LTS with ghc-8.8.2
-resolver: lts-15.1
+# resolver: lts-15.1
 
 # Local packages, usually specified by relative directory name
 packages:
@@ -11,6 +14,9 @@ packages:
 
 # Override default flag values for local packages and extra-deps
 flags: {}
+
+extra-deps:
+  - polysemy-1.4.0.0@sha256:0245a046eaf936557d4208b5a355df1a20799c9e274f91fa889ab2644ecbabae,6541
 
 # Extra package databases containing global packages
 extra-package-dbs: []
