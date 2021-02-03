@@ -30,6 +30,7 @@ executable servant-polysemy
                      , http-media
                      , optparse-applicative
                      , polysemy
+                     , polysemy-plugin
                      , servant
                      , servant-blaze
                      , servant-server
@@ -61,11 +62,12 @@ executable servant-polysemy
                       TypeFamilies
                       TypeOperators
 
-  ghc-options:  -Wall -fwarn-tabs -O2
-                -funbox-strict-fields
-                -flate-specialise
-                -fspecialise-aggressively
-                -threaded
+  ghc-options: -Wall -fwarn-tabs -O2
+               -funbox-strict-fields
+               -flate-specialise
+               -fspecialise-aggressively
+               -fplugin=Polysemy.Plugin
+               -threaded
 
 source-repository head
   type:     git

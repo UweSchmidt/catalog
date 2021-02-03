@@ -49,6 +49,7 @@ library
                -funbox-strict-fields
                -flate-specialise
                -fspecialise-aggressively
+               -fplugin=Polysemy.Plugin
 
   build-depends: async                >= 2.2.2
                , aeson                >= 0.8
@@ -58,7 +59,8 @@ library
                , exceptions
                , http-client
                , http-types
-               , polysemy          
+               , polysemy
+               , polysemy-plugin        
                , process-extras
                , stm
                , text

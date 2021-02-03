@@ -67,6 +67,7 @@ library
                -funbox-strict-fields
                -flate-specialise
                -fspecialise-aggressively
+               -fplugin=Polysemy.Plugin
 
   build-depends: aeson                >= 0.8
                , aeson-pretty
@@ -82,6 +83,7 @@ library
                , lens                 >= 4.12
                , optparse-applicative
                , polysemy             >= 1.2.3
+               , polysemy-plugin
                , process
                , scientific
                , stm
