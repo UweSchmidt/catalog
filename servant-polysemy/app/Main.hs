@@ -357,7 +357,7 @@ main = do
   jh    <- openJournal (env ^. appEnvJournal)
 
   let runRC :: CatApp a -> Handler a
-      runRC = ioeither2Handler . runRead jh rvar logQ env
+      runRC = ioeither2Handler . runRead rvar logQ env
 
   let runMC :: CatApp a -> Handler a
       runMC = ioeither2Handler . runMody jh hist rvar mvar logQ env
@@ -369,7 +369,7 @@ main = do
   -- generating icons from text
 
   env1 <- do
-    efn <- runRead jh rvar logQ env selectFont
+    efn <- runRead rvar logQ env selectFont
     return $
       either
       (const env)

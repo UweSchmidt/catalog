@@ -20,18 +20,21 @@ import qualified Data.Text as T
 
 optJournal :: Parser (Maybe Text)
 optJournal =
-  Just . T.pack <$>
+  toM <$>
   strOption
   ( long "journal"
     <> short 'j'
     <> metavar "JOURNAL"
-    <> showDefault
-    <> value "2"
+    <> value ""
     <> help ( "Write journal of archive changes,"
-              <> " \"1\" to stdout, \"2\" to stderr,"
-              <> " else file."
+              <> " \"1\" output to stdout, \"2\" to stderr,"
+              <> " else to journal file."
             )
   )
+  where
+    toM :: String -> Maybe Text
+    toM "" = Nothing
+    toM x  = Just $ T.pack x
 
 optMountPath :: Parser Text
 optMountPath =

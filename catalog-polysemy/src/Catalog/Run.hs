@@ -108,18 +108,17 @@ r = runApp emptyImgStore defaultAppEnv
 --
 -- run on server side: catalog reading command
 
-runRead :: JournalHandle
-        -> TMVar ImgStore
+runRead :: TMVar ImgStore
         -> BGQueue
         -> AppEnv
         -> CatApp a
         -> IO (Either Text a)
-runRead jh var logQ env =
+runRead var logQ env =
   runM
   . evalStateTMVar  var
   . runError        @Text
   . runLogging      logQ (env ^. appEnvLogLevel)
-  . runLogEnvFS    jh logQ (env ^. appEnvCat)
+  . runLogEnvFS     Nothing logQ (env ^. appEnvCat)
   . undoListNoop
   . evalCatCmd
 
@@ -142,7 +141,7 @@ runMody jh hist rvar mvar logQ env =
   . modifyStateTMVar rvar mvar
   . runError        @Text
   . runLogging      logQ (env ^. appEnvLogLevel)
-  . runLogEnvFS    jh logQ (env ^. appEnvCat)
+  . runLogEnvFS     jh logQ (env ^. appEnvCat)
   . runStateIORef   hist
   . undoListWithState
   . evalCatCmd
@@ -181,7 +180,7 @@ runBG jh var qu logQ env =
   . evalStateTChan var qu
   . runError       @Text
   . runLogging     logQ (env ^. appEnvLogLevel)
-  . runLogEnvFS   jh logQ (env ^. appEnvCat)
+  . runLogEnvFS    jh logQ (env ^. appEnvCat)
   . undoListNoop
   . evalCatCmd
 
@@ -216,8 +215,8 @@ runLogEnvFS :: (EffError r, EffIStore r, EffLogging r, Member (Embed IO) r)
                     ) a
              -> Sem  r a
 runLogEnvFS jHandle logQ catEnv =
-  runJournal       jHandle logQ
-  . runReader       catEnv
+  runJournal jHandle logQ
+  . runReader catEnv
   . runOS
 
 {-# INLINE runLogEnvFS #-}

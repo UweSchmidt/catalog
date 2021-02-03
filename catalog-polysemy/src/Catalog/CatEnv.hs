@@ -17,8 +17,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
-
--- {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 ------------------------------------------------------------------------------
 
