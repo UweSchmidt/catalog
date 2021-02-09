@@ -348,8 +348,8 @@ compositeAperture
   , compositeSubSecDateTimeOriginal :: MetaKey
 
 keysAttrComposite :: [MetaKey]
-keysAttrComposite@
-  [ compositeAperture
+keysAttrComposite@[
+  compositeAperture
   , compositeAutoFocus
   , compositeCircleOfConfusion
   , compositeDOF
@@ -391,8 +391,8 @@ descrTitle
   , descrCatalogWrite :: MetaKey
 
 keysAttrDescr :: [MetaKey]
-keysAttrDescr@
-  [ descrAccess
+keysAttrDescr@[
+  descrAccess
   , descrCatalogVersion
   , descrCatalogWrite
   , descrComment
@@ -437,8 +437,8 @@ exifArtist
   , exifWhiteBalance :: MetaKey
 
 keysAttrExif :: [MetaKey]
-keysAttrExif@
-  [ exifArtist
+keysAttrExif@[
+  exifArtist
   , exifBitsPerSample
   , exifCopyright
   , exifCreateDate
@@ -471,8 +471,8 @@ fileCheckSum
   , fileTimeStamp :: MetaKey
 
 keysAttrFile :: [MetaKey]
-keysAttrFile@
-  [ fileCheckSum
+keysAttrFile@[
+  fileCheckSum
   , fileFileSize
   , fileImgType
   , fileMimeType
@@ -488,8 +488,8 @@ gifAnimationIterations
   , gifFrameCount :: MetaKey
 
 keysAttrGIF :: [MetaKey]
-keysAttrGIF@
-  [ gifAnimationIterations
+keysAttrGIF@[
+  gifAnimationIterations
   , gifDuration
   , gifFrameCount
   ] = [GIF'AnimationIterations .. GIF'FrameCount]
@@ -499,8 +499,8 @@ imgEXIFUpdate
   , imgRating :: MetaKey
 
 keysAttrImg :: [MetaKey]
-keysAttrImg@
-  [ imgEXIFUpdate
+keysAttrImg@[
+  imgEXIFUpdate
   , imgNameRaw
   , imgRating
   ] = [Img'EXIFUpdate .. Img'Rating]
@@ -516,8 +516,8 @@ makerNotesColorSpace
   , makerNotesTimeZone :: MetaKey
 
 keysAttrMaker :: [MetaKey]
-keysAttrMaker@
-  [ makerNotesColorSpace
+keysAttrMaker@[
+  makerNotesColorSpace
   , makerNotesDaylightSavings
   , makerNotesFocusDistance
   , makerNotesFocusMode
@@ -535,8 +535,8 @@ quickTimeCreateDate
   , quickTimeVideoFrameRate :: MetaKey
 
 keysAttrQuickTime :: [MetaKey]
-keysAttrQuickTime@
-  [ quickTimeCreateDate
+keysAttrQuickTime@[
+  quickTimeCreateDate
   , quickTimeDuration
   , quickTimeImageWidth
   , quickTimeImageHeight
@@ -547,8 +547,8 @@ xmpGPSAltitude
   , xmpRating :: MetaKey
 
 keysAttrXmp :: [MetaKey]
-keysAttrXmp@
-  [ xmpGPSAltitude
+keysAttrXmp@[
+  xmpGPSAltitude
   , xmpRating
   ] = [XMP'GPSAltitude .. XMP'Rating]
 

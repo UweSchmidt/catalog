@@ -87,7 +87,7 @@ bsToMetaData =
              _   -> Left "single element list expected"
          )
   .
-  J.eitherDecodeStrict' @ [MetaDataJSON]
+  J.eitherDecodeStrict' @[MetaDataJSON]
 
 -- ---------------------
 

@@ -480,7 +480,7 @@ mkColByPath' insertCol p = do
     -- collection already there
     Just (ip, vp) -> do
       unless (isCOL vp) $
-        throw @ Text $
+        throw @Text $
         msgPath p  "mkColByPath: can't create collection, other entry already there"
 
       return ip
