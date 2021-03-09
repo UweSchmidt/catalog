@@ -58,6 +58,7 @@ library
                , directory
                , exceptions
                , http-client
+               , http-client-tls
                , http-types
                , polysemy
                , polysemy-plugin        

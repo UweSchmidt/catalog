@@ -28,6 +28,7 @@ module Polysemy.HttpRequest
     -- * aux types and functions
   , ResponseLBS
   , newBasicManager
+  , newBasicTlsManager
   , httpExcToText
   )
 where
@@ -47,6 +48,9 @@ import Network.HTTP.Client
        , newManager
        -- , responseTimeoutNone
        )
+import Network.HTTP.Client.TLS
+       ( newTlsManager )
+
 import Data.Text
        ( Text )
 
@@ -94,6 +98,10 @@ basicHttpRequests ef manager =
 newBasicManager :: IO Manager
 newBasicManager =
   newManager defaultManagerSettings
+
+newBasicTlsManager :: IO Manager
+newBasicTlsManager =
+  newTlsManager
 
 httpExcToText :: HttpException -> Text
 httpExcToText = T.pack . show
