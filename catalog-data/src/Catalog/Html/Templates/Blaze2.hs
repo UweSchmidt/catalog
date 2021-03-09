@@ -33,6 +33,7 @@ import Data.MetaData ( MetaData
 
                      , descrComment
                      , descrCommentImg
+                     , descrKeywords
                      , descrLocation
                      , descrSubtitle
                      , descrTitle
@@ -897,7 +898,6 @@ picMeta md = mconcat mdTab
             px :: Maybe Double
             px = readMaybe s
 
-
     mdMap :: Text -> Html
     mdMap descr =
       toEntry descr compositeGPSPosition val $
@@ -905,6 +905,13 @@ picMeta md = mconcat mdTab
       where
         val  = lookupGPSposDeg md
 
+    mdKw :: Text -> Html
+    mdKw descr =
+      toEntry descr key val $
+      toHtml val
+      where
+        key = descrKeywords
+        val = md ^. metaTextAt key
 
     mdTab :: [Html]
     mdTab =
@@ -914,6 +921,7 @@ picMeta md = mconcat mdTab
       , mdval  "Titel lat."            descrTitleLatin
       , mdval  "Kommentar (Aufnahme)"  descrComment
       , mdval  "Kommentar (Kopie)"     descrCommentImg
+      , mdKw   "Schlüsselwörter"
       , mdval  "Ort"                   descrLocation
       , mdLink "Web"                   descrWeb
       , mdLink "Wikipedia"             descrWikipedia
