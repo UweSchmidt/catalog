@@ -37,10 +37,13 @@ type Host = Text
 type Port = Int
 
 type ClientAct r = (ClientOpts, ClientCmd r ())
-type ClientOpts  = ((Host,Port), LogLevel)
+type ClientOpts  = ((Host, Port), LogLevel)
 
 appname :: String
 appname = "client-polysemy"
+
+userAgent :: String
+userAgent = appname <> " - " <> version <> " (" <> date <> ")"
 
 clientAction :: IO (ClientAct r)
 clientAction = execParser appInfo
@@ -50,7 +53,7 @@ appInfo =
   info (helper <*> ((,) <$> optClient <*> cmdClient))
   ( fullDesc
     <> progDesc "query, modify and download collections from catalog"
-    <> header (appname <> " - " <> version <> " (" <> date <> ")")
+    <> header userAgent
   )
 
 withInfo :: Parser a -> String -> ParserInfo a

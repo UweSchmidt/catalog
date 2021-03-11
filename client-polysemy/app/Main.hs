@@ -18,10 +18,12 @@ import Polysemy.Reader
 
 -- polysemy-useful-stuff
 import Polysemy.Consume
+import Polysemy.Delay
 import Polysemy.FileSystem
 import Polysemy.HttpRequest
-import Polysemy.Logging
 import Polysemy.HttpRequest.SimpleRequests
+import Polysemy.Logging
+import Polysemy.Time
 
 -- client-polysemy
 import Catalog.Effects.CatCmd.ClientInterpreter
@@ -29,7 +31,13 @@ import Client.Effects.ClientCmd
 import Client.Effects.ClientCmd.Interpreter
 import Client.Options
 
+import Network.HTTP.Client
+       ( Request(..)
+       , responseTimeoutNone
+       )
 import System.Exit
+
+import qualified Data.Text as T
 
 ----------------------------------------
 --
@@ -43,24 +51,26 @@ import System.Exit
 
 main :: IO ()
 main = do
-  ((hostPort, loglev), cmd) <- clientAction
+  (((h, p), loglev), cmd) <- clientAction
 
-  man <- newBasicManager
+  req <- catalogServerRequest h p
+
   res <- runM
          . writelnToStdout          -- Consume Text
          . logToStdErr              -- Consume LogMsg
          . logWithLevel             -- Logging
              loglev
-         . runError  @Text          -- Error Text
-         . runReader @HostPort      -- Reader HostPort
-             hostPort
-         . basicFileSystem          -- FileStatus (file system calls)
+         . runError  @ Text         -- Error Text
+         . runReader @ Request      -- Reader Request
+             req
+         . basicFileSystem          -- FileStatus  (file system calls)
              ioExcToText
-         . basicHttpRequests        -- HttpRequest
-             httpExcToText
-             man
-         . evalClientCatCmd         -- CatCmd     (server calls)
-         . evalClientCmd            -- ClientCmd  (client commands)
+         . posixTime                -- Time        (currentTime)
+             ioExcToText
+         . delayedExec              -- Delay       (delayed cmd exec)
+         . simpleHttpRequests       -- HttpRequest (catalog server, ...)
+         . evalClientCatCmd         -- CatCmd      (server calls)
+         . evalClientCmd            -- ClientCmd   (client commands)
          $ do
              send cmd                    -- start action
                `catch`
@@ -73,5 +83,13 @@ main = do
            (const   ExitSuccess)
            res
 
+catalogServerRequest :: Text -> Int -> IO Request
+catalogServerRequest h p = do
+  req <- parseRequest $
+         "http://" ++ T.unpack h ++ ":" ++ show p ++ "/index.html"
+
+  -- for requests to catalog server
+  -- timeouts are disabled
+  return $ req {responseTimeout = responseTimeoutNone}
 
 ----------------------------------------

@@ -43,17 +43,19 @@ import Network.HTTP.Client
        ( Request(..)
        , RequestBody(..)
        , Response(..)
-       , responseTimeoutNone
        , parseRequest
        )
 
 import Network.HTTP.Types
---       ( hContentType )
-
-import Network.HTTP.Types.Status
-       ( statusCode
+       ( Method
+       , hContentType
+       , methodGet
+       , methodPost
+       , statusCode
        , statusMessage
        )
+
+-- import Network.HTTP.Types.Status
 
 import Data.Aeson
        ( ToJSON

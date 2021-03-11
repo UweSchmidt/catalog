@@ -20,7 +20,8 @@ executable client-polysemy
                       Client.Effects.ClientCmd.Interpreter
                       Client.Options
                       Catalog.Effects.CatCmd.ClientInterpreter
-
+                      GPS.Effects.GeoLocCmd
+                      
                       Paths_client_polysemy
 
   hs-source-dirs:     app
@@ -56,6 +57,7 @@ executable client-polysemy
                , directory
                , exceptions
                , http-client
+               , http-client-tls
                , http-types
                , optparse-applicative
                , polysemy             >= 1.2.3
