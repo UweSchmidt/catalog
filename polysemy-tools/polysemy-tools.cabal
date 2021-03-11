@@ -19,6 +19,7 @@ library
                       -- own Polysemy effects
                   Polysemy.Consume
                   Polysemy.Consume.BGQueue
+                  Polysemy.Delay
                   Polysemy.EmbedExc
                   Polysemy.ExecProg
                   Polysemy.FileSystem

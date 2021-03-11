@@ -18,6 +18,7 @@
 module Polysemy.EmbedExc
   ( -- * Actions
     embedExc
+  , embedExcText
 
   -- aux types andfunctions
   , IOException
@@ -61,5 +62,13 @@ ioExcToText :: IOException -> Text
 ioExcToText = T.pack . show
 
 {-# INLINE ioExcToText  #-}
+
+embedExcText :: forall r a
+              . ( Member (Embed IO) r
+                , Member (Error Text) r
+                )
+             => IO a
+             -> Sem r a
+embedExcText = embedExc ioExcToText
 
 ------------------------------------------------------------------------------

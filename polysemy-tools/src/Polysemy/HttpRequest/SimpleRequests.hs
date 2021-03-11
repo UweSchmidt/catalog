@@ -18,15 +18,18 @@
 module Polysemy.HttpRequest.SimpleRequests
   (
     -- * common HTTP request variants
-    basicReq
+    execReq
+  , basicReq
   , getReq
   , postReq
   , simpleJSONReq
   , argJSONReq
+  , jsonDecode
 
-    -- * aux types
-  , HostPort
+    -- * reexports and aux types
   , HttpEffects
+  , Request
+  , parseRequest
   )
 where
 
@@ -40,12 +43,12 @@ import Network.HTTP.Client
        ( Request(..)
        , RequestBody(..)
        , Response(..)
-       , defaultRequest
        , responseTimeoutNone
+       , parseRequest
        )
 
-import Network.HTTP.Types.Header
-       ( hContentType )
+import Network.HTTP.Types
+--       ( hContentType )
 
 import Network.HTTP.Types.Status
        ( statusCode
@@ -72,15 +75,21 @@ import qualified Data.Text.Encoding         as T
 ------------------------------------------------------------------------------
 
 
-type HostPort = (Text, Int)
-
 type HttpEffects r =
-  (Members '[Reader HostPort, HttpRequest, Error Text, Logging] r)
+  (Members '[Reader Request, HttpRequest, Error Text, Logging] r)
+
+--------------------
+
+execReq :: HttpEffects r
+       => Sem r LBS.ByteString
+execReq = basicReq' id id id
+
+--------------------
 
 getReq :: HttpEffects r
        => Text
        -> Sem r LBS.ByteString
-getReq = basicReq "GET" id
+getReq = basicReq methodGet id
 
 --------------------
 
@@ -88,7 +97,7 @@ postReq :: HttpEffects r
          => (Request -> Request)
          -> Text
          -> Sem r LBS.ByteString
-postReq = basicReq "POST"
+postReq = basicReq methodPost
 
 --------------------
 
@@ -126,19 +135,24 @@ argJSONReq arg' path' =
 --------------------
 
 basicReq :: HttpEffects r
-         => Text
+         => Method
          -> (Request -> Request)
          -> Text
          -> Sem r LBS.ByteString
+basicReq method' setBody path' =
+  basicReq' (const method') setBody (const $ T.encodeUtf8 path')
 
-basicReq method' setBody path' = do
-  (host', port') <- ask
-  let request = setBody $ defaultRequest
-        { method = T.encodeUtf8 method'
-        , host   = T.encodeUtf8 host'
-        , port   = port'
-        , path   = T.encodeUtf8 path'
-        , responseTimeout = responseTimeoutNone
+basicReq' :: HttpEffects r
+          => (Method -> Method)
+          -> (Request -> Request)
+          -> (BS.ByteString -> BS.ByteString)
+          -> Sem r LBS.ByteString
+
+basicReq' setMethod setBody setPath = do
+  req <- ask
+  let request = setBody $ req
+        { method = setMethod $ method req
+        , path   = setPath   $ path   req
         }
 
   let ppBody b = case b of
@@ -147,12 +161,15 @@ basicReq method' setBody path' = do
 
 
   let ppReq = T.unwords
-        [ T.pack . show $ method'
-        , "http://"
-          <> host'
+        [ T.pack . show $ method request
+        , ( if secure req
+            then "https://"
+            else "http://"
+          )
+          <> (T.pack . show $ host req)
           <> ":"
-          <> (T.pack . show $ port')
-          <> path'
+          <> (T.pack . show $ port req)
+          <> (T.pack . show $ path request)
         ]
         <>
         ppBody (requestBody request)

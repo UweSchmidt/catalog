@@ -22,8 +22,9 @@ module Polysemy.HttpRequest
     -- * Actions
   , httpRequest
 
-  , -- * Interpretations
-    basicHttpRequests
+    -- * Interpretations
+  , basicHttpRequests
+  , simpleHttpRequests
 
     -- * aux types and functions
   , ResponseLBS
@@ -81,14 +82,19 @@ basicHttpRequests :: forall exc r
                      )
                   => (HttpException -> exc)
                   -> Manager
+                  -> Manager
                   -> InterpreterFor HttpRequest r
-basicHttpRequests ef manager =
+basicHttpRequests ef manager managerTls =
   interpret $
   \ c -> case c of
     HttpRequest req -> do
-      r <- embed $ X.try (httpLbs req manager)
+      r <- embed $ X.try (httpLbs req $
+                           if secure req
+                           then manager
+                           else managerTls
+                         )
       case r of
-        Left  e -> throw @exc (ef e)
+        Left  e -> throw @ exc (ef e)
         Right a -> pure a
 
       -- shorter in polysemy >= 1.3
@@ -105,5 +111,15 @@ newBasicTlsManager =
 
 httpExcToText :: HttpException -> Text
 httpExcToText = T.pack . show
+
+simpleHttpRequests :: forall r
+                   . ( Member (Embed IO) r
+                     , Member (Error Text) r
+                     )
+                  => InterpreterFor HttpRequest r
+simpleHttpRequests cmd = do
+  manHTTP  <- embed @ IO $ newBasicManager
+  manHTTPS <- embed @ IO $ newBasicTlsManager
+  basicHttpRequests httpExcToText manHTTP manHTTPS cmd
 
 ------------------------------------------------------------------------------

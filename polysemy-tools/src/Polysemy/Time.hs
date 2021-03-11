@@ -13,7 +13,6 @@
 #-} -- default extensions (only for emacs)
 
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Polysemy.Time
   ( -- Effect
