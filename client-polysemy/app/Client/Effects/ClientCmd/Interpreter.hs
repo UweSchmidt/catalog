@@ -34,7 +34,6 @@ import Polysemy.Error
 import Polysemy.Logging
 import Polysemy.Reader
 import Polysemy.State
-import Polysemy.Time
 
 -- catalog-data
 import Data.Prim
@@ -73,7 +72,7 @@ import qualified Data.Text.Lazy.Encoding  as TL
 ------------------------------------------------------------------------------
 
 type CCmdEffects r =
-  (Members '[Consume Text, Error Text, Logging, FileSystem, Time, Delay, CatCmd] r)
+  (Members '[Consume Text, Error Text, Logging, FileSystem, Delay, CatCmd] r)
 
 evalClientCmd :: CCmdEffects r => InterpreterFor ClientCmd r
 evalClientCmd =

@@ -23,13 +23,13 @@ import Polysemy.FileSystem
 import Polysemy.HttpRequest
 import Polysemy.HttpRequest.SimpleRequests
 import Polysemy.Logging
-import Polysemy.Time
 
 -- client-polysemy
 import Catalog.Effects.CatCmd.ClientInterpreter
 import Client.Effects.ClientCmd
 import Client.Effects.ClientCmd.Interpreter
 import Client.Options
+import GPS.Effects.GeoLocCmd
 
 import Network.HTTP.Client
        ( Request(..)
@@ -65,9 +65,8 @@ main = do
              req
          . basicFileSystem          -- FileStatus  (file system calls)
              ioExcToText
-         . posixTime                -- Time        (currentTime)
-             ioExcToText
          . delayedExec              -- Delay       (delayed cmd exec)
+             ioExcToText
          . simpleHttpRequests       -- HttpRequest (catalog server, ...)
          . evalClientCatCmd         -- CatCmd      (server calls)
          . evalClientCmd            -- ClientCmd   (client commands)

@@ -29,9 +29,9 @@ module Polysemy.Delay
 where
 
 import Polysemy
-import Polysemy.Time                ( Time
-                                    , currentTime
-                                    )
+import Polysemy.Error
+import Polysemy.EmbedExc
+import Polysemy.Time
 
 import Control.Monad                ( when )
 import Control.Concurrent           ( threadDelay )
@@ -39,8 +39,6 @@ import Control.Concurrent.STM       ( atomically )
 import Control.Concurrent.STM.TMVar
 
 {- imports for test
-import Polysemy.Error
-import Polysemy.EmbedExc
 
 import Data.Text                    ( Text )
 import qualified Data.Text          as T
@@ -52,7 +50,7 @@ import System.IO
 
 data Delay m a where
   -- delay the execution of cmd
-  -- if last delayed cmd was more recently
+  -- if last cmd executed with delay was more recently
   -- than the given time span in seconds
   --
   -- example: query an external http resource
@@ -94,16 +92,28 @@ delayedExec' lastTime =
       raise $ delayedExec' lastTime mm
 
 
-delayedExec :: forall r a
-             . ( Member (Embed IO) r
-               , Member Time r
-               )
-            => Sem (Delay : r) a -> Sem r a
-delayedExec cmd = do
+delayedExec'' :: forall r a
+               . ( Member (Embed IO) r
+                 , Member Time r
+                 )
+              => Sem (Delay : r) a -> Sem r a
+delayedExec'' cmd = do
   refLast <- embed @ IO $ newTMVarIO 0
   delayedExec' refLast cmd
 
-------------------------------------------------------------------------------
+
+delayedExec :: forall exc r a
+             . ( Member (Embed IO) r
+               , Member (Error exc) r
+               )
+            => (IOException -> exc)
+            -> Sem (Delay : r) a -> Sem r a
+delayedExec ef =
+  posixTime ef      -- add Time effect
+  . delayedExec''   -- add Delay effect
+  . raiseUnder      -- remove Time effect
+
+  ------------------------------------------------------------------------------
 
 {- test delayed cmd exec
 
@@ -111,20 +121,17 @@ test :: IO ()
 test = do
   res <- runM
          . runError @ Text
-         . posixTime ioExcToText
-         . delayedExec
-         $ do sequence_ $ map (\ i -> delayExec 1 $ embed $ do
-                                  putStrLn $ show i ++ ". time"
-                                  hFlush stdout
-                              ) [1..10]
+         . delayedExec ioExcToText
+         $ do cmd
               embed $ threadDelay (2 * 1000000)
               embed $ putStrLn "second run"
-              sequence_ $ map (\ i -> delayExec 1 $ embed $ do
-                                  putStrLn $ show i ++ ". time"
-                                  hFlush stdout
-                              ) [1..10]
+              cmd
 
   either (putStrLn . T.unpack) return res
-
+  where
+    cmd = sequence_ $ map (\ i -> delayExec 1 $ embed $ do
+                              putStrLn $ show i ++ ". time"
+                              hFlush stdout
+                          ) [1::Int .. 10]
 -- -}
 ------------------------------------------------------------------------------

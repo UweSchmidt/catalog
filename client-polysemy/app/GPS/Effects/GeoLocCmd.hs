@@ -32,12 +32,14 @@ module GPS.Effects.GeoLocCmd
 where
 
 import Polysemy
+import Polysemy.Delay
 import Polysemy.EmbedExc
 import Polysemy.Error
 import Polysemy.HttpRequest
 import Polysemy.HttpRequest.SimpleRequests
 import Polysemy.Logging
 import Polysemy.Reader
+import Polysemy.Time
 
 import Data.Prim
 
@@ -131,12 +133,30 @@ makeSem ''GeoLocCmd
 nominatimHttps :: forall r a
                 . ( Member (Embed IO) r
                   , Member (Error Text) r
+                  , Member Logging r
                   , Member (Reader Request) r
                   , Member HttpRequest r
-                  , Member Logging r
                   )
                => Sem (GeoLocCmd : r) a -> Sem r a
 nominatimHttps = do
+  interpret $
+    \ c -> case c of
+      GlAddress loc -> do
+        req <- embedExcText $ nominatimRequest loc  -- create request
+        lbs <- local (const req) execReq            -- set request and exec
+        jsonDecode lbs                              -- decode response
+
+nominatimHttps' :: forall r a
+                . ( Member (Embed IO) r
+                  , Member (Error Text) r
+                  , Member Logging r
+                  , Member (Reader Request) r
+                  , Member HttpRequest r
+                  , Member Delay r
+                  , Member Time r
+                  )
+               => Sem (GeoLocCmd : r) a -> Sem r a
+nominatimHttps' = do
   interpret $
     \ c -> case c of
       GlAddress loc -> do
