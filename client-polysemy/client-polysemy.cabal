@@ -19,6 +19,7 @@ executable client-polysemy
   other-modules:      Client.Effects.ClientCmd
                       Client.Effects.ClientCmd.Interpreter
                       Client.Options
+                      Client.Version
                       Catalog.Effects.CatCmd.ClientInterpreter
                       GPS.Effects.GeoLocCmd
                       

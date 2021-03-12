@@ -29,7 +29,7 @@ import Text.SimpleParser
        , parseGlobNoCase
        )
 
-import Catalog.Version (version, date)
+import Client.Version
 
 ------------------------------------------------------------------------------
 
@@ -38,12 +38,6 @@ type Port = Int
 
 type ClientAct r = (ClientOpts, ClientCmd r ())
 type ClientOpts  = ((Host, Port), LogLevel)
-
-appname :: String
-appname = "client-polysemy"
-
-userAgent :: String
-userAgent = appname <> " - " <> version <> " (" <> date <> ")"
 
 clientAction :: IO (ClientAct r)
 clientAction = execParser appInfo

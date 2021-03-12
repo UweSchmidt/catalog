@@ -39,46 +39,27 @@ import Polysemy.HttpRequest
 import Polysemy.HttpRequest.SimpleRequests
 import Polysemy.Logging
 import Polysemy.Reader
-import Polysemy.Time
 
 import Data.Prim
 
-import Data.MetaData
-       ( MetaKey )
-
-import Data.Prim.GPS
-       ( GPSposDec
-       , gpsLat
-       , gpsLong
-       )
-
 import Network.HTTP.Client
-       ( Request(..)
-       , Response(..)
-       , Manager
-       , HttpException
-       , httpLbs
-       , defaultManagerSettings
-       -- , defaultRequest
-       , newManager
-       -- , responseTimeoutNone
-       )
-import Network.HTTP.Client.TLS
+       ( Request(..) )
 
 import Network.HTTP.Types.Header
 
 import Text.Printf
        ( printf )
 
-import Client.Options
-       ( userAgent)
+import Client.Version
+       ( userAgent )
 
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.Aeson            as J
+import qualified Data.ByteString.Char8      as BS
+import qualified Data.Aeson                 as J
+import qualified Data.Text                  as T
 
 ------------------------------------------------------------------------------
 
-newtype GeoAddrList = GAS [GeoAddress]
+type GeoAddrList = [GeoAddress]
 
 data GeoAddress = GA
   { _display_name :: Text
@@ -96,10 +77,6 @@ data GeoAddress1 = GA1
   , _country      :: Text
   , _country_code :: Text
   }
-
-instance FromJSON GeoAddrList where
-  parseJSON = J.withObject "GeoAddrList" $ \ o ->
-    GAS <$> o J..: "features"
 
 instance FromJSON GeoAddress where
   parseJSON = J.withObject "GeoAddress" $ \ o ->
@@ -124,7 +101,7 @@ instance FromJSON GeoAddress1 where
 ------------------------------------------------------------------------------
 
 data GeoLocCmd m a where
-  GlAddress    :: GPSposDec -> GeoLocCmd m GeoAddress
+  GlAddress    :: GPSposDec -> GeoLocCmd m GeoAddrList
 
 makeSem ''GeoLocCmd
 
@@ -138,13 +115,10 @@ nominatimHttps :: forall r a
                   , Member HttpRequest r
                   )
                => Sem (GeoLocCmd : r) a -> Sem r a
-nominatimHttps = do
-  interpret $
-    \ c -> case c of
-      GlAddress loc -> do
-        req <- embedExcText $ nominatimRequest loc  -- create request
-        lbs <- local (const req) execReq            -- set request and exec
-        jsonDecode lbs                              -- decode response
+nominatimHttps =
+  delayedExec ioExcToText   -- add Delay effect
+  . nominatimHttps'         -- add GeoLocCmd effect
+  . raiseUnder              -- hide Delay effect
 
 nominatimHttps' :: forall r a
                 . ( Member (Embed IO) r
@@ -153,16 +127,35 @@ nominatimHttps' :: forall r a
                   , Member (Reader Request) r
                   , Member HttpRequest r
                   , Member Delay r
-                  , Member Time r
                   )
                => Sem (GeoLocCmd : r) a -> Sem r a
 nominatimHttps' = do
   interpret $
     \ c -> case c of
-      GlAddress loc -> do
-        req <- embedExcText $ nominatimRequest loc  -- create request
-        lbs <- local (const req) execReq            -- set request and exec
-        jsonDecode lbs                              -- decode response
+      GlAddress loc -> delayExec timeBetweenRequests $
+        ( do
+            log'trc $ untext [ "glAddress: read address for: "
+                             , T.pack . show $ loc
+                             ]
+            req <- embedExcText $ nominatimRequest loc  -- create request
+            lbs <- local (const req) execReq            -- set request and exec
+            log'trc $ untext [ "glAddress: result: "
+                             , lbsToText lbs
+                             ]
+            jsonDecode lbs                              -- decode response
+        )
+        `catch`
+        ( \ msg ->
+            do
+              log'warn $ untext [ "glAddress: no address got, err:", msg]
+              return mempty
+        )
+  where
+    timeBetweenRequests :: Int
+    timeBetweenRequests = 2   -- seconds
+
+-- create request for nominatim server of open street map
+-- location to address translation
 
 nominatimRequest :: GPSposDec -> IO Request
 nominatimRequest gps = do

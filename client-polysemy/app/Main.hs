@@ -18,7 +18,6 @@ import Polysemy.Reader
 
 -- polysemy-useful-stuff
 import Polysemy.Consume
-import Polysemy.Delay
 import Polysemy.FileSystem
 import Polysemy.HttpRequest
 import Polysemy.HttpRequest.SimpleRequests
@@ -65,9 +64,8 @@ main = do
              req
          . basicFileSystem          -- FileStatus  (file system calls)
              ioExcToText
-         . delayedExec              -- Delay       (delayed cmd exec)
-             ioExcToText
          . simpleHttpRequests       -- HttpRequest (catalog server, ...)
+         . nominatimHttps           -- GeoLocCmd   (HTTPs to openstreetmap)
          . evalClientCatCmd         -- CatCmd      (server calls)
          . evalClientCmd            -- ClientCmd   (client commands)
          $ do

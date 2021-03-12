@@ -26,10 +26,12 @@ module Polysemy.HttpRequest.SimpleRequests
   , argJSONReq
   , jsonDecode
 
-    -- * reexports and aux types
+    -- * reexports and aux types and functions
   , HttpEffects
   , Request
   , parseRequest
+  , lbsToText
+  , bsToText
   )
 where
 
