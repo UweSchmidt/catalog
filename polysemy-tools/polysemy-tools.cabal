@@ -17,6 +17,7 @@ source-repository head
 library
   exposed-modules:
                       -- own Polysemy effects
+                  Polysemy.Cache
                   Polysemy.Consume
                   Polysemy.Consume.BGQueue
                   Polysemy.Delay
@@ -56,6 +57,7 @@ library
                , aeson                >= 0.8
                , base                 >= 4.7 && <5
                , bytestring
+               , containers
                , directory
                , exceptions
                , http-client

@@ -16,22 +16,20 @@
 
 module GPS.Effects.GeoLocCmd
   ( -- * Effects
-    GeoLocCmd (..)
+    Cache(..)
 
     -- * Actions
-  , glAddress
+  , lookupCache
+  , putCache
+  , getCache
 
     -- * Interpreter
-  , nominatimHttps
-
-    -- * reexported catalog types
-  , GPSposDec
-  , gpsLat
-  , gpsLong
+  , runReverseGeoLoc
   )
 where
 
 import Polysemy
+import Polysemy.Cache
 import Polysemy.Delay
 import Polysemy.EmbedExc
 import Polysemy.Error
@@ -54,58 +52,45 @@ import Client.Version
        ( userAgent )
 
 import qualified Data.ByteString.Char8      as BS
-import qualified Data.Aeson                 as J
-import qualified Data.Text                  as T
-
-------------------------------------------------------------------------------
-
-type GeoAddrList = [GeoAddress]
-
-data GeoAddress = GA
-  { _display_name :: Text
-  , _geo_address  :: GeoAddress1
-  }
-
-data GeoAddress1 = GA1
-  { _house_number :: Text
-  , _road         :: Text
-  , _suburb       :: Text
-  , _city         :: Text
-  , _county       :: Text
-  , _state        :: Text
-  , _postcode     :: Text
-  , _country      :: Text
-  , _country_code :: Text
-  }
-
-instance FromJSON GeoAddress where
-  parseJSON = J.withObject "GeoAddress" $ \ o ->
-    GA
-    <$> o J..: "display_name"
-    <*> o J..: "address"
-
-instance FromJSON GeoAddress1 where
-  parseJSON = J.withObject "GeoAddress1" $ \ o ->
-    GA1
-    <$> (o J..:? "house_number" J..!= mempty)
-    <*> (o J..:? "road"         J..!= mempty)
-    <*> (o J..:? "suburb"       J..!= mempty)
-    <*> (o J..:? "city"         J..!= mempty)
-    <*> (o J..:? "country"      J..!= mempty)
-    <*> (o J..:? "state"        J..!= mempty)
-    <*> (o J..:? "postcode"     J..!= mempty)
-    <*> (o J..:? "country"      J..!= mempty)
-    <*> (o J..:? "country_code" J..!= mempty)
-
 
 ------------------------------------------------------------------------------
 
 data GeoLocCmd m a where
-  GlAddress    :: GPSposDec -> GeoLocCmd m GeoAddrList
+  GeoLocAddress :: GPSposDec -> GeoLocCmd m (Maybe GeoAddrList)
 
 makeSem ''GeoLocCmd
 
 ------------------------------------------------------------------------------
+
+-- currently the only interpreter for getting
+-- locations mapped to addresses
+--
+-- nominatim uses open street map data
+-- it allows only low bandwidth usage,
+-- max. a single request per second
+-- and results must be cached to
+-- to avoid repeated request with same coordinates
+--
+-- runReverseGeoLoc is the interpreter
+-- supporting cached lookup
+-- nominatimhttps adds delayed requests
+-- nominatimhttps' does the real request
+-- and decodes JSON data of response
+
+
+runReverseGeoLoc :: forall r a
+                . ( Member (Embed IO) r
+                  , Member (Error Text) r
+                  , Member Logging r
+                  , Member (Reader Request) r
+                  , Member HttpRequest r
+                  )
+               => Sem (Cache GPSposDec GeoAddrList : r) a -> Sem r a
+runReverseGeoLoc =
+  nominatimHttps               -- add GeoLocCmd effect
+  . runCache geoLocAddress     -- add Cache effect, use GeoLocCmd effect
+  . raiseUnder                 -- hide GeoLocCmd effect
+                               -- only the Cache commands are needed
 
 nominatimHttps :: forall r a
                 . ( Member (Embed IO) r
@@ -120,6 +105,7 @@ nominatimHttps =
   . nominatimHttps'         -- add GeoLocCmd effect
   . raiseUnder              -- hide Delay effect
 
+
 nominatimHttps' :: forall r a
                 . ( Member (Embed IO) r
                   , Member (Error Text) r
@@ -132,23 +118,32 @@ nominatimHttps' :: forall r a
 nominatimHttps' = do
   interpret $
     \ c -> case c of
-      GlAddress loc -> delayExec timeBetweenRequests $
+      GeoLocAddress loc -> delayExec timeBetweenRequests $
         ( do
-            log'trc $ untext [ "glAddress: read address for: "
-                             , T.pack . show $ loc
+            log'trc $ untext [ "geoLocAddress: read address for: "
+                             , isoString . prismString # loc
                              ]
+
             req <- embedExcText $ nominatimRequest loc  -- create request
             lbs <- local (const req) execReq            -- set request and exec
-            log'trc $ untext [ "glAddress: result: "
+
+            log'trc $ untext [ "geoLocAddress: result: "
                              , lbsToText lbs
                              ]
-            jsonDecode lbs                              -- decode response
+            -- decode response
+            jsonDecode lbs
+              `catch`
+              (\ msg ->
+                  do
+                    log'warn $ untext ["geoLocAddress: ", msg]
+                    return $ Just []
+              )
         )
         `catch`
         ( \ msg ->
             do
-              log'warn $ untext [ "glAddress: no address got, err:", msg]
-              return mempty
+              log'warn $ untext ["geoLocAddress: nominatim server err:", msg]
+              return Nothing
         )
   where
     timeBetweenRequests :: Int

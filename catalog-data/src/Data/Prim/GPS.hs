@@ -12,12 +12,19 @@ module Data.Prim.GPS
   , isoDegDec
   , isoGoogleMapsDegree
   , googleMapsGPSdec
+
+  , GeoLocAddrList
+  , GeoAddrList
+  , GeoAddress
+  , GeoAddress1
   )
 where
 
 import           Data.Prim.Prelude
 import           Text.SimpleParser
 import           Text.Printf         ( printf )
+
+import qualified Data.Aeson          as J
 
 -- ----------------------------------------
 
@@ -29,7 +36,7 @@ data GPSpos' a =
   GPSpos { _gpsLat  :: !a
          , _gpsLong :: !a
          }
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 type GPSposDeg = GPSpos' GPSdeg  -- GPS position (lat, long) in deg, min, sec, dir
 type GPSposDec = GPSpos' Double  -- GPS position (lat, long) in decimal degrees
@@ -150,6 +157,17 @@ isoGoogleMapsDegree =
 instance PrismString GPSdeg where
   prismString = prism' showDeg (parseMaybe $ parserDeg [N, E, S, W])
 
+instance ToJSON GPSposDec where
+  toJSON (GPSpos lo la) = toJSON [lo, la]
+
+instance FromJSON GPSposDec where
+  parseJSON = parseJSON >=> toGPS
+    where
+      toGPS [lo, la] = return $ GPSpos lo la
+      toGPS _        = mzero
+
+-- --------------------
+--
 -- helper funtions
 
 parserPosDec :: SP GPSposDec
@@ -223,6 +241,73 @@ floatParser =
   )
   <|>
   (("0." ++) <$> (char '.' *> some digitChar))
+
+-- ----------------------------------------
+
+type GeoLocAddrList = [(GPSposDec, GeoAddrList)]
+
+type GeoAddrList = [GeoAddress]
+
+data GeoAddress = GA
+  { _display_name :: Text
+  , _geo_address  :: GeoAddress1
+  }
+  deriving (Show)   -- just for testing
+
+data GeoAddress1 = GA1
+  { _house_number :: Text
+  , _road         :: Text
+  , _suburb       :: Text
+  , _city         :: Text
+  , _county       :: Text
+  , _state        :: Text
+  , _postcode     :: Text
+  , _country      :: Text
+  , _country_code :: Text
+  }
+  deriving (Show)
+
+instance FromJSON GeoAddress where
+  parseJSON = J.withObject "GeoAddress" $ \ o ->
+    GA
+    <$> o J..: "display_name"
+    <*> o J..: "address"
+
+instance FromJSON GeoAddress1 where
+  parseJSON = J.withObject "GeoAddress1" $ \ o ->
+    GA1
+    <$> (o J..:? "house_number" J..!= mempty)
+    <*> (o J..:? "road"         J..!= mempty)
+    <*> (o J..:? "suburb"       J..!= mempty)
+    <*> (o J..:? "city"         J..!= mempty)
+    <*> (o J..:? "county"       J..!= mempty)
+    <*> (o J..:? "state"        J..!= mempty)
+    <*> (o J..:? "postcode"     J..!= mempty)
+    <*> (o J..:? "country"      J..!= mempty)
+    <*> (o J..:? "country_code" J..!= mempty)
+
+instance ToJSON GeoAddress where
+  toJSON (GA dn ga) = J.object
+    [ "display_name" J..= dn
+    , "address"      J..= ga
+    ]
+
+instance ToJSON GeoAddress1 where
+  toJSON (GA1 ho ro su ci co st po cu cc) = J.object $
+    concat [ apart "house_number" ho
+           , apart "road"         ro
+           , apart "suburb"       su
+           , apart "city"         ci
+           , apart "county"       co
+           , apart "state"        st
+           , apart "poscode"      po
+           , apart "country"      cu
+           , apart "country_code" cc
+           ]
+    where
+      apart k v
+        | isempty v = []
+        | otherwise = [k J..= v]
 
 -- ----------------------------------------
 --

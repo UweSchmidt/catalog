@@ -72,7 +72,13 @@ import qualified Data.Text.Lazy.Encoding  as TL
 ------------------------------------------------------------------------------
 
 type CCmdEffects r =
-  (Members '[Consume Text, Error Text, Logging, FileSystem, GeoLocCmd, CatCmd] r)
+  (Members '[ Consume Text
+            , Error Text
+            , Logging
+            , FileSystem
+            , Cache GPSposDec GeoAddrList
+            , CatCmd
+            ] r)
 
 evalClientCmd :: CCmdEffects r => InterpreterFor ClientCmd r
 evalClientCmd =

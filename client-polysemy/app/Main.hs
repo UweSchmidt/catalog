@@ -65,7 +65,7 @@ main = do
          . basicFileSystem          -- FileStatus  (file system calls)
              ioExcToText
          . simpleHttpRequests       -- HttpRequest (catalog server, ...)
-         . nominatimHttps           -- GeoLocCmd   (HTTPs to openstreetmap)
+         . runReverseGeoLoc         -- Cached GeoLocCmd (HTTPs to openstreetmap)
          . evalClientCatCmd         -- CatCmd      (server calls)
          . evalClientCmd            -- ClientCmd   (client commands)
          $ do
@@ -79,6 +79,17 @@ main = do
     either (const $ ExitFailure 1)
            (const   ExitSuccess)
            res
+
+-- --------------------
+--
+-- create a Request for calling
+-- catalog server at
+-- "http://<host>:<port>/index.html"
+-- the path component, here "index.html" will be overwritten
+-- before executing a request to the catalog server
+--
+-- local requests, e.g. file system imports
+-- may run a long time, so timeouts are disabled
 
 catalogServerRequest :: Text -> Int -> IO Request
 catalogServerRequest h p = do
