@@ -25,6 +25,10 @@ module GPS.Effects.GeoLocCmd
 
     -- * Interpreter
   , runReverseGeoLoc
+
+    -- * aux types and functions
+  , nominatimRequest
+  , locTestRequest
   )
 where
 
@@ -101,21 +105,23 @@ nominatimHttps :: forall r a
                   )
                => Sem (GeoLocCmd : r) a -> Sem r a
 nominatimHttps =
-  delayedExec ioExcToText   -- add Delay effect
-  . nominatimHttps'         -- add GeoLocCmd effect
-  . raiseUnder              -- hide Delay effect
+  delayedExec ioExcToText                  -- add Delay effect
+--  . nominatimHttps' nominatimRequest       -- add GeoLocCmd effect
+  . nominatimHttps' locTestRequest         -- add GeoLocCmd effect
+  . raiseUnder                             -- hide Delay effect
 
 
 nominatimHttps' :: forall r a
-                . ( Member (Embed IO) r
-                  , Member (Error Text) r
-                  , Member Logging r
-                  , Member (Reader Request) r
-                  , Member HttpRequest r
-                  , Member Delay r
-                  )
-               => Sem (GeoLocCmd : r) a -> Sem r a
-nominatimHttps' = do
+                 . ( Member (Embed IO) r
+                   , Member (Error Text) r
+                   , Member Logging r
+                   , Member (Reader Request) r
+                   , Member HttpRequest r
+                   , Member Delay r
+                   )
+                => (GPSposDec -> IO Request)
+                -> Sem (GeoLocCmd : r) a -> Sem r a
+nominatimHttps' req0= do
   interpret $
     \ c -> case c of
       GeoLocAddress loc -> delayExec timeBetweenRequests $
@@ -124,7 +130,7 @@ nominatimHttps' = do
                              , isoString . prismString # loc
                              ]
 
-            req <- embedExcText $ nominatimRequest loc  -- create request
+            req <- embedExcText $ req0 loc              -- create request
             lbs <- local (const req) execReq            -- set request and exec
 
             log'trc $ untext [ "geoLocAddress: result: "
@@ -171,5 +177,10 @@ nominatimRequest gps = do
 
     addHeader :: Header -> Request -> Request
     addHeader hd req = req {requestHeaders = hd : requestHeaders req}
+
+locTestRequest :: GPSposDec -> IO Request
+locTestRequest _gps = do
+  parseRequest $
+    "http://scheibe:3001/assets/javascript/geotest.js"
 
 ------------------------------------------------------------------------------

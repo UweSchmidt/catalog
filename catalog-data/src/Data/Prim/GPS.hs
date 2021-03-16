@@ -257,6 +257,8 @@ data GeoAddress = GA
 data GeoAddress1 = GA1
   { _house_number :: Text
   , _road         :: Text
+  , _village      :: Text
+  , _municipality :: Text
   , _suburb       :: Text
   , _city         :: Text
   , _county       :: Text
@@ -278,6 +280,8 @@ instance FromJSON GeoAddress1 where
     GA1
     <$> (o J..:? "house_number" J..!= mempty)
     <*> (o J..:? "road"         J..!= mempty)
+    <*> (o J..:? "village"      J..!= mempty)
+    <*> (o J..:? "municipality" J..!= mempty)
     <*> (o J..:? "suburb"       J..!= mempty)
     <*> (o J..:? "city"         J..!= mempty)
     <*> (o J..:? "county"       J..!= mempty)
@@ -293,9 +297,11 @@ instance ToJSON GeoAddress where
     ]
 
 instance ToJSON GeoAddress1 where
-  toJSON (GA1 ho ro su ci co st po cu cc) = J.object $
+  toJSON (GA1 ho ro vi mu su ci co st po cu cc) = J.object $
     concat [ apart "house_number" ho
            , apart "road"         ro
+           , apart "village"      vi
+           , apart "municipality" mu
            , apart "suburb"       su
            , apart "city"         ci
            , apart "county"       co
