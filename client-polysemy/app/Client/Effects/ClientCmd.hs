@@ -35,6 +35,7 @@ module Client.Effects.ClientCmd
   , ccUndoList
   , ccExifUpdate
   , ccCheckMeta
+  , ccGeoAddress
 
     -- * reexported catalog types
   , Geo
@@ -86,6 +87,7 @@ data ClientCmd m a where
   CcUndoList   ::                                ClientCmd m ()
   CcExifUpdate :: Path    -> Bool     -> Bool -> ClientCmd m ()
   CcCheckMeta  :: Path                        -> ClientCmd m ()
+  CcGeoAddress :: Path    -> Bool             -> ClientCmd m ()
 
 makeSem ''ClientCmd
 

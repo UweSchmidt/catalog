@@ -312,6 +312,30 @@ cmdClient = subparser $
         <> ". Glob style patterns are allowed in path."
       )
     )
+  <>
+  command "geo-address"
+    ( ( let cc forceUpdate p =
+              CcGeoAddress p forceUpdate
+        in
+          cc
+          <$> flag False True
+              ( long "force"
+                <> short 'f'
+                <> help ( "Force recomputing address metadata even if it's"
+                          <> " already set."
+                        )
+              )
+          <*> argPath
+
+      )
+      `withInfo`
+      ( "Import address data for GPS location of images/collections into metadata."
+        <> " Path may point to a collection, a single image object"
+        <> " or directory of images."
+        <> "Globstyle patterns are allowed."
+        <> "Open street map is used for reverse geo location service."
+      )
+    )
 
 ----------------------------------------
 --

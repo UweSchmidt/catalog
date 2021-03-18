@@ -90,8 +90,8 @@ basicHttpRequests ef manager managerTls =
     HttpRequest req -> do
       r <- embed $ X.try (httpLbs req $
                            if secure req
-                           then manager
-                           else managerTls
+                           then managerTls
+                           else manager
                          )
       case r of
         Left  e -> throw @ exc (ef e)

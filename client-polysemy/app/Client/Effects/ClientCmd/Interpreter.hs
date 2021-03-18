@@ -42,12 +42,17 @@ import Data.MetaData ( MetaKey
                      , isoMetaDataMDT
                      , metaTextAt
                      , metaDataAt
+                     , metaGPS
                      , metaMimeType
+                     , lookupByKeys
                      , filterKeysMetaData
                      , prettyMetaData
 
                        -- MetaKey values
+                     , compositeGPSPosition
                      , compositeImageSize
+                     , descrAddress
+                     , descrGPSPosition
                      , fileMimeType
                      , fileName
                      )
@@ -146,6 +151,12 @@ evalClientCmd =
     CcCheckMeta p -> do
       ps <- globExpand p
       traverse_ (\ p' -> theEntry p' >>= checkMeta p') ps
+
+    CcGeoAddress p force -> do
+      loadGeoCache
+      ps <- globExpand p
+      traverse_ (\ p' -> theEntry p' >>= setGeoAddress force p') ps
+      saveGeoCache
 
 {-# INLINE evalClientCmd #-}
 
@@ -532,6 +543,82 @@ checksumFile :: Member FileSystem r
 checksumFile p = do
   r <- mkCheckSum <$> readFileBS p
   return $! r
+
+------------------------------------------------------------------------------
+
+geoCachePath :: Text
+geoCachePath = "./geocache.json"
+
+loadGeoCache :: CCmdEffects r => Sem r ()
+loadGeoCache = do
+  log'trc $ "loadGeoCache: file=" <> geoCachePath
+  lbs <- readFileLB geoCachePath
+  putGeoCache lbs
+
+saveGeoCache :: CCmdEffects r => Sem r ()
+saveGeoCache = do
+  log'trc $ "saveGeoCache: file=" <> geoCachePath
+  lbs <- getGeoCache
+  writeFileLB geoCachePath lbs
+
+setGeoAddress :: forall r. CCmdEffects r
+              => Bool
+              -> Path
+              -> ImgNodeP -> Sem r ()
+setGeoAddress force p e
+  | isIMG e = do
+      setImgAddress
+
+  | isCOL e = do
+      setImgAddress                             -- process COL metadata
+      traverse_
+        (setGeoAddress' . colEntry const id)    -- process COL entries
+        (e ^. theColEntries)                    -- recurse into sub COLs
+                                                -- or process IMG entries
+  | isDIR e = do
+      traverse_ setGeoAddress' (e ^. theDirEntries)
+
+  | otherwise = return ()
+  where
+    setGeoAddress' :: CCmdEffects r => Path -> Sem r ()
+    setGeoAddress' p' = theEntry p' >>= setGeoAddress force p'
+
+    setImgAddress :: CCmdEffects r => Sem r ()
+    setImgAddress
+      | Just loc <- mgps
+      , force
+        ||
+        isempty mAddr = do
+          log'trc $ untext [ "setGeoAddress: update addr for"
+                           , p ^. isoText
+                           ]
+          mga <- lookupGeoCache loc
+          case mga of
+            Nothing ->  -- no result got from location service
+              return ()
+
+            Just [] ->  -- no address for this loc
+              return ()
+
+                        -- take the display_name of the 1. available address
+                        -- and add this to metadata of path p
+            Just (GA{_display_name = ad} : _) -> do
+              let md1 = mempty & metaTextAt descrAddress .~ ad
+              _r <- setMetaData1 (-1) (md1 ^. isoMetaDataMDT) p
+              return ()
+
+
+      | otherwise = return ()
+      where
+        md :: MetaData
+        md = e ^. theMetaData
+
+        mgps :: Maybe GPSposDec
+        mgps = lookupByKeys [descrGPSPosition, compositeGPSPosition] md ^. metaGPS
+
+        mAddr :: Text
+        mAddr = md ^. metaTextAt descrAddress
+
 
 ------------------------------------------------------------------------------
 

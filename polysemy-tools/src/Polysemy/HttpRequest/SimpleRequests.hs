@@ -164,17 +164,18 @@ basicReq' setMethod setBody setPath = do
         RequestBodyLBS lbs -> " " <> (T.pack . LCS.unpack $ lbs)
         _others            -> mempty
 
+  let totxt = T.pack . CS.unpack
 
   let ppReq = T.unwords
-        [ T.pack . show $ method request
+        [ totxt $ method request
         , ( if secure req
             then "https://"
             else "http://"
           )
-          <> (T.pack . show $ host req)
+          <> (totxt $ host req)
           <> ":"
           <> (T.pack . show $ port req)
-          <> (T.pack . show $ path request)
+          <> (totxt $ path request)
         ]
         <>
         ppBody (requestBody request)

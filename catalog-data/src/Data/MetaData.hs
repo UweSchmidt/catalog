@@ -23,6 +23,7 @@ module Data.MetaData
 
   , metaAcc
   , metaCheckSum
+  , metaGPS
   , metaImgType
   , metaMimeType
   , metaName
@@ -92,6 +93,7 @@ module Data.MetaData
   , descrSubtitle
   , descrTitleEnglish
   , descrTitleLatin
+  , descrAddress
   , descrLocation
   , descrKeywords
   , descrWeb
@@ -227,6 +229,7 @@ data MetaKey
   | Composite'SubSecCreateDate
   | Composite'SubSecDateTimeOriginal
   | Descr'Access
+  | Descr'Address
   | Descr'CatalogVersion
   | Descr'CatalogWrite
   | Descr'Comment
@@ -372,6 +375,7 @@ descrTitle
   , descrSubtitle
   , descrTitleEnglish
   , descrTitleLatin
+  , descrAddress
   , descrLocation
   , descrKeywords
   , descrWeb
@@ -393,6 +397,7 @@ descrTitle
 keysAttrDescr :: [MetaKey]
 keysAttrDescr@[
   descrAccess
+  , descrAddress
   , descrCatalogVersion
   , descrCatalogWrite
   , descrComment
@@ -1162,8 +1167,6 @@ isAUserCol  = doesn'tHave NO'user
 
 doesn'tHave :: AccessRestr -> MetaData -> Bool
 doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
-
-
 
 -- --------------------
 --

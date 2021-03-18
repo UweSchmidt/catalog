@@ -19,9 +19,9 @@ module GPS.Effects.GeoLocCmd
     Cache(..)
 
     -- * Actions
-  , lookupCache
-  , putCache
-  , getCache
+  , lookupGeoCache
+  , putGeoCache
+  , getGeoCache
 
     -- * Interpreter
   , runReverseGeoLoc
@@ -55,7 +55,34 @@ import Text.Printf
 import Client.Version
        ( userAgent )
 
-import qualified Data.ByteString.Char8      as BS
+import qualified Data.ByteString.Lazy     as LS
+import qualified Data.ByteString.Char8    as BS
+import qualified Data.Aeson               as J
+import qualified Data.Aeson.Encode.Pretty as J
+
+------------------------------------------------------------------------------
+
+lookupGeoCache :: (Member (Cache GPSposDec GeoAddrList) r)
+               => GPSposDec -> Sem r (Maybe GeoAddrList)
+lookupGeoCache = lookupCache
+
+
+putGeoCache :: ( Member (Error Text) r
+               , Member (Cache GPSposDec GeoAddrList) r)
+            => LS.ByteString
+            -> Sem r ()
+putGeoCache lbs = do
+  case J.decode lbs of
+    Nothing -> throw "json decode Error"
+    Just cs -> putCache cs
+
+getGeoCache :: ( Member (Error Text) r
+               , Member (Cache GPSposDec GeoAddrList) r)
+            => Sem r LS.ByteString
+getGeoCache = J.encodePretty' conf <$> getCache
+  where
+    conf = J.defConfig
+           { J.confIndent  = J.Spaces 2 }
 
 ------------------------------------------------------------------------------
 
@@ -106,8 +133,8 @@ nominatimHttps :: forall r a
                => Sem (GeoLocCmd : r) a -> Sem r a
 nominatimHttps =
   delayedExec ioExcToText                  -- add Delay effect
---  . nominatimHttps' nominatimRequest       -- add GeoLocCmd effect
-  . nominatimHttps' locTestRequest         -- add GeoLocCmd effect
+  . nominatimHttps' nominatimRequest       -- add GeoLocCmd effect
+--  . nominatimHttps' locTestRequest         -- add GeoLocCmd effect
   . raiseUnder                             -- hide Delay effect
 
 
@@ -121,7 +148,7 @@ nominatimHttps' :: forall r a
                    )
                 => (GPSposDec -> IO Request)
                 -> Sem (GeoLocCmd : r) a -> Sem r a
-nominatimHttps' req0= do
+nominatimHttps' req0 = do
   interpret $
     \ c -> case c of
       GeoLocAddress loc -> delayExec timeBetweenRequests $
@@ -137,7 +164,7 @@ nominatimHttps' req0= do
                              , lbsToText lbs
                              ]
             -- decode response
-            jsonDecode lbs
+            (Just . toGeoAddrList <$> jsonDecode lbs)
               `catch`
               (\ msg ->
                   do
@@ -181,6 +208,24 @@ nominatimRequest gps = do
 locTestRequest :: GPSposDec -> IO Request
 locTestRequest _gps = do
   parseRequest $
-    "http://scheibe:3001/assets/javascript/geotest.js"
+    "http://localhost:3001/assets/javascript/geotest.js"
+
+------------------------------------------------------------------------------
+--
+-- aux types for JSON geo response format "geojson"
+
+newtype GeoAddrList' = GAL' [GeoAddress']
+newtype GeoAddress'  = GA'  GeoAddress
+
+instance FromJSON GeoAddrList' where
+  parseJSON = J.withObject "GeoAddrList'" $ \ o ->
+    GAL' <$> o J..: "features"
+
+instance FromJSON GeoAddress' where
+  parseJSON = J.withObject "GeoAddress'" $ \ o ->
+    GA' <$> o J..: "properties"
+
+toGeoAddrList :: GeoAddrList' -> GeoAddrList
+toGeoAddrList (GAL' xs) = map (\ (GA' x) -> x) xs
 
 ------------------------------------------------------------------------------

@@ -623,8 +623,8 @@ modify'setMetaData'' ixs edi edp n =
 modify'setMetaData1 :: Eff'ISEJL r
                     => Int -> MetaDataText -> ObjId -> ImgNode -> Sem r ()
 modify'setMetaData1 pos md oid n
-  | pos < 0   = adjustMetaData ed oid           -- update coll  metadata
-  | otherwise = modify'setMetaData ixs md n     -- update entry metadata
+  | pos < 0   = adjustMetaData ed oid           -- update COL or IMG metadata
+  | otherwise = modify'setMetaData ixs md n     -- update COL entry metadata
   where
     ed  = editMetaData (isoMetaDataMDT # md)
     ixs = replicate pos (0-1) ++ [1]

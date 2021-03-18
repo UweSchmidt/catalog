@@ -15,8 +15,8 @@ module Data.Prim.GPS
 
   , GeoLocAddrList
   , GeoAddrList
-  , GeoAddress
-  , GeoAddress1
+  , GeoAddress(..)
+  , GeoAddress1(..)
   )
 where
 
@@ -256,10 +256,12 @@ data GeoAddress = GA
 
 data GeoAddress1 = GA1
   { _house_number :: Text
+  , _house_name   :: Text
   , _road         :: Text
   , _village      :: Text
   , _municipality :: Text
   , _suburb       :: Text
+  , _town         :: Text
   , _city         :: Text
   , _county       :: Text
   , _state        :: Text
@@ -268,6 +270,8 @@ data GeoAddress1 = GA1
   , _country_code :: Text
   }
   deriving (Show)
+
+-- --------------------
 
 instance FromJSON GeoAddress where
   parseJSON = J.withObject "GeoAddress" $ \ o ->
@@ -279,10 +283,12 @@ instance FromJSON GeoAddress1 where
   parseJSON = J.withObject "GeoAddress1" $ \ o ->
     GA1
     <$> (o J..:? "house_number" J..!= mempty)
+    <*> (o J..:? "house_name"   J..!= mempty)
     <*> (o J..:? "road"         J..!= mempty)
     <*> (o J..:? "village"      J..!= mempty)
     <*> (o J..:? "municipality" J..!= mempty)
     <*> (o J..:? "suburb"       J..!= mempty)
+    <*> (o J..:? "town"         J..!= mempty)
     <*> (o J..:? "city"         J..!= mempty)
     <*> (o J..:? "county"       J..!= mempty)
     <*> (o J..:? "state"        J..!= mempty)
@@ -297,16 +303,18 @@ instance ToJSON GeoAddress where
     ]
 
 instance ToJSON GeoAddress1 where
-  toJSON (GA1 ho ro vi mu su ci co st po cu cc) = J.object $
+  toJSON (GA1 ho hn ro vi mu su tw ci co st po cu cc) = J.object $
     concat [ apart "house_number" ho
+           , apart "house_name"   hn
            , apart "road"         ro
            , apart "village"      vi
            , apart "municipality" mu
            , apart "suburb"       su
+           , apart "town"         tw
            , apart "city"         ci
            , apart "county"       co
            , apart "state"        st
-           , apart "poscode"      po
+           , apart "postcode"     po
            , apart "country"      cu
            , apart "country_code" cc
            ]

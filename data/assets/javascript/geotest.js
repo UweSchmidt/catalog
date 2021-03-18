@@ -1,27 +1,30 @@
 {"type":"FeatureCollection",
- "geocoding":{"version":"0.1.0",
-              "attribution":"Data © OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
-              "licence":"ODbL",
-              "query":"29.7,-84.8"
-             },
- "features":[{"type":"Feature",
-              "properties":{"geocoding":{"place_id":258998279,
-                                         "osm_type":"relation",
-                                         "osm_id":1210712,
-                                         "type":"administrative",
-                                         "accuracy":0,
-                                         "label":"Franklin County, Florida, United States",
-                                         "name":"Franklin County",
-                                         "country":"United States",
-                                         "state":"Florida",
-                                         "admin":{"level4":"Florida",
-                                                  "level6":"Franklin County"
-                                                 }
-                                        }
-                           },
-              "geometry":{"type":"Point",
-                          "coordinates":[-84.8239118,29.8323143]
-                         }
-             }
-            ]
-}^
+ "licence":"Data Â© OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+ "features": [
+     {"type":"Feature",
+      "properties":{"place_id":205272981,
+                    "osm_type":"way",
+                    "osm_id":541756684,
+                    "place_rank":26,
+                    "category":"highway",
+                    "type":"unclassified",
+                    "importance":0.09999999999999998,
+                    "addresstype":"road",
+                    "name":null,
+                    "display_name":"Saint-Seurin-sur-l'Isle, Libourne, Gironde, Nouvelle-Aquitaine, France mÃ©tropolitaine, 33660, France",
+                    "address":{"village":"Saint-Seurin-sur-l'Isle",
+                               "municipality":"Libourne",
+                               "county":"Gironde",
+                               "state":"Nouvelle-Aquitaine",
+                               "country":"France",
+                               "postcode":"33660",
+                               "country_code":"fr"
+                              }
+                   },
+      "bbox":[-0.0018119,44.9997021,0.002082,45.0004307],
+      "geometry":{"type":"Point",
+                  "coordinates":[0.0001659,44.9999799]
+                 }
+     }
+ ]
+}
