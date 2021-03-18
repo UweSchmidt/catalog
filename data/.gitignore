@@ -4,6 +4,7 @@ catalog-sync
 catalog-servant*
 catalog-client
 servant-polysemy
+client-polysemy
 photos
 cache
 Alben
