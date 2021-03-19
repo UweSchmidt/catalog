@@ -3,8 +3,8 @@
 // rpc communication
 
 var serverVersion = { "server"  : "servant",
-                      "version" : "0.5.6.1",
-                      "date"    : "2021-03-18"
+                      "version" : "0.5.6.2",
+                      "date"    : "2021-03-19"
                     };
 
 // --------------------
