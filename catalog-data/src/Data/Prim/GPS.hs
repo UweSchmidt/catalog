@@ -16,7 +16,7 @@ module Data.Prim.GPS
   , GeoLocAddrList
   , GeoAddrList
   , GeoAddress(..)
-  , GeoAddress1(..)
+  , GeoAddress1
   )
 where
 
@@ -25,6 +25,7 @@ import           Text.SimpleParser
 import           Text.Printf         ( printf )
 
 import qualified Data.Aeson          as J
+import qualified Data.Map            as M
 
 -- ----------------------------------------
 
@@ -254,22 +255,7 @@ data GeoAddress = GA
   }
   deriving (Show)   -- just for testing
 
-data GeoAddress1 = GA1
-  { _house_number :: Text
-  , _house_name   :: Text
-  , _road         :: Text
-  , _village      :: Text
-  , _municipality :: Text
-  , _suburb       :: Text
-  , _town         :: Text
-  , _city         :: Text
-  , _county       :: Text
-  , _state        :: Text
-  , _postcode     :: Text
-  , _country      :: Text
-  , _country_code :: Text
-  }
-  deriving (Show)
+type GeoAddress1 = M.Map Text Text
 
 -- --------------------
 
@@ -279,49 +265,12 @@ instance FromJSON GeoAddress where
     <$> o J..: "display_name"
     <*> o J..: "address"
 
-instance FromJSON GeoAddress1 where
-  parseJSON = J.withObject "GeoAddress1" $ \ o ->
-    GA1
-    <$> (o J..:? "house_number" J..!= mempty)
-    <*> (o J..:? "house_name"   J..!= mempty)
-    <*> (o J..:? "road"         J..!= mempty)
-    <*> (o J..:? "village"      J..!= mempty)
-    <*> (o J..:? "municipality" J..!= mempty)
-    <*> (o J..:? "suburb"       J..!= mempty)
-    <*> (o J..:? "town"         J..!= mempty)
-    <*> (o J..:? "city"         J..!= mempty)
-    <*> (o J..:? "county"       J..!= mempty)
-    <*> (o J..:? "state"        J..!= mempty)
-    <*> (o J..:? "postcode"     J..!= mempty)
-    <*> (o J..:? "country"      J..!= mempty)
-    <*> (o J..:? "country_code" J..!= mempty)
 
 instance ToJSON GeoAddress where
   toJSON (GA dn ga) = J.object
     [ "display_name" J..= dn
     , "address"      J..= ga
     ]
-
-instance ToJSON GeoAddress1 where
-  toJSON (GA1 ho hn ro vi mu su tw ci co st po cu cc) = J.object $
-    concat [ apart "house_number" ho
-           , apart "house_name"   hn
-           , apart "road"         ro
-           , apart "village"      vi
-           , apart "municipality" mu
-           , apart "suburb"       su
-           , apart "town"         tw
-           , apart "city"         ci
-           , apart "county"       co
-           , apart "state"        st
-           , apart "postcode"     po
-           , apart "country"      cu
-           , apart "country_code" cc
-           ]
-    where
-      apart k v
-        | isempty v = []
-        | otherwise = [k J..= v]
 
 -- ----------------------------------------
 --
