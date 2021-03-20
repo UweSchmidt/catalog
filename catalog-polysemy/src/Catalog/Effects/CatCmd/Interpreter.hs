@@ -273,14 +273,26 @@ path2colPath :: String -> Path -> Maybe PathPos
 path2colPath ext p =
   (^. isoPathPos) <$> checkAndRemExt ext p
 
-readStaticFile :: (EffError r, EffFileSys r, EffCatEnv r)
+readStaticFile :: (EffError r, EffLogging r, EffFileSys r, EffCatEnv r)
                => Path -> Sem r LazyByteString
 readStaticFile srcPath = do
   tp <- toFileSysPath srcPath
+  log'trc $ "readStaticFile: " <> tp
   ex <- fileExist tp
   if ex
     then readFileLB tp
-    else throw @Text $ "document not found: " <> tp
+    else
+    do
+      log'trc $ "readStaticFile: file not found: " <> tp
+      throw @Text $ "document not found: " <> tp
+
+writeStaticFile :: (EffError r, EffLogging r, EffFileSys r, EffCatEnv r)
+                => Path -> LazyByteString -> Sem r ()
+writeStaticFile dstPath lbs = do
+  tp <- toFileSysPath dstPath
+  log'trc $ "writeStaticFile: write to " <> tp
+  writeFileLB tp lbs
+  log'trc $ "writeStaticFile: finished "
 
 -- --------------------
 
@@ -310,10 +322,10 @@ modify'saveblogsource pos t n = putBlogCont t pos n
     putBlogCont val =
       processColEntryAt
         (HT.putColBlogSource val)   -- change blog file
-        putColBlog               -- change blog entry of collection
+        putColBlog                  -- change blog entry of collection
         where
           putColBlog i = do
-            n'  <- getImgVal i   -- the blog file of the collection
+            n'  <- getImgVal i      -- the blog file of the collection
             br  <- maybe
                    (throwP i ("modify'saveblogsource: "
                               <> "no blog entry set in collection: "))

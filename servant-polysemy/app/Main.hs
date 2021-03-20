@@ -40,10 +40,15 @@ import Catalog.CatEnv          ( CatEnv
                                , appEnvJournal
                                , appEnvLogLevel
                                , appEnvPort
+                               , catJsonArchive
                                , catMountPath
+                               , catGPSCache
                                , catFontName
                                )
 import Catalog.Effects.CatCmd
+import Catalog.Effects.CatCmd.Interpreter
+                               ( writeStaticFile )
+
 import Catalog.GenImages       ( selectFont )
 import Catalog.History         ( emptyHistory )
 import Catalog.Run             ( CatApp
@@ -102,6 +107,11 @@ catalogServer env runReadC runModyC runBGC =
       favicon'ico
       :<|>
       rpc'js
+      :<|>
+      ( get'gpscache'json
+        :<|>
+        put'gpscache'json
+      )
     )
   )
   :<|>
@@ -147,23 +157,47 @@ catalogServer env runReadC runModyC runBGC =
     -- root html files are located under /assets/html
 
     root'html :: BaseName HTMLStatic -> Handler LazyByteString
-    root'html bn = staticDoc p'html bn
+    root'html bn = staticDoc' $ staticPath p'html bn
+
+    gpscachePath :: Path
+    gpscachePath =
+      staticPath (initPath (isoText # (env ^. catJsonArchive))) bn
+      where
+        bn :: BaseName JSON
+        bn = BaseName $ env ^. catGPSCache
+
+    get'gpscache'json :: Handler LazyByteString
+    get'gpscache'json = dynDoc' gpscachePath
+
+    put'gpscache'json :: LazyByteString -> Handler ()
+    put'gpscache'json =
+      runModyC . putStaticFile
+      where
+        putStaticFile :: LazyByteString -> CatApp ()
+        putStaticFile lbs = do
+          writeStaticFile gpscachePath lbs
 
     favicon'ico :: Handler LazyByteString
-    favicon'ico = staticDoc p'icons bn
+    favicon'ico = staticDoc' $ staticPath p'icons bn
       where
         bn :: BaseName ICO
         bn = BaseName "favicon.ico"
 
     rpc'js :: Handler LazyByteString
-    rpc'js = staticDoc p'javascript bn
+    rpc'js = staticDoc' $ staticPath p'javascript bn
       where
         bn :: BaseName JSStatic
         bn = BaseName "rpc-servant.js"
 
-    staticDoc :: Path -> BaseName a -> Handler LazyByteString
-    staticDoc dirPath (BaseName n) =
-      runReadC $ staticFile ((dirPath `snocPath` (isoText # n)) ^. isoText)
+    dynDoc' :: Path -> Handler LazyByteString
+    dynDoc' p = runModyC . staticFile $ p ^. isoText
+
+    staticDoc' :: Path -> Handler LazyByteString
+    staticDoc' p = runReadC . staticFile $ p ^. isoText
+
+    staticPath :: Path -> BaseName a -> Path
+    staticPath dirPath (BaseName n) =
+      (dirPath `snocPath` (isoText # n))
 
     -- --------------------
 
