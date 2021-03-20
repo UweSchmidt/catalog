@@ -25,18 +25,19 @@ import Polysemy.Logging
 
 -- client-polysemy
 import Catalog.Effects.CatCmd.ClientInterpreter
+                                 ( evalClientCatCmd )
 import Client.Effects.ClientCmd
 import Client.Effects.ClientCmd.Interpreter
-import Client.Options
-import GPS.Effects.GeoLocCmd
+                                 ( evalClientCmd )
+import Client.Options            ( clientAction )
+import GPS.Effects.GeoLocCmd     ( runReverseGeoLoc )
 
-import Network.HTTP.Client
-       ( Request(..)
-       , responseTimeoutNone
-       )
-import System.Exit
+import Network.HTTP.Client       ( responseTimeoutNone )
+import System.Exit               ( ExitCode(..)
+                                 , exitWith
+                                 )
 
-import qualified Data.Text as T
+import qualified Data.Text       as T
 
 ----------------------------------------
 --

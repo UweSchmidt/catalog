@@ -33,6 +33,8 @@ import Polysemy.Error
 import Polysemy.Logging
 import Polysemy.Reader
 import Polysemy.State
+import Polysemy.HttpRequest
+import Polysemy.HttpRequest.SimpleRequests
 
 -- catalog-data
 import Data.Prim
@@ -81,6 +83,8 @@ type CCmdEffects r =
             , Error Text
             , Logging
             , FileSystem
+            , Reader Request
+            , HttpRequest
             , Cache GPSposDec GeoAddrList
             , CatCmd
             ] r)
@@ -545,21 +549,6 @@ checksumFile p = do
   return $! r
 
 ------------------------------------------------------------------------------
-
-geoCachePath :: Text
-geoCachePath = "./geocache.json"
-
-loadGeoCache :: CCmdEffects r => Sem r ()
-loadGeoCache = do
-  log'trc $ "loadGeoCache: file=" <> geoCachePath
-  lbs <- readFileLB geoCachePath
-  putGeoCache lbs
-
-saveGeoCache :: CCmdEffects r => Sem r ()
-saveGeoCache = do
-  log'trc $ "saveGeoCache: file=" <> geoCachePath
-  lbs <- getGeoCache
-  writeFileLB geoCachePath lbs
 
 setGeoAddress :: forall r. CCmdEffects r
               => Bool

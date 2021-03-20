@@ -27,12 +27,16 @@ module Polysemy.HttpRequest.SimpleRequests
 
     -- * reexports and aux types and functions
   , HttpEffects
-  , Request
+  , Request(..)
+  , RequestBody(..)
+  , Response(..)
   , parseRequest
 
   , jsonDecode
   , lbsToText
   , bsToText
+
+  , module Network.HTTP.Types
   )
 where
 
@@ -50,6 +54,7 @@ import Network.HTTP.Client
        )
 
 import Network.HTTP.Types
+{-
        ( Method
        , hContentType
        , methodGet
@@ -57,7 +62,7 @@ import Network.HTTP.Types
        , statusCode
        , statusMessage
        )
-
+-}
 -- import Network.HTTP.Types.Status
 
 import Data.Aeson

@@ -1,4 +1,5 @@
 {-# LANGUAGE
+    ConstraintKinds,
     DataKinds,
     FlexibleContexts,
     GADTs,
@@ -29,6 +30,9 @@ module GPS.Effects.GeoLocCmd
     -- * aux types and functions
   , nominatimRequest
   , locTestRequest
+
+  , loadGeoCache
+  , saveGeoCache
   )
 where
 
@@ -43,11 +47,6 @@ import Polysemy.Logging
 import Polysemy.Reader
 
 import Data.Prim
-
-import Network.HTTP.Client
-       ( Request(..) )
-
-import Network.HTTP.Types.Header
 
 import Text.Printf
        ( printf )
@@ -83,6 +82,40 @@ getGeoCache = J.encodePretty' conf <$> getCache
   where
     conf = J.defConfig
            { J.confIndent  = J.Spaces 2 }
+
+
+type CacheEffects r =
+  Members '[ Error Text
+           , Logging
+           , Reader Request
+           , HttpRequest
+           , Cache GPSposDec GeoAddrList
+           ] r
+
+loadGeoCache :: CacheEffects r => Sem r ()
+loadGeoCache = do
+  log'trc $ "loadGeoCache: load cache from server"
+  lbs <- getReq "/get-gps-cache"
+  log'trc $ "loadGeoCache: cache got from server"
+  putGeoCache lbs
+
+
+saveGeoCache :: CacheEffects r => Sem r ()
+saveGeoCache = do
+  log'trc $ "saveGeoCache: post cache to server"
+  lbs <- getGeoCache
+  _r  <- basicReq methodPost
+         (\ req ->
+             req { requestBody =
+                     RequestBodyLBS lbs
+                 , requestHeaders =
+                     (hContentType, "application/octet-stream") :
+                     requestHeaders req
+                 }
+         )
+         "/put-gps-cache"
+  log'trc $ "saveGeoCache: cache saved"
+  return ()
 
 ------------------------------------------------------------------------------
 
