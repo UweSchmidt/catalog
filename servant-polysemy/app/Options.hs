@@ -38,8 +38,9 @@ appEnvParser =
   <*> optJournal
   <*> optForceMDU
   <*> optSaveBothIx
+  <*> optGPSCache
   where
-    setEnv ll po ja mp jo fu sx =
+    setEnv ll po ja mp jo fu sx gc =
       defaultAppEnv
       & appEnvLogLevel .~ ll
       & appEnvJournal  .~ jo
@@ -48,5 +49,6 @@ appEnvParser =
       & appEnvCat . catJsonArchive .~ ja
       & appEnvCat . catForceMDU    .~ fu
       & appEnvCat . catSaveBothIx  .~ sx
+      & appEnvCat . catGPSCache    .~ gc
 
 ----------------------------------------

@@ -64,6 +64,11 @@ type RootAPI
     "favicon.ico" :> Get '[ICO] LazyByteString
     :<|>
     "rpc.js" :> Get '[JSStatic] LazyByteString
+    :<|> ( "get-gps-cache" :> Get '[OctetStream] LazyByteString
+           :<|>
+           "put-gps-cache" :> ReqBody '[OctetStream] LazyByteString
+                           :> Post    '[JSON] ()
+         )
 
 -- ----------------------------------------
 --
@@ -307,6 +312,9 @@ instance Accept JSStatic where
 
 instance MimeRender JSStatic LazyByteString where
   mimeRender _ = id
+
+-- instance MimeUnrender JSStatic LazyByteString where
+--  mimeUnrender _ = id
 
 instance HasExt JSStatic where
   theExt _ = ".js"

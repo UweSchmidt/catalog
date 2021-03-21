@@ -922,14 +922,14 @@ picMeta md = mconcat mdTab
       , mdval  "Titel lat."            descrTitleLatin
       , mdval  "Kommentar (Aufnahme)"  descrComment
       , mdval  "Kommentar (Kopie)"     descrCommentImg
-      , mdKw   "Schlüsselwörter"
+      , mdval  "Aufnahmedatum"         exifCreateDate
       , mdval  "Adresse"               descrAddress
       , mdval  "Ort"                   descrLocation
-      , mdLink "Web"                   descrWeb
-      , mdLink "Wikipedia"             descrWikipedia
-      , mdval  "Aufnahmedatum"         exifCreateDate
       , mdMap  "Position"
       , mdval  "Höhe"                  descrGPSAltitude
+      , mdLink "Web"                   descrWeb
+      , mdLink "Wikipedia"             descrWikipedia
+      , mdKw   "Schlüsselwörter"
       , mdval  "Kamera"                exifModel
       , mdval  "Objektiv"              compositeLensSpec
       , mdval  "Objektiv Typ"          compositeLensID

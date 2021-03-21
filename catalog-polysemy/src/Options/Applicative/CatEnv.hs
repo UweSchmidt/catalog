@@ -8,6 +8,7 @@ module Options.Applicative.CatEnv
   , optJsonArchive
   , optMountPath
   , optSaveBothIx
+  , optGPSCache
   )
 where
 
@@ -59,6 +60,21 @@ optJsonArchive =
       <> showDefault
       <> value "catalog.json"
       <> help "The JSON archive file to be loaded, relative to mount path"
+    )
+  )
+
+optGPSCache :: Parser Text
+optGPSCache =
+  T.pack <$>
+  ( strOption
+    ( long "gps-cache"
+      <> metavar "CACHE-FILE"
+      <> showDefault
+      <> value "gps-cache.json"
+      <> help ( "The JSON cache for storing GPS loc to address data."
+                <> " This file will be stored in the same directory as the"
+                <> " catalog ARCHIVE."
+              )
     )
   )
 
