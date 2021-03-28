@@ -127,7 +127,8 @@ evalClientCmd =
     CcDownload p rt geo dir withSeqNo overwrite ->
       evalDownload p rt geo dir withSeqNo overwrite
 
-    CcSnapshot msg ->
+    CcSnapshot msg -> do
+      _id <- newUndoEntry $ "snapshot " <> msg
       snapshot msg defaultPath
 
     CcCheckSum p part onlyUpdate onlyMissing -> do
@@ -136,7 +137,9 @@ evalClientCmd =
          evalCheckSums prettyCheckSumRes ps part
 
     CcUpdCSum p part onlyUpdate forceUpdate -> do
-      ps <- globExpand p
+      ps  <- globExpand p
+      _id <- newUndoEntry $ "update checksum " <> (p ^. isoText)
+
       runReader (CSEnv onlyUpdate True forceUpdate) $
          evalCheckSums updateCheckSumRes ps part
 
@@ -148,6 +151,12 @@ evalClientCmd =
       es <- listUndoEntries
       sequenceA_ . map (uncurry prettyUndo) $ es
 
+    CcApplyUndo hid -> do
+      applyUndo hid
+
+    CcDropUndo hid -> do
+      dropUndoEntries hid
+
     CcExifUpdate p recursive force -> do
       ps <- globExpand p
       traverse_ (evalExifUpdate recursive force) ps
@@ -158,7 +167,8 @@ evalClientCmd =
 
     CcGeoAddress p force -> do
       loadGeoCache
-      ps <- globExpand p
+      _id <- newUndoEntry $ "add geo address " <> (p ^. isoText)
+      ps  <- globExpand p
       traverse_ (\ p' -> theEntry p' >>= setGeoAddress force p') ps
       saveGeoCache
 
@@ -243,11 +253,13 @@ evalMetaData pp@(p, cx) keys = do
 
 evalSetMetaData1 :: CCmdEffects r => PathPos -> MetaKey -> Text -> Sem r ()
 evalSetMetaData1 pp@(p, cx) key val = do
+  let pth = (isoPathPos # pp) ^. isoText
   log'trc $ untext [ "evalSetMetaData:"
-                   , from isoText . isoPathPos # pp
+                   , pth
                    , key ^. isoText
                    , val
                    ]
+  _id <- newUndoEntry $ "set matadata in " <> pth
   let md1 = mempty & metaTextAt key .~ val
   _r <- setMetaData1 (fromMaybe (-1) cx) (md1 ^. isoMetaDataMDT) p
   return ()
@@ -256,26 +268,34 @@ evalSetMetaData1 pp@(p, cx) key val = do
 
 evalSetColImg :: CCmdEffects r => PathPos -> Path -> Sem r ()
 evalSetColImg pp@(sp, cx) cp = do
+  let pth = (isoPathPos # pp) ^. isoText
   log'trc $ untext [ "evalSetColImg:"
-                   , (isoPathPos # pp) ^. isoText
+                   , pth
                    , cp ^. isoText
                    ]
+  _id <- newUndoEntry $ "set collection image " <> pth
   setCollectionImg sp (fromMaybe (-1) cx) cp
   return ()
 
 evalSetColBlog :: CCmdEffects r => PathPos -> Path -> Sem r ()
 evalSetColBlog pp@(sp, cx) cp = do
+  let pth = (isoPathPos # pp) ^. isoText
   log'trc $ untext [ "evalSetColImg:"
-                   , (isoPathPos # pp) ^. isoText
+                   , pth
                    , cp ^. isoText
                    ]
+  _id <- newUndoEntry $ "set collection blog " <> pth
   setCollectionBlog sp (fromMaybe (-1) cx) cp
   return ()
 
 ------------------------------------------------------------------------------
 
-evalExifUpdate :: forall r. CCmdEffects r => Bool -> Bool -> Path -> Sem r ()
-evalExifUpdate recursive force = exifUpdate
+evalExifUpdate :: forall r. CCmdEffects r
+               => Bool -> Bool -> Path -> Sem r ()
+evalExifUpdate recursive force p0 = do
+  _id <- newUndoEntry $ "exif update " <> (p0 ^. isoText)
+
+  exifUpdate p0
   where
     sync = syncExif False force
 
@@ -483,7 +503,7 @@ evalCheckSumPart k p part = do
                    , part ^. isoText
                    ]
 
-  r <- checkImgPart onlyUpdate part p
+  r   <- checkImgPart onlyUpdate part p
 
   log'trc $ untext ["res =", show r ^. isoText]
 

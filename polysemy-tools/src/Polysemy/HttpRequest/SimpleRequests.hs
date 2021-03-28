@@ -166,8 +166,11 @@ basicReq' setMethod setBody setPath = do
         }
 
   let ppBody b = case b of
-        RequestBodyLBS lbs -> " " <> (T.pack . LCS.unpack $ lbs)
-        _others            -> mempty
+        RequestBodyLBS lbs
+          | LBS.length lbs ==  0 -> mempty
+          | LBS.length lbs <= 63 -> " " <> (T.pack . LCS.unpack $ lbs)
+          | otherwise            -> " " <> (T.pack . LCS.unpack . LBS.take 60 $ lbs)
+        _others                  -> mempty
 
   let totxt = T.pack . CS.unpack
 

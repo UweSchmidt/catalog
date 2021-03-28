@@ -33,6 +33,8 @@ module Client.Effects.ClientCmd
   , ccUpdCSum
   , ccMediaPath
   , ccUndoList
+  , ccApplyUndo
+  , ccDropUndo
   , ccExifUpdate
   , ccCheckMeta
   , ccGeoAddress
@@ -85,6 +87,8 @@ data ClientCmd m a where
                -> Bool    -> Bool             -> ClientCmd m ()
   CcMediaPath  :: Path                        -> ClientCmd m ()
   CcUndoList   ::                                ClientCmd m ()
+  CcApplyUndo  ::                   HistoryID -> ClientCmd m ()
+  CcDropUndo   ::                   HistoryID -> ClientCmd m ()
   CcExifUpdate :: Path    -> Bool     -> Bool -> ClientCmd m ()
   CcCheckMeta  :: Path                        -> ClientCmd m ()
   CcGeoAddress :: Path    -> Bool             -> ClientCmd m ()

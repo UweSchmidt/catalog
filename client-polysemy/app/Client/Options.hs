@@ -281,6 +281,26 @@ cmdClient = subparser $
       "List undo history."
     )
   <>
+  command "undo"
+    ( ( CcApplyUndo
+        <$> argHid
+      )
+      `withInfo`
+      ( "Reset to state before undo history entry number"
+        <> " HISTORY-ID."
+      )
+    )
+  <>
+  command "undo-drop"
+    ( ( CcDropUndo
+        <$> argHid
+      )
+      `withInfo`
+      ( "Shorten undo history. Drop all edits older than entry number"
+        <> " HISTORY-ID."
+      )
+    )
+  <>
   command "exif-update"
     ( ( let cc recUpdate forceUpdate p =
              CcExifUpdate p recUpdate forceUpdate
@@ -341,6 +361,9 @@ cmdClient = subparser $
 --
 -- argument parsers
 
+argHid :: Parser HistoryID
+argHid = argument hidReader (metavar "HISTORY-ID")
+
 argImgPath :: String -> Parser (Path, Int)
 argImgPath path = argument imgPathReader (metavar path)
 
@@ -398,6 +421,17 @@ optForceUpdateP =
 -- ----------------------------------------
 --
 -- app specific option parsers
+
+hidReader :: ReadM HistoryID
+hidReader = eitherReader parse
+  where
+    parse arg =
+      maybe
+        (Left $ "History number expected: " <> arg)
+        Right
+        arg'
+      where
+        arg' = readMaybe arg
 
 imgPathReader :: ReadM (Path, Int)
 imgPathReader = eitherReader parse
