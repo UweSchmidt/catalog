@@ -291,13 +291,15 @@ cmdClient = subparser $
       )
     )
   <>
-  command "undo-drop"
+  command "drop-undo"
     ( ( CcDropUndo
-        <$> argHid
+        <$> ( argHid <|> pure 0 )
       )
       `withInfo`
       ( "Shorten undo history. Drop all edits older than entry number"
         <> " HISTORY-ID."
+        <> " If no entry number given, drop all edits older than"
+        <> " last 'catalog save' command"
       )
     )
   <>

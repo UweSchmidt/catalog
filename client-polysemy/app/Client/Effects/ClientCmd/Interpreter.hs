@@ -73,6 +73,7 @@ import GPS.Effects.GeoLocCmd
 
 -- libraries
 import qualified Data.Aeson.Encode.Pretty as J
+import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as TL
 import qualified Data.Text.Lazy.Encoding  as TL
 
@@ -154,8 +155,21 @@ evalClientCmd =
     CcApplyUndo hid -> do
       applyUndo hid
 
-    CcDropUndo hid -> do
-      dropUndoEntries hid
+    CcDropUndo hid
+      -- drop all edits older than hid
+      | hid /= 0 -> do
+          dropUndoEntries hid
+
+      -- drop all edits older than last catalog save command
+      | otherwise -> do
+          es <- listUndoEntries
+          let i = head
+                  . (++ [0])
+                  . map fst
+                  . filter (("save catalog" `T.isPrefixOf`) . snd)
+                  $ es
+          when (i /= 0) $ do
+            dropUndoEntries i
 
     CcExifUpdate p recursive force -> do
       ps <- globExpand p
