@@ -126,9 +126,13 @@ function addHistToMenue(hd) {
             });
 }
 
+/* event handler not in use
+   substituted by remUndoUntilLastSave
+   to shorten undo list until last
+   "Save Archive" command
+*/
 function clearUndoHistory() {
     getHistoryFromServer(resetHistList);
-    statusMsg("Undo history clearded");
 }
 
 function resetHistList(hl) {
@@ -136,8 +140,39 @@ function resetHistList(hl) {
         var h0 = hl[0];
         var hid = h0[0];
         dropHistAtInServer(hid);
+        statusMsg("Undo history clearded");
+    } else {
+        statusMsg("Undo history was already empty");
     }
 }
+
+function remUndoUntilLastSave() {
+    getHistoryFromServer(shortenHistList);
+}
+
+function shortenHistList(hl) {
+    var hid = searchSaveCmd(hl);
+    if (hid > 0) {
+        dropHistAtInServer(hid);
+        statusMsg("Undo history shorted until last catalog save");
+    } else {
+        statusMsg("No catalog save command found in undo history");
+    }
+}
+
+function searchSaveCmd(hl) {
+    for (i = 0; i < hl.length; ++i) {
+        hentry = hl[i];
+        hid    = hentry[0];
+        hcmd   = hentry[1];
+        pos = hcmd.indexOf("save catalog");
+        if (pos == 0) {
+            return hid;
+        }
+    }
+    return 0;
+}
+
 // ----------------------------------------
 
 
@@ -3123,7 +3158,8 @@ $(document).ready(function () {
     $('#ClearUndoHistory')
         .on('click', function () {
             statusClear();
-            clearUndoHistory();
+            /* clearUndoHistory(); */
+            remUndoUntilLastSave();
         });
 
     $('#ConsistencyCheck')

@@ -354,8 +354,8 @@ cmdClient = subparser $
       ( "Import address data for GPS location of images/collections into metadata."
         <> " Path may point to a collection, a single image object"
         <> " or directory of images."
-        <> "Globstyle patterns are allowed."
-        <> "Open street map is used for reverse geo location service."
+        <> " Globstyle patterns are allowed."
+        <> " Open street map is used for reverse geo location service."
       )
     )
 
