@@ -88,6 +88,8 @@ function changePage(url) {
 var picstate = "pic-scaled";
 
 function toggleOriginalPicture() {
+    console.log("toggleOriginalImage");
+
     // no ref to full size picture
     if (orgimg === "") {
         return;
@@ -111,7 +113,7 @@ function toggleOriginalPicture() {
         // load image on demand
         img.attr('src', orgimg);
         console.log(img.attr('src'));
-        img.load(function(){
+        img.on('load', function(){
             // image ready: make it visible
             toggleOriginalPicture();
         });
@@ -183,7 +185,7 @@ function togglePanoramaPicture() {
         // load image on demand
         img.attr('src', panoimg);
         console.log(img.attr('src'));
-        img.load(function(){
+        img.on('load', function(){
             // add @keyframes for animation
             var pw = img[0].naturalWidth;
             var ph = img[0].naturalHeight;
