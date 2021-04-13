@@ -1,5 +1,6 @@
 catalog/
 catalog.journal
+catalog-journal.json
 catalog-server
 catalog-sync
 catalog-servant*

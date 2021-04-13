@@ -420,6 +420,18 @@ buildResize3 vico rot d'g s'geo d s'
 
 --  addStrip      = addFlag "-strip"   -- remove exif data
 
+    -- exif Orientation field of original is handled
+    -- by convert, but convert does not update the
+    -- Orientation value propperly
+    -- so an Orientation field is explicitly removed
+    -- from the generated image by a call of  exiftool
+    --
+    -- exiftool somtimes emits warnings with older
+    -- images, e.g. Nikon D100 .jpg files
+    -- these must be ignored, else the bash command
+    -- throws an error with the effect, that
+    -- a "broken image" is delivered by the server
+
     delOrient     :: CTT -> CTT
     delOrient cmd = cmd
                     & addSeq "exiftool"
@@ -427,6 +439,7 @@ buildResize3 vico rot d'g s'geo d s'
                     & addFlag "-Orientation="
                     & addFlag "-overwrite_original"
                     & addVal d
+                    & addOr "true"   -- ignore all exif warnings and errors
 
     s             = tiffLayer s'
     d'geo         = d'g ^. theGeo

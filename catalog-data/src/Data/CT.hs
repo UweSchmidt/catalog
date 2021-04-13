@@ -20,6 +20,8 @@ module Data.CT
   , mkCconc
   , mkCpipe
   , mkCseq
+  , mkCand
+  , mkCor
   , mkCexec
   , mkCout
   , redirStdout
@@ -31,6 +33,8 @@ module Data.CT
   , addOptVal
   , addPipe
   , addSeq
+  , addAnd
+  , addOr
   , addVal
 
     -- build commands
@@ -71,6 +75,8 @@ data Cop
   | Cexec     -- cmd to execute
   | Cpipe     -- combine 2 cmds with a pipe (|)
   | Cseq      -- combine 2 cmds to a sequence (;)
+  | Cand      -- combine 2 cmds with &&
+  | Cor       -- combine 2 cmds with ||
   | Cout      -- stdout redirect, _1tree is output file
   | Cin       -- stdin redirect, _1tree is input redirect
 
@@ -107,23 +113,26 @@ mkCconc Nil   t = t
 mkCconc t   Nil = t
 mkCconc t1   t2 = Bin Cconc t1 t2
 
-mkCpipe :: CT val -> CT val -> CT val
-mkCpipe Nil t = t     -- empty commands are thrown away
-mkCpipe t Nil = t
-mkCpipe t1 t2
+mkCop :: Cop -> CT val -> CT val -> CT val
+mkCop _   Nil t   = t     -- empty commands are thrown away
+mkCop _   t   Nil = t
+mkCop cop t1  t2
   | isCmd t1
     &&
-    isCmd t2 = Bin Cpipe t1 t2
+    isCmd t2 = Bin cop t1 t2
   | otherwise    = mempty
 
+mkCpipe :: CT val -> CT val -> CT val
+mkCpipe = mkCop Cpipe
+
 mkCseq :: CT val -> CT val -> CT val
-mkCseq Nil t = t      -- empty commands are thrown away
-mkCseq t Nil = t
-mkCseq t1 t2
-  | isCmd t1
-    &&
-    isCmd t2 = Bin Cseq t1 t2
-  | otherwise    = mempty
+mkCseq = mkCop Cseq
+
+mkCand :: CT val -> CT val -> CT val
+mkCand = mkCop Cand
+
+mkCor :: CT val -> CT val -> CT val
+mkCor = mkCop Cor
 
 mkCout :: CT val -> CT val -> CT val
 mkCout     Nil     t2             = t2
@@ -184,14 +193,20 @@ addPipe cmd = editLastExec id (`mkCpipe` mkCexec cmd)
 addSeq :: val -> (CT val -> CT val)
 addSeq cmd = editLastExec id (`mkCseq` mkCexec cmd)
 
+addAnd :: val -> (CT val -> CT val)
+addAnd cmd = editLastExec id (`mkCand` mkCexec cmd)
+
+addOr :: val -> (CT val -> CT val)
+addOr cmd = editLastExec id (`mkCor` mkCexec cmd)
+
 --------------------
 
 isCmd :: CT val -> Bool
-isCmd (Bin o _ _) = o `elem` [Cexec, Cpipe, Cseq, Cout]
+isCmd (Bin o _ _) = o `elem` [Cexec, Cpipe, Cseq, Cand, Cor, Cout]
 isCmd _           = False
 
 isCompCmd :: CT val -> Bool
-isCompCmd (Bin o _ _) = o `elem` [Cpipe, Cseq, Cout]
+isCompCmd (Bin o _ _) = o `elem` [Cpipe, Cseq, Cand, Cor, Cout]
 isCompCmd _           = False
 
 ----------------------------------------
@@ -259,7 +274,9 @@ toWords t0 = toCmd t0 []
     toCmd t@(Bin o t1 t2) = case o of
       Cout  -> toCompound t2 . lit ">" . toArgs t1
       Cpipe -> toCompound t1 . lit "|" . toCompound t2
-      Cseq  -> toCmd t1 . lit ";" . toCmd t2
+      Cseq  -> toCmd t1 . lit ";"  . toCmd t2
+      Cand  -> toCmd t1 . lit "&&" . toCmd t2
+      Cor   -> toCmd t1 . lit "||" . toCmd t2
       Cexec -> toCmd t1 . toArgs t2
       Cconc -> toCmd t1 . toCmd t2
       _     -> toArgs t
@@ -317,14 +334,20 @@ quT t
 {-
 
 example :: CTT
-example = mkCexec "echo"
-          & addFlag "-n"
-          & addVal  "Hello World!\nGood Bye?"
-          & addPipe "cat"
-          & addPipe "wc"
-          & addFlag "-w"
-          & addFlag "-l"
-          & redirStdout "result.txt"
+example = ( mkCexec "echo"
+            & addFlag "-n"
+            & addVal  "Hello World!\nGood Bye?"
+            & addPipe "cat"
+            & addPipe "wc"
+            & addFlag "-w"
+            & addFlag "-l"
+            & addOr "true"
+            & redirStdout "result.txt"
+          )
+          `mkCseq`
+          ( mkCexec "ls"
+            & addFlag "-l"
+          )
 
 exrun :: IO ()
 exrun = putStrLn . T.unpack . toBash $ example
