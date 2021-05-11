@@ -82,8 +82,9 @@ cmdClient = subparser $
       )
       `withInfo`
       ( "Show metadata for a collection or entry of a collection, "
-        ++ "default PATH is: "
-        ++ show defaultPath
+        <> "default PATH is: "
+        <> show defaultPath
+        <> ". Path may contain glob style patterns, but must be unique"
       )
     )
   <>
@@ -98,6 +99,7 @@ cmdClient = subparser $
         <> "default PATH is: "
         <> show defaultPath
         <> ", key may be given as glob pattern"
+        <> ". Path may contain glob style patterns, but must be unique"
       )
     )
   <>
@@ -109,6 +111,7 @@ cmdClient = subparser $
       `withInfo`
       ( "Set a collection image."
         <> " The image path must point to a .jpg image"
+        <> ". Path may contain glob style patterns"
       )
     )
   <>
@@ -117,26 +120,31 @@ cmdClient = subparser $
         <$> argPath1
       )
       `withInfo`
-      ( "Clear the collection image." )
+      ( "Clear the collection image."
+        <> ". Path may contain glob style patterns"
+      )
     )
   <>
   command "set-col-blog"
-    ( ( CcSetColImg
+    ( ( CcSetColBlog
         <$> (second Just <$> argImgPath "DOC-PATH")
         <*> argPath1
       )
       `withInfo`
       ( "Set a collection blog page."
         <> " The blog path must point to a .txt or .md document"
+        <> ". Path may contain glob style patterns"
       )
     )
   <>
   command "del-col-blog"
-    ( ( CcSetColImg (mempty, Just (-1))
+    ( ( CcSetColBlog (mempty, Just (-1))
         <$> argPath1
       )
       `withInfo`
-      ( "Clear the collection blog document." )
+      ( "Clear the collection blog document."
+        <> ". Path may contain glob style patterns"
+      )
     )
   <>
   command "del-md"
@@ -149,6 +157,7 @@ cmdClient = subparser $
         <> "default PATH is: "
         <> show defaultPath
         <> ", key may be given as glob pattern."
+        <> ". Path may contain glob style patterns, but must be unique"
       )
     )
   <>
@@ -477,7 +486,8 @@ globParser1 = globParser' single
     single _   [x] = Right x
     single arg []  = Left $ "No key found for pattern: " <> arg
     single arg xs  = Left $ "No unique key found for pattern: " <> arg
-                            <> ", could be one of " <> show xs
+                            <> ", could be one of "
+                            <> intercalate ", " (map (^. isoText . isoString) xs)
 
 globParser' :: (String -> [MetaKey] -> Either String a) -> ReadM a
 globParser' check = eitherReader parse

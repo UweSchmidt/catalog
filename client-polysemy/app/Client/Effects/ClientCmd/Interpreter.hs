@@ -109,14 +109,17 @@ evalClientCmd =
       ps <- evalGlobLs p
       sequenceA_ . map (writeln . (^. isoText)) $ ps
 
-    CcLsmd pp keys -> do
+    CcLsmd pp0 keys -> do
+      pp <- globExpandPP pp0
       md <- evalMetaData pp keys
       sequenceA_ . map (writeln . (^. isoText)) $ prettyMetaData md
 
-    CcSetmd1 pp key val ->
+    CcSetmd1 pp0 key val -> do
+      pp <- globExpandPP pp0
       evalSetMetaData1 pp key val
 
-    CcDelmd1 pp key ->
+    CcDelmd1 pp0 key -> do
+      pp <- globExpandPP pp0
       evalSetMetaData1 pp key "-"
 
     CcSetColImg pp p ->
@@ -225,12 +228,13 @@ globExpand p = do
   return $ if null ps
            then [p]
            else ps
+
+globExpand' :: CCmdEffects r => [Text] -> [Path] -> Sem r [Path]
+globExpand' []         = return
+globExpand' (gl : gls) = cont gls . filterGlob gl
   where
-    globExpand' []         = return
-    globExpand' (gl : gls) = cont gls . filterGlob gl
-      where
-        cont []   = return
-        cont gls' = evalLss >=> globExpand' gls'
+    cont []   = return
+    cont gls' = evalLss >=> globExpand' gls'
 
 filterGlob :: Text -> [Path] -> [Path]
 filterGlob globPattern = filter (matchGlob globPattern)
@@ -240,6 +244,22 @@ matchGlob globPattern =
   case parseMaybe parseGlob (globPattern ^. isoString) of
     Nothing  -> const False
     Just prs -> (\ p -> isJust . parseMaybe prs $ lastPath p ^. isoString)
+
+globExpandPP :: CCmdEffects r => PathPos -> Sem r PathPos
+globExpandPP (p, cx) = do
+  ps <- globExpand p
+  case ps of
+    [p'] -> return (p', cx)
+    []   ->
+      abortWith $ untext [ "globExpand:"
+                         , "no path found for "
+                         , p ^. isoText
+                         ]
+    _    ->
+      abortWith $ untext [ "globExpand:"
+                         , "path not unique for pattern "
+                         , p ^. isoText
+                         ]
 
 ------------------------------------------------------------------------------
 
@@ -281,26 +301,28 @@ evalSetMetaData1 pp@(p, cx) key val = do
 ------------------------------------------------------------------------------
 
 evalSetColImg :: CCmdEffects r => PathPos -> Path -> Sem r ()
-evalSetColImg pp@(sp, cx) cp = do
-  let pth = (isoPathPos # pp) ^. isoText
-  log'trc $ untext [ "evalSetColImg:"
-                   , pth
-                   , cp ^. isoText
-                   ]
-  _id <- newUndoEntry $ "set collection image " <> pth
-  setCollectionImg sp (fromMaybe (-1) cx) cp
-  return ()
+evalSetColImg =
+  evalSetCol' "evalSetColImg:" "set collection image " setCollectionImg
 
 evalSetColBlog :: CCmdEffects r => PathPos -> Path -> Sem r ()
-evalSetColBlog pp@(sp, cx) cp = do
+evalSetColBlog =
+  evalSetCol' "evalSetColBlog:" "set collection blog " setCollectionBlog
+
+evalSetCol' :: CCmdEffects r
+            => Text
+            -> Text
+            -> (Path -> Int -> Path -> Sem r ())
+            -> PathPos -> Path
+            -> Sem r ()
+evalSetCol' fnm msg setCol pp@(sp, cx) cp = do
   let pth = (isoPathPos # pp) ^. isoText
-  log'trc $ untext [ "evalSetColImg:"
+  cps <- globExpand cp
+  log'trc $ untext [ fnm
                    , pth
-                   , cp ^. isoText
+                   , T.intercalate ", " $ map (^. isoText) cps
                    ]
-  _id <- newUndoEntry $ "set collection blog " <> pth
-  setCollectionBlog sp (fromMaybe (-1) cx) cp
-  return ()
+  _id <- newUndoEntry $ msg <> pth
+  traverse_ (setCol sp (fromMaybe (-1) cx)) cps
 
 ------------------------------------------------------------------------------
 
