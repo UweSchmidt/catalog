@@ -81,6 +81,7 @@ library
                , http-client
                , http-types
                , lens                 >= 4.12
+               , murmur-hash
                , optparse-applicative
                , polysemy             >= 1.2.3
                , polysemy-plugin

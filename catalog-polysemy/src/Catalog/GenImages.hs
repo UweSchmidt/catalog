@@ -52,6 +52,7 @@ import Data.CT
 
 -- libraries
 
+import qualified Data.Digest.Murmur64     as MM
 import qualified Data.Text                as T
 
 -- ----------------------------------------
@@ -538,45 +539,114 @@ uwe@scheibe:~/tmp> diff org.out cpy.out
 
 buildIconScript :: TextPath -> Text -> Text -> Text
 buildIconScript dst fopt t =
-  toBash cmd
+  toBash ccmd
   where
-    cmd =
+    ccmd =
       mkCexec "convert"
-      & addOptVal "-background"  "rgb(255,255,255)"
-      & addOptVal "-fill"        "rgb(192,64,64)"
-      & ( if isempty fopt
-          then id
-          else addOptVal "-font" fopt
-        )
-      & addOptVal "-size"        "600x400"
-      & addOptVal "-pointsize"   ps'
-      & addOptVal "-gravity"     "center"
-      & addFlag   ("label:" <> t')                 -- sequence of options matters
-      & addOptVal "-background"  "rgb(128,128,128)"
-      & addOptVal "-vignette"    "0x40"
-      & addVal    dst
+      & addImgSize
+      & addBG
+      & addText
+      & addVignette
+      & addVal dst
 
+    (t', ps') = formatImgText t
+
+    addImgSize cmd =
+      cmd & addOptVal "-size" "600x400"
+
+    addText cmd =
+      cmd & addOptVal "-pointsize"   ps'
+          & ( if isempty fopt
+              then id
+              else addOptVal "-font" fopt
+            )
+          & addOptVal "-gravity"     "center"
+          & addOptVal "-fill"        "rgb(128,64,64)"
+          & addOptVal "-annotate"    "0"
+          & addFlag    t'
+
+    addBG cmd =
+      cmd & addOptVal "-seed" se
+          & addFlag   ("plasma:" <> c1 <> "-" <> c2)
+          & addOptVal "-blur" "10"
+          & addOptVal "-swirl" sw
+      where
+        -- c1 = "rgb(255,192,192)"       -- preliminary
+        -- c2 = "rgb(192,255,192)"       -- colors in range 192..255
+        -- sw = "135"                    -- degree in range 90..270
+
+        c1 = formatRGB $ map (scaleInt (192, 255)) rgb1
+        c2 = formatRGB $ map (scaleInt (192, 255)) rgb2
+        sw = scaleInt (-270, 270) sw1 ^. isoText
+        se = scaleInt (0, two'31'1) see ^. isoText
+
+        two'31'1 :: Int
+        two'31'1 = 2^(31::Int) - 1
+
+    _addBG cmd =                      -- old version
+      cmd & addOptVal "-background"  "rgb(255,255,255)"
+
+    addVignette cmd =
+      cmd
+
+    _addVignette cmd =                -- old version
+      cmd & addOptVal "-background"  "rgb(128,128,128)"
+          & addOptVal "-vignette"    "0x40"
+
+    rs0         = randomHashes $ t ^. isoString
+    (rgb1, rs1) = splitAt 3 rs0
+    (rgb2, rs2) = splitAt 3 rs1
+    (sw1 : rs3) = rs2
+    (see :_rs4) = rs3
+
+    formatRGB [r, g, b] = concat ["rgb(" ,show r, ",", show g, ",", show b, ")"] ^. isoText
+    formatRGB _         = mempty
+
+formatImgText :: Text -> (Text, Text)
+formatImgText t = (t', ps' ^. isoText)
+  where
+    ps' :: Int
     (t', ps')
       | multiline = (t0, ps0)
-      | len <= 10 = (t, "92")
-      | len <= 20 = (t1 <> "\\n" <> t2, "80")
-      | otherwise = (s1 <> "\\n" <> s2 <> "\\n" <> s3, "60")
+      | len <= 10 = (t, 92)
+      | len <= 20 = (t1 <> "\\n" <> t2, 80)
+      | otherwise = (s1 <> "\\n" <> s2 <> "\\n" <> s3, 60)
 
     ls        = T.lines t
     lsn       = length ls
     multiline = lsn > 1
     t0        = T.intercalate "\\n" ls
     ps0
-      | lsn == 2  = "80"
-      | lsn == 3  = "60"
-      | lsn == 4  = "50"
-      | otherwise = "40"
+      | lsn == 2  = 80
+      | lsn == 3  = 60
+      | lsn == 4  = 50
+      | otherwise = 40
     len       = T.length t
     len2      = len `div` 2
     len3      = len `div` 3
     (t1, t2)  = T.splitAt len2 t
     (s1, r2)  = T.splitAt len3 t
     (s2, s3)  = T.splitAt len3 r2
+
+------------------------------------------------------------------------
+--
+-- | hack for a very simple random generator
+
+randomHashes :: MM.Hashable64 a => a -> [Int]
+randomHashes x =
+  map hh [0..]
+  where
+    hh :: Int -> Int
+    hh i = nn . fromIntegral . MM.asWord64 $ MM.hash64Add i hx
+
+    nn i
+      | i < 0     = i + minBound
+      | otherwise = i
+
+    hx = MM.hash64 x
+
+scaleInt :: (Int, Int) -> Int -> Int
+scaleInt (lb, ub) i = i `mod` (ub - lb + 1) + lb
 
 ------------------------------------------------------------------------
 
