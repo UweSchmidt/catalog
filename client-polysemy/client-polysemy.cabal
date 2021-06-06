@@ -1,5 +1,5 @@
 name:           client-polysemy
-version:        0.5.7.6
+version:        0.5.7.7
 description:    Catalog client with polysemy effect library
 author:         Uwe Schmidt
 maintainer:     Uwe Schmidt

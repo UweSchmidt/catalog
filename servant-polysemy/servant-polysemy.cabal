@@ -1,5 +1,5 @@
 name:                servant-polysemy
-version:             0.5.7.6
+version:             0.5.7.7
 synopsis:            Servant server for catalog done with polysemy
 homepage:            https://github.com/UweSchmidt/apps/catalog
 license:             BSD3
