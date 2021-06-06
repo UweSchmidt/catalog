@@ -25,6 +25,8 @@ import Data.MetaData ( MetaData
                      , metaTimeStamp
 
                      , compositeDOF
+                     , compositeFOV
+                     , compositeHyperfocalDistance
                      , compositeGPSPosition
                      , compositeImageSize
                      , compositeLensID
@@ -83,6 +85,7 @@ import           Catalog.Version (date, version)
 
 import           Text.Printf                     ( printf )
 import qualified Data.Text                       as T
+import qualified Data.Map                        as M
 import           Text.Blaze.Html5                hiding (map, head)
 import qualified Text.Blaze.Html5                as H
 import           Text.Blaze.Html5.Attributes     hiding (title, rows, accept)
@@ -854,7 +857,7 @@ picMeta md = mconcat mdTab
       toEntry descr key val $
       toHtml val
       where
-        val = md ^. metaTextAt key
+        val = md ^. metaTextAt key . to transMDVal
 
     mdLink :: Text -> MetaKey -> Html
     mdLink descr key =
@@ -916,48 +919,50 @@ picMeta md = mconcat mdTab
 
     mdTab :: [Html]
     mdTab =
-      [ mdval  "Titel"                 descrTitle
-      , mdval  "Untertitel"            descrSubtitle
-      , mdval  "Titel engl."           descrTitleEnglish
-      , mdval  "Titel lat."            descrTitleLatin
-      , mdval  "Kommentar (Aufnahme)"  descrComment
-      , mdval  "Kommentar (Kopie)"     descrCommentImg
-      , mdval  "Aufnahmedatum"         exifCreateDate
-      , mdval  "Adresse"               descrAddress
-      , mdval  "Ort"                   descrLocation
+      [ mdval  "Titel"                  descrTitle
+      , mdval  "Untertitel"             descrSubtitle
+      , mdval  "Titel engl."            descrTitleEnglish
+      , mdval  "Titel lat."             descrTitleLatin
+      , mdval  "Kommentar (Aufnahme)"   descrComment
+      , mdval  "Kommentar (Kopie)"      descrCommentImg
+      , mdval  "Aufnahmedatum"          exifCreateDate
+      , mdval  "Adresse"                descrAddress
+      , mdval  "Ort"                    descrLocation
       , mdMap  "Position"
-      , mdval  "Höhe"                  descrGPSAltitude
-      , mdLink "Web"                   descrWeb
-      , mdLink "Wikipedia"             descrWikipedia
+      , mdval  "Höhe"                   descrGPSAltitude
+      , mdLink "Web"                    descrWeb
+      , mdLink "Wikipedia"              descrWikipedia
       , mdKw   "Schlüsselwörter"
-      , mdval  "Kamera"                exifModel
-      , mdval  "Objektiv"              compositeLensSpec
-      , mdval  "Objektiv Typ"          compositeLensID
-      , mdval  "Brennweite"            exifFocalLength
-      , mdval  "Brennweite in 35mm"    exifFocalLengthIn35mmFormat
-      , mdval  "Belichtungszeit"       exifExposureTime
-      , mdval  "Blende"                exifFNumber
-      , mdval  "Belichtungskorrektur"  exifExposureCompensation
-      , mdval  "ISO"                   exifISO
-      , mdval  "Belichtungsmessung"    exifExposureMode
-      , mdval  "Aufnahmebetriebsart"   exifExposureProgram
-      , mdval  "Entfernung"            makerNotesFocusDistance
-      , mdval  "Tiefenschärfe"         compositeDOF
-      , mdval  "Aufnahmemodus"         makerNotesShootingMode
-      , mdval  "Weißabgleich"          exifWhiteBalance
-      , mdval  "Aufnahmezähler"        makerNotesShutterCount
-      , mdval  "Geometrie"             compositeImageSize
-      , mdval  "Bilddatei"             fileRefImg
-      , mdval  "Dateityp"              fileMimeType
+      , mdval  "Kamera"                 exifModel
+      , mdval  "Objektiv"               compositeLensSpec
+      , mdval  "Objektiv Typ"           compositeLensID
+      , mdval  "Brennweite"             exifFocalLength
+      , mdval  "Brennweite in 35mm"     exifFocalLengthIn35mmFormat
+      , mdval  "Belichtungszeit"        exifExposureTime
+      , mdval  "Blende"                 exifFNumber
+      , mdval  "Belichtungskorrektur"   exifExposureCompensation
+      , mdval  "ISO"                    exifISO
+      , mdval  "Belichtungsmessung"     exifExposureMode
+      , mdval  "Aufnahmebetriebsart"    exifExposureProgram
+      , mdval  "Entfernung"             makerNotesFocusDistance
+      , mdval  "Hyperfokale Distanz"    compositeHyperfocalDistance
+      , mdval  "Tiefenschärfe"          compositeDOF
+      , mdval  "Sichtfeld"              compositeFOV
+      , mdval  "Aufnahmemodus"          makerNotesShootingMode
+      , mdval  "Weißabgleich"           exifWhiteBalance
+      , mdval  "Aufnahmezähler"         makerNotesShutterCount
+      , mdval  "Geometrie"              compositeImageSize
+      , mdval  "Bilddatei"              fileRefImg
+      , mdval  "Dateityp"               fileMimeType
       , mdMPX  "Megapixel"
-      , mdval  "Dateigröße"            fileFileSize
-      , mdval  "Animation: Wiederh."   gifAnimationIterations
-      , mdval  "Animation: Dauer"      gifDuration
-      , mdval  "Animation: # Bilder"   gifFrameCount
-      , mdval  "Video-Dauer"           quickTimeDuration
-      , mdval  "Frame-Rate"            quickTimeVideoFrameRate
-      , mdval  "Bild-Kopie"            fileRefJpg
-      , mdval  "Raw-Datei"             fileRefRaw
+      , mdval  "Dateigröße"             fileFileSize
+      , mdval  "Animation: Wiederh."    gifAnimationIterations
+      , mdval  "Animation: Dauer"       gifDuration
+      , mdval  "Animation: # Bilder"    gifFrameCount
+      , mdval  "Video-Dauer"            quickTimeDuration
+      , mdval  "Frame-Rate"             quickTimeVideoFrameRate
+      , mdval  "Bild-Kopie"             fileRefJpg
+      , mdval  "Raw-Datei"              fileRefRaw
       , mdTs   "Bearbeitet"
       , mdRat  "Bewertung"
       ]
@@ -1006,5 +1011,26 @@ infixr 6 <:>
 x <:> y
   | T.null y = x
   | otherwise = x <> ": " <> y
+
+-- ----------------------------------------
+--
+-- translate/normalize metadata text
+
+transMDVal :: Text -> Text
+transMDVal t = fromMaybe t $ M.lookup t mdValMap
+
+mdValMap :: Map Text Text
+mdValMap = M.fromList
+  [ ("Unknown (A3 38 5C 8E 34 40 CE 8E)", "AF-P DX Nikkor 70-300mm f/4.5-6.3G ED")
+  , ("Shutter speed priority AE", "Blendenautomatik (S)")
+  , ("Continuous", "Kontinuierlich")
+  , ("Continuous, Auto ISO", "Kontinuierlich, ISO-Automatik")
+  , ("Aperture-priority AE", "Zeitautomatik (A)")
+  , ("Program AE", "Programm-Automatik (P)")
+  , ("Single-Frame", "Einzelbild")
+  , ("Auto", "Automatik")
+  , ("", "")
+  ]
+
 
 -- ----------------------------------------
