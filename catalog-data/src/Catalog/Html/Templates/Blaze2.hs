@@ -1029,7 +1029,10 @@ mdValMap = M.fromList
   , ("Program AE", "Programm-Automatik (P)")
   , ("Single-Frame", "Einzelbild")
   , ("Auto", "Automatik")
-  , ("", "")
+  , ("Creative (Slow speed)", "Kreativ (langsam)")
+  , ("Manual", "Manuell")
+  , ("Intelligent Auto", "Intelligent (Automatik)")
+  -- , ("", "")
   ]
 
 

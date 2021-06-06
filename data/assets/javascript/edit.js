@@ -2298,7 +2298,7 @@ function buildImgCarousel(args, colVal) {
             var charCode = e.which || e.keyCode;
             if ( charCode == 109 ) {  // 'm': mark
                 console.log('keypress: toggle image mark');
-                $('#CarouselModalBody div.carousel-inner div.item.active a.carousel-image-mark').click();
+                $('#CarouselModalBody div.carousel-inner div.item.active ' + carmarksel1).click();
             }
             else if ( charCode == 110
                       ||
