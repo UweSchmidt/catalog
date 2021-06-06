@@ -2228,7 +2228,7 @@ function buildImgCarousel(args, colVal) {
         cimg.find(carmarksel1)
             .removeClass("carousel-image-marked")
             .removeClass("carousel-image-unmarked")
-            .addClass(cls)
+            .addClass(cls);
 
         // add handler for mark/unmark image via carousel
         cimg.find(carmarksel)
@@ -2300,26 +2300,31 @@ function buildImgCarousel(args, colVal) {
                 console.log('keypress: toggle image mark');
                 $('#CarouselModalBody div.carousel-inner div.item.active ' + carmarksel1).click();
             }
-            else if ( charCode == 110
-                      ||
-                      charCode == 62  // nice try: only with keyup or keydown event
-                    ) { // 'n' or '>': next image
-                    console.log('keypres: next image');
-                    $("#CarouselModalBody .carousel-control.right").click();
-                    }
-            else if ( charCode == 112
-                      ||
-                      charCode == 60
-                    ) { // 'p'or '<': prev image
-                        console.log('keypres: prev image');
-                        $("#CarouselModalBody .carousel-control.left").click();
-                    }
-            else if ( charCode >= 48 && charCode <= 53) { // '0'..'5' set rating
-                var rating = charCode - 48;
-                var sel = '[data-star="' + rating + '"]';
-                console.log('keypress: set rating to ' + rating);
-                $('#CarouselModalBody div.carousel-inner div.item.active ' + sel).click();
-            }
+            else
+                if ( charCode == 110
+                     ||
+                     charCode == 62  // nice try: only with keyup or keydown event
+                   ) { // 'n' or '>': next image
+                    console.log('keypress: next image');
+                    $("#CarouselModalBody .carousel-control-next").click();    // bootstrap 4
+                    $("#CarouselModalBody .carousel-control.right").click();   // bootstrap 3
+                }
+            else
+                if ( charCode == 112
+                     ||
+                     charCode == 60
+                   ) { // 'p'or '<': prev image
+                    console.log('keypress: prev image');
+                    $("#CarouselModalBody .carousel-control-prev").click();   // bootstrap 4
+                    $("#CarouselModalBody .carousel-control.left").click();   // bootstrap 3
+                }
+            else
+                if ( charCode >= 48 && charCode <= 53) { // '0'..'5' set rating
+                    var rating = charCode - 48;
+                    var sel = '[data-star="' + rating + '"]';
+                    console.log('keypress: set rating to ' + rating);
+                    $('#CarouselModalBody div.carousel-inner div.item.active ' + sel).click();
+                }
             return false;
         });
 
