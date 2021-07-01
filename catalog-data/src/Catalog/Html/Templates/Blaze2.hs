@@ -88,7 +88,7 @@ import qualified Data.Text                       as T
 import qualified Data.Map                        as M
 import           Text.Blaze.Html5                hiding (map, head)
 import qualified Text.Blaze.Html5                as H
-import           Text.Blaze.Html5.Attributes     hiding (title, rows, accept)
+import           Text.Blaze.Html5.Attributes     hiding (title, rows, accept, id)
 import qualified Text.Blaze.Html5.Attributes     as A
 import qualified Text.Blaze.Html.Renderer.Pretty as R
 import qualified Text.Blaze.Html.Renderer.Text   as T
@@ -852,12 +852,21 @@ picMeta md = mconcat mdTab
           th $ toHtml descr
           td $ val'
 
-    mdval :: Text -> MetaKey -> Html
-    mdval descr key =
+    mdval' :: (Text -> Text) -> Text -> MetaKey -> Html
+    mdval' tr descr key =
       toEntry descr key val $
       toHtml val
       where
-        val = md ^. metaTextAt key . to transMDVal
+        val = md ^. metaTextAt key . to tr
+
+    mdval :: Text -> MetaKey -> Html
+    mdval = mdval' transMDVal
+
+    mdval0 :: Text -> MetaKey -> Html
+    mdval0 = mdval' id
+
+    mdDeg :: Text -> MetaKey -> Html
+    mdDeg = mdval' formatDegree
 
     mdLink :: Text -> MetaKey -> Html
     mdLink descr key =
@@ -919,50 +928,50 @@ picMeta md = mconcat mdTab
 
     mdTab :: [Html]
     mdTab =
-      [ mdval  "Titel"                  descrTitle
-      , mdval  "Untertitel"             descrSubtitle
-      , mdval  "Titel engl."            descrTitleEnglish
-      , mdval  "Titel lat."             descrTitleLatin
-      , mdval  "Kommentar (Aufnahme)"   descrComment
-      , mdval  "Kommentar (Kopie)"      descrCommentImg
-      , mdval  "Aufnahmedatum"          exifCreateDate
-      , mdval  "Adresse"                descrAddress
-      , mdval  "Ort"                    descrLocation
+      [ mdval0 "Titel"                  descrTitle
+      , mdval0 "Untertitel"             descrSubtitle
+      , mdval0 "Titel engl."            descrTitleEnglish
+      , mdval0 "Titel lat."             descrTitleLatin
+      , mdval0 "Kommentar (Aufnahme)"   descrComment
+      , mdval0 "Kommentar (Kopie)"      descrCommentImg
+      , mdval0 "Aufnahmedatum"          exifCreateDate
+      , mdval0 "Adresse"                descrAddress
+      , mdval0 "Ort"                    descrLocation
       , mdMap  "Position"
-      , mdval  "Höhe"                   descrGPSAltitude
+      , mdval0 "Höhe"                   descrGPSAltitude
       , mdLink "Web"                    descrWeb
       , mdLink "Wikipedia"              descrWikipedia
       , mdKw   "Schlüsselwörter"
-      , mdval  "Kamera"                 exifModel
+      , mdval0 "Kamera"                 exifModel
       , mdval  "Objektiv"               compositeLensSpec
       , mdval  "Objektiv Typ"           compositeLensID
-      , mdval  "Brennweite"             exifFocalLength
-      , mdval  "Brennweite in 35mm"     exifFocalLengthIn35mmFormat
-      , mdval  "Belichtungszeit"        exifExposureTime
-      , mdval  "Blende"                 exifFNumber
-      , mdval  "Belichtungskorrektur"   exifExposureCompensation
-      , mdval  "ISO"                    exifISO
+      , mdval0 "Brennweite"             exifFocalLength
+      , mdval0 "Brennweite in 35mm"     exifFocalLengthIn35mmFormat
+      , mdval0 "Belichtungszeit"        exifExposureTime
+      , mdval0 "Blende"                 exifFNumber
+      , mdval0 "Belichtungskorrektur"   exifExposureCompensation
+      , mdval0 "ISO"                    exifISO
       , mdval  "Belichtungsmessung"     exifExposureMode
       , mdval  "Aufnahmebetriebsart"    exifExposureProgram
-      , mdval  "Entfernung"             makerNotesFocusDistance
-      , mdval  "Hyperfokale Distanz"    compositeHyperfocalDistance
+      , mdval0 "Entfernung"             makerNotesFocusDistance
       , mdval  "Tiefenschärfe"          compositeDOF
-      , mdval  "Sichtfeld"              compositeFOV
+      , mdDeg  "Sichtfeld"              compositeFOV
+      , mdval  "Hyperfokale Distanz"    compositeHyperfocalDistance
       , mdval  "Aufnahmemodus"          makerNotesShootingMode
       , mdval  "Weißabgleich"           exifWhiteBalance
-      , mdval  "Aufnahmezähler"         makerNotesShutterCount
-      , mdval  "Geometrie"              compositeImageSize
-      , mdval  "Bilddatei"              fileRefImg
-      , mdval  "Dateityp"               fileMimeType
+      , mdval0 "Aufnahmezähler"         makerNotesShutterCount
+      , mdval0 "Geometrie"              compositeImageSize
+      , mdval0 "Bilddatei"              fileRefImg
+      , mdval0 "Dateityp"               fileMimeType
       , mdMPX  "Megapixel"
-      , mdval  "Dateigröße"             fileFileSize
-      , mdval  "Animation: Wiederh."    gifAnimationIterations
-      , mdval  "Animation: Dauer"       gifDuration
-      , mdval  "Animation: # Bilder"    gifFrameCount
-      , mdval  "Video-Dauer"            quickTimeDuration
-      , mdval  "Frame-Rate"             quickTimeVideoFrameRate
-      , mdval  "Bild-Kopie"             fileRefJpg
-      , mdval  "Raw-Datei"              fileRefRaw
+      , mdval0 "Dateigröße"             fileFileSize
+      , mdval0 "Animation: Wiederh."    gifAnimationIterations
+      , mdval0 "Animation: Dauer"       gifDuration
+      , mdval0 "Animation: # Bilder"    gifFrameCount
+      , mdval0 "Video-Dauer"            quickTimeDuration
+      , mdval0 "Frame-Rate"             quickTimeVideoFrameRate
+      , mdval0 "Bild-Kopie"             fileRefJpg
+      , mdval0 "Raw-Datei"              fileRefRaw
       , mdTs   "Bearbeitet"
       , mdRat  "Bewertung"
       ]
@@ -981,8 +990,8 @@ gpsToHtml val =
 
     -- subst " deg" by degree char '\176'
 
-    formatDegree :: Text -> Text
-    formatDegree = T.replace " deg" "\176"
+formatDegree :: Text -> Text
+formatDegree = T.replace " deg" "\176"
       -- t & isoString %~ SP.sedP (const "\176") (SP.string " deg")
 
 -- ----------------------------------------
@@ -1022,18 +1031,44 @@ transMDVal t = fromMaybe t $ M.lookup t mdValMap
 mdValMap :: Map Text Text
 mdValMap = M.fromList
   [ ("Unknown (A3 38 5C 8E 34 40 CE 8E)", "AF-P DX Nikkor 70-300mm f/4.5-6.3G ED")
-  , ("Shutter speed priority AE", "Blendenautomatik (S)")
+    -- shooting mode
+  , ("Aperture Priority", "Zeitautomatik (A)")
   , ("Continuous", "Kontinuierlich")
   , ("Continuous, Auto ISO", "Kontinuierlich, ISO-Automatik")
-  , ("Aperture-priority AE", "Zeitautomatik (A)")
-  , ("Program AE", "Programm-Automatik (P)")
-  , ("Single-Frame", "Einzelbild")
-  , ("Auto", "Automatik")
-  , ("Creative (Slow speed)", "Kreativ (langsam)")
+  , ("Continuous, Exposure Bracketing", "Kontinuierlich, Belichtungsreihe")
+  , ("Continuous, Exposure Bracketing, Auto ISO", "Kontinuierlich, Belichtungsreihe, ISO-Automatik")
+  , ("Continuous, Self-timer", "Kontinuierlich, Selbstauslöser")
+  , ("Delay", "Verzögert")
+  , ("Delay, Exposure Bracketing", "Verzögert, Belichtungsreihe")
+  , ("Delay, Self-timer", "Verzögert, Selbstauslöser")
+  , ("Food", "Lebensmittel")
+  , ("Intelligent Auto", "Intelligente Automatik")
+  , ("Macro", "Makro")
   , ("Manual", "Manuell")
-  , ("Intelligent Auto", "Intelligent (Automatik)")
-  -- , ("", "")
+  , ("Movie Preview", "Video Vorschau")
+  , ("Night Scenery", "Nachszene")
+  , ("Panorama Assist", "Panorama Unterstützung")
+  , ("Panorama", "")
+  , ("Portrait", "")
+  , ("Program", "Programm (P)")
+  , ("Scenery", "Landschaft")
+  , ("Single-Frame", "Einzelbild")
+  , ("Single-Frame, Auto ISO", "Einzelbild, ISO-Automatik")
+  , ("Single-Frame, Auto ISO, [9]", "Einzelbild, ISO-Automatik")
+  , ("Single-Frame, Exposure Bracketing", "Einzelbild, Belichtungsreihe")
+  , ("Single-Frame, Exposure Bracketing, Auto ISO", "Einzelbild, Belichtungsreihe, ISO-Automatik")
+  , ("Sunset", "Sonnenuntergang")
+  , ("Unknown (60)", "")
+    -- exposure mode
+  , ("Auto bracket", "Automatik, Belichtungsreihe")
+  , ("Auto", "Automatik")
+    -- exposure program
+  , ("Aperture-priority AE", "Zeitautomatik (A)")
+  , ("Creative (Slow speed)", "Kreativ (langsam)")
+  , ("Landscape", "Landschaft")
+  , ("Not Defined", "")
+  , ("Program AE", "Program-Automatik (P)")
+  , ("Shutter speed priority AE", "Blendenautomatik (S)")
   ]
-
 
 -- ----------------------------------------
