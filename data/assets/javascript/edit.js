@@ -1346,6 +1346,26 @@ function isPathPrefix(p1, p2) {
     return false;
 }
 
+// for a collection path compute an array containing all
+// ancestor collections with "/archive/colections" as 1. element
+// and argument p as last element
+//
+// if path does not represent a collection the empty list is returned
+
+function allAncestorCollections(p) {
+    var p0 = pathCollections();
+    var r  = [];
+    if (isPathPrefix(p0, p)) {
+        r.unshift(p);
+        while (p != p0) {
+            var o = splitPath(p);
+            p = o.cpath;
+            r.unshift(p);
+        }
+    }
+    return r;
+}
+
 // ----------------------------------------
 
 // top level commands, most with ajax calls
@@ -1354,14 +1374,29 @@ function isPathPrefix(p1, p2) {
 // first the clipboard, so it's always the leftmost collection in the tab
 // the root collection is not shown until the clipboard is there
 
+function openAncestorCollections(p) {
+    statusClear();
+    openCols(allAncestorCollections(p));
+}
+
+function openCols(ps) {
+    console.log("openCols: ps=" + ps);
+    if (ps.length != 0) {
+        var p = ps.shift();  // split 1. element from path list
+        getColFromServer(p,
+                         function (path, colVal) {
+                             showNewCollection(path, colVal);
+                             openCols(ps);
+                         }
+                        );
+    }
+}
+
 function openSystemCollections() {
     statusClear();
-    getColFromServer(pathClipboard(),
-                     function (path, colVal) {
-                         showNewCollection(path, colVal);
-                         getColFromServer(pathCollections(),
-                                          showNewCollection);
-                     });
+    openCols([pathClipboard(),
+              pathCollections()
+             ]);
 }
 
 function openCollection(path) {
