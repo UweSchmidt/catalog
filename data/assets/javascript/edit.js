@@ -1309,11 +1309,11 @@ function splitPath(p) {
     // console.log(a);
     p.cpath   = a.join("/");
     // a.shift();
-    console.log(a);
+    // console.log(a);
     p.topname = a.shift(); // get the name of the top dir
     // console.log(a);
     a.unshift("");
-    console.log(a);
+    // console.log(a);
     p.cpath1  = a.join("/"); // remove the topdir
 
     var e = p.name.split(".");
@@ -1366,6 +1366,40 @@ function allAncestorCollections(p) {
     return r;
 }
 
+function addToList(xs, ys) {
+    // console.log("addToList:");
+    // console.log(xs);
+    // console.log(ys);
+    for (var i = 0; i < ys.length; ++ i) {
+        var y = ys[i];
+        if ( ! xs.includes(y) ) {
+            xs.push(y);
+        }
+    }
+    // console.log(xs);
+    return xs;
+}
+
+function addToCols(xs, p) {
+    return addToList(xs, allAncestorCollections(p));
+}
+
+var globalCollectionPath = "";
+
+function getSearchPath() {
+    var s = window.location.search;
+    s = s.slice(1);
+    var params = s.split("&");
+
+    for (var i = 0; i < params.length; ++i) {
+        var kv = params[i].split("=");
+        var k  = kv[0];
+        var v  = kv[1];
+        if ( k == "path" ) { globalCollectionPath = v; }
+    }
+    console.log("getSearchPath: p=" + globalCollectionPath);
+}
+
 // ----------------------------------------
 
 // top level commands, most with ajax calls
@@ -1373,6 +1407,7 @@ function allAncestorCollections(p) {
 // initialize the collections in a fixed sequence,
 // first the clipboard, so it's always the leftmost collection in the tab
 // the root collection is not shown until the clipboard is there
+
 
 function openAncestorCollections(p) {
     statusClear();
@@ -1393,10 +1428,13 @@ function openCols(ps) {
 }
 
 function openSystemCollections() {
-    statusClear();
-    openCols([pathClipboard(),
+    var cs = [pathClipboard(),
               pathCollections()
-             ]);
+             ];
+    statusClear();
+    getSearchPath();
+    cs = addToCols(cs, globalCollectionPath);
+    openCols(cs);
 }
 
 function openCollection(path) {
