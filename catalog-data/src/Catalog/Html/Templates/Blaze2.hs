@@ -832,6 +832,7 @@ picKeys = do
   toRow "-"             "automatischer Bildwechsel langsamer"
   toRow "0"             "automatischer Bildwechsel Dauer zurücksetzen"
   toRow "t"             "Anzeige des Titels eines Bildes"
+  toRow "e"             "Öffnen des Editors mit der aktuellen Kollektion"
   toRow "m"             "Ton bei Videos an/aus"
   toRow "c"             "Kontrollleiste bei Videos an/aus"
   toRow "?, h"          "Diese Hilfe-Info"

@@ -82,9 +82,11 @@ function changePage(url) {
 
 // open the collection in collection editor
 
+var picno = -1;
+
 function openEditPage() {
     var path = getPath(thisp);
-    var url  = "edit-4.5.0.html?path=" + path;
+    var url  = "edit-4.5.0.html?path=" + path + "&picno=" + picno;
     trc(1, "openEditPage: url=" + url);
     window.open(url, "_blank");
 }
@@ -105,8 +107,16 @@ function getPath(p) {
     var n  = ns.join(".");
     ps.push(n);       // remove ".html" extension
 
+    var re = /^pic-\d{4,}$/;
+    var pn = ps.pop();
+    if (re.test(pn)) {
+        picno = parseInt(pn.slice(4)); // set global var picno and drop last path name
+    } else {
+        ps.push(pn);  // restore last name in path
+    }
+
     p = ps.join("/");
-    trc(1, "getPath: path=" + p);
+    trc(1, "getPath: path=" + p + " picno=" + picno);
     return p;
 }
 
@@ -632,6 +642,11 @@ function keyPressed (e) {
 
     if ( isKey(e, 113, "q") ) {
         togglePanoAnimation();
+        return false;
+    }
+
+    if ( isKey(e, 101, "e") ) {
+        openEditPage();
         return false;
     }
 

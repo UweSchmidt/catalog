@@ -1385,6 +1385,7 @@ function addToCols(xs, p) {
 }
 
 var globalCollectionPath = "";
+var globalPicNo = -1;
 
 function getSearchPath() {
     var s = window.location.search;
@@ -1395,7 +1396,8 @@ function getSearchPath() {
         var kv = params[i].split("=");
         var k  = kv[0];
         var v  = kv[1];
-        if ( k == "path" ) { globalCollectionPath = v; }
+        if ( k == "path"  ) { globalCollectionPath = v; }
+        if ( k == "picno" ) { globalPicNo = parseInt(v); }
     }
     console.log("getSearchPath: p=" + globalCollectionPath);
 }
@@ -1414,17 +1416,32 @@ function openAncestorCollections(p) {
     openCols(allAncestorCollections(p));
 }
 
-function openCols(ps) {
+function openCols(ps, ff) {
     console.log("openCols: ps=" + ps);
     if (ps.length != 0) {
         var p = ps.shift();  // split 1. element from path list
         getColFromServer(p,
                          function (path, colVal) {
                              showNewCollection(path, colVal);
-                             openCols(ps);
+                             openCols(ps, ff);
                          }
                         );
+    } else {
+        if ( ff ) { ff(); }  // invoke final callback
     }
+}
+
+function markGlobalDia() {
+    console.log("markGlobalDia: picno=" + globalPicNo);
+    if ( globalPicNo >= 0 ) {
+        markCurrDia(globalPicNo);
+    }
+}
+
+function markCurrDia(i) {
+    var cid = activeCollectionId();
+    console.log("markCurrDia: cid=" + cid + ", picno=" + i);
+    toggleDiaMark(cid, i);
 }
 
 function openSystemCollections() {
@@ -1434,7 +1451,7 @@ function openSystemCollections() {
     statusClear();
     getSearchPath();
     cs = addToCols(cs, globalCollectionPath);
-    openCols(cs);
+    openCols(cs, markGlobalDia);
 }
 
 function openCollection(path) {
