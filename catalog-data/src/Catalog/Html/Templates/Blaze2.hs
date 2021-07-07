@@ -589,11 +589,14 @@ colTitle theTitle md = do
       | otherwise = H.div ! class_ (toValue c) $ toH t
 
 colImg :: Text -> Text -> Text -> Text -> Html
-colImg theImgGeoDir theIconGeoDir thisImgRef theHeadTitle =
-  img ! src     (toValue $ imgRef' theImgGeoDir theIconGeoDir thisImgRef)
-      ! class_  (toValue $ "icon-" <> theIconGeoDir)
-      ! A.title (toValue theHeadTitle)
-      ! alt     (toValue theHeadTitle)
+colImg theImgGeoDir theIconGeoDir thisImgRef theHeadTitle0 =
+  H.a ! href (toValue @Text "javascript:openEditPage();") $
+    img ! src     (toValue $ imgRef' theImgGeoDir theIconGeoDir thisImgRef)
+        ! class_  (toValue $ "icon-" <> theIconGeoDir)
+        ! A.title (toValue theHeadTitle)
+        ! alt     (toValue theHeadTitle)
+  where
+    theHeadTitle = "edit collection: " <> theHeadTitle0
 
 colNav :: Html -> Html -> Html -> Html -> Html
 colNav parentNav prevNav child1Nav nextNav = do

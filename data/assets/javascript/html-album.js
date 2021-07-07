@@ -80,6 +80,36 @@ function changePage(url) {
   }
 }
 
+// open the collection in collection editor
+
+function openEditPage() {
+    var path = getPath(thisp);
+    var url  = "edit-4.5.0.html?path=" + path;
+    trc(1, "openEditPage: url=" + url);
+    window.open(url, "_blank");
+}
+
+// compute collection path
+
+function getPath(p) {
+    var ps = p.split("/");
+
+    ps.shift();
+    ps.shift();
+    ps.shift();
+    ps.shift();
+    ps.unshift("");    // remove "/doc/page/<w>x<<h>"
+
+    var ns = ps.pop().split(".");
+    ns.pop();
+    var n  = ns.join(".");
+    ps.push(n);       // remove ".html" extension
+
+    p = ps.join("/");
+    trc(1, "getPath: path=" + p);
+    return p;
+}
+
 // ----------------------------------------
 
 // variable take one of "pic-org", "pic-scaled", "pic-pano"
