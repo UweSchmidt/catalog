@@ -112,10 +112,16 @@ googleMapsGPSdec = prism' pos2mapsUrl
                                  (s ^? prismString . isoDegDec)
                          )
   where
-    -- generate a Google maps url with magnification 17z
+    -- generate a Google maps url
     pos2mapsUrl :: GPSposDec -> String
     pos2mapsUrl pos =
-      "https://maps.google.de/maps/@" <> (prismString # pos) <> ",17z"
+      "https://www.google.com/maps/@"
+      <> "?api=1"
+      <> "&map_action=map"
+      <> "&center=" <> (prismString # pos)
+      <> "&zoom=17"                       -- default: 15
+      <> "&basemap=satellite"             -- or roadmap, terrain
+
 
     -- parse a Google maps url or just a GPSposDec (pair of doubles)
     parserMapsUrl :: SP GPSposDec

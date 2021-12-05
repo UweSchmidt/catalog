@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Catalog.Html.Templates.Blaze2
   ( Html
@@ -982,21 +983,13 @@ picMeta md = mconcat mdTab
 
 gpsToHtml :: Text -> Html
 gpsToHtml val =
-  H.a ! href (toValue url) $
-  toHtml $ formatDegree val
-  where
-    url :: Text
-    url  = "https://maps.google.de/maps/@"
-           <>
-           (val & isoString %~ (isoGoogleMapsDegree #))
-           <>
-           ",17z"
-
-    -- subst " deg" by degree char '\176'
+  H.a
+    ! href (preEscapedToValue (val & isoString . googleMapsGPSdec %~ id))
+    ! target "_blank"
+    $ toHtml $ formatDegree val
 
 formatDegree :: Text -> Text
 formatDegree = T.replace " deg" "\176"
-      -- t & isoString %~ SP.sedP (const "\176") (SP.string " deg")
 
 -- ----------------------------------------
 
