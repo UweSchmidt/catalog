@@ -82,6 +82,7 @@ import Data.MetaData   ( MetaData
                        , editMetaData
                        , isoMetaDataMDT
                        , splitMDT
+                       , lookupCreate
                        , lookupRating
                        , mkRating
                        , clearAccess
@@ -110,6 +111,9 @@ evalCatCmd =
 
     SortCollection ixs p ->
       getIdNode' p >>= uncurry (modify'sort ixs)
+
+    SortCollByDate ixs p ->
+      getIdNode' p >>= uncurry (modify'sortByDate ixs)
 
     RemoveFromCollection ixs p ->
       getIdNode' p >>= uncurry (modify'removeFromCollection ixs)
@@ -368,6 +372,7 @@ modify'sort :: Eff'ISEJL r => [Int] -> ObjId -> ImgNode -> Sem r ()
 modify'sort ixs i n
   | null ixs =
       return ()
+
   | otherwise = do
       unless (isSortableCol n) $
         throwP i "modify'sort: collection not sortable"
@@ -384,22 +389,70 @@ reorderCol ixs cs =
     mx :: (Int, Int)
     mx = maximum ixs'
 
-cmp :: (Int, Int) -> (Int, Int) -> (Int, Int) -> Ordering
-cmp (mi, mx) (i, x) (j, y)
-      | i == -1 && j == -1 =
-        compare x y
-      | i == -1 && j >= 0 =
-        compare x mx
-      | i >= 0  && j == -1 =
-        compare mx y
-      | i == mi && j >= 0 =
-        LT
-      | i >= 0  && j == mi =
-        GT
-      | i >= 0  && j >= 0 =
-        compare i j
-      | otherwise =
-        EQ
+    cmp :: (Int, Int) -> (Int, Int) -> (Int, Int) -> Ordering
+    cmp (mi, mp) (i1, p1) (i2, p2)
+      | i1 == -1 && i2 == -1 = compare p1 p2
+      | i1 == -1 && i2 >=  0 = compare p1 mp
+      | i1 >= 0  && i2 == -1 = compare mp p2
+      | i1 == mi && i2 >=  0 = LT
+      | i1 >= 0  && i2 == mi = GT
+      | i1 >= 0  && i2 >=  0 = compare i1 i2
+      | otherwise          = EQ
+
+-- sort entries of a collection by create date (makes sense only for image entries)
+--
+-- if nothing is marked, all entries are sorted,
+-- else all entries marked, except the last one, are ordered by create date (if there)
+-- and moved behind the last marked entries
+
+modify'sortByDate :: Eff'ISEJL r => [Int] -> ObjId -> ImgNode -> Sem r ()
+modify'sortByDate ixs0 i n
+  | null ixs0 =
+      return ()
+
+  | otherwise = do
+      unless (isSortableCol n) $
+        throwP i "modify'sortByDate: collection not sortable"
+
+      ds <- getCreateDates n
+      adjustColEntries (reorderPartByDate ixMax $ Seq.zip ixPos ds) i
+        where
+          sortWholeCollection = all (-1 ==) ixs0
+
+          ixs
+            | sortWholeCollection = map (const 1) ixs0    -- mark all with mark cnt 1
+            | otherwise           =               ixs0
+
+          ixPos :: Seq (Int, Int)
+          ixPos = isoSeqList # zip ixs [0..]
+
+          ixMax :: (Int, Int)
+          ixMax
+            | sortWholeCollection = (0, 0)                -- no last mark occurs in list of marked pos
+            | otherwise           = maximum ixPos         -- --> in cmpd: only 6. case (create date compare) occurs
+
+getCreateDates :: Eff'ISE r => ImgNode -> Sem r (Seq Text)
+getCreateDates n' =
+  traverse
+  (\ ce -> lookupCreate id <$> colEntry' getImgMetaData getMetaData ce)
+  (n' ^. theColEntries)
+
+
+reorderPartByDate :: (Int, Int) -> Seq ((Int, Int), Text) -> Seq a -> Seq a
+reorderPartByDate (mi, mp) ixs cs =
+  fmap snd . Seq.sortBy (cmpd `on` fst) $ Seq.zip ixs cs
+  where
+    cmpd :: ((Int, Int), Text) -> ((Int, Int), Text) -> Ordering
+    cmpd ((i1, p1), t1) ((i2, p2), t2)
+      | i1 == -1 && i2 == -1 = compare p1 p2    -- both  unmarked: compare positions
+      | i1 == -1 && i2 >=  0 = compare p1 mp    -- first unmarked: snd   less or greater than position of last marked
+      | i1 >=  0 && i2 == -1 = compare mp p2    -- snd   unmarked: first less or greater than position of last marked
+      | i1 == mi && i2 >=  0 = LT               -- first is marked last: snd   is greater
+      | i1 >=  0 && i2 == mi = GT               -- snd   is marked last: first is greater
+      | i1 >=  0 && i2 >=  0 = compare t1 t2    -- both marked: compare create date, if missing (col entries), compare positions
+                               <>
+                               compare p1 p2
+      | otherwise            = EQ
 
 -- --------------------
 --

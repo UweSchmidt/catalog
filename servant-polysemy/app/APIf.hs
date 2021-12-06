@@ -207,6 +207,8 @@ type JsonModifyAPI
       :<|>
       "sort"                 :> ParamPost [Int] ()
       :<|>
+      "sortByDate"           :> ParamPost [Int] ()
+      :<|>
       "removeFromCollection" :> ParamPost [Int] ()
       :<|>
       "copyToCollection"     :> ParamPost ([Int], Path) ()

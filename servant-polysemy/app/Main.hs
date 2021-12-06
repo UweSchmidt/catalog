@@ -333,6 +333,8 @@ catalogServer env runReadC runModyC runBGC =
       :<|>
       runM2 sortCollection
       :<|>
+      runM2 sortCollByDate
+      :<|>
       runM2 removeFromCollection
       :<|>
       runM3 copyToCollection

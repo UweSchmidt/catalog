@@ -50,6 +50,8 @@ evalClientCatCmd =
       paramJSONmodify "changeWriteProtected" p (ixs, ro)
     SortCollection ixs p ->
       paramJSONmodify "sort" p ixs
+    SortCollByDate ixs p ->
+      paramJSONmodify "sortByDate" p ixs
     RemoveFromCollection ixs p ->
       paramJSONmodify "removeFromCollection" p ixs
     CopyToCollection ixs dst p ->

@@ -1790,15 +1790,9 @@ function copyMarkedToClipboard(cid) {
 // ----------------------------------------
 
 function sortCollection(cid) {
-    statusClear();
-    console.log('sort collection: ' + cid);
+    console.log('sortCollection: ' + cid);
 
-    // var sr = $('#' + cid).hasClass('no-sort');
-    var sr = collectionIsSortProtected(cid);
-    console.log(sr);
-    if ( sr ) {
-        var path = collectionPath(cid);
-        statusError('not sortable, the collection is sort protected: ' + path);
+    if (! checkSortable(cid)) {
         return;
     }
 
@@ -1812,6 +1806,35 @@ function sortCollection(cid) {
     console.log(path);
 
     sortColOnServer(path, ixs);
+}
+
+
+function sortCollByDate(cid) {
+    console.log('sortCollByDate: ' + cid);
+
+    if (! checkSortable(cid)) {
+        return;
+    }
+
+    var ixs  = getMarkedEntries(cid);
+    if (! anyMarked(ixs)) {
+        statusMsg('sort whole collection by date');
+    }
+
+    var path = collectionPath(cid);
+    console.log(path);
+
+    sortColByDateOnServer(path, ixs);
+}
+
+function checkSortable(cid) {
+    var sr = collectionIsSortProtected(cid);
+    console.log(sr);
+    if ( sr ) {
+        var path = collectionPath(cid);
+        statusError('not sortable, the collection is sort protected: ' + path);
+    }
+    return ! sr;
 }
 
 // ----------------------------------------
@@ -2718,6 +2741,14 @@ function sortColOnServer(path, ixs) {
                  });
 }
 
+function sortColByDateOnServer(path, ixs) {
+    addHistCmd("sort by date in " + splitName(path));
+    modifyServer("sortByDate", path, ixs,
+                 function () {
+                     getColFromServer(path, refreshCollection);
+                 });
+}
+
 function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
     addHistCmd("write protect in " + splitName(path));
     modifyServer("changeWriteProtected", path, [ixs, ro],
@@ -3130,6 +3161,12 @@ $(document).ready(function () {
         .on('click', function (e) {
             statusClear();
             sortCollection(activeCollectionId());
+        });
+
+    $("#SortByDateButton")
+        .on('click', function (e) {
+            statusClear();
+            sortCollByDate(activeCollectionId());
         });
 
     $('#MetaDataButton')

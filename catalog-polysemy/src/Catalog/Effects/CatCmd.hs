@@ -26,6 +26,7 @@ module Catalog.Effects.CatCmd
   , saveBlogSource
   , changeWriteProtected
   , sortCollection
+  , sortCollByDate
   , removeFromCollection
   , copyToCollection
   , moveToCollection
@@ -101,6 +102,7 @@ data CatCmd m a where
   SaveBlogSource       ::  Int  -> Text         -> Path -> CatCmd m ()
   ChangeWriteProtected :: [Int] -> Bool         -> Path -> CatCmd m ()
   SortCollection       ::         [Int]         -> Path -> CatCmd m ()
+  SortCollByDate       ::         [Int]         -> Path -> CatCmd m ()
   RemoveFromCollection ::         [Int]         -> Path -> CatCmd m ()
   CopyToCollection     :: [Int] -> Path         -> Path -> CatCmd m ()
   MoveToCollection     :: [Int] -> Path         -> Path -> CatCmd m ()
