@@ -1,3 +1,4 @@
+cabal-version:       2.0
 name:                servant-polysemy
 version:             0.5.7.9
 synopsis:            Servant server for catalog done with polysemy
@@ -8,7 +9,6 @@ author:              Uwe Schmidt
 copyright:           2020 Uwe Schmidt
 category:            images
 build-type:          Simple
-cabal-version:       >=1.10
 
 executable servant-polysemy
   hs-source-dirs:      app

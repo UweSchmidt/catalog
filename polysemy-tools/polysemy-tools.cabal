@@ -1,3 +1,4 @@
+cabal-version:  2.0
 name:           polysemy-tools
 version:        0.5.7.9
 description:    tool and extensions for polysemy effect library
@@ -7,7 +8,6 @@ copyright:      2020 Uwe Schmidt
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
-cabal-version:  >= 1.12
 
 source-repository head
   type:     git
@@ -55,7 +55,7 @@ library
 
   build-depends: async                >= 2.2.2
                , aeson                >= 0.8
-               , base                 >= 4.7 && <5
+               , base                 >= 4.7
                , bytestring
                , containers
                , directory

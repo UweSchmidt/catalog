@@ -1,3 +1,4 @@
+cabal-version:       2.0
 name:                catalog-data
 version:             0.5.7.9
 synopsis:            basic data types of catalog system
@@ -9,7 +10,6 @@ author:              Uwe Schmidt
 copyright:           Uwe Schmidt
 category:            images
 build-type:          Simple
-cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
