@@ -2,7 +2,7 @@
 
 # set -x
 
-version="0.5.7.9"
+version="0.5.7.10"
 dat=$(date "+%Y-%m-%d")
 
 LANG="en_US.UTF-8"
@@ -51,4 +51,4 @@ git status
 git commit -a -m "version bump to $version"
 git tag "catalog-$version-$dat"
 
-stack build
+cabal install client-polysemy servant-polysemy --overwrite-policy=always
