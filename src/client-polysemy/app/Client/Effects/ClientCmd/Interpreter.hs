@@ -1,18 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 module Client.Effects.ClientCmd.Interpreter
   ( -- * Interpreter
     evalClientCmd
@@ -27,37 +12,138 @@ where
 
 -- polysemy and polysemy-tool
 import Polysemy
+       ( Member
+       , Sem
+       , InterpreterFor
+       , Members
+       , interpret
+       )
 import Polysemy.Consume
+       ( Consume
+       , writeln
+       )
 import Polysemy.FileSystem
+       ( TextPath
+       , createDir
+       , dirExist
+       , fileExist
+       , readFileBS
+       , writeFileLB
+       , FileSystem
+       )
 import Polysemy.Error
+       ( Error )
 import Polysemy.Logging
+       ( Logging
+       , abortWith
+       , log'trc
+       , log'warn
+       , untext
+       )
 import Polysemy.Reader
+       ( Reader
+       , asks
+       , runReader
+       )
 import Polysemy.State
+       ( State
+       , runState
+       , get
+       , put
+       )
 import Polysemy.HttpRequest
+       ( HttpRequest )
 import Polysemy.HttpRequest.SimpleRequests
+       ( Request )
 
 -- catalog-data
 import Data.Prim
+       ( sort
+       , Text
+       , ToJSON
+       , (>=>)
+       , unless
+       , lefts
+       , rights
+       , forM_
+       , traverse_
+       , (&)
+       , void
+       , fromMaybe
+       , isJust
+       , when
+       , mkCheckSum
+       , prettyCSR
+       , p'archive
+       , geo'org
+       , orgGeo
+       , hasSizeMT
+       , lastPath
+       , listFromPath
+       , snocPath
+       , substPathName
+       , isoPathPos
+       , isoPicNo
+       , isoSeqList
+       , unlessM
+       , whenM
+       , (^..)
+       , (^.)
+       , from
+       , (#)
+       , (.~)
+       , CheckSum
+       , CheckSumRes(..)
+       , GPSposDec
+       , GeoAddrList
+       , GeoAddress(GA, _display_name)
+       , Geo
+       , Name
+       , Path
+       , PathPos
+       , IsEmpty(isempty)
+       , IsoString(isoString)
+       , IsoText(isoText)
+       , ReqType
+       )
 import Data.ImgNode
-import Data.MetaData ( MetaKey
-                     , MetaData
-                     , isoMetaDataMDT
-                     , metaTextAt
-                     , metaDataAt
-                     , metaGPS
-                     , metaMimeType
-                     , lookupByKeys
-                     , filterKeysMetaData
-                     , prettyMetaData
+       ( colEntry
+       , isCOL
+       , isDIR
+       , isIMG
+       , isROOT
+       , isoImgParts
+       , theColColRef
+       , theColEntries
+       , theDirEntries
+       , theImgMeta
+       , theImgName
+       , theMetaData
+       , theParts
+       , theRootImgCol
+       , theRootImgDir
+       , traverseParts
+       )
+import Data.MetaData
+       ( MetaKey
+       , MetaData
+       , isoMetaDataMDT
+       , metaTextAt
+       , metaDataAt
+       , metaGPS
+       , metaMimeType
+       , lookupByKeys
+       , filterKeysMetaData
+       , prettyMetaData
 
-                       -- MetaKey values
-                     , compositeGPSPosition
-                     , compositeImageSize
-                     , descrAddress
-                     , descrGPSPosition
-                     , fileMimeType
-                     , fileName
-                     )
+         -- MetaKey values
+       , compositeGPSPosition
+       , compositeImageSize
+       , descrAddress
+       , descrGPSPosition
+       , fileMimeType
+       , fileName
+       )
 
 import Text.SimpleParser
        ( parseMaybe
@@ -66,10 +152,37 @@ import Text.SimpleParser
 
 -- catalog-polysemy
 import Catalog.Effects.CatCmd
+       ( HistoryID
+       , applyUndo
+       , checkImgPart
+       , dropUndoEntries
+       , jpgImgCopy
+       , listUndoEntries
+       , newUndoEntry
+       , setCollectionBlog
+       , setCollectionImg
+       , setMetaData1
+       , snapshot
+       , syncExif
+       , theEntry
+       , theMediaPath
+       , theMetaDataText
+       , updateCheckSum
+       , updateTimeStamp
+       , ImgNodeP
+       , CatCmd
+       )
 
 -- client-polysemy
 import Client.Effects.ClientCmd
+       ( ClientCmd(..) )
+
 import GPS.Effects.GeoLocCmd
+       ( Cache
+       , lookupGeoCache
+       , loadGeoCache
+       , saveGeoCache
+       )
 
 -- libraries
 import qualified Data.Aeson.Encode.Pretty as J
@@ -93,7 +206,7 @@ type CCmdEffects r =
 evalClientCmd :: CCmdEffects r => InterpreterFor ClientCmd r
 evalClientCmd =
   interpret $
-  \ c -> case c of
+  \ case
     CcGlob p -> do
       ps <- globExpand p
       traverse_ (\ p' -> writeln $ p' ^. isoText) ps
@@ -107,12 +220,12 @@ evalClientCmd =
 
     CcLsSub p -> do
       ps <- evalGlobLs p
-      sequenceA_ . map (writeln . (^. isoText)) $ ps
+      traverse_ (writeln . (^. isoText)) ps
 
     CcLsmd pp0 keys -> do
       pp <- globExpandPP pp0
       md <- evalMetaData pp keys
-      sequenceA_ . map (writeln . (^. isoText)) $ prettyMetaData md
+      traverse_ (writeln . (^. isoText)) $ prettyMetaData md
 
     CcSetmd1 pp0 key val -> do
       pp <- globExpandPP pp0
@@ -149,11 +262,11 @@ evalClientCmd =
 
     CcMediaPath p -> do
       mps <- evalMediaPath p
-      sequenceA_ . map (writeln . (^. isoText)) $ mps
+      traverse_ (writeln . (^. isoText)) mps
 
     CcUndoList -> do
       es <- listUndoEntries
-      sequenceA_ . map (uncurry prettyUndo) $ es
+      traverse_ (uncurry prettyUndo) es
 
     CcApplyUndo hid -> do
       applyUndo hid
@@ -522,7 +635,7 @@ evalCheckSum' k p e
         traverse
           (\ p' -> theEntry p' >>= evalCheckSum' k p')
           (sort $ e ^.. theDirEntries . traverse)
-          -- ^  traversal with ascending path names
+          --  ^  traversal with ascending path names
 
   | otherwise = pure ()
 

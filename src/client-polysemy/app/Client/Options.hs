@@ -1,16 +1,49 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
-
 ------------------------------------------------------------------------------
 
 module Client.Options
 where
 
 import Options.Applicative
+       ( eitherReader
+       , str
+       , argument
+       , flag
+       , strOption
+       , help
+       , value
+       , metavar
+       , short
+       , long
+       , option
+       , command
+       , subparser
+       , header
+       , progDesc
+       , fullDesc
+       , helper
+       , info
+       , execParser
+       , Alternative((<|>))
+       , ReadM
+       , Parser
+       , ParserInfo
+       )
 import Options.Applicative.HostPort
+       ( optHostPort )
 import Options.Applicative.LogLevel
+       ( LogLevel
+       , optLogLevel
+       )
 
 import Client.Effects.ClientCmd
+       ( HistoryID
+       , Text
+       , Geo
+       , Name
+       , Path
+       , PathPos
+       , ReqType(RImg)
+       , ClientCmd(..) )
 import Client.Effects.ClientCmd.Interpreter
        ( defaultPath )
 
@@ -22,7 +55,23 @@ import Data.MetaData
        )
 
 import Data.Prim
-       hiding (argument)
+       ( intercalate
+       , readMaybe
+       , readGeo'
+       , mkName
+       , lastPath
+       , isoPathPos
+       , imgReqTypes
+       , (^?)
+       , (^.)
+       , (#)
+       , second
+       , Geo(Geo)
+       , IsEmpty(isempty)
+       , IsoString(isoString)
+       , IsoText(isoText)
+       , PrismString(prismString)
+       )
 
 import Text.SimpleParser
        ( parseMaybe
@@ -30,6 +79,7 @@ import Text.SimpleParser
        )
 
 import Client.Version
+       ( userAgent )
 
 ------------------------------------------------------------------------------
 
@@ -281,7 +331,7 @@ cmdClient = subparser $
                       )
       )
       `withInfo`
-      ( "Take a snapshot of catalog." )
+      "Take a snapshot of catalog."
     )
   <>
   command "undo-history"
@@ -320,7 +370,7 @@ cmdClient = subparser $
           <$> flag False True
               ( long "recursive"
                 <> short 'r'
-                <> help ( "Recursively update all (sub-) directories." )
+                <> help "Recursively update all (sub-) directories."
               )
           <*> flag False True
               ( long "force"
@@ -332,7 +382,7 @@ cmdClient = subparser $
           <*> argPath1
       )
       `withInfo`
-      ( "Update EXIF info for images and image dirs." )
+      "Update EXIF info for images and image dirs."
     )
   <>
   command "check-meta"

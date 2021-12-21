@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
 
 module Client.Effects.ClientCmd
@@ -51,6 +37,7 @@ module Client.Effects.ClientCmd
 where
 
 import Polysemy
+       ( makeSem )
 
 import Data.History
        ( HistoryID )

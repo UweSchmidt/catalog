@@ -36,6 +36,7 @@ executable client-polysemy
                       PolyKinds
                       RankNTypes
                       ScopedTypeVariables
+                      TupleSections
                       TypeApplications
                       TypeFamilies
                       TypeOperators

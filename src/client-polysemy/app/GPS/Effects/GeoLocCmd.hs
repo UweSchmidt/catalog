@@ -1,18 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
 
 module GPS.Effects.GeoLocCmd
@@ -37,16 +22,76 @@ module GPS.Effects.GeoLocCmd
 where
 
 import Polysemy
+       ( interpret
+       , Members
+       , Member
+       , Sem
+       , makeSem
+       , Embed
+       , raiseUnder
+       )
 import Polysemy.Cache
+       ( Cache(..)
+       , getCache
+       , lookupCache
+       , putCache
+       , runCache
+       )
 import Polysemy.Delay
+       ( delayExec
+       , delayedExec
+       , Delay
+       )
 import Polysemy.EmbedExc
+       ( ioExcToText
+       , embedExcText
+       )
 import Polysemy.Error
+       ( Error
+       , throw
+       , catch
+       )
 import Polysemy.HttpRequest
+       ( HttpRequest )
+
 import Polysemy.HttpRequest.SimpleRequests
+       ( Request(requestBody, requestHeaders)
+       , parseRequest
+       , hContentType
+       , hUserAgent
+       , methodPost
+       , basicReq
+       , execReq
+       , getReq
+       , jsonDecode
+       , lbsToText
+       , RequestBody(RequestBodyLBS)
+       , Header
+       )
 import Polysemy.Logging
+       ( untext
+       , log'warn
+       , log'trc
+       , Logging
+       )
 import Polysemy.Reader
+       ( Reader
+       , local
+       )
 
 import Data.Prim
+       ( (#)
+       , (^.)
+       , GeoAddress
+       , IsoString(isoString)
+       , GeoAddrList
+       , GPSposDec
+       , Text
+       , PrismString(prismString)
+       , FromJSON(parseJSON)
+       , gpsLat
+       , gpsLong
+       )
 
 import Text.Printf
        ( printf )
@@ -94,15 +139,15 @@ type CacheEffects r =
 
 loadGeoCache :: CacheEffects r => Sem r ()
 loadGeoCache = do
-  log'trc $ "loadGeoCache: load cache from server"
+  log'trc "loadGeoCache: load cache from server"
   lbs <- getReq "/get-gps-cache"
-  log'trc $ "loadGeoCache: cache got from server"
+  log'trc "loadGeoCache: cache got from server"
   putGeoCache lbs
 
 
 saveGeoCache :: CacheEffects r => Sem r ()
 saveGeoCache = do
-  log'trc $ "saveGeoCache: post cache to server"
+  log'trc "saveGeoCache: post cache to server"
   lbs <- getGeoCache
   _r  <- basicReq methodPost
          (\ req ->
@@ -114,7 +159,7 @@ saveGeoCache = do
                  }
          )
          "/put-gps-cache"
-  log'trc $ "saveGeoCache: cache saved"
+  log'trc "saveGeoCache: cache saved"
   return ()
 
 ------------------------------------------------------------------------------
@@ -183,7 +228,7 @@ nominatimHttps' :: forall r a
                 -> Sem (GeoLocCmd : r) a -> Sem r a
 nominatimHttps' req0 = do
   interpret $
-    \ c -> case c of
+    \ case
       GeoLocAddress loc -> delayExec timeBetweenRequests $
         ( do
             log'trc $ untext [ "geoLocAddress: read address for: "
@@ -240,7 +285,7 @@ nominatimRequest gps = do
 
 locTestRequest :: GPSposDec -> IO Request
 locTestRequest _gps = do
-  parseRequest $
+  parseRequest
     "http://localhost:3001/assets/javascript/geotest.js"
 
 ------------------------------------------------------------------------------

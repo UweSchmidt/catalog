@@ -10,7 +10,8 @@
     TemplateHaskell,
     TypeApplications,
     TypeOperators,
-    TypeFamilies
+    TypeFamilies,
+    LambdaCase
 #-} -- default extensions (only for emacs)
 
 module Catalog.Effects.CatCmd.ClientInterpreter
@@ -21,6 +22,10 @@ where
 
 -- polysemy
 import Polysemy
+       ( Sem
+       , InterpreterFor
+       , interpret
+       )
 
 -- polysemy-tools
 import Polysemy.HttpRequest.SimpleRequests
@@ -32,16 +37,30 @@ import Polysemy.HttpRequest.SimpleRequests
 
 -- catalog
 import Data.Prim
+    ( Text
+    , ToJSON
+    , FromJSON
+    , p'archive
+    , consPath
+    , (^.)
+    , (#)
+    , Geo
+    , Name
+    , Path
+    , IsoText(isoText)
+    , LazyByteString
+    , ReqType
+    )
 
 -- catalog-polysemy
-import Catalog.Effects.CatCmd
+import Catalog.Effects.CatCmd ( CatCmd(..) )
 
 ------------------------------------------------------------------------------
 
 evalClientCatCmd :: HttpEffects r => InterpreterFor CatCmd r
 evalClientCatCmd =
   interpret $
-  \ c -> case c of
+  \ case
 
     -- JSON modifying commands
     SaveBlogSource pos t p ->

@@ -1,6 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
-
 ------------------------------------------------------------------------------
 
 module Client.Version
@@ -16,3 +13,5 @@ appname = "client-polysemy"
 
 userAgent :: String
 userAgent = appname <> " - " <> version <> " (" <> date <> ")"
+
+------------------------------------------------------------------------------
