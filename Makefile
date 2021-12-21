@@ -1,4 +1,14 @@
-install:
-	cabal install client-polysemy servant-polysemy --overwrite-policy=always
+build:
+	$(MAKE) -C src build
 
-PHONY: install
+install:
+	$(MAKE) -C src install
+
+install-global:
+	$(MAKE) -C src install-global
+
+version:
+	bin/versionbump.sh
+	$(MAKE) -C src install
+
+PHONY: build install install-global

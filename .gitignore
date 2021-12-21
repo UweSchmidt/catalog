@@ -1,7 +1,4 @@
 *~
 TAGS
 tmp.*
-.stack-work/
-stack.yaml.lock
 .DS_Store
-dist-newstyle/

@@ -33,14 +33,16 @@ bump () {
 
 
 # polysemy based libs/execs
-bump polysemy-tools/polysemy-tools.cabal
-bump catalog-polysemy/catalog-polysemy.cabal
-bump client-polysemy/client-polysemy.cabal
-bump servant-polysemy/servant-polysemy.cabal
+bump src/polysemy-tools/polysemy-tools.cabal
+bump src/catalog-polysemy/catalog-polysemy.cabal
+bump src/client-polysemy/client-polysemy.cabal
+bump src/servant-polysemy/servant-polysemy.cabal
 
 # common libs and sources
-bump catalog-data/catalog-data.cabal
-bump catalog-data/src/Catalog/Version.hs
+bump src/catalog-data/catalog-data.cabal
+bump src/catalog-data/src/Catalog/Version.hs
+
+# html and javascript sources
 bump data/assets/html/edit.html
 bump data/assets/html/edit-4.5.0.html
 bump data/assets/javascript/rpc-servant.js
@@ -50,5 +52,3 @@ set -x
 git status
 git commit -a -m "version bump to $version"
 git tag "catalog-$version-$dat"
-
-cabal install client-polysemy servant-polysemy --overwrite-policy=always
