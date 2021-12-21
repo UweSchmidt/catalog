@@ -1,16 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.TimeStamp
@@ -21,8 +8,23 @@ module Catalog.TimeStamp
 where
 
 import Catalog.Effects
+       ( Sem
+       , EffFileSys
+       , EffTime
+       , TextPath
+       , currentTime
+       , getModiTime
+       )
 
 import Data.Prim
+       ( Text
+       , TimeStamp
+       , IsoText(isoText)
+       , iso8601TimeStamp
+       , (^.)
+       , (#)
+       , isoEpochTime
+       )
 
 ------------------------------------------------------------------------------
 --
@@ -36,8 +38,6 @@ lastModified p = (isoEpochTime #) <$> getModiTime p
 
 nowAsIso8601 :: EffTime r => Sem r Text
 nowAsIso8601 = do
-  t <- whatTimeIsIt
-  return $ iso8601TimeStamp t ^. isoText
-
+  (^. isoText) . iso8601TimeStamp <$> whatTimeIsIt
 
 -- ----------------------------------------

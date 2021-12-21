@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.MetaData.ExifTool
@@ -21,14 +7,36 @@ module Catalog.MetaData.ExifTool
 where
 
 import Catalog.Effects
-import Catalog.TextPath  ( toFileSysPath )
-import Data.MetaData     ( MetaData
-                         , MetaDataText(..)
-                         , isoMetaDataMDT
-                         )
-import Data.Prim
+       ( Sem
+       , TextPath
+       , EffExecProg
+       , EffLogging
+       , EffFileSys
+       , EffError
+       , EffCatEnv
+       , log'warn
+       , fileExist
+       , catch
+       )
+import Catalog.TextPath
+       ( toFileSysPath )
 
-import Polysemy.ExecProg ( execProg )
+import Data.MetaData
+       ( MetaData
+       , MetaDataText(..)
+       , isoMetaDataMDT
+       )
+import Data.Prim
+       ( Text
+       , Path
+       , IsoText(isoText)
+       , ByteString
+       , (^.)
+       , (#)
+       )
+
+import Polysemy.ExecProg
+       ( execProg )
 
 import qualified Data.Aeson       as J
 import qualified Data.Map         as M
@@ -55,8 +63,6 @@ getExifMetaData srcPath = do
     else do
       log'warn $ "exiftool: file not found: " <> p
       return mempty
-  where
-    -- p = sp ^. isoTextPath
 
 callExifProg :: ( EffExecProg r
                 , EffError    r
@@ -77,12 +83,12 @@ bsToMetaData :: ( EffError r
              => ByteString -> Sem r MetaData
 bsToMetaData =
   either (\ e -> do
-             log'warn $ ("getExifTool: " <> T.pack e)
+             log'warn ("getExifTool: " <> T.pack e)
              return mempty
          ) return
   .
   either Left
-         (\ xs -> case xs of
+         (\ case
              [x] -> Right . (isoMetaDataMDT #) . mdj2mdt $ x
              _   -> Left "single element list expected"
          )

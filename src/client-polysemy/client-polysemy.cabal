@@ -30,8 +30,10 @@ executable client-polysemy
   default-extensions: ConstraintKinds
                       DataKinds
                       FlexibleContexts
+                      FlexibleInstances
                       GADTs
                       LambdaCase
+                      MultiParamTypeClasses
                       OverloadedStrings
                       PolyKinds
                       RankNTypes

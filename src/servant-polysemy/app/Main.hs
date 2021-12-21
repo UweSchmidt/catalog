@@ -1,24 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
--- {-# LANGUAGE TemplateHaskell #-}
-
 ------------------------------------------------------------------------------
 --
 -- the preliminary main module for testing
@@ -29,61 +8,207 @@ where
 
 import Prelude ()
 import Prelude.Compat
+       ( (++)
+       , ($)
+       , (<$>)
+       , (.)
+       , Eq((==))
+       , Monad(return)
+       , Num((*))
+       , Show(show)
+       , Applicative((*>), (<*))
+       , Monoid(mempty)
+       , Bool
+       , Int
+       , Maybe(..)
+       , IO
+       , Either(..)
+       , FilePath
+       , String
+       , const
+       , either
+       , otherwise
+       , uncurry
+       )
 
 -- polysemy and polysemy-tools
-import Polysemy.State.RunTMVar ( createJobQueue )
+import Polysemy.State.RunTMVar
+       ( createJobQueue )
 
 -- catalog-polysemy
-import Catalog.CatalogIO       ( initImgStore )
-import Catalog.CatEnv          ( CatEnv
-                               , appEnvCat
-                               , appEnvJournal
-                               , appEnvLogLevel
-                               , appEnvPort
-                               , catJsonArchive
-                               , catMountPath
-                               , catGPSCache
-                               , catFontName
-                               )
-import Catalog.Effects.CatCmd
-import Catalog.Effects.CatCmd.Interpreter
-                               ( writeStaticFile )
+import Catalog.CatalogIO
+       ( initImgStore )
 
-import Catalog.GenImages       ( selectFont )
-import Catalog.History         ( emptyHistory )
-import Catalog.Run             ( CatApp
-                               , JournalHandle
-                               , runRead
-                               , runMody
-                               , runBG
-                               , runLogQ
-                               )
+import Catalog.CatEnv
+       ( CatEnv
+       , appEnvCat
+       , appEnvJournal
+       , appEnvLogLevel
+       , appEnvPort
+       , catJsonArchive
+       , catMountPath
+       , catGPSCache
+       , catFontName
+       )
+import Catalog.Effects.CatCmd
+       ( Path
+       , Text
+       , ReqType(RPage1, RIcon, RIconp, RImg, RImgfx, RPage)
+       , TextPath
+       , applyUndo
+       , changeWriteProtected
+       , checkImgPart
+       , copyToCollection
+       , dropUndoEntries
+       , htmlPage
+       , isCollection
+       , isRemovable
+       , isSortable
+       , isWriteable
+       , jpgImgCopy
+       , listUndoEntries
+       , moveToCollection
+       , newCollection
+       , newSubCollections
+       , newUndoEntry
+       , removeFromCollection
+       , renameCollection
+       , saveBlogSource
+       , setCollectionBlog
+       , setCollectionImg
+       , setMetaData
+       , setMetaData1
+       , setRating
+       , setRating1
+       , snapshot
+       , sortCollByDate
+       , sortCollection
+       , staticFile
+       , syncCollection
+       , syncExif
+       , theBlogContents
+       , theBlogSource
+       , theEntry
+       , theMediaPath
+       , theMetaDataText
+       , theRating
+       , theRatings
+       , updateCheckSum
+       , updateTimeStamp
+       )
+import Catalog.Effects.CatCmd.Interpreter
+       ( writeStaticFile )
+
+import Catalog.GenImages
+       ( selectFont )
+
+import Catalog.History
+       ( emptyHistory )
+
+import Catalog.Run
+       ( CatApp
+       , JournalHandle
+       , runRead
+       , runMody
+       , runBG
+       , runLogQ
+       )
 
 -- catalog-data
 import Data.Prim
-import Data.ImageStore         (emptyImgStore)
+       ( (^.)
+       , (#)
+       , (.~)
+       , Alternative(some, many)
+       , LazyByteString
+       , IsoString(isoString)
+       , IsoText(isoText)
+       , optional
+       , (&)
+       , fromMaybe
+       , p'arch'photos
+       , p'html
+       , p'icons
+       , p'javascript
+       , ps'bootstrap
+       , ps'css
+       , ps'icons
+       , ps'javascript
+       , initPath
+       , listToPath
+       , snocPath
+       , tailPath
+       , from
+       )
+import Data.ImageStore
+       ( emptyImgStore )
+
 import Text.SimpleParser
+       ( anyStringThen
+       , matchP
+       , char
+       , digitChar
+       , string
+       , try
+       , eof
+       )
 
 -- libs
-import Control.Concurrent.STM.TMVar (newTMVarIO)
-import Control.Monad.IO.Class       (liftIO)
+import Control.Concurrent.STM.TMVar
+       ( newTMVarIO )
+
+import Control.Monad.IO.Class
+       ( liftIO )
+
 import Data.IORef
-import System.Exit                  (die)
+       ( newIORef )
+
+import System.Exit
+       ( die )
 import System.IO
+       ( stdout
+       , stderr
+       , IOMode(WriteMode)
+       , openFile
+       )
 
 -- servant libs
 import Servant
+       ( JSON
+       , Server
+       , Handler
+       , Proxy(..)
+       , ServerError(errBody)
+       , type (:<|>)((:<|>))
+       , addHeader
+       , serve
+       , err500
+       , serveDirectoryWebApp
+       , throwError
+       )
 
-import Network.Wai.Handler.Warp     ( setPort
-                                    , setLogger
-                                    , defaultSettings
-                                    , runSettings
-                                    )
+import Network.Wai.Handler.Warp
+       ( setPort
+       , setLogger
+       , defaultSettings
+       , runSettings
+       )
 
 -- servant interface
 import APIf
+       ( CachedByteString
+       , CatalogAPI
+       , BaseName(BaseName)
+       , HTMLStatic
+       , JSStatic
+       , ICO
+       , Geo'(..)
+       )
+
 import Options
+       ( serverOptions )
 import Logger
+       ( withCatLogger )
 
 ------------------------------------------------------------------------------
 
@@ -197,7 +322,7 @@ catalogServer env runReadC runModyC runBGC =
 
     staticPath :: Path -> BaseName a -> Path
     staticPath dirPath (BaseName n) =
-      (dirPath `snocPath` (isoText # n))
+      dirPath `snocPath` (isoText # n)
 
     -- --------------------
 
@@ -451,6 +576,6 @@ openJournal tp = case tp of
     | p == "2"
       -> return $ Just (Left stderr)
     | otherwise
-      -> (Just . Right) <$> openFile (p ^. isoString) WriteMode
+      -> Just . Right <$> openFile (p ^. isoString) WriteMode
 
 ------------------------------------------------------------------------------

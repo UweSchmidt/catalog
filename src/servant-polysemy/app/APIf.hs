@@ -1,24 +1,71 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
 
 module APIf where
 
 import Prelude ()
 import Prelude.Compat
+       ( otherwise
+       , ($)
+       , Eq((==))
+       , Ord((>))
+       , Semigroup((<>))
+       , Bool
+       , Int
+       , Either(..)
+       , (&&)
+       , id
+       , (<$>)
+       , maybe
+       )
 
-import Network.HTTP.Media ((//), (/:))
+import Network.HTTP.Media
+       ( (//)
+       , (/:)
+       )
+
 import Servant
+       ( CaptureAll
+       , Headers
+       , Header
+       , JSON
+       , Post
+       , ReqBody
+       , OctetStream
+       , Get
+       , Capture
+       , Raw
+       , (:>)
+       , (:<|>)
+       , MimeRender(..)
+       , Accept(contentType)
+       , Proxy(..)
+       , FromHttpApiData(parseUrlPiece)
+       )
 
 import Data.Prim
-import Data.History  (HistoryID)
-import Data.ImgTree  (ImgNodeP)
-import Data.MetaData (MetaDataText, Rating)
+       ( (^.)
+       , readGeo'
+       , TimeStamp
+       , CheckSum
+       , CheckSumRes
+       , Name
+       , Path
+       , LazyByteString
+       , IsoString(isoString)
+       , Geo
+       , Text
+       )
+import Data.History
+        ( HistoryID
+        )
+import Data.ImgTree
+       ( ImgNodeP
+       )
+import Data.MetaData
+       ( MetaDataText
+       , Rating
+       )
 
 import qualified Data.Text as T
 
@@ -259,7 +306,7 @@ type JsonModifyAPI
 
 instance FromHttpApiData Geo' where
   parseUrlPiece s =
-    maybe (defaultParseError s) Right $ g
+    maybe (defaultParseError s) Right g
     where
       g = Geo' <$> readGeo' (s ^. isoString)
 

@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.Effects
@@ -77,14 +63,27 @@ import Polysemy.Reader
 import Polysemy.State
 import Polysemy.Time
 
-import Data.ImageStore (ImgStore)
-import Data.Journal    (JournalP)
+import Data.ImageStore
+       ( ImgStore )
+
+import Data.Journal
+       ( JournalP )
+
 import Data.Prim
+       ( Alternative(empty)
+       , Text
+       , fromMaybe
+       , (^.)
+       , IsoText(isoText)
+       )
 
-import Catalog.CatEnv  (CatEnv)
-import Catalog.History (UndoListCmd)
+import Catalog.CatEnv
+       ( CatEnv )
+import Catalog.History
+       ( UndoListCmd )
 
-import Polysemy.ExecProg (ExecProg)
+import Polysemy.ExecProg
+       ( ExecProg )
 
 ------------------------------------------------------------------------------
 

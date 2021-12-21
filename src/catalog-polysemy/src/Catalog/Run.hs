@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.Run
@@ -28,38 +14,117 @@ where
 
 -- polysemy and polysemy-tools
 import Polysemy
+       ( Embed
+       , Member
+       , Sem
+       , runM
+       )
 import Polysemy.Consume.BGQueue
+       ( writeToBGQueue
+       , BGQueue
+       )
 import Polysemy.State
+       ( State
+       , runStateIORef
+       , runState
+       )
 import Polysemy.State.RunTMVar
+       ( createJobQueue
+       , evalStateTChan
+       , evalStateTMVar
+       , modifyStateTMVar
+       , Job
+       )
 import Polysemy.ExecProg
+       ( ExecProg
+       , systemProcess
+       )
 import Polysemy.Logging
+       ( LogMsg(logMsgToText)
+       , LogLevel
+       , Logging
+       , logWithLevel
+       , logToStdErr
+       , logToBGQueue
+       , log'info
+       )
 
 -- catalog-polysemy
 import Catalog.CatEnv
+       ( CatEnv
+       , AppEnv
+       , appEnvCat
+       , appEnvLogLevel
+       , defaultAppEnv
+       )
 import Catalog.Effects
+       ( Consume
+       , Time
+       , FileSystem
+       , Reader
+       , EffLogging
+       , EffIStore
+       , EffError
+       , Error
+       , posixTime
+       , basicFileSystem
+       , ioExcToText
+       , runReader
+       , runError
+       )
 import Catalog.Effects.CatCmd
+       ( Text
+       , CatCmd
+       )
 import Catalog.Effects.CatCmd.Interpreter
-import Catalog.History        ( UndoHistory
-                              , UndoListCmd
-                              , undoListNoop
-                              , undoListWithState
-                              )
-import Catalog.Journal        ( journalToBGQueue
-                              , journalToHandle
-                              , journalToDevNull
-                              )
+       ( evalCatCmd )
+
+import Catalog.History
+       ( UndoHistory
+       , UndoListCmd
+       , undoListNoop
+       , undoListWithState
+       )
+import Catalog.Journal
+       ( journalToBGQueue
+       , journalToHandle
+       , journalToDevNull
+       )
 
 -- catalog
 import Data.Prim
-import Data.Journal                 (JournalP)
-import Data.ImageStore              (ImgStore, emptyImgStore)
+       ( (^.)
+       , when
+       )
+import Data.Journal
+       ( JournalP )
+
+import Data.ImageStore
+       ( ImgStore
+       , emptyImgStore
+       )
 
 -- libs
-import Control.Concurrent.STM       (atomically)
+import Control.Concurrent.STM
+       ( atomically )
+
 import Control.Concurrent.STM.TMVar
+       ( TMVar
+       , isEmptyTMVar
+       , putTMVar
+       , readTMVar
+       )
 import Control.Concurrent.STM.TChan
-import Data.IORef                   (IORef)
-import System.IO                    (Handle, stderr, hFlush)
+       ( TChan )
+
+import Data.IORef
+       ( IORef )
+
+import System.IO
+       ( Handle
+       , stderr
+       , hFlush
+       )
 
 import qualified Control.Exception as Ex
 import qualified Data.Text         as T ()
@@ -164,7 +229,7 @@ runM' var cmd =
                   em <- isEmptyTMVar var
                   when em (putTMVar var v)   -- refill empty TMVar
         )
-        (\ _ -> cmd')
+        (const cmd')
 
 --------------------
 

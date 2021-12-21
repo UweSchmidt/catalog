@@ -1,23 +1,36 @@
+----------------------------------------------------------------
+
 module Logger
   ( withCatLogger )
 where
 
 import Data.Prim.Prelude
+       ( (^.)
+       , IsoString(isoString)
+       , IsoText(isoText)
+       , Text
+       , void
+       , to
+       )
 
-import Control.Exception     ( bracket )
-import Network.Wai.Logger    ( ApacheLogger
-                             , IPAddrSource(..)
-                             , LogType'(..)
-                             , initLogger
-                             , apacheLogger
-                             , logRemover
-                             )
+import Control.Exception
+       ( bracket )
 
-import System.Log.FastLogger ( LogStr
-                             , newTimeCache
-                             , simpleTimeFormat
-                             , fromLogStr
-                             )
+import Network.Wai.Logger
+       ( ApacheLogger
+       , IPAddrSource(..)
+       , LogType'(..)
+       , initLogger
+       , apacheLogger
+       , logRemover
+       )
+
+import System.Log.FastLogger
+       ( LogStr
+       , newTimeCache
+       , simpleTimeFormat
+       , fromLogStr
+       )
 
 import qualified Data.Text as T
 

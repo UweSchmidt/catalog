@@ -1,18 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
-{-# LANGUAGE OverloadedStrings #-}
-
 ------------------------------------------------------------------------------
 
 module Catalog.ImgTree.Access
@@ -59,11 +44,86 @@ module Catalog.ImgTree.Access
 where
 
 import Catalog.Effects
+       ( SemIS
+       , SemISE
+       , Sem
+       , get
+       , throw
+       )
 
 import Data.ImageStore
+       ( ImgStore
+       , ImgStore'
+       , mapImgStore
+       , theImgTree
+       )
 import Data.ImgTree
+       ( ColEntries
+       , ColEntry
+       , DirEntries
+       , ImgNode
+       , ImgRef
+       , ImgRef'(ImgRef)
+       , ImgTree
+       , ObjIds
+       , UplNode
+       , colEntry'
+       , entryAt
+       , isDIR
+       , isIMG
+       , isROOT
+       , isoDirEntries
+       , isoImgParts
+       , keysImgTree
+       , lookupImgPath
+       , nodeName
+       , nodeVal
+       , parentRef
+       , refInTree
+       , refObjIdPath
+       , refPath
+       , rootRef
+       , theColEntries
+       , theDirEntries
+       , theImgCol
+       , theImgMeta
+       , theImgName
+       , theImgPart
+       , theImgRoot
+       , theMetaData
+       , theParts
+       , theRootImgCol
+       , theRootImgDir
+       )
 import Data.MetaData
+       ( MetaData )
+
 import Data.Prim
+       ( Foldable(toList)
+       , Ixed(ix)
+       , Seq
+       , IsoText(isoText)
+       , Getting
+       , Path
+       , Name
+       , ObjId
+       , Text
+       , (^.)
+       , (^..)
+       , (^?)
+       , filterM
+       , filterSeqM
+       , isJust
+       , isoSeqList
+       , listToMaybe
+       , mkObjId
+       , msgPath
+       , noOfBitsUsedInKeys
+       , on
+       , snocPath
+       , to
+       , whenM
+       )
 
 import qualified Data.Set      as S
 import qualified Data.Sequence as Seq
@@ -163,8 +223,7 @@ getIdNode msg p = do
       return res
 
 getIdNode' :: Path -> SemISE r (ObjId, ImgNode)
-getIdNode' p =
-  getIdNode ("cant' find entry for path:") p
+getIdNode' = getIdNode "cant' find entry for path:"
 
 getId :: Path -> SemISE r ObjId
 getId p = fst <$> getIdNode' p
@@ -181,16 +240,13 @@ alreadyTherePath msg p = do
 -- | ref to path
 
 objid2path :: ObjId -> SemIS r Path
-objid2path i =
-  dt >>= return . refPath i
+objid2path i = refPath i <$> dt
 
 objid2list :: ObjId -> SemIS r [ObjId]
-objid2list i =
-  dt >>= return . refObjIdPath i
+objid2list i = refObjIdPath i <$> dt
 
 isPartOfTree :: ObjId -> ObjId -> SemIS r Bool
-isPartOfTree r p =
-  dt >>= return . refInTree r p
+isPartOfTree r p = refInTree r p <$> dt
 
 
 -- | ref to type
@@ -253,7 +309,7 @@ mapImgStore2Path = do
 
 -- get the mapping from internal keys, ObjId, to paths as keys
 objid2pathMap :: SemIS r (ObjId -> Path)
-objid2pathMap = dt >>= return . flip refPath
+objid2pathMap = flip refPath <$> dt
 
 mapPath2ObjId :: Functor f => f Path -> f ObjId
 mapPath2ObjId = fmap mkObjId

@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.Effects.CatCmd.Interpreter
@@ -19,51 +5,102 @@ where
 
 -- catalog-polysemy
 import Catalog.Effects
+       ( Sem
+       , InterpreterFor
+       , Eff'ALL
+       , Eff'ISE
+       , Eff'ISEJL
+       , EffCatEnv
+       , EffError
+       , EffFileSys
+       , EffLogging
+       , fileExist
+       , readFileLB
+       , writeFileLB
+       , log'trc
+       , interpret
+       , get
+       , put
+       , throw
+       )
 import Catalog.Effects.CatCmd
-import Catalog.GenCheckSum     ( Eff'CheckSum )
-import Catalog.CatalogIO       ( Eff'CatIO )
-import Catalog.GenCollections  ( modifyMetaDataRec )
-import Catalog.History         ( addToUndoList
-                               , getFromUndoList
-                               , getWholeUndoList
-                               , dropFromUndoList
-                               )
-import Catalog.Html            ( Eff'Html )
-import Catalog.ImgTree.Access  ( getIdNode'
-                               , getId
-                               , getImgVal
-                               , getImgParent
-                               , getMetaData
-                               , getImgMetaData
-                               , findFstColEntry
-                               , lookupByPath
-                               , mapObjId2Path
-                               , objid2path
-                               , processColEntryAt
-                               , processColImgEntryAt
-                               )
-import Catalog.ImgTree.Modify  ( adjustColEntries
-                               , adjustColImg
-                               , adjustColBlog
-                               , adjustMetaData
-                               , adjustPartMetaData
-                               , mkCollection
-                               )
-import Catalog.Invariant       ( checkImgStore )
-import Catalog.Journal         ( journal )
-import Catalog.MetaData.Sync   ( Eff'MDSync )
-import Catalog.SyncWithFileSys ( Eff'Sync )
-import Catalog.TextPath        ( toFileSysPath )
+       ( Text
+       , Name
+       , Path
+       , ReqType(RRef)
+       , ImgNodeP
+       , MetaDataText
+       , Rating
+       , CatCmd(..)
+       )
+import Catalog.GenCheckSum
+       ( Eff'CheckSum )
+
+import Catalog.CatalogIO
+       ( Eff'CatIO )
+
+import Catalog.GenCollections
+       ( modifyMetaDataRec )
+
+import Catalog.History
+       ( addToUndoList
+       , getFromUndoList
+       , getWholeUndoList
+       , dropFromUndoList
+       )
+import Catalog.Html
+       ( Eff'Html )
+
+import Catalog.ImgTree.Access
+       ( getIdNode'
+       , getId
+       , getImgVal
+       , getImgParent
+       , getMetaData
+       , getImgMetaData
+       , findFstColEntry
+       , lookupByPath
+       , mapObjId2Path
+       , objid2path
+       , processColEntryAt
+       , processColImgEntryAt
+       )
+import Catalog.ImgTree.Modify
+       ( adjustColEntries
+       , adjustColImg
+       , adjustColBlog
+       , adjustMetaData
+       , adjustPartMetaData
+       , mkCollection
+       )
+import Catalog.Invariant
+       ( checkImgStore )
+
+import Catalog.Journal
+       ( journal )
+
+import Catalog.MetaData.Sync
+       ( Eff'MDSync )
+
+import Catalog.SyncWithFileSys
+       ( Eff'Sync )
+
+import Catalog.TextPath
+       ( toFileSysPath )
+
 import Catalog.TimeStamp
-import Catalog.GenPages        ( Req'
-                               , emptyReq'
-                               , processReqMediaPath
-                               , processReqImg
-                               , processReqPage
-                               , rType
-                               , rGeo
-                               , rPathPos
-                               )
+       ( whatTimeIsIt )
+
+import Catalog.GenPages
+       ( Req'
+       , emptyReq'
+       , processReqMediaPath
+       , processReqImg
+       , processReqPage
+       , rType
+       , rGeo
+       , rPathPos
+       )
 
 import qualified Catalog.CatalogIO       as IO
 import qualified Catalog.CopyRemove      as CR
@@ -74,23 +111,75 @@ import qualified Catalog.SyncWithFileSys as SC
 
 -- catalog
 import Data.Prim
+       ( sortBy
+       , unless
+       , traverse_
+       , (&)
+       , on
+       , p'arch'photos
+       , p'photos
+       , checkAndRemExt
+       , isPathPrefix
+       , msgPath
+       , snocPath
+       , substPathPrefix
+       , viewBase
+       , isoPathPos
+       , isoSeqList
+       , unlessM
+       , (^?)
+       , (^.)
+       , (#)
+       , (.~)
+       , CheckSum
+       , CheckSumRes
+       , Geo
+       , ObjId
+       , PathPos
+       , IsoText(isoText)
+       , LazyByteString
+       , TimeStamp
+       , Seq
+       , Ixed(ix)
+       , Field2(_2)
+       )
 import Data.ImgNode
-import Data.Journal    ( Journal'(..) )
-import Data.MetaData   ( MetaData
-                       -- , MetaDataText
-                       -- , metaDataAt
-                       , editMetaData
-                       , isoMetaDataMDT
-                       , splitMDT
-                       , lookupCreate
-                       , lookupRating
-                       , mkRating
-                       , clearAccess
-                       , addNoWriteAccess
-                       , subNoWriteAccess
-                       )
-import Data.ImageStore ( ImgStore )
+       ( colEntry'
+       , isCOL
+       , isRemovableCol
+       , isSortableCol
+       , isUserCol
+       , isWriteableCol
+       , theColBlog
+       , theColEntries
+       , theColObjId
+       , ImgRef
+       , ImgRef'(ImgRef)
+       )
+import Data.Journal
+       ( Journal'(..) )
+
+import Data.MetaData
+       ( MetaData
+         -- , MetaDataText
+         -- , metaDataAt
+       , editMetaData
+       , isoMetaDataMDT
+       , splitMDT
+       , lookupCreate
+       , lookupRating
+       , mkRating
+       , clearAccess
+       , addNoWriteAccess
+       , subNoWriteAccess
+       )
+import Data.ImageStore
+       ( ImgStore )
+
 import Data.ImgTree
+       ( ColEntry
+       , ImgNode
+       )
 
 -- libraries
 import qualified Data.Sequence   as Seq
@@ -102,7 +191,7 @@ import qualified Data.Sequence   as Seq
 evalCatCmd :: Eff'ALL r => InterpreterFor CatCmd r
 evalCatCmd =
   interpret $
-  \ c -> case c of
+  \ case
     SaveBlogSource pos t p ->
       path2node p >>= modify'saveblogsource pos t
 
@@ -250,7 +339,7 @@ evalCatCmd =
 
     ListUndoEntries -> do
       res <- getWholeUndoList
-      log'trc ("listUnodEntries: " <> (show res) ^. isoText)
+      log'trc ("listUnodEntries: " <> show res ^. isoText)
       return res
 
 {-# INLINE evalCatCmd #-}
@@ -296,7 +385,7 @@ writeStaticFile dstPath lbs = do
   tp <- toFileSysPath dstPath
   log'trc $ "writeStaticFile: write to " <> tp
   writeFileLB tp lbs
-  log'trc $ "writeStaticFile: finished "
+  log'trc "writeStaticFile: finished "
 
 -- --------------------
 
@@ -320,7 +409,7 @@ path2node p = snd <$> getIdNode' p
 -- --------------------
 
 modify'saveblogsource :: Eff'Html r => Int -> Text -> ImgNode -> Sem r ()
-modify'saveblogsource pos t n = putBlogCont t pos n
+modify'saveblogsource pos t = putBlogCont t pos
   where
     putBlogCont :: Eff'Html r => Text -> Int -> ImgNode -> Sem r ()
     putBlogCont val =
@@ -434,7 +523,7 @@ modify'sortByDate ixs0 i n
 getCreateDates :: Eff'ISE r => ImgNode -> Sem r (Seq Text)
 getCreateDates n' =
   traverse
-  (\ ce -> lookupCreate id <$> colEntry' getImgMetaData getMetaData ce)
+  (fmap (lookupCreate id) . colEntry' getImgMetaData getMetaData)
   (n' ^. theColEntries)
 
 
@@ -643,8 +732,8 @@ modify'renamecol newName i = do
 
 modify'setMetaData :: Eff'ISEJL r
                    => [Int] -> MetaDataText -> ImgNode -> Sem r ()
-modify'setMetaData ixs mdt n =
-  modify'setMetaData'' ixs (editMetaData mdi) (editMetaData mdp) n
+modify'setMetaData ixs mdt =
+  modify'setMetaData'' ixs (editMetaData mdi) (editMetaData mdp)
   where
     (mdi, mdp) = splitMDT mdt
 
@@ -692,7 +781,7 @@ modify'setMetaData1 pos md oid n
   | otherwise = modify'setMetaData ixs md n     -- update COL entry metadata
   where
     ed  = editMetaData (isoMetaDataMDT # md)
-    ixs = replicate pos (0-1) ++ [1]
+    ixs = replicate pos (negate 1) ++ [1]
 
 -- set the rating field for a list of selected collection entries
 
@@ -708,7 +797,7 @@ modify'setRating1 pos r oid n
   | pos < 0   = adjustMetaData (mkRating r) oid
   | otherwise = modify'setRating ixs r n
   where
-    ixs = replicate pos (0-1) ++ [1]
+    ixs = replicate pos (negate 1) ++ [1]
 
 -- --------------------
 --
@@ -718,7 +807,7 @@ modify'setRating1 pos r oid n
 -- simply take p'archive ("/archive"), the root node
 
 modify'snapshot :: Eff'CatIO r => Text -> Sem r ()
-modify'snapshot t = IO.snapshotImgStore t
+modify'snapshot = IO.snapshotImgStore
 
 -- --------------------
 --
@@ -767,7 +856,7 @@ modify'updateTimeStamp ts n i = CS.updateTimeStamp i n ts
 -- read a whole collection
 
 read'collection :: Eff'ISE r => ImgNode -> Sem r ImgNodeP
-read'collection n = mapObjId2Path n
+read'collection = mapObjId2Path
 
 -- access restrictions on a collection
 
@@ -838,11 +927,8 @@ read'metadata' pos i n
                 n
 
 read'metadata'' :: Eff'ISE r => ColEntry -> Sem r MetaData
-read'metadata'' ce = do
-  colEntry'
-    getImgMetaData
-    getMetaData
-    ce
+read'metadata'' =
+  colEntry' getImgMetaData getMetaData
 
 read'metadata :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaDataText
 read'metadata pos i n =
@@ -864,7 +950,7 @@ read'ratings n =
 
 read'checkImgPart :: Eff'CheckSum r
                   => Bool -> Path -> Name -> ImgNode -> Sem r CheckSumRes
-read'checkImgPart p nm n = CS.checkImgPart p nm n
+read'checkImgPart = CS.checkImgPart
 
 -- --------------------
 

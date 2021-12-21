@@ -1,18 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TupleSections,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.SyncWithFileSys
@@ -25,34 +10,160 @@ module Catalog.SyncWithFileSys
   )
 where
 
-import Catalog.CopyRemove      ( rmRec
-                               , AdjustImgRef
-                               , AdjustColEnt
-                               , cleanupRefs'
-                               )
+import Catalog.CopyRemove
+       ( rmRec
+       , AdjustImgRef
+       , AdjustColEnt
+       , cleanupRefs'
+       )
 import Catalog.Effects
-import Catalog.GenCollections  ( genSysCollections
-                               , genCollectionsByDir'   -- remind the '
-                               , updateCollectionsByDate
-                               , updateImportsDir
-                               )
+       ( Eff'ISEJL
+       , Eff'ISEL
+       , EffCatEnv
+       , EffError
+       , EffExecProg
+       , EffFileSys
+       , EffIStore
+       , EffJournal
+       , EffLogging
+       , EffTime
+       , Sem
+       , SemISEJL
+       , TextPath
+       , dirExist
+       , fileExist
+       , log'trc
+       , log'verb
+       , log'warn
+       , readDir
+       , throw
+       )
+import Catalog.GenCollections
+       ( genSysCollections
+       , genCollectionsByDir'   -- remind the '
+       , updateCollectionsByDate
+       , updateImportsDir
+       )
 import Catalog.ImgTree.Access
+       ( getImgVals
+       , objid2path
+       , getRootImgColId
+       , lookupByPath
+       , getImgName
+       , getImgVal
+       , existsEntry
+       , getImgParent
+       , getTreeAt
+       , objid2contNames
+       , getIdNode'
+       )
 import Catalog.ImgTree.Fold
+       ( foldMT )
+
 import Catalog.ImgTree.Modify
-import Catalog.Logging         ( trc'Obj )
-import Catalog.MetaData.Sync   ( syncMetaData )
-import Catalog.TextPath        ( toFileSysTailPath )
-import Catalog.TimeStamp       ( whatTimeIsIt, lastModified )
+       ( rmImgNode
+       , adjustImg
+       , mkImg
+       , setSyncTime
+       , mkImgDir
+       )
+import Catalog.Logging
+       ( trc'Obj )
+
+import Catalog.MetaData.Sync
+       ( syncMetaData )
+
+import Catalog.TextPath
+       ( toFileSysTailPath )
+
+import Catalog.TimeStamp
+       ( whatTimeIsIt
+       , lastModified
+       )
 
 import Data.ImgTree
+       ( ColEntries
+       , ColEntry
+       , ImgNode'(IMG)
+       , ImgRef
+       , ImgRef'(ImgRef, _iname)
+       , colEntry'
+       , isColColRef
+       , isDIR
+       , isIMG
+       , isROOT
+       , isoImgParts
+       , mkColColRef
+       , mkColImgRef'
+       , mkImgPart
+       , mkImgParts
+       , theColColRef
+       , theColImgRef
+       , theImgCheckSum
+       , theImgName
+       , theImgTimeStamp
+       , thePartNamesI
+       , theParts
+       , theRootImgDir
+       )
 import Data.MetaData
+       ( MetaData )
+
 import Data.Prim
-import Data.TextPath           ( ClassifiedName
-                               , ClassifiedNames
-                               , classifyPaths
-                               , isImgCopiesDir
-                               , (<//>)
-                               )
+       ( Field1(_1)
+       , Field2(_2)
+       , IsEmpty(isempty)
+       , IsoText(isoText)
+       , Lens'
+       , Map
+       , MimeType
+       , Name
+       , ObjId
+       , Path
+       , Set
+       , Text
+       , TimeStamp
+       , (#)
+       , (%~)
+       , (&)
+       , (.~)
+       , (^.)
+       , (^..)
+       , foldM
+       , has
+       , isA
+       , isAnImgPartMT
+       , isNothing
+       , isOtherMT
+       , isShowablePartMT
+       , isoSeqList
+       , mkObjId
+       , msgPath
+       , on
+       , p'arch'photos
+       , partition
+       , partitionM
+       , second
+       , snocPath
+       , sortBy
+       , to
+       , toText
+       , traverse_
+       , unfoldr
+       , unless
+       , unlessM
+       , viewBase
+       , void
+       , when
+       , whenM
+       )
+import Data.TextPath
+       ( ClassifiedName
+       , ClassifiedNames
+       , classifyPaths
+       , isImgCopiesDir
+       , (<//>)
+       )
 
 import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
@@ -91,7 +202,7 @@ buildImgRefUpdates old'refs upd'refs =
     op1 i irs acc = case M.lookup i upd'refs of
       -- all refs must be deleted
       Nothing  ->
-        foldr (\ ir' -> M.insert ir' Nothing) acc irs
+        foldr (`M.insert` Nothing) acc irs
 
       -- some refs maybe renamed, some removed or unchanged
       Just urs ->
@@ -110,10 +221,10 @@ buildNewColEntries new'refs old'refs upd'refs =
   foldr (\ ir acc -> mkColImgRef' ir Seq.<| acc) mempty res
   where
     res = new `S.difference` old `S.difference` upd
-    new = foldr (S.union) mempty new'refs
-    old = foldr (S.union) mempty old'refs
+    new = foldr S.union mempty new'refs
+    old = foldr S.union mempty old'refs
     upd = foldr (\ mr acc ->
-                    maybe acc (flip S.insert acc) mr
+                    maybe acc (`S.insert` acc) mr
                 ) mempty upd'refs
 
 -- --------------------
@@ -167,11 +278,11 @@ collectImgRefs =
           case n' of
             IMG pts _md -> do
               let irs =
-                    foldr (\ nm' -> S.insert (ImgRef i' nm')) mempty $
+                    foldr (S.insert . ImgRef i') mempty $
                     pts ^.. thePartNamesI
               return $ M.singleton i irs
 
-            _dir -> do        -- not a ref to an IMG, must be a ref to a sub DIR
+            _dir ->
               go i'
 
     -- traverse the collection hierarchy
@@ -211,7 +322,7 @@ updateImgRefs um i0
 
       where
         mustBeUpdated :: ColEntry -> Bool
-        mustBeUpdated = colEntry' (\ ir' -> M.member ir' um) (const False)
+        mustBeUpdated = colEntry' (`M.member` um) (const False)
 
         upd :: ColEntry -> ColEntries
         upd ce = colEntry'
@@ -341,7 +452,7 @@ syncNewDirsCont i = do
   ts      <- whatTimeIsIt
   p       <- objid2path i
   cont    <- objid2contNames i
-  newdirs <- (filter (`notElem` cont) . fst) <$>
+  newdirs <- filter (`notElem` cont) . fst <$>
              collectDirCont i
   log'trc $ "syncNewDirsCont: " <> toText newdirs
   traverse_ (syncDirP ts . (p `snocPath`)) newdirs
@@ -391,7 +502,7 @@ syncDirCont recursive i = do
   p  <- objid2path i
 
   cont <- objid2contNames i
-  let lost = filter (`notElem` subdirs <> (map (fst . snd . head) imgfiles)) cont
+  let lost = filter (`notElem` subdirs <> map (fst . snd . head) imgfiles) cont
   log'trc $ "syncDirCont: lost = " <> toText lost
 
   -- remove lost stuff

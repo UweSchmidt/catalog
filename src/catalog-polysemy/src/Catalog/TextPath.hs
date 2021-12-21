@@ -1,18 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
-{-# LANGUAGE OverloadedStrings #-}
-
 ------------------------------------------------------------------------------
 
 module Catalog.TextPath
@@ -28,13 +13,34 @@ where
 
 -- catalog-polysemy
 import Catalog.Effects
-import Catalog.CatEnv         (CatEnv, catMountPath)
-import Catalog.ImgTree.Access (objid2path)
+       ( ask
+       , SemIS
+       , SemCE
+       , TextPath
+       )
+import Catalog.CatEnv
+       ( CatEnv
+       , catMountPath
+       )
+import Catalog.ImgTree.Access
+       ( objid2path )
 
 -- catalog
 import Data.ImgTree
+       ( ImgRef'(ImgRef)
+       , ImgRef
+       )
 import Data.Prim
-import Data.TextPath          (addExt, (<//>))
+       ( IsoText(isoText)
+       , Path
+       , (^.)
+       , tailPath
+       , substPathName
+       )
+import Data.TextPath
+       ( addExt
+       , (<//>)
+       )
 
 ------------------------------------------------------------------------------
 --

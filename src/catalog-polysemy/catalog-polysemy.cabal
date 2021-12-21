@@ -49,8 +49,11 @@ library
 
   hs-source-dirs:     src
 
-  default-extensions: ConstraintKinds
+  default-extensions: BangPatterns
+                      ConstraintKinds
                       DataKinds
+                      DeriveFunctor
+                      DeriveTraversable
                       FlexibleContexts
                       GADTs
                       LambdaCase
@@ -58,6 +61,7 @@ library
                       PolyKinds
                       RankNTypes
                       ScopedTypeVariables
+                      StandaloneDeriving
                       TupleSections
                       TypeApplications
                       TypeFamilies

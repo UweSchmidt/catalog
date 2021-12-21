@@ -1,18 +1,5 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase #-}
 
 ------------------------------------------------------------------------------
 
@@ -36,18 +23,32 @@ module Catalog.History
 where
 
 import Polysemy
+       ( Sem
+       , makeSem
+       , reinterpret
+       , interpret
+       )
 import Polysemy.State
+       ( State
+       , put
+       , modify
+       , get
+       )
 
-import Data.History    ( History
-                       , HistoryID
-                       , addToHistory
-                       , resetHistory
-                       , dropHistory
-                       , emptyHistory
-                       , entriesInHistory
-                       )
-import Data.ImageStore (ImgStore)
+import Data.History
+       ( History
+       , HistoryID
+       , addToHistory
+       , resetHistory
+       , dropHistory
+       , emptyHistory
+       , entriesInHistory
+       )
+import Data.ImageStore
+       (ImgStore)
+
 import Data.Prim.Prelude
+       ( Text )
 
 ------------------------------------------------------------------------------
 
@@ -70,7 +71,7 @@ undoListWithState :: Sem (UndoListCmd ': r) a
                   -> Sem (State UndoHistory ': r) a
 undoListWithState =
   reinterpret $
-  \ c -> case c of
+  \ case
     AddToUndoList cmt s -> do
       h <- get @UndoHistory
       let (hid, h') = addToHistory (cmt, s) h
@@ -97,7 +98,7 @@ undoListNoop :: Sem (UndoListCmd ': r) a
              -> Sem r a
 undoListNoop =
   interpret $
-  \ c -> case c of
+  \ case
     AddToUndoList _cmt _s -> do
       return 0
 

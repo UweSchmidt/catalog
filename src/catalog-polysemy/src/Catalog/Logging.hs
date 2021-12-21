@@ -1,24 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
--- {-# LANGUAGE TemplateHaskell #-}
-
 ------------------------------------------------------------------------------
 
 module Catalog.Logging
@@ -28,12 +7,23 @@ module Catalog.Logging
   )
 where
 
--- import Control.Monad.Trans.Except (Except, runExcept)
-
 import Catalog.Effects
-import Catalog.ImgTree.Access (objid2path)
+       ( Sem
+       , EffLogging
+       , EffIStore
+       , log'warn
+       , log'verb
+       , log'trc
+       )
+import Catalog.ImgTree.Access
+       ( objid2path )
 
 import Data.Prim
+       ( Text
+       , ObjId
+       , IsoText(isoText)
+       , (^.)
+       )
 
 import qualified Data.Text as T
 

@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
 
 ------------------------------------------------------------------------------
@@ -84,14 +70,30 @@ module Catalog.Effects.CatCmd
 where
 
 import Polysemy
-import Polysemy.FileSystem ( TextPath )
+       ( makeSem )
+import Polysemy.FileSystem
+       ( TextPath )
 
 import Data.Prim
-import Data.ImgTree        ( ImgNodeP )
-import Data.MetaData       ( MetaDataText
-                           , Rating
-                           )
-import Data.History        ( HistoryID )
+       ( Text
+       , CheckSum
+       , CheckSumRes
+       , Geo
+       , Name
+       , Path
+       , LazyByteString
+       , ReqType(..)
+       , TimeStamp
+       )
+import Data.ImgTree
+       ( ImgNodeP )
+
+import Data.MetaData
+       ( MetaDataText
+       , Rating
+       )
+import Data.History
+       ( HistoryID )
 
 -- ----------------------------------------
 --

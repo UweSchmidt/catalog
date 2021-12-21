@@ -1,21 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    DeriveFunctor,
-    DeriveTraversable,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    StandaloneDeriving,
-    TupleSections,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 module Catalog.GenPages
   ( Req'
   , emptyReq'
@@ -30,58 +12,177 @@ where
 
 -- catalog
 import Data.Prim
+       ( Alternative(empty, (<|>))
+       , Field1(_1)
+       , Field2(_2)
+       , Geo(..)
+       , GeoAR
+       , IsEmpty(isempty)
+       , IsoString(isoString)
+       , IsoText(isoText)
+       , Ixed(ix)
+       , LazyByteString
+       , Lens
+       , Lens'
+       , MonadPlus(mzero)
+       , ObjId
+       , Path
+       , PathPos
+       , Pos
+       , ReqType(..)
+       , Text
+       , Traversal'
+       , (#)
+       , (%~)
+       , (&)
+       , (.~)
+       , (>=>)
+       , (^.)
+       , (^..)
+       , (^?)
+       , addNameSuffix
+       , concPath
+       , consPath
+       , from
+       , fromMaybe
+       , geo'org
+       , isAlphaNum
+       , isImgMT
+       , isJpgMT
+       , isJust
+       , isMovieMT
+       , isTxtMT
+       , isWackelGifMT
+       , isoEpochTime
+       , isoPicNo
+       , isoSeqList
+       , listToMaybe
+       , mkGeoAR
+       , mkPath
+       , msgPath
+       , p'archive
+       , p'docroot
+       , p'gen'icon
+       , p'qmark
+       , ps'archive
+       , ps'docroot
+       , readPath
+       , reqType2AR
+       , snocPath
+       , substPathName
+       , tailPath
+       , take1st
+       , to
+       , toText
+       , unless
+       , viewBase
+       )
 import Data.ImgNode
+       ( ImgRef'(ImgRef)
+       , ImgRef
+       , theColEntries
+       , theParts
+       , theColObjId
+       , colEntry'
+       , theColBlog
+       , theColImg
+       , theMetaData
+       , thePartNames
+       , thePartNames'
+       )
+
 import Data.ImgTree
-import Data.MetaData                  ( MetaData
-                                      , metaTextAt
-                                      , metaDataAt
-                                      , metaName
-                                      , lookupGeo
-                                      , lookupGeoOri
-                                      , lookupMimeType
-                                      , lookupRating
+       ( ImgNode )
 
-                                        -- MetaKey's
-                                      , descrComment
-                                      , descrDuration
-                                      , descrSubtitle
-                                      , descrTitle
-                                      , fileRefImg
-                                      , fileRefJpg
-                                      , fileRefRaw
-                                      , imgNameRaw
-                                      , imgRating
-                                      )
-import Data.TextPath                  ( baseNameMb
-                                      , ymdNameMb
-                                      , takeDir
-                                      )
+import Data.MetaData
+       ( MetaData
+       , metaTextAt
+       , metaDataAt
+       , metaName
+       , lookupGeo
+       , lookupGeoOri
+       , lookupMimeType
+       , lookupRating
 
-import Catalog.Html.Templates.Blaze2  ( colPage'
-                                      , txtPage'
-                                      , picPage'
-                                      , movPage'
-                                      , gifPage'
-                                      )
+         -- MetaKey's
+       , descrComment
+       , descrDuration
+       , descrSubtitle
+       , descrTitle
+       , fileRefImg
+       , fileRefJpg
+       , fileRefRaw
+       , imgNameRaw
+       , imgRating
+       )
+import Data.TextPath
+       ( baseNameMb
+       , ymdNameMb
+       , takeDir
+       )
+
+import Catalog.Html.Templates.Blaze2
+       ( colPage'
+       , txtPage'
+       , picPage'
+       , movPage'
+       , gifPage'
+       )
 
 -- catalog-polysemy
 import Catalog.Effects
-import Catalog.GenImages              ( Eff'Img
-                                      , GeoOri
-                                      , createResizedImage
-                                      , createVideoIcon
-                                      , createResizedImage1
-                                      , createVideoIcon1
+       ( Eff'ISEL
+       , Eff'ISE
+       , EffError
+       , EffIStore
+       , EffFileSys
+       , EffCatEnv
+       , EffNonDet
+       , NonDet
+       , Sem
+       , TextPath
+       , log'trc
+       , log'dbg
+       , setModiTime
+       , readFileT
+       , getModiTime
+       , createDir
+       , throw
+       , catch
+       , runMaybeEmpty
+       , runMaybe
+       , pureMaybe
+       )
+import Catalog.GenImages
+       ( Eff'Img
+       , GeoOri
+       , createResizedImage
+       , createVideoIcon
+       , createResizedImage1
+       , createVideoIcon1
 
-                                      , genIcon
-                                      , genBlogHtml
-                                      , getThumbnailImage
-                                      , resizeGeo'
-                                      )
-import Catalog.Html                   ( isPano )
+       , genIcon
+       , genBlogHtml
+       , getThumbnailImage
+       , resizeGeo'
+       )
+import Catalog.Html
+       ( isPano )
+
 import Catalog.ImgTree.Access
-import Catalog.TextPath               ( toFileSysPath )
-import Catalog.TimeStamp              ( nowAsIso8601 )
+       ( objid2path
+       , getImgVals
+       , getImgVal
+       , getImgMetaData
+       , getImgParent
+       , colEntryAt
+       , getIdNode'
+       )
+import Catalog.TextPath
+       ( toFileSysPath )
+
+import Catalog.TimeStamp
+       ( nowAsIso8601 )
 
 -- libraries
 import qualified Data.Sequence        as Seq
@@ -316,7 +417,7 @@ processReqMediaPath' r0 = do
         p <- objid2path (r1 ^. rIdNode . _1)
 
         let ns = r1 ^.. rIdNode . _2 . theParts . thePartNames
-        let ps = map (flip substPathName p) ns
+        let ps = map (`substPathName` p) ns
 
         log'trc $ "processRegMediaPath: paths="
                   <> (show ps ^. isoText)
@@ -351,7 +452,7 @@ processReqImg' r0 = do
       )
       <|>
       ( do _ <- createIconFromObj r1 dstPath
-           return $ dstPath
+           return dstPath
       )
 
 -- ----------------------------------------
@@ -486,7 +587,7 @@ toUrlExt _      = ""
 toSourcePath :: EffIStore r => Req'IdNode'ImgRef a -> Sem r Path
 toSourcePath r = do
   p <- objid2path i
-  return $ (tailPath . substPathName nm $ p)
+  return (tailPath . substPathName nm $ p)
   where
     ImgRef i nm = r ^. rImgRef
 
@@ -620,7 +721,10 @@ toMovieIconReq r = do
   n <- getImgVal i
   let nms = n ^.. theParts
                .  thePartNames' (\ ty -> isJpgMT ty || isImgMT ty)
-  return (fmap (\ nm -> r & rImgRef .~ ImgRef i nm) $ listToMaybe nms)
+  return ( (\ nm -> r & rImgRef .~ ImgRef i nm)
+           <$>
+           listToMaybe nms
+         )
   where
     ImgRef i _nm = r ^. rImgRef
 
@@ -631,15 +735,14 @@ toMovieIconReq r = do
 getTxtFromFile :: (EffError r, EffFileSys r, EffCatEnv r)
                => Path -> Sem r Text
 getTxtFromFile srcPath = do
-  txt <- cut 32
-         . T.concat
-         . take 1
-         . filter (not . T.null)
-         . map cleanup
-         . T.lines
-         <$>
-         ( toFileSysPath srcPath >>= readFileT )
-  return txt
+  cut 32
+    . T.concat
+    . take 1
+    . filter (not . T.null)
+    . map cleanup
+    . T.lines
+    <$>
+    ( toFileSysPath srcPath >>= readFileT )
   where
     cleanup :: Text -> Text
     cleanup = T.dropWhile (not . isAlphaNum)
@@ -795,7 +898,7 @@ withCache cmd sp dp = do
 --
 -- abort processing of a request
 
-abortR :: EffError r => Text -> (Req' a) -> Sem r b
+abortR :: EffError r => Text -> Req' a -> Sem r b
 abortR msg r =
   throw @Text (msg <> ": req = " <> toUrlPath r)
 
@@ -805,13 +908,6 @@ abortR msg r =
 
 toParent :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toParent r = do
-  -- lift $ trc "toParent'"
-  v <- toParent' r
-  -- lift $ trc ("toParent: " <> show (toReq'IdNode v))
-  return v
-
-toParent' :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
-toParent' r = do
   r' <- denormPathPos r            -- r' has always a pos
   return ( r' & rPos .~ Nothing )  -- forget the pos
                                    -- the result is normalized
@@ -819,14 +915,6 @@ toParent' r = do
 toPos' :: (Eff'ISE r, EffNonDet r)
        => (Int -> Int) -> Req'IdNode a -> Sem r (Req'IdNode a)
 toPos' f r = do
-  -- lift $ trc "toPos'"
-  v <- toPos'' f r
-  -- lift $ trc ("toPos': " <> show (toReq'IdNode v))
-  return v
-
-toPos'' :: (Eff'ISE r, EffNonDet r)
-        => (Int -> Int) -> Req'IdNode a -> Sem r (Req'IdNode a)
-toPos'' f r = do
   p <- denormPathPos r
   x <- pureMaybe (p ^. rPos)
   let x' = f x
@@ -838,10 +926,7 @@ toPrev = toPos' pred
 
 toNext :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toNext = toPos' succ
-{-
-toFirst :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
-toFirst = toPos' (const 0)
--}
+
 toNextOrUp :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toNextOrUp r =
   toNext r
@@ -856,14 +941,7 @@ toChildOrNextOrUp r =
   toNextOrUp r
 
 toFirstChild :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
-toFirstChild r = do
-  -- lift $ trc "toFirstChild"
-  v <- toFirstChild' r
-  -- lift $ trc ("toFirstChild: " <> show (toReq'IdNode v))
-  return v
-
-toFirstChild' :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
-toFirstChild' r
+toFirstChild r
   | isJust (r ^. rPos) = empty                -- a picture doesn't have children
   | null   (r ^. rColNode . theColEntries)    -- empty collection
                        = empty
@@ -910,8 +988,9 @@ thePageCnfs =
 
 lookupPageCnfs :: ReqType -> Geo -> (Geo, Geo, Int)
 lookupPageCnfs ty geo
-  = fromMaybe (Geo  160  120, Geo 160 120,  9)
-    (pty ty <$> lookup geo thePageCnfs)
+  = maybe (Geo  160  120, Geo 160 120,  9)
+          (pty ty)
+          (lookup geo thePageCnfs)
   where
     pty RPage1 (geo1,  geo2, _ncol) = (geo1, geo2,    0)
     pty _RPage (geo1, _geo2,  ncol) = (geo1, geo1, ncol)
@@ -1184,8 +1263,9 @@ genReqColPage' r = do
         ( par'url,  par'iconurl,  par'title)
         (fwrd'url, fwrd'iconurl, _wrd'title)
                         <- traverse
-                           (\ r' -> fromMaybe emptyIconDescr <$>
-                                    traverse (toIconDescr inav'geo ) r'
+                           (fmap (fromMaybe emptyIconDescr)
+                            .
+                            traverse (toIconDescr inav'geo)
                            )
                            nav
 

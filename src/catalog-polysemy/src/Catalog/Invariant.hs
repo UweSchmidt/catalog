@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.Invariant
@@ -19,14 +5,94 @@ module Catalog.Invariant
 where
 
 import Catalog.Effects
+       ( EffError
+       , EffIStore
+       , Logging
+       , Member
+       , NonDet
+       , Sem
+       , SemISE
+       , SemISEJL
+       , SemISEL
+       , gets
+       , liftMaybe
+       , log'trc
+       , log'verb
+       , log'warn
+       , modify'
+       , pureMaybe
+       , runMaybe
+       )
 import Catalog.ImgTree.Fold
+       ( foldDir
+       , allImgObjIds
+       , allObjIds
+       , allUndefObjIds
+       , foldColEntries
+       , foldRoot
+       , ignoreImg
+       , foldMTU
+       )
 import Catalog.ImgTree.Access
+       ( foldObjIds
+       , getImgParent
+       , bitsUsedInImgTreeMap
+       , getRootImgColId
+       , getRootImgDirId
+       , getTreeAt
+       , getRootId
+       )
 import Catalog.ImgTree.Modify
+       ( rmImgNode
+       , adjustColEntries
+       , adjustColBlog
+       , adjustColImg
+       , adjustDirEntries
+       )
 import Catalog.Logging
+       ( trc'Obj
+       , warn'Obj
+       , verb'Obj
+       )
 
 import Data.ImageStore
+       ( theImgTree )
+
 import Data.ImgTree
+       ( ColEntry
+       , ImgNode
+       , ImgRef
+       , ImgRef'(ImgRef)
+       , ObjIds
+       , colEntry'
+       , entries
+       , isDIR
+       , isIMG
+       , isoDirEntries
+       , isoImgPartsMap
+       , nodeVal
+       , theColColRef
+       , theParts
+       )
 import Data.Prim
+       ( Alternative(empty)
+       , At(at)
+       , Foldable(toList)
+       , IsoText(isoText)
+       , ObjId
+       , (#)
+       , (%~)
+       , (&)
+       , (^.)
+       , (^..)
+       , (^?)
+       , filterSeqM
+       , isJust
+       , toText
+       , traverse_
+       , unless
+       , when
+       )
 
 import qualified Data.Set        as S
 import qualified Data.Map.Strict as M
@@ -112,7 +178,7 @@ cleanupImgRefs i0 = do
     checkImgRef :: (EffIStore r, EffError r, Member NonDet r)
                 => ObjId -> Sem r ImgNode
     checkImgRef i =
-      filterM' (\ n -> return $ isIMG n) (checkRef i)
+      filterM' (return . isIMG) (checkRef i)
 
     -- check whether both the ref and the part in an ImgRef exist
     checkImgPart :: (EffIStore r, EffError r, Member NonDet r)
@@ -211,7 +277,7 @@ checkDeadObjIds = do
     cleanupDeadObjIds :: ObjIds -> SemISEJL r ()
     cleanupDeadObjIds ds =
       unless (S.null ds) $ do
-        log'warn $ "checkDeadObjIds: removing dead ObjIds"
+        log'warn "checkDeadObjIds: removing dead ObjIds"
         modify' $ \ s -> s & theImgTree . entries %~ rmDeadRefs ds
           where
             rmDeadRefs os m = m `M.difference` M.fromSet (const ()) os

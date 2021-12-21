@@ -7,13 +7,51 @@ module Options
 where
 
 import Options.Applicative
+       ( (<**>)
+       , Parser
+       , ParserInfo
+       , fullDesc
+       , header
+       , info
+       , progDesc
+       , execParser
+       , helper
+       )
 import Options.Applicative.LogLevel
+       ( optLogLevel )
+
 import Options.Applicative.CatEnv
+       ( optForceMDU
+       , optGPSCache
+       , optJournal
+       , optJsonArchive
+       , optMountPath
+       , optSaveBothIx
+       )
 import Options.Applicative.HostPort
+       ( optPort )
 
 import Catalog.Version
+       ( date
+       , version
+       )
 import Catalog.CatEnv
+       ( AppEnv
+       , appEnvCat
+       , appEnvJournal
+       , appEnvLogLevel
+       , appEnvPort
+       , catForceMDU
+       , catGPSCache
+       , catJsonArchive
+       , catMountPath
+       , catSaveBothIx
+       , defaultAppEnv
+       )
 import Data.Prim
+       ( (&)
+       , (.~)
+       )
 
 ----------------------------------------
 

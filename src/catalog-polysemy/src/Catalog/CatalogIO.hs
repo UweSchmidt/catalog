@@ -1,18 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-{-# LANGUAGE TupleSections #-}
-
 ------------------------------------------------------------------------------
 
 module Catalog.CatalogIO
@@ -26,26 +11,97 @@ where
 
 -- catalog-polysemy modules
 import Catalog.Effects
-import Catalog.CatEnv         (CatEnv, catJsonArchive, catSaveBothIx)
-import Catalog.GenCollections (genSysCollections)
-import Catalog.ImgTree.Access (mapImgStore2Path, mapImgStore2ObjId)
-import Catalog.Invariant      (checkImgStore)
-import Catalog.Journal        (journal)
-import Catalog.TextPath       (pxMountPath)
-import Catalog.TimeStamp      (nowAsIso8601)
+       ( TextPath
+       , Sem
+       , Eff'ISEJL
+       , EffCatEnv
+       , EffError
+       , EffExecProg
+       , EffFileSys
+       , EffIStore
+       , EffJournal
+       , EffLogging
+       , EffTime
+       , readFileLB
+       , writeFileLB
+       , log'info
+       , log'verb
+       , get
+       , modify'
+       , put
+       , liftExcept
+       , throw
+       , ask
+       )
+import Catalog.CatEnv
+       ( CatEnv
+       , catJsonArchive
+       , catSaveBothIx
+       )
+import Catalog.GenCollections
+       ( genSysCollections )
+import Catalog.ImgTree.Access
+       ( mapImgStore2Path
+       , mapImgStore2ObjId
+       )
+import Catalog.Invariant
+       ( checkImgStore )
+import Catalog.Journal
+       ( journal )
+import Catalog.TextPath
+       ( pxMountPath )
+import Catalog.TimeStamp
+       ( nowAsIso8601 )
 
 -- polysemy-tools
-import Polysemy.ExecProg      (execScript)
+import Polysemy.ExecProg
+       ( execScript )
 
 -- catalog modules
-import Catalog.Version        (version, date)
+import Catalog.Version
+       ( version
+       , date
+       )
 
-import Data.ImageStore        (ImgStore, theCatMetaData, mkImgStore)
-import Data.ImgTree           (mkEmptyImgRoot)
-import Data.Journal           (Journal'(LoadImgStore, SaveImgStore, InitImgStore))
-import Data.MetaData          (metaTextAt, descrCatalogWrite, descrCatalogVersion)
+import Data.ImageStore
+       ( ImgStore
+       , theCatMetaData
+       , mkImgStore
+       )
+import Data.ImgTree
+       ( mkEmptyImgRoot )
+
+import Data.Journal
+       ( Journal'(LoadImgStore, SaveImgStore, InitImgStore) )
+
+import Data.MetaData
+       ( metaTextAt
+       , descrCatalogWrite
+       , descrCatalogVersion
+       )
 import Data.Prim
-import Data.TextPath          (takeDir, splitExtension)
+       ( Text
+       , Name
+       , IsoString(isoString)
+       , IsoText(isoText)
+       , LazyByteString
+       , ToJSON
+       , (&)
+       , (^.)
+       , (#)
+       , (%~)
+       , (.~)
+       , void
+       , whenM
+       , n'archive
+       , n'collections
+       , n'photos
+       , toText
+       )
+import Data.TextPath
+       ( takeDir
+       , splitExtension
+       )
 
 -- libraries
 

@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.GenCollections
@@ -28,42 +14,152 @@ module Catalog.GenCollections
 where
 
 import Catalog.Effects
+       ( Eff'ISEJL
+       , Eff'ISEJLT
+       , Eff'ISEL
+       , Eff'ISE
+       , Sem
+       , throw
+       , log'verb
+       , log'trc
+       )
 import Catalog.ImgTree.Fold
+       ( foldColColEntries
+       , foldCollections
+       , foldImgDirs
+       )
 import Catalog.ImgTree.Access
+       ( getImgVal
+       , findFstColEntry
+       , mergeColEntries
+       , getImgVals
+       , getMetaData
+       , getImgName
+       , sortColEntries
+       , getRootImgDirId
+       , lookupByPath
+       , objid2path
+       , getRootImgColId
+       )
 import Catalog.ImgTree.Modify
+       ( mkImgCol
+       , remColEntry
+       , adjustColBlog
+       , adjustColEntries
+       , adjustMetaData
+       )
 import Catalog.Logging
-import Catalog.CopyRemove     ( removeEmptyColls )
-import Catalog.TimeStamp      ( whatTimeIsIt )
+       ( trc'Obj )
+
+import Catalog.CopyRemove
+       ( removeEmptyColls )
+
+import Catalog.TimeStamp
+       ( whatTimeIsIt )
 
 import Data.ImgTree
-import Data.MetaData          ( MetaData
-                              , Access
+       ( theColObjId
+       , isCOL
+       , theMimeType
+       , isoImgPartsMap
+       , theParts
+       , theColEntries
+       , colEntry
+       , mkColColRef
+       , thePartNamesI
+       , mkColImgRef
+       , ColEntry
+       , ColEntry'(ImgEnt)
+       , DirEntries
+       , ImgParts
+       , ColEntries
+       )
+import Data.MetaData
+       ( MetaData
+       , Access
 
-                              , metaDataAt
-                              , metaTextAt
-                              , metaAcc
+       , metaDataAt
+       , metaTextAt
+       , metaAcc
 
-                              , lookupCreate
-                              , parseDate
-                              , parseTime
-                              , isoDateInt
+       , lookupCreate
+       , parseDate
+       , parseTime
+       , isoDateInt
 
-                              , all'restr
-                              , no'restr
-                              , no'delete
-                              , no'write
-                              , no'sort
-                              , no'user
-                              , (.|.)
+       , all'restr
+       , no'restr
+       , no'delete
+       , no'write
+       , no'sort
+       , no'user
+       , (.|.)
 
-                              , descrAccess     -- meta keys
-                              , descrComment
-                              , descrCreateDate
-                              , descrOrderedBy
-                              , descrSubtitle
-                              , descrTitle
-                              )
+       , descrAccess     -- meta keys
+       , descrComment
+       , descrCreateDate
+       , descrOrderedBy
+       , descrSubtitle
+       , descrTitle
+       )
 import Data.Prim
+       ( Foldable(fold)
+       , Ixed(ix)
+       , TimeStamp
+       , IsoText(isoText)
+       , IsEmpty(isempty)
+       , Path
+       , Name
+       , ObjId
+       , Text
+       , (.~)
+       , (&)
+       , (^?)
+       , (^..)
+       , (^.)
+       , (#)
+       , iso8601TimeStamp
+       , formatTimeStamp
+       , p'imports
+       , traverse_
+       , foldlM
+       , p'bycreatedate
+       , unless
+       , msgPath
+       , timeStampToText
+       , when
+       , isTxtMT
+       , sort
+       , isoSeqList
+       , listFromPath
+       , viewBase
+       , to'colandname
+       , tailPath
+       , toText
+       , substPathPrefix
+       , consPath
+       , mkPath
+       , mkName
+       , viewTop
+       , to'dateandtime
+       , tt'day
+       , tt'month
+       , to'name
+       , tt'year
+       , void
+       , snocPath
+       , tt'bydate
+       , n'bycreatedate
+       , tt'imports
+       , n'imports
+       , tt'photos
+       , n'photos
+       , tt'albums
+       , n'albums
+       , tt'clipboard
+       , n'clipboard
+       , tt'collections
+       )
 
 import qualified Data.IntMap     as IM
 import qualified Data.Sequence   as Seq
@@ -112,18 +208,18 @@ genAlbumsCollection = genSysCollection no'restr n'albums tt'albums
 
 -- collection hierachy representing the photos hierachy on disk
 genPhotoCollection :: Eff'ISEJLT r => Sem r ()
-genPhotoCollection = do
+genPhotoCollection =
   genSysCollection all'restr n'photos tt'photos
 
 -- import collection is writeable
 -- to enable removing old imports
 genImportsCollection :: Eff'ISEJLT r => Sem r ()
-genImportsCollection = do
+genImportsCollection =
   genSysCollection (no'delete .|. no'sort .|. no'user)
-    n'imports tt'imports
+  n'imports tt'imports
 
 genByDateCollection :: Eff'ISEJLT r => Sem r ()
-genByDateCollection = do
+genByDateCollection =
   genSysCollection all'restr n'bycreatedate tt'bydate
 
 genSysCollection :: Eff'ISEJLT r => Access -> Name -> Text -> Sem r ()
@@ -134,7 +230,7 @@ genSysCollection a n'sys tt'sys = do
   ex <- lookupByPath sys'path
 
   case ex of
-    Nothing -> do
+    Nothing ->
       void $ mkColByPath insertColByAppend (const $ mkColMeta' md) sys'path
     Just (i, _n) ->
       adjustMetaData (setAcc a) i
@@ -310,7 +406,7 @@ sortByName =
     getVal =
       colEntry
       (\ j n1 -> (\ n -> Right (n, n1))  <$> getImgName j)
-      (\ j    ->         Left            <$> getImgName j)
+      (fmap Left . getImgName)
 
 
 sortByDate :: Eff'ISE r => ColEntries -> Sem r ColEntries
@@ -330,7 +426,7 @@ sortByDate =
           let t = lookupCreate parseTime md
           return $ Right (t, n1)
       )
-      (\ j    -> Left <$> getImgName j )
+      (fmap Left . getImgName )
 
 -- ----------------------------------------
 --
@@ -396,7 +492,7 @@ setColBlogToFstTxtEntry rm i = do
   fte <- findFstTxtEntry i
   maybe (return ()) setEntry fte
   where
-    setEntry (pos, (ImgEnt ir)) = do
+    setEntry (pos, ImgEnt ir) = do
       log'trc $ "setColBlogToFstTxtEntry: " <> toText (i, pos, ir)
       adjustColBlog (const $ Just ir) i
       when rm $
@@ -571,8 +667,8 @@ mkImportCol ts pc = do
 -- ----------------------------------------
 
 modifyMetaDataRec :: Eff'ISEJL r => (MetaData -> MetaData) -> ObjId -> Sem r ()
-modifyMetaDataRec mf i0 = do
-  foldCollections colA i0
+modifyMetaDataRec mf =
+  foldCollections colA
   where
     colA go i md im be cs = do
       adjustMetaData mf i

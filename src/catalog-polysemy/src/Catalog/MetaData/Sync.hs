@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.MetaData.Sync
@@ -23,16 +9,59 @@ module Catalog.MetaData.Sync
 where
 
 import Catalog.CatEnv
+       ( CatEnv
+       , catForceMDU
+       )
 import Catalog.Effects
+       ( Sem
+       , EffExecProg
+       , EffTime
+       , EffLogging
+       , EffJournal
+       , EffIStore
+       , EffFileSys
+       , EffError
+       , EffCatEnv
+       , log'trc
+       , local
+       , ask
+       )
 import Catalog.ImgTree.Fold
+       ( foldMT )
+
 import Catalog.ImgTree.Access
-import Catalog.MetaData.Exif   ( setMD )
+       ( objid2path
+       , getImgVals
+       )
+import Catalog.MetaData.Exif
+       ( setMD )
 
 import Data.ImgNode
-import Catalog.Logging         ( trc'Obj )
-import Data.MetaData           ( MetaData
-                               , theImgEXIFUpdate )
+       ( ImgParts
+       , ImgRef'(ImgRef, _iref)
+       , theImgTimeStamp
+       , theParts
+       , colEntry'
+       , theMetaData
+       , traverseParts
+       )
+import Catalog.Logging
+       ( trc'Obj )
+
+import Data.MetaData
+       ( MetaData
+       , theImgEXIFUpdate
+       )
 import Data.Prim
+       ( ObjId
+       , IsEmpty(isempty)
+       , (^.)
+       , (.~)
+       , toText
+       , when
+       , unless
+       , traverse_
+       )
 
 -- ----------------------------------------
 
@@ -78,7 +107,7 @@ syncAllMetaData recursive i0 = do
         where
           go' = colEntry'
                 (go . _iref)
-                ( \ i' -> when recursive $ go i')
+                ( when recursive . go)
 
 -- i must be an objid pointing to am ImgNode
 -- else this becomes a noop

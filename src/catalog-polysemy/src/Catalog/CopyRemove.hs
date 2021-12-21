@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.CopyRemove
@@ -33,16 +19,108 @@ module Catalog.CopyRemove
 where
 
 import Catalog.Effects
+       ( log'trc
+       , log'verb
+       , log'warn
+       , throw
+       , SemISEJL
+       )
 import Catalog.ImgTree.Fold
+       ( allColObjIds
+       , allImgObjIds
+       , foldColEntries
+       , foldCollections
+       , foldDir
+       , foldMT
+       , foldMTU
+       , foldRoot
+       , foldRootCol
+       , foldRootDir
+       , ignoreCol
+       , ignoreDir
+       , ignoreImg
+       , ignoreRoot
+       )
 import Catalog.ImgTree.Access
+       ( foldObjIds
+       , getIdNode
+       , getImgName
+       , getImgParent
+       , getImgVal
+       , getImgVals
+       , getRootId
+       , getRootImgColId
+       , getTreeAt
+       , isPartOfTree
+       , lookupByPath
+       , objid2path
+       )
 import Catalog.ImgTree.Modify
+       ( adjustColBlog
+       , adjustColEntries
+       , adjustColImg
+       , adjustMetaData
+       , mkCollection
+       , rmImgNode
+       )
 
 -- import Data.ColEntrySet ( ColEntrySet
 --                         , memberColEntrySet
 --                         )
 import Data.ImgTree
+       ( colEntry'
+       , isCOL
+       , isColColRef
+       , isIMG
+       , isROOT
+       , isoDirEntries
+       , mkColColRef
+       , theColBlog
+       , theColColRef
+       , theColEntries
+       , theColImg
+       , theColMetaData
+       , theMetaData
+       , thePartNamesI
+       , theParts
+       , nodeVal
+       , ColEntry'(ColEnt, ImgEnt)
+       , ImgNode'(COL)
+       , ImgRef
+       , ImgRef'(ImgRef)
+       , ObjIds
+       , ColEntries
+       , ColEntry
+       )
 import Data.MetaData
+       ( isRemovable )
+
 import Data.Prim
+       ( join
+       , foldM
+       , unless
+       , traverse_
+       , void
+       , when
+       , mkObjId
+       , isPathPrefix
+       , msgPath
+       , snocPath
+       , substPathPrefix
+       , filterSeqM
+       , isoSeqList
+       , toText
+       , unlessM
+       , (^..)
+       , (^?)
+       , (^.)
+       , Any(Any, getAny)
+       , IsEmpty(isempty)
+       , Name
+       , ObjId
+       , Path
+       , Text
+       )
 
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
@@ -115,7 +193,7 @@ copyColEntries pf =
       foldMT ignoreImg ignoreDir ignoreRoot colA
       where
         colA go i md im be cs = do
-          dst'i  <- (mkObjId . pf) <$> objid2path i
+          dst'i  <- mkObjId . pf <$> objid2path i
           dst'cs <- mapM copy cs
           adjustColEntries (const dst'cs) dst'i
           adjustColImg     (const im    ) dst'i
@@ -186,12 +264,10 @@ rmEmptyRec i0 = foldCollections colA i0
       void $ foldColEntries go i md im be cs
 
       cs' <- getImgVals i theColEntries
-      if null cs' && i /= i0
-        then do
-             p <- objid2path i
-             log'trc $ msgPath p "rmEmptyRec: remove empty collection "
-             rmImgNode i
-        else return ()
+      when (null cs' && i /= i0) $ do
+        p <- objid2path i
+        log'trc $ msgPath p "rmEmptyRec: remove empty collection "
+        rmImgNode i
 
 -- ----------------------------------------
 
@@ -264,7 +340,7 @@ cleanupCollections i0 = do
             cleanupE (ColEnt j) = do
               -- recurse into subcollection and cleanup
               cleanup j
-              j'not'empty <- (not . null) <$> getImgVals j theColEntries
+              j'not'empty <- not . null <$> getImgVals j theColEntries
               -- if collection is empty, remove it
               unless j'not'empty $
                 rmRec j
@@ -300,8 +376,8 @@ type AdjustImgRef = Maybe ImgRef -> Maybe (Maybe ImgRef)
 type AdjustColEnt = ColEntries   -> Maybe  ColEntries
 
 cleanupRefs' :: forall r. AdjustImgRef -> AdjustColEnt -> ObjId -> SemISEJL r ()
-cleanupRefs' adjIR adjCE i0 =
-  foldCollections colA i0
+cleanupRefs' adjIR adjCE =
+  foldCollections colA
   where
     colA go i _md im be es = do
       p <- objid2path i

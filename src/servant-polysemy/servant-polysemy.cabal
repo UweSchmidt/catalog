@@ -50,9 +50,12 @@ executable servant-polysemy
 
   default-extensions: ConstraintKinds
                       DataKinds
+                      ExplicitNamespaces
                       FlexibleContexts
+                      FlexibleInstances
                       GADTs
                       LambdaCase
+                      MultiParamTypeClasses
                       OverloadedStrings
                       PolyKinds
                       RankNTypes

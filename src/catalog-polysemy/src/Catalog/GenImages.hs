@@ -1,18 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-{-# LANGUAGE TupleSections #-}
-
 ------------------------------------------------------------------------------
 
 module Catalog.GenImages
@@ -37,18 +22,91 @@ where
 
 -- catalog-polysemy modules
 import Catalog.Effects
-import Catalog.CatEnv            (CatEnv, catFontName)
-import Catalog.MetaData.ExifTool (getExifMetaData)
-import Catalog.TextPath          (toFileSysPath)
+       ( EffTime
+       , EffLogging
+       , EffError
+       , EffIStore
+       , EffCatEnv
+       , EffFileSys
+       , EffExecProg
+       , TextPath
+       , Sem
+       , fileExist
+       , throw
+       , log'trc
+       , log'verb
+       , log'warn
+       , writeFileT
+       , readFileT
+       , linkFile
+       , fileNotEmpty
+       , createDir
+       , ask
+       , catch
+       )
+import Catalog.CatEnv
+       ( CatEnv
+       , catFontName
+       )
+import Catalog.MetaData.ExifTool
+       ( getExifMetaData )
+
+import Catalog.TextPath
+       ( toFileSysPath )
 
 -- polysemy-tools
-import Polysemy.ExecProg         (execScript)
+import Polysemy.ExecProg
+       ( execScript )
 
 -- catalog modules
-import Data.MetaData             (lookupGeoOri)
-import Data.TextPath             (path2MimeType)
+import Data.MetaData
+       ( lookupGeoOri )
+
+import Data.TextPath
+       ( path2MimeType )
+
 import Data.Prim
-import Data.CT
+       ( (.~)
+       , (^.)
+       , msgPath
+       , (&)
+       , IsEmpty(isempty)
+       , IsoText(isoText)
+       , Text
+       , Path
+       , unless
+       , void
+       , p'vico
+       , flipGeo
+       , geo'org
+       , theAR
+       , theGeo
+       , theH
+       , theW
+       , isGifMT
+       , isTiffMT
+       , viewBase
+       , (.||.)
+       , toText
+       , unlessM
+       , AspectRatio(Pad, Crop, Flex, Fix)
+       , Geo(..)
+       , GeoAR
+       , IsoString(isoString)
+       , Field1(_1)
+       )
+import Data.CT       -- build shell commands
+       ( addFlag
+       , addOptVal
+       , addOr
+       , addPipe
+       , addSeq
+       , addVal
+       , mkCexec
+       , redirStdout
+       , toBash
+       , CTT
+       )
 
 -- libraries
 
@@ -93,7 +151,7 @@ genIcon path t = do
     createDir dir
 
     let script = buildIconScript dst fopt t
-    log'verb $ script
+    log'verb script
     void $ execScript script
 
 -- ----------------------------------------
@@ -104,13 +162,13 @@ getThumbnailImage src dst = do
   dp <- toFileSysPath dst
   extractImage sp dp
     `catch`
-    ( \ e -> do
+    ( \ e ->
         log'warn $
-          T.unwords [ "getThumbnailImage: no Thumbnail found in "
-                     , sp <> ","
-                     , "reason:"
-                     , e
-                     ]
+    T.unwords [ "getThumbnailImage: no Thumbnail found in "
+               , sp <> ","
+               , "reason:"
+               , e
+               ]
     )
   where
     extractImage :: Eff'Img r => TextPath -> TextPath -> Sem r ()
@@ -148,12 +206,12 @@ createResized1 vico d'geo src dst = do
   createResized2 vico s'geo d'geo src dst
 
 createResized2 :: Eff'Img r
-                    => Path
-                    -> GeoOri
-                    -> GeoAR
-                    -> Path
-                    -> Path
-                    -> Sem r ()
+               => Path
+               -> GeoOri
+               -> GeoAR
+               -> Path
+               -> Path
+               -> Sem r ()
 createResized2 vico (s'geo, ori) d'geo src dst = do
   vc           <- if isempty vico
                   then return mempty
@@ -233,7 +291,7 @@ selectFont :: ( EffExecProg r
 selectFont =
   catch @Text (sel <$> fontList) (const $ return mempty)
   where
-    sel flist = head $ filter (`elem` flist) fs <> mempty
+    sel flist = mconcat . take 1 . filter (`elem` flist) $ fs
     fs        = ["ComicSans", "Helvetica"]
 
 fontList :: ( EffExecProg r
@@ -310,8 +368,7 @@ buildResizeCmd vico rot d'g s'geo d s =
     d'geo = d'g ^. theGeo
 
 buildResize2 :: TextPath -> Int -> GeoAR -> Geo -> TextPath -> TextPath -> CTT
-buildResize2 vico rot d'g s'geo d s =
-  buildResize3 vico rot' d'g s'geo' d s
+buildResize2 vico rot d'g s'geo = buildResize3 vico rot' d'g s'geo'
   where
     -- rotate geometry
     s'geo'
@@ -468,8 +525,8 @@ buildResize3 vico rot d'g s'geo d s'
                     then "-thumbnail"
                     else "-resize"
 
-    isPad         = (xoff == (-1) && yoff == (-1))
-    isCrop        = (xoff > 0     || yoff > 0)
+    isPad         = xoff == (-1) && yoff == (-1)
+    isCrop        = xoff > 0     || yoff > 0
     isThumbnail   = d'geo ^. theW <= 300 || d'geo ^. theH <= 300
 
     -- for .tiff convert needs the layer # to be taken

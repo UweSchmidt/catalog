@@ -1,34 +1,49 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.ImgTree.Fold
 where
 
 import Catalog.Effects
+       ( EffError
+       , EffIStore
+       , SemIS
+       , Sem
+       , throw
+       )
 import Catalog.ImgTree.Access
+       ( getTreeAt )
 
 import Data.ImgTree
+       ( ColEntries
+       , DirEntries
+       , ImgNode'(COL, IMG, DIR, ROOT)
+       , ImgParts
+       , ImgRef
+       , ImgRef'(_iref)
+       , ObjIds
+       , nodeVal
+       , singleObjId
+       , theColColRef
+       , theColObjId
+       )
 import Data.MetaData
+       ( MetaData )
+
 import Data.Prim
+       ( Foldable(fold)
+       , IsoText(isoText)
+       , ObjId
+       , Text
+       , TimeStamp
+       , (^.)
+       , (^..)
+       )
 
 -- ----------------------------------------
 
 type Act r a = ObjId -> Sem r a
 
--- traverse an catalog object (@ObjId@) with all it's @ObjId@'s to
+-- traverse a catalog object (@ObjId@) with all it's @ObjId@'s to
 -- sub objects
 -- for all object variants (IMG, DIR, COL and ROOT) a processing
 -- funtion is given,
@@ -134,8 +149,7 @@ foldCollections :: (EffIStore r, EffError r, Monoid a)
                        -> Maybe ImgRef -> ColEntries -> Sem r a) -- ^ COL
   -> Act r a
 
-foldCollections colA =
-  foldMT ignoreImg ignoreDir foldRootCol colA
+foldCollections = foldMT ignoreImg ignoreDir foldRootCol
 
 {-# INLINE foldCollections #-}
 
@@ -236,7 +250,7 @@ foldRootDir go _i dir _col = go dir
 {-# INLINE foldRootDir #-}
 
 foldRootCol :: (ObjId -> Sem r a) -> p1 -> p2 -> ObjId -> Sem r a
-foldRootCol go _i _dir col = go col
+foldRootCol go _i _dir = go
 {-# INLINE foldRootCol #-}
 
 -- --------------------

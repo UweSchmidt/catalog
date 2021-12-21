@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.Html
@@ -25,17 +11,43 @@ where
 
 -- catalog-polysemy
 import Catalog.Effects
+       ( EffTime
+       , EffLogging
+       , EffError
+       , EffIStore
+       , EffCatEnv
+       , EffJournal
+       , EffFileSys
+       , EffExecProg
+       , Sem
+       )
 import Catalog.ImgTree.Access
-import Catalog.Journal        (journal)
-import Catalog.GenImages      (genBlogText
-                              ,genBlogHtml
-                              ,writeBlogText
-                              )
+       ( objid2path )
+
+import Catalog.Journal
+       ( journal )
+
+import Catalog.GenImages
+       ( genBlogText
+       , genBlogHtml
+       , writeBlogText
+       )
 
 -- catalog
 import Data.ImgTree
-import Data.Journal           (Journal'(SaveBlogText))
+       ( ImgRef'(ImgRef)
+       , ImgRef
+       )
+import Data.Journal
+       ( Journal'(SaveBlogText) )
+
 import Data.Prim
+       ( tailPath
+       , Path
+       , Text
+       , substPathName
+       , Geo(..)
+       )
 
 -- ----------------------------------------
 
@@ -123,6 +135,6 @@ processBlog :: EffIStore r
             -> Sem r a
 processBlog process (ImgRef i n) = do
   p <- objid2path i
-  process $ (tailPath . substPathName n $ p)
+  process (tailPath . substPathName n $ p)
 
 -- ----------------------------------------

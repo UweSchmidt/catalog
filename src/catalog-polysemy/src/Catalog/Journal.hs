@@ -1,38 +1,42 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
--- {-# LANGUAGE TemplateHaskell #-}
-
 ------------------------------------------------------------------------------
 
 module Catalog.Journal
 where
 
 import Catalog.Effects
-import Catalog.ImgTree.Access (objid2path)
+       ( Consume
+       , Embed
+       , InterpreterFor
+       , Member
+       , SemISJ
+       , consumeNull
+       , consumeIO
+       , consume
+       )
+import Catalog.ImgTree.Access
+       ( objid2path )
 
 import Data.Journal
+       ( JournalP
+       , Journal
+       )
 import Data.Prim
+       ( (#)
+       , IsoString(isoString)
+       , LazyByteString
+       )
 
-import Polysemy.Consume.BGQueue (BGQueue, writeToBGQueue)
+import Polysemy.Consume.BGQueue
+       ( BGQueue
+       , writeToBGQueue
+       )
 
-import System.IO (Handle, hFlush, stdout, stderr)
+import System.IO
+       ( Handle
+       , hFlush
+       , stdout
+       , stderr
+       )
 
 import qualified Data.Aeson.Encode.Pretty as J
 import qualified Data.ByteString.Lazy     as LB

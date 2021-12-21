@@ -1,18 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-{-# LANGUAGE TupleSections #-}
-
 ------------------------------------------------------------------------------
 
 module Catalog.GenCheckSum
@@ -25,13 +10,59 @@ where
 
 -- catalog-polysemy modules
 import Catalog.Effects
+       ( TextPath,
+         readFileBS,
+         fsFileStat,
+         fileExist,
+         throw,
+         Eff'ISEJL,
+         EffLogging,
+         EffJournal,
+         EffIStore,
+         EffFileSys,
+         EffError,
+         EffCatEnv,
+         Sem
+       )
 import Catalog.ImgTree.Modify
-import Catalog.TextPath       (toFileSysTailPath)
+       ( adjustImg )
+
+import Catalog.TextPath
+       ( toFileSysTailPath )
 
 -- catalog modules
 import Data.ImgNode
+       ( isoImgPartsMap
+       , theImgCheckSum
+       , theImgName
+       , theImgPart
+       , theImgTimeStamp
+       , ImgPart
+       , ImgParts
+       )
 import Data.ImgTree
+       ( ImgNode )
+
 import Data.Prim
+       ( Text
+       , (&)
+       , mkCheckSum
+       , msgPath
+       , substPathName
+       , fsTimeStamp
+       , (^?)
+       , (^.)
+       , (.~)
+       , CheckSum
+       , CheckSumRes(..)
+       , Name
+       , ObjId
+       , Path
+       , IsEmpty(isempty)
+       , IsoText(isoText)
+       , TimeStamp
+       , Ixed(ix)
+       )
 
 -- ----------------------------------------
 

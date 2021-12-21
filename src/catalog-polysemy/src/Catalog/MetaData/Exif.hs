@@ -1,17 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Catalog.MetaData.Exif
@@ -21,18 +7,57 @@ module Catalog.MetaData.Exif
 where
 
 import Catalog.Effects
+       ( Sem
+       , EffExecProg
+       , EffTime
+       , EffLogging
+       , EffJournal
+       , EffIStore
+       , EffFileSys
+       , EffError
+       , EffCatEnv
+       , log'trc
+       )
 import Catalog.ImgTree.Access
+       ( objid2path )
+
 import Catalog.ImgTree.Modify
-import Catalog.MetaData.ExifTool (getExifMetaData)
+       ( adjustMetaData
+       , adjustPartMetaData
+       )
+import Catalog.MetaData.ExifTool
+       ( getExifMetaData )
+
 import Catalog.TimeStamp
+       ( whatTimeIsIt )
 
 import Data.ImgNode
-import Data.MetaData             ( MetaData
-                                 , theImgEXIFUpdate
-                                 , normMetaData
-                                 , splitMetaData
-                                 )
+       ( ImgParts
+       , ImgPart
+       , ImgRef'(ImgRef)
+       , theImgName
+       , theMimeType
+       , theImgMeta
+       , traverseParts
+       )
+import Data.MetaData
+       ( MetaData
+       , theImgEXIFUpdate
+       , normMetaData
+       , splitMetaData
+       )
 import Data.Prim
+       ( ObjId
+       , Path
+       , MimeType
+       , (^.)
+       , (.~)
+       , (&)
+       , substPathName
+       , msgPath
+       , tailPath
+       , foldlMOf
+       )
 
 -- ----------------------------------------
 
@@ -81,13 +106,14 @@ setPartMD ::( EffIStore   r   -- any effects missing?
           -> ImgPart
           -> Sem r MetaData
 setPartMD imgPath i acc pt = do
-  (md'i, md'pt) <- ( splitMetaData ty
-                     .
-                     normMetaData ty              -- normalize meta keys
-                     .
-                     (<> pt ^. theImgMeta)        -- update old part meta
-                   )
-                   <$> getExifMetaData partPath
+  (md'i, md'pt) <- splitMetaData ty
+                   .
+                   normMetaData ty              -- normalize meta keys
+                   .
+                   (<> pt ^. theImgMeta)
+                   <$>
+                   getExifMetaData partPath
+
   adjustPartMetaData (const md'pt) (ImgRef i tn)
   return (md'i <> acc)
   where
@@ -120,7 +146,7 @@ setMD i ps md'old = do
   let md' = md'new & theImgEXIFUpdate .~ ts
 
   -- set new metadata
-  adjustMetaData (const $ md') i
+  adjustMetaData (const md') i
   log'trc $ msgPath ip "setMD: update exif data done: "
 
 ------------------------------------------------------------------------

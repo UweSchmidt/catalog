@@ -1,23 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
-
 ------------------------------------------------------------------------------
 
 module Catalog.ImgTree.Modify
@@ -43,14 +23,79 @@ where
 -- import Control.Monad.Trans.Except (Except, runExcept)
 
 import Catalog.Effects
+       ( Sem
+       , SemISEJ
+       , SemISEJL
+       , SemISJ
+       , liftExcept
+       , log'warn
+       , modify'
+       , throw
+       )
 import Catalog.ImgTree.Access
+       ( dt
+       , existsEntry
+       , getIdNode
+       , alreadyTherePath
+       )
 import Catalog.Journal
+       ( journal )
 
 import Data.ImageStore
+       ( theImgTree )
+
 import Data.ImgTree
+       ( ColEntries
+       , ColEntry
+       , DirEntries
+       , ImgNode
+       , ImgParts
+       , ImgRef
+       , ImgRef'(ImgRef)
+       , emptyImg
+       , emptyImgCol
+       , emptyImgDir
+       , entryAt
+       , isCOL
+       , isDIR
+       , mkColColRef
+       , mkNode
+       , nodeVal
+       , removeImgNode
+       , theColBlog
+       , theColEntries
+       , theColImg
+       , theDirEntries
+       , theImgMeta
+       , theImgPart
+       , theMetaData
+       , theParts
+       , theSyncTime
+       )
 import Data.Journal
+       ( Journal'(..)
+       , Journal
+       )
 import Data.MetaData
+       ( MetaData )
+
 import Data.Prim
+       ( IsoText(isoText)
+       , Name
+       , ObjId
+       , Path
+       , TimeStamp
+       , Traversal'
+       , (%~)
+       , (&)
+       , (.~)
+       , (^.)
+       , (^..)
+       , msgPath
+       , toText
+       , unless
+       , viewBase
+       )
 
 import qualified Data.Sequence as Seq
 
