@@ -1,18 +1,6 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
+
+------------------------------------------------------------------------------
 
 module Polysemy.Delay
   ( -- Effect
@@ -23,20 +11,47 @@ module Polysemy.Delay
 
     -- * Interpretations
   , delayedExec
-
-    -- * aux types and functions
   )
 where
 
 import Polysemy
+       ( Member
+       , Sem
+       , Embed
+       , runT
+       , makeSem
+       , interpretH
+       , raiseUnder
+       , raise
+       , embed
+       )
 import Polysemy.Error
-import Polysemy.EmbedExc
-import Polysemy.Time
+       ( Error )
 
-import Control.Monad                ( when )
-import Control.Concurrent           ( threadDelay )
-import Control.Concurrent.STM       ( atomically )
+import Polysemy.EmbedExc
+       ( IOException )
+
+import Polysemy.Time
+       ( Time
+       , currentTime
+       , posixTime
+       )
+
+import Control.Monad
+       ( when )
+
+import Control.Concurrent
+       ( threadDelay )
+
+import Control.Concurrent.STM
+       ( atomically )
+
 import Control.Concurrent.STM.TMVar
+       ( TMVar
+       , newTMVarIO
+       , putTMVar
+       , takeTMVar
+       )
 
 {- imports for test
 
@@ -49,7 +64,7 @@ import System.IO
 ------------------------------------------------------------------------------
 
 data Delay m a where
-  -- delay the execution of cmd
+  -- delay the execution of a cmd
   -- if last cmd executed with delay was more recently
   -- than the given time span in seconds
   --
@@ -71,7 +86,7 @@ delayedExec' :: forall r a
              -> Sem (Delay : r) a -> Sem r a
 delayedExec' lastTime =
   interpretH $
-  \ c -> case c of
+  \ case
     DelayExec sec cmd -> do
       lst <- embed $ atomically $ takeTMVar lastTime
       now <- fromEnum <$> currentTime

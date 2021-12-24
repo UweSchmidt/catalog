@@ -1,18 +1,6 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
+
+------------------------------------------------------------------------------
 
 module Polysemy.Cache
   ( -- Effect
@@ -33,9 +21,20 @@ module Polysemy.Cache
 where
 
 import Polysemy
--- import Polysemy.Error
--- import Polysemy.EmbedExc
+       ( Member
+       , Sem
+       , makeSem
+       , interpret
+       , raiseUnder
+       , raise
+       )
+
 import Polysemy.State
+       ( State
+       , put
+       , get
+       , evalState
+       )
 
 import qualified Data.Map as M
 
@@ -51,6 +50,8 @@ data Cache k v m a where
 makeSem ''Cache
 
 ------------------------------------------------------------------------------
+--
+-- cache implementation with Polysemy.State and  Data.Map
 
 emptyCache :: M.Map k v
 emptyCache = M.empty
@@ -64,7 +65,7 @@ runCache' :: forall k v r a
           -> Sem r a
 runCache' f =
   interpret $
-  \ c -> case c of
+  \ case
     PutCache kvs -> do
       put $ M.fromList kvs
 
@@ -74,21 +75,22 @@ runCache' f =
     LookupCache k -> do
       m <- get
       case M.lookup k m of
-        Just v -> return (Just v)
-        Nothing -> do
-          mv <- f k
-          maybe
-            (return ())
-            (\ v -> put (M.insert k v m))
-            mv
-          return mv
+        Nothing -> do mv <- f k
+                      maybe
+                        (return ())
+                        (\ v -> put (M.insert k v m))
+                        mv
+                      return mv
+
+        r@Just{} -> return r
+
 
 runCache :: Ord k
          => (k -> Sem r (Maybe v))
          -> Sem (Cache k v : r) a -> Sem r a
 runCache f =
   evalState emptyCache
-  . runCache' (\ k -> raise (f k))  -- lift f into (State (CacheTable k v) : r)
+  . runCache' (raise . f)  -- lift f into (State (CacheTable k v) : r)
   . raiseUnder
 
 ------------------------------------------------------------------------------

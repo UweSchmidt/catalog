@@ -1,19 +1,4 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
+------------------------------------------------------------------------------
 
 module Polysemy.EmbedExc
   ( -- * Actions
@@ -27,7 +12,15 @@ module Polysemy.EmbedExc
 where
 
 import Polysemy
+       ( Member
+       , Sem
+       , Embed
+       , embed
+       )
 import Polysemy.Error
+       ( Error
+       , throw
+       )
 
 import Control.Exception
        ( IOException )

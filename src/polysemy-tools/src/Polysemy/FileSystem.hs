@@ -1,19 +1,4 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Polysemy.FileSystem
   ( -- Effect
@@ -61,8 +46,21 @@ module Polysemy.FileSystem
 where
 
 import Polysemy
+       ( InterpreterFor
+       , Member
+       , Sem
+       , Embed
+       , makeSem
+       , interpret
+       )
 import Polysemy.Error
+       ( Error )
+
 import Polysemy.EmbedExc
+       ( IOException
+       , embedExc
+       , ioExcToText
+       )
 
 import Data.ByteString
        ( ByteString )
@@ -126,7 +124,7 @@ basicFileSystem :: ( Member (Embed IO) r
                 -> InterpreterFor FileSystem r
 basicFileSystem ef = do
   interpret $
-    \ c -> case c of
+    \ case
       DirExist p -> embedExc ef $
         D.doesDirectoryExist (T.unpack p)
 
@@ -184,10 +182,9 @@ basicFileSystem ef = do
       LinkFile op np -> embedExc ef $ do
         let ofp = T.unpack op
             nfp = T.unpack np
-
         X.createLink ofp nfp
            `EX.catchIOError`
-           ( const $ D.copyFile ofp nfp)
+           const (D.copyFile ofp nfp)
 
       GetWorkDir -> embedExc ef $
         T.pack <$> X.getWorkingDirectory
@@ -234,7 +231,7 @@ readDir' :: String -> IO [String]
 readDir' fp =
   EX.bracket
     (X.openDirStream fp)
-    (X.closeDirStream)
+    X.closeDirStream
     readDirEntries
   where
     readDirEntries s = do

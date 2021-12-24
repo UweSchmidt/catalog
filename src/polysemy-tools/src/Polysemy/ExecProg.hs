@@ -1,17 +1,4 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
+{-# LANGUAGE TemplateHaskell #-}
 
 ------------------------------------------------------------------------
 
@@ -33,14 +20,40 @@ module Polysemy.ExecProg
 where
 
 import Polysemy
+       ( InterpreterFor
+       , Member
+       , Sem
+       , Embed
+       , makeSem
+       , interpret
+       )
 import Polysemy.EmbedExc
+       ( IOException
+       , embedExc
+       )
 import Polysemy.Error
+       ( Error
+       , throw
+       )
 import Polysemy.Logging
+       ( Logging
+       , untext
+       , log'warn
+       , log'err
+       , log'dbg
+       )
 
-import Control.Monad      (unless)
-import Data.ByteString    (ByteString)
-import Data.Text          (Text)
+import Control.Monad
+       ( unless )
+
+import Data.ByteString
+       ( ByteString )
+
+import Data.Text
+       ( Text )
+
 import System.Exit
+       ( ExitCode(ExitFailure, ExitSuccess) )
 
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.Text                 as T
@@ -88,7 +101,7 @@ systemProcess :: forall exc r
               -> InterpreterFor ExecProg r
 systemProcess mkExc =
   interpret $
-  \ c -> case c of
+  \ case
     ExecProg prg args inp -> do
       execByteString mkExc prg args inp
 

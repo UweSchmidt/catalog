@@ -1,15 +1,3 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
 
 ------------------------------------------------------------------------------
@@ -31,10 +19,26 @@ module Polysemy.Consume
 where
 
 import Polysemy
+       ( InterpreterFor
+       , Member
+       , Sem
+       , Embed
+       , makeSem
+       , reinterpret
+       , interpret
+       , embed
+       )
 import Polysemy.State
+       ( runState
+       , modify'
+       )
 
-import System.IO    (stdout, hFlush)
-import Data.Text    (Text)
+import System.IO
+       ( stdout
+       , hFlush
+       )
+import Data.Text
+       ( Text )
 
 import qualified Data.Text.IO as T
 
@@ -58,10 +62,9 @@ consumeIO :: Member (Embed IO) r
           -> InterpreterFor (Consume v) r
 consumeIO toIO =
   interpret
-    (\ c -> case c of
-        Consume v -> do
-          embed $ toIO v
-        )
+    (\ case
+        Consume v -> embed $ toIO v
+    )
 
 
 -- | Run a 'Consume Text' effect by writing to stdout/stderr
@@ -85,7 +88,7 @@ runConsumeMonoid
 
 runConsumeMonoid f =
   runState mempty . reinterpret
-    (\ c -> case c of
+    (\ case
         Consume v -> modify' (<> f v)
     )
 
@@ -97,9 +100,9 @@ runConsumeMonoid f =
 consumeNull :: InterpreterFor (Consume v) r
 consumeNull =
   interpret
-    (\ c -> case c of
+    (\ case
         Consume _v -> return ()
-        )
+    )
 
 {-# INLINE consumeNull #-}
 

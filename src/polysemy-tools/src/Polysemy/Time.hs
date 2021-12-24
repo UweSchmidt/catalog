@@ -1,18 +1,6 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
+
+------------------------------------------------------------------------------
 
 module Polysemy.Time
   ( -- Effect
@@ -30,8 +18,19 @@ module Polysemy.Time
 where
 
 import Polysemy
+       ( InterpreterFor
+       , Member
+       , Embed
+       , makeSem
+       , interpret
+       )
 import Polysemy.Error
+       ( Error )
+
 import Polysemy.EmbedExc
+       ( IOException
+       , embedExc
+       )
 
 import System.Posix
        ( EpochTime )
@@ -57,8 +56,9 @@ posixTime :: ( Member (Embed IO) r
           -> InterpreterFor Time r
 posixTime ef = do
   interpret $
-    \ c -> case c of
-             CurrentTime -> embedExc ef $ X.epochTime
+    \ case
+      CurrentTime -> embedExc ef X.epochTime
+
 {-# INLINE posixTime #-}
 
 ------------------------------------------------------------------------------

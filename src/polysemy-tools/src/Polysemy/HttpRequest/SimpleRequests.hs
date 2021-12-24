@@ -1,18 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------
 
 module Polysemy.HttpRequest.SimpleRequests
@@ -36,15 +21,32 @@ module Polysemy.HttpRequest.SimpleRequests
   , lbsToText
   , bsToText
 
+    -- reexport all HTTP types
   , module Network.HTTP.Types
   )
 where
 
 import Polysemy
+       ( Member
+       , Members
+       , Sem
+       )
 import Polysemy.Error
+       ( Error )
+
 import Polysemy.HttpRequest
+       ( httpRequest
+       , HttpRequest
+       )
 import Polysemy.Logging
+       ( Logging
+       , log'verb
+       , abortWith
+       )
 import Polysemy.Reader
+       ( Reader
+       , ask
+       )
 
 import Network.HTTP.Client
        ( Request(..)
@@ -53,8 +55,7 @@ import Network.HTTP.Client
        , parseRequest
        )
 
-import Network.HTTP.Types
-{-
+import Network.HTTP.Types  {- these types and functions are used locally
        ( Method
        , hContentType
        , methodGet
@@ -63,7 +64,6 @@ import Network.HTTP.Types
        , statusMessage
        )
 -}
--- import Network.HTTP.Types.Status
 
 import Data.Aeson
        ( ToJSON
@@ -185,10 +185,10 @@ basicReq' setMethod setBody setPath = do
             then "https://"
             else "http://"
           )
-          <> (totxt $ host req)
+          <> totxt (host req)
           <> ":"
           <> (T.pack . show $ port req)
-          <> (totxt $ path request)
+          <> totxt (path request)
         ]
         <>
         ppBody (requestBody request)
@@ -210,7 +210,7 @@ basicReq' setMethod setBody setPath = do
 
   if scode /= 200
     then do let msg
-                  | scode == 500 = lbsToText $ rbody
+                  | scode == 500 = lbsToText rbody
                   | otherwise    = smsg
             abortWith msg
 

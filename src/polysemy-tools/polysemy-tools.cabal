@@ -34,7 +34,8 @@ library
 
   hs-source-dirs:     src
 
-  default-extensions: ConstraintKinds
+  default-extensions: BangPatterns
+                      ConstraintKinds
                       DataKinds
                       FlexibleContexts
                       GADTs

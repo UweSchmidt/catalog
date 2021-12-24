@@ -1,17 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
+----------------------------------------
 
 module Polysemy.State.RunTMVar
   ( Job
@@ -24,15 +11,41 @@ module Polysemy.State.RunTMVar
 where
 
 import Polysemy
+       ( Member
+       , Sem
+       , Embed
+       , runM
+       , embed
+       )
 import Polysemy.State
+       ( runState
+       , State
+       )
 
-import Control.Concurrent.Async     ( async
-                                    , link
-                                    )
-import Control.Concurrent.STM       ( atomically )
+import Control.Concurrent.Async
+       ( async
+       , link
+       )
+import Control.Concurrent.STM
+       ( atomically )
+
 import Control.Concurrent.STM.TMVar
+       ( TMVar
+       , readTMVar
+       , putTMVar
+       , swapTMVar
+       , takeTMVar
+       )
 import Control.Concurrent.STM.TChan
-import Control.Monad                ( forever )
+       ( TChan
+       , newTChanIO
+       , readTChan
+       , writeTChan
+       )
+import Control.Monad
+       ( forever
+       , join
+       )
 
 ----------------------------------------
 --
@@ -64,8 +77,7 @@ evalStateTMVar
 
 evalStateTMVar ref stateCmd = do
   s0 <- embed $ atomically $ readTMVar ref
-  res <- snd <$> runState s0 stateCmd
-  return res
+  snd <$> runState s0 stateCmd
 
 {-# INLINE evalStateTMVar #-}
 
@@ -131,9 +143,9 @@ createJobQueue = do
   return qu
 
 jobQueue :: TChan Job -> IO ()
-jobQueue q = forever $ do
-  job <- atomically $ readTChan q
-  job
+jobQueue q =
+  forever $
+  join (atomically $ readTChan q)
 
 {-# INLINE evalStateTChan #-}
 

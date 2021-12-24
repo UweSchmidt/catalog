@@ -1,15 +1,3 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeFamilies,
-    TypeOperators
-#-} -- default extensions (only for emacs)
-
 ------------------------------------------------------------------------------
 
 module Polysemy.Consume.BGQueue
@@ -26,19 +14,31 @@ module Polysemy.Consume.BGQueue
 where
 
 import Polysemy
+       ( InterpreterFor
+       , Member
+       , Embed
+       )
 import Polysemy.Consume
+       ( Consume
+       , consumeIO
+       )
 
-import Control.Monad           ( forever
-                               )
-import Control.Concurrent.STM  ( atomically
-                               , TChan
-                               , newTChanIO
-                               , readTChan
-                               , writeTChan
-                               )
-import Control.Concurrent.Async( async
-                               , link
-                               )
+import Control.Monad
+       ( forever
+       , join
+       )
+
+import Control.Concurrent.STM
+       ( atomically
+       , TChan
+       , newTChanIO
+       , readTChan
+       , writeTChan
+       )
+import Control.Concurrent.Async
+       ( async
+       , link
+       )
 
 ------------------------------------------------------------------------------
 --
@@ -66,8 +66,7 @@ startBGQueue = do
   link bg
   return qu
   where
-    process qu = forever $ do
-      cmd <- atomically $ readTChan qu
-      cmd
+    process qu = forever $
+      join (atomically $ readTChan qu)
 
 ------------------------------------------------------------------------------

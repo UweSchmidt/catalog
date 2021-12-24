@@ -1,19 +1,4 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Polysemy.HttpRequest
   ( -- Effect
@@ -86,7 +71,7 @@ basicHttpRequests :: forall exc r
                   -> InterpreterFor HttpRequest r
 basicHttpRequests ef manager managerTls =
   interpret $
-  \ c -> case c of
+  \ case
     HttpRequest req -> do
       r <- embed $ X.try (httpLbs req $
                            if secure req

@@ -1,17 +1,4 @@
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 ------------------------------------------------------------------------------
 
@@ -49,16 +36,39 @@ module Polysemy.Logging
 where
 
 import Polysemy
+       ( InterpreterFor
+       , Member
+       , Sem
+       , Embed
+       , runM
+       , makeSem
+       , reinterpret
+       , interpret
+       )
 import Polysemy.Consume
+       ( Consume
+       , consumeIO
+       , consume
+       )
 import Polysemy.Consume.BGQueue
+       ( BGQueue
+       , writeToBGQueue
+       )
 import Polysemy.Error
+       ( Error
+       , throw
+       )
 
-import           Data.Text    ( Text )
+import Data.Text
+       ( Text )
+
+import System.IO
+       ( Handle
+       , stderr
+       )
+
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
-import           System.IO    ( Handle
-                              , stderr
-                              )
 
 ------------------------------------------------------------------------------
 
@@ -94,12 +104,12 @@ logWithLevel :: LogLevel
              -> Sem (Consume LogMsg ': r) a
 logWithLevel LogNull =    -- disable all logging
   reinterpret $
-  \ c -> case c of
+  \ case
     Log' _l _msg -> pure ()
 
 logWithLevel logLevel =
   reinterpret $
-  \ c -> case c of
+  \ case
     Log' l (LogMsg msg) -> do
       if LogNull < l && l <= logLevel
         then consume $ LogMsg (prettyLogLevel l <> msg)
@@ -114,7 +124,7 @@ logWithoutLevel :: Sem (Logging ': r) a
                 -> Sem (Consume LogMsg ': r) a
 logWithoutLevel =
   reinterpret $
-  \ c -> case c of
+  \ case
     Log' _l msg -> consume msg
 
 
@@ -124,8 +134,8 @@ noLoggingAtAll ::  Sem (Logging ': r) a
                 -> Sem r a
 noLoggingAtAll =
   interpret $
-  \ c -> case c of
-           Log' _l _msg -> return ()
+  \ case
+    Log' _l _msg -> return ()
 
 {-# INLINE noLoggingAtAll #-}
 {-# INLINE logWithoutLevel #-}
