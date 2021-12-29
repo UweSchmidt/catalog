@@ -1,10 +1,3 @@
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
 module Data.Prim.ReqType
   ( ReqType (..)
   , imgReqTypes
@@ -13,7 +6,18 @@ module Data.Prim.ReqType
 where
 
 import Data.Prim.Prelude
+       ( fromMaybe
+       , toLower
+       , toUpper
+       , readMaybe
+       , iso
+       , prism'
+       , IsoString(..)
+       , IsoText
+       , PrismString(..)
+       )
 import Data.Prim.Geometry
+       ( AspectRatio(..) )
 
 -- ----------------------------------------
 

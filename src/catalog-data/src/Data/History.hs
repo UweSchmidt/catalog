@@ -11,7 +11,8 @@ module Data.History
   )
 where
 
-import Data.Prim
+import Data.Prim.Prelude
+       ( isJust )
 
 import qualified Data.IntMap as M
 

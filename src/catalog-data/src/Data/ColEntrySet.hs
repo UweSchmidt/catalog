@@ -1,12 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable    #-}
-{-# LANGUAGE DeriveTraversable #-}
-
 module Data.ColEntrySet
        ( ColEntrySet'
        , ColEntrySet
@@ -21,8 +12,19 @@ module Data.ColEntrySet
        )
 where
 
-import           Data.Prim
-import           Data.ImgNode
+import Data.Prim
+       ( intercalate
+       , (^.)
+       , Set
+       , IsEmpty(..)
+       , IsoString(isoString)
+       , ObjId
+       )
+import Data.ImgNode
+       ( colEntry
+       , ColEntries'
+       , ColEntry'
+       )
 
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
@@ -40,7 +42,7 @@ instance Show ref => Show (ColEntrySet' ref) where
       fmtCE  =
         colEntry
           (\ r n -> "(" <> show r <> ", " <> n ^. isoString <> ")")
-          (\ r   -> show r)
+          show
 
 instance Ord ref => Semigroup (ColEntrySet' ref) where
   CES s1 <> CES s2 = CES $ s1 `S.union` s2

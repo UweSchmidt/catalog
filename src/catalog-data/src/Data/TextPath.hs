@@ -1,18 +1,3 @@
-{-# LANGUAGE
-    ConstraintKinds,
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies
-#-} -- default extensions (only for emacs)
-
-{-# LANGUAGE OverloadedStrings #-}
-
 ------------------------------------------------------------------------------
 --
 -- TextPath parsing
@@ -51,6 +36,19 @@ module Data.TextPath
 where
 
 import Data.Prim
+       ( Text
+       , IsoString(isoString)
+       , IsoText(isoText)
+       , Name
+       , MimeType
+       , (&)
+       , (^.)
+       , (#)
+       , (%~)
+       , (***)
+       , both
+       , isBoringMT
+       )
 
 import qualified Data.FilePath    as F ( splitPathNameExtMime
                                        , isImgCopiesDir
@@ -123,11 +121,11 @@ addJpg p =
 
 ymdNameMb :: TextPath -> Maybe (Text, Maybe (Text, Maybe Text))
 ymdNameMb p =
-  fmap (T.pack *** fmap (T.pack *** fmap T.pack)) $ (F.ymdNameMb (T.unpack p))
+  (T.pack *** fmap (T.pack *** fmap T.pack)) <$> F.ymdNameMb (T.unpack p)
 
 baseNameMb :: Text -> Maybe Text
 baseNameMb p =
-  fmap T.pack $ F.baseNameMb (T.unpack p)
+  T.pack <$> F.baseNameMb (T.unpack p)
 
 ------------------------------------------------------------------------------
  {-

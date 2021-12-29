@@ -1,20 +1,37 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
 -- types for image geometry
 
 module Data.Prim.Geometry
 where
 
 import Data.Prim.Prelude
-import Text.SimpleParser ( SP
-                         , parseMaybe
-                         , char
-                         , digitChar
-                         , satisfy
-                         , string
-                         , try
-                         )
+       ( Alternative((<|>), many, some)
+       , fromMaybe
+       , isDigit
+       , toLower
+       , toUpper
+       , readMaybe
+       , (^.)
+       , iso
+       , (#)
+       , Field1(_1)
+       , Field2(_2)
+       , Iso'
+       , Lens'
+       , IsEmpty(..)
+       , IsoString(..)
+       , IsoText(..)
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       )
+import Text.SimpleParser
+       ( SP
+       , parseMaybe
+       , char
+       , digitChar
+       , satisfy
+       , string
+       , try
+       )
 
 -- ----------------------------------------
 

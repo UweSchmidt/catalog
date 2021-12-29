@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Data.ImgTree
        ( module Data.RefTree
        , module Data.ImgNode
@@ -8,8 +6,22 @@ module Data.ImgTree
        where
 
 import Control.Monad.Except
+       ( Except )
+
 import Data.ImgNode
+
 import Data.Prim
+       ( IsEmpty(isempty)
+       , Name
+       , ObjId
+       , Path
+       , mkObjId
+       , (&)
+       , (^.)
+       , to
+       , (%~)
+       , (.~)
+       )
 import Data.RefTree
 
 import Data.Map as M

@@ -17,87 +17,156 @@ module Catalog.Html.Templates.Blaze2
   )
 where
 
-import Data.MetaData ( MetaData
-                     , MetaKey
+import Data.MetaData
+       ( MetaData
+       , MetaKey
 
-                     , metaDataAt
-                     , metaTextAt
-                     , lookupGPSposDeg
-                     , metaTimeStamp
+       , metaDataAt
+       , metaTextAt
+       , lookupGPSposDeg
+       , metaTimeStamp
 
-                     , compositeDOF
-                     , compositeFOV
-                     , compositeHyperfocalDistance
-                     , compositeGPSPosition
-                     , compositeImageSize
-                     , compositeLensID
-                     , compositeLensSpec
-                     , compositeMegapixels
+       , compositeDOF
+       , compositeFOV
+       , compositeHyperfocalDistance
+       , compositeGPSPosition
+       , compositeImageSize
+       , compositeLensID
+       , compositeLensSpec
+       , compositeMegapixels
 
-                     , descrAddress
-                     , descrComment
-                     , descrCommentImg
-                     , descrKeywords
-                     , descrLocation
-                     , descrSubtitle
-                     , descrTitle
-                     , descrTitleEnglish
-                     , descrTitleLatin
-                     , descrGPSAltitude
-                     , descrWeb
-                     , descrWikipedia
+       , descrAddress
+       , descrComment
+       , descrCommentImg
+       , descrKeywords
+       , descrLocation
+       , descrSubtitle
+       , descrTitle
+       , descrTitleEnglish
+       , descrTitleLatin
+       , descrGPSAltitude
+       , descrWeb
+       , descrWikipedia
 
-                     , exifCreateDate
-                     , exifExposureCompensation
-                     , exifExposureMode
-                     , exifExposureProgram
-                     , exifExposureTime
-                     , exifFNumber
-                     , exifFocalLength
-                     , exifFocalLengthIn35mmFormat
-                     , exifISO
-                     , exifModel
-                     , exifWhiteBalance
+       , exifCreateDate
+       , exifExposureCompensation
+       , exifExposureMode
+       , exifExposureProgram
+       , exifExposureTime
+       , exifFNumber
+       , exifFocalLength
+       , exifFocalLengthIn35mmFormat
+       , exifISO
+       , exifModel
+       , exifWhiteBalance
 
-                     , fileFileSize
-                     , fileMimeType
-                     -- , fileName
-                     , fileRefImg
-                     , fileRefJpg
-                     , fileRefRaw
-                     , fileTimeStamp
+       , fileFileSize
+       , fileMimeType
+         -- , fileName
+       , fileRefImg
+       , fileRefJpg
+       , fileRefRaw
+       , fileTimeStamp
 
-                     , gifAnimationIterations
-                     , gifDuration
-                     , gifFrameCount
+       , gifAnimationIterations
+       , gifDuration
+       , gifFrameCount
 
-                     , imgRating
+       , imgRating
 
-                     , makerNotesFocusDistance
-                     , makerNotesShootingMode
-                     , makerNotesShutterCount
+       , makerNotesFocusDistance
+       , makerNotesShootingMode
+       , makerNotesShutterCount
 
-                     , quickTimeDuration
-                     , quickTimeVideoFrameRate
-                     )
+       , quickTimeDuration
+       , quickTimeVideoFrameRate
+       )
 
-import           Data.Prim
-import           Catalog.Version (date, version)
+import Data.Prim.GPS
+       ( googleMapsGPSdec )
 
-import           Text.Printf                     ( printf )
-import qualified Data.Text                       as T
-import qualified Data.Map                        as M
-import           Text.Blaze.Html5                hiding (map, head)
+import Data.Prim.Geometry
+       ( geoar'org
+       , theH
+       , theW
+       , Geo
+       )
+import Data.Prim.Prelude
+       ( Text
+       , Map
+       , IsEmpty(isempty)
+       , IsoString(isoString)
+       , IsoText(isoText)
+       , LazyText
+       , (&)
+       , (^.)
+       , (%~)
+       , fromMaybe
+       , readMaybe
+       , to
+       , lazy
+       , divideAt
+       )
+import Data.Prim.TimeStamp
+       ( timeStampToText )
+
+import Catalog.Version
+       ( date
+       , version
+       )
+
+import Text.Printf
+       ( printf )
+
+import Text.Blaze.Html5
+       ( Html
+       , img
+       , a
+       , html
+       , docType
+       , script
+       , link
+       , base
+       , meta
+       , toHtml
+       , title
+       , th
+       , td
+       , tr
+       , table
+       , preEscapedText
+       , body
+       , ToValue(preEscapedToValue, toValue)
+       , (!)
+       )
+import Text.Blaze.Html5.Attributes
+       ( target
+       , onmouseout
+       , onmouseover
+       , alt
+       , lang
+       , src
+       , type_
+       , rel
+       , href
+       , content
+       , name
+       , class_
+       , onload
+       )
+
 import qualified Text.Blaze.Html5                as H
-import           Text.Blaze.Html5.Attributes     hiding (title, rows, accept, id)
 import qualified Text.Blaze.Html5.Attributes     as A
 import qualified Text.Blaze.Html.Renderer.Pretty as R
 import qualified Text.Blaze.Html.Renderer.Text   as T
 
+import qualified Data.Map  as M
+import qualified Data.Text as T
+
 -- ----------------------------------------
 
 renderPage' :: Html -> LazyText
-renderPage' p = T.renderHtml p
+renderPage' = T.renderHtml
 
 -- indent HTML
 renderPage :: Html -> LazyText
@@ -225,7 +294,7 @@ picPage'
       )
       -- hack to work with old and new url scheme
       ( if T.null panoImgRef
-        then maybe mempty (flip imgRef thisImgRef) thePanoGeoDir
+        then maybe mempty (`imgRef` thisImgRef) thePanoGeoDir
         else panoImgRef
       )
     )
@@ -367,7 +436,7 @@ txtPage'
   theNextHref thePrevHref theParentHref theFwrdHref
   theImgGeoDir
   nextImgRef prevImgRef fwrdImgRef
-  blogContents
+  -- blogContents
   = txtPage
     theBaseRef
     theHeadTitle
@@ -386,7 +455,7 @@ txtPage'
       ( imgRef theImgGeoDir fwrdImgRef )
       mempty mempty mempty
     )
-    blogContents
+    -- blogContents
 
 -- ----------------------------------------
 
@@ -554,7 +623,7 @@ jsCode theDuration thisHref thisPos
       theNextImgRef thePrevImgRef theFwrdImgRef
       thisImgRef thisOrgRef thisPanoRef
   = do
-  script ! type_ "text/javascript" $ preEscapedText $ T.unlines $
+  script ! type_ "text/javascript" $ preEscapedText $ T.unlines
     [ ""
     , "<!--"
     , "var duration = 7000 * '" <> theDuration <> "';"
@@ -612,33 +681,25 @@ colNav parentNav prevNav child1Nav nextNav = do
       td ! class_ "icon2" ! A.id "theNextNav"   $ nextNav
 
 parentNav :: Text -> Text -> Text -> Text -> Html
-parentNav theParentTitle parentImgRef theImgGeoDir theIconGeoDir =
+parentNav theParentTitle =
   nav' "javascript:parentPage();"
        ("Album" <:> theParentTitle)
-       parentImgRef
-       theImgGeoDir theIconGeoDir
 
 nextNav :: Text -> Text -> Text -> Text -> Html
-nextNav theNextTitle nextImgRef theImgGeoDir theIconGeoDir =
+nextNav theNextTitle =
   nav' "javascript:nextPage();"
        ("weiter" <:> theNextTitle)
-       nextImgRef
-       theImgGeoDir theIconGeoDir
 
 prevNav :: Text -> Text -> Text -> Text -> Html
-prevNav thePrevTitle prevImgRef theImgGeoDir theIconGeoDir =
+prevNav thePrevTitle =
   nav' "javascript:prevPage();"
        ("zur\252ck" <:> thePrevTitle)
-       prevImgRef
-       theImgGeoDir theIconGeoDir
 
 child1Nav :: Text -> Text -> Text -> Text -> Text -> Html
-child1Nav theChild1Title child1ImgRef
-                         theChild1Href theImgGeoDir theIconGeoDir =
+child1Nav theChild1Title child1ImgRef theChild1Href =
   nav' ("javascript:childPage('" <> theChild1Href <> "');")
        ("1. Bild" <:> theChild1Title)
        child1ImgRef
-       theImgGeoDir theIconGeoDir
 
 
 nav' :: Text -> Text -> Text -> Text -> Text -> Html
@@ -855,7 +916,7 @@ picMeta md = mconcat mdTab
           tr ! class_ "info"
              ! A.id (toValue $ key ^. isoText) $ do
           th $ toHtml descr
-          td $ val'
+          td   val'
 
     mdval' :: (Text -> Text) -> Text -> MetaKey -> Html
     mdval' tr descr key =
@@ -911,7 +972,7 @@ picMeta md = mconcat mdTab
         val
           | isempty mpx = mempty
           | otherwise   = mpx & isoString %~ fmt
-        fmt s = fromMaybe "" $ printf "%f" <$> px
+        fmt s = maybe "" (printf "%f") px
           where
             px :: Maybe Double
             px = readMaybe s

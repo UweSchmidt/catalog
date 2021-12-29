@@ -1,10 +1,4 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
+{-# LANGUAGE TupleSections #-}
 module Data.RefTree
        ( RefTree
        , UpLink
@@ -28,8 +22,36 @@ module Data.RefTree
        )
 where
 
-import           Control.Monad.Except
-import           Data.Prim
+import Control.Monad.Except
+       ( Except
+       , throwError
+       )
+import Data.Prim
+       ( Map
+       , At(at)
+       , Lens'
+       , Traversal'
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       , Name
+       , Path
+       , when
+       , unless
+       , fromMaybe
+       , filtered
+       , has
+       , to
+       , _Just
+       , (&)
+       , (^.)
+       , (^?)
+       , (%~)
+       , (.~)
+       , (?~)
+       , mkPath
+       , snocPath
+       )
+
 import qualified Data.Aeson      as J
 import qualified Data.Map.Strict as M
 
@@ -56,11 +78,11 @@ instance (Ord ref, FromJSON (node ref), FromJSON ref) => FromJSON (RefTree node 
       <*> (M.fromList <$> o J..: "entries")
 
 rootRef :: Lens' (RefTree node ref) ref
-rootRef k (RT r m) = (\ new -> RT new m) <$> k r
+rootRef k (RT r m) = (`RT` m) <$> k r
 {-# INLINE rootRef #-}
 
 entries :: Lens' (RefTree node ref) (Map ref (node ref))
-entries k (RT r m) = (\ new -> RT r new) <$> k m
+entries k (RT r m) = RT r <$> k m
 {-# INLINE entries #-}
 
 entryAt :: (Ord ref) => ref -> Lens' (RefTree node ref) (Maybe (node ref))
@@ -128,7 +150,7 @@ nodeName k (UL r n v) = fmap (\ new -> UL r new v) (k n)
 {-# INLINE nodeName #-}
 
 nodeVal :: Lens' (UpLink node ref) (node ref)
-nodeVal k (UL r n v) = fmap (\ new -> UL r n new) (k v)
+nodeVal k (UL r n v) = UL r n <$> k v
 {-# INLINE nodeVal #-}
 
 -- ----------------------------------------
@@ -171,7 +193,7 @@ refPath r00 t =
           | otherwise  = do
               n'     <- t ^. entryAt par
               res'   <- path par n'
-              return $ (res' `snocPath` n ^. nodeName)
+              return (res' `snocPath` n ^. nodeName)
 
           where
             par = n ^. parentRef
@@ -189,7 +211,7 @@ refObjIdPath r0 t =
   where
     parentIds Nothing  = []
     parentIds (Just r)
-      | isRoot mp = r : []
+      | isRoot mp = [r]
       | otherwise = r : parentIds mp
       where
         mp     = t ^? entryAt r . traverse . parentRef
@@ -229,7 +251,7 @@ lookupDirPath :: (Ord ref)
               -> DirTree node ref      -- ^ the tree
               -> Maybe (ref, node ref) -- ^ the ref and the node value
 lookupDirPath genRef p t =
-   (\ v -> (i', v)) <$> (t ^? entryAt i' . _Just . nodeVal)
+  (i',) <$> t ^? entryAt i' . _Just . nodeVal
   where
     i' = genRef p
 {-# INLINE lookupDirPath #-}
@@ -264,7 +286,7 @@ mkDirNode genRef isParentDir updateParent n p v t = do
     -- insert new node with name and uplink
     -- and add ref into parent
     ( r
-    , t & entryAt r                      .~ Just (UL p n v)
+    , t & entryAt r                      ?~ UL p n v
         & entryAt p . traverse . nodeVal %~ updateParent r
     )
     where
@@ -297,8 +319,8 @@ remDirNode removable updateParent r t = do
   case t ^? entryAt r . traverse . parentRef of
     Just p ->
       return
-        -- ^ remove ref from parent
-        -- ^ remove node from map
+        --  ^ remove ref from parent
+        --  ^ remove node from map
         (t & entryAt p . traverse . nodeVal %~ updateParent r
            & entryAt r                      .~ Nothing
         )

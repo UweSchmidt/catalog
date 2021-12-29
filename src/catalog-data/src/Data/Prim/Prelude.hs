@@ -1,9 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DefaultSignatures #-}
-
-
 module Data.Prim.Prelude
        ( ByteString
        , LazyByteString
@@ -22,13 +16,9 @@ module Data.Prim.Prelude
        , (.=?!)
        , (.:?!)
 
-         -- * Data.Maybe
-       , fromMaybe
-       , isNothing
-       , isJust
-       , listToMaybe
-
+         -- * Data.Maybe and Data.Either
        , module Data.Either
+       , module Data.Maybe
 
          -- * Control.Monad
        , module Control.Applicative
@@ -110,40 +100,90 @@ module Data.Prim.Prelude
        )
 where
 
-import           Control.Applicative
-import           Control.Arrow
-import           Control.Lens
-import           Control.Monad
-import           Data.Aeson (ToJSON(..), FromJSON(..))
-import qualified Data.Aeson as J
-import qualified Data.Aeson.Types as J
-import           Data.Char
-import           Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.UTF8 as BU
-import qualified Data.ByteString.Lazy as LB
+import Control.Applicative
+import Control.Arrow
+       ( (***)
+       , first
+       , second
+       , (&&&)
+       )
+import Control.Lens
+import Control.Monad
+
+import Data.Aeson (ToJSON(..), FromJSON(..))
+import Data.Char
+import Data.ByteString
+       ( ByteString )
+
+import Data.Either
+import Data.Foldable
+
+import Data.Function
+       ( on )
+
+import Data.List
+       ( intercalate
+       , isPrefixOf
+       , isSuffixOf
+       , nub
+       , partition
+       , sort
+       , sortBy
+       , unfoldr
+       , zip4
+       , zip5
+       , zip6
+       )
+import Data.Map.Strict
+       ( Map )
+
+import Data.Maybe
+
+import Data.Semigroup hiding (option)
+
+import Data.Set
+       ( Set )
+
+import Data.Sequence
+       ( Seq )
+
+import Data.String
+       ( IsString(..) )
+
+import Data.Text
+       ( Text )
+
+import Data.Vector
+       ( Vector )
+
+import Numeric
+       ( readHex )
+
+import System.FilePath
+       ( (</>)
+       , takeDirectory
+       , takeFileName
+       )
+import Text.Printf
+       ( printf
+       , PrintfArg
+       )
+import Text.Read
+       ( readMaybe )
+
+import qualified Data.Aeson                as J
+import qualified Data.Aeson.Types          as J
+import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Lazy      as LB
 import qualified Data.ByteString.Lazy.UTF8 as LBU
-import           Data.Either
-import           Data.Foldable
-import           Data.Function
-import           Data.List
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as M
-import           Data.Maybe
-import           Data.Semigroup hiding (option)
-import           Data.Set (Set)
-import qualified Data.Set as S
-import           Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import           Data.String (IsString(..))
-import           Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as LT
-import           Data.Vector (Vector)
-import           Numeric (readHex)
-import           System.FilePath
-import           Text.Printf (printf, PrintfArg)
-import           Text.Read (readMaybe)
+import qualified Data.ByteString.UTF8      as BU
+import qualified Data.Map.Strict           as M
+import qualified Data.Sequence             as Seq
+import qualified Data.Set                  as S
+import qualified Data.Text                 as T
+import qualified Data.Text.Lazy            as LT
+
+-- ----------------------------------------
 
 type LazyByteString = LB.ByteString
 type LazyText       = LT.Text
@@ -325,7 +365,7 @@ isoMapElems key = iso M.elems (M.fromList . map (\ e -> (key e, e)))
 
 -- an iso for converting between maps and list of pairs
 
-isoMapList :: Ord a => Iso' (Map a b) ([(a, b)])
+isoMapList :: Ord a => Iso' (Map a b) [(a, b)]
 isoMapList = iso M.toList M.fromList
 {-# INLINE isoMapList #-}
 

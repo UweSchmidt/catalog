@@ -1,11 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE LambdaCase #-}
-
 ------------------------------------------------------------------------
 --
 -- construct complex bash commands, e.g. for
@@ -13,8 +5,8 @@
 -- quoting is done automatically
 
 module Data.CT
-  ( CT    -- ^ Command Tree
-  , CTT   -- ^ Command Tree with Text as basic pieces
+  ( CT    -- * Command Tree
+  , CTT   -- * Command Tree with Text as basic pieces
 
     -- command constructors
   , mkCconc
@@ -55,7 +47,16 @@ module Data.CT
   )
 where
 
-import Data.Prim.Prelude           -- lens stuff
+import Data.Prim.Prelude
+       ( Text
+       , Traversal'
+       , IsEmpty(..)
+       , IsoString(isoString)
+       , (&)
+       , (%~)
+       , isJust
+       , isAlphaNum
+       )           -- lens stuff
 
 import qualified Data.Text as T
 
@@ -157,7 +158,7 @@ mkCexec :: val -> CT val
 mkCexec x = Bin Cexec (Val x) (Bin Cargs Nil Nil)
 
 redirStdout :: val -> CT val -> CT val
-redirStdout x cmd = mkCout (mkVal x) cmd
+redirStdout x = mkCout (mkVal x)
 
 --------------------
 --

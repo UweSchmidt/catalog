@@ -1,8 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Data.Prim.GPS
   ( GPSposDeg
   , GPSposDec
@@ -20,9 +15,40 @@ module Data.Prim.GPS
   )
 where
 
-import           Data.Prim.Prelude
-import           Text.SimpleParser
-import           Text.Printf         ( printf )
+import Data.Prim.Prelude
+       ( Alternative((<|>), empty, some)
+       , MonadPlus(mzero)
+       , Text
+       , Iso'
+       , Lens'
+       , Prism'
+       , IsoMaybe(isoMaybe)
+       , PrismString(..)
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       , (>=>)
+       , isDigit
+       , (^?)
+       , from
+       , iso
+       , prism'
+       , (#)
+       )
+import Text.SimpleParser
+       ( SP
+       , (<++>)
+       , anyStringThen
+       , manyChars
+       , msp
+       , parseMaybe
+       , char
+       , digitChar
+       , string
+       , option
+       , try
+    )
+import Text.Printf
+       ( printf )
 
 import qualified Data.Aeson          as J
 import qualified Data.Map            as M
@@ -202,10 +228,10 @@ parserDeg dirs = do
   return $ GPSdeg deg mn sec dir
   where
     parserDir :: SP GPSdir
-    parserDir = foldr (<|>) empty $ map parserD dirs
+    parserDir = foldr ((<|>) . parserD) empty dirs
       where
         parserD :: GPSdir -> SP GPSdir
-        parserD d = string (show d) *> return d
+        parserD d = string (show d) >> return d
 
 deg2dec :: GPSdeg -> Double
 deg2dec (GPSdeg d m s r) =
@@ -243,7 +269,7 @@ floatParser =
     option ".0"
     ( string "."
       <++>
-      ( option "0" $ some digitChar )
+      option "0" (some digitChar)
     )
   )
   <|>

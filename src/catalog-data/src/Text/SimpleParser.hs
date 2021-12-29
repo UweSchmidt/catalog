@@ -6,19 +6,30 @@ module Text.SimpleParser
 where
 
 import Data.Prim.Prelude
-import Data.Void
+       ( Alternative((<|>), some, many)
+       , on
+       , fromMaybe
+       , isJust
+       , toLower
+       , toUpper
+       )
 
-import Text.Megaparsec                ( Parsec
-                                      , parseMaybe
-                                      , count
-                                      , eof
-                                      , option
-                                      , try
-                                      , satisfy
-                                      , single
-                                      , anySingle
-                                      , chunk
-                                      )
+import Data.Void
+       ( Void )
+
+import Text.Megaparsec
+       ( Parsec
+       , parseMaybe
+       , count
+       , eof
+       , option
+       , try
+       , satisfy
+       , single
+       , anySingle
+       , chunk
+       )
+
 -- Data.Prim.Prelude reexports lenses,
 -- somewhere in lenses oneOf and noeOf are defined
 -- hiding these in import for Prelude
@@ -138,7 +149,7 @@ matchP :: SP a -> String -> Bool
 matchP p = toBool . parseMaybe p
 
 toBool :: Maybe a -> Bool
-toBool = maybe False (const True)
+toBool = isJust
 
 matchPred :: (a -> Bool) -> a -> Maybe a
 matchPred p x
@@ -161,8 +172,7 @@ type GlobParser = SP String
 parseGlob :: SP GlobParser
 parseGlob =
   ( do _ <- single '*'
-       p <- parseGlob
-       return (anyStringThen p)
+       anyStringThen <$> parseGlob
   )
   <|>
   ( do _ <- single '?'
@@ -212,8 +222,7 @@ parseGlob =
 parseGlobNoCase :: SP GlobParser
 parseGlobNoCase =
   ( do _ <- single '*'
-       p <- parseGlobNoCase
-       return (anyStringThen p)
+       anyStringThen <$> parseGlobNoCase
   )
   <|>
   ( do _ <- single '?'

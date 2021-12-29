@@ -1,9 +1,4 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
+-- ----------------------------------------
 
 module Data.ImageStore
        ( ImgStore
@@ -17,9 +12,23 @@ module Data.ImageStore
 where
 
 import           Control.Lens
-import           Data.ImgTree
-import           Data.MetaData
-import           Data.Prim
+import Data.ImgTree
+       ( mapRefTree
+       , mkDirRoot
+       , emptyImgRoot
+       , DirTree
+       , ImgNode'
+       , ImgTree
+       )
+import Data.MetaData
+       ( MetaData )
+
+import Data.Prim
+       ( FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       , mkObjId
+       , ObjId
+       )
 
 import qualified Data.Aeson as J
 
@@ -44,11 +53,11 @@ instance (FromJSON ref, Ord ref) => FromJSON (ImgStore' ref) where
     <*> (o J..:? "metadata" J..!= mempty)
 
 theImgTree :: Lens' (ImgStore' ref) (DirTree ImgNode' ref)
-theImgTree k (IS t p) = (\new -> IS new p) <$> k t
+theImgTree k (IS t p) = (`IS` p) <$> k t
 {-# INLINE theImgTree #-}
 
 theCatMetaData :: Lens' (ImgStore' ref) MetaData
-theCatMetaData k (IS t md) = (\new -> IS t new) <$> k md
+theCatMetaData k (IS t md) = IS t <$> k md
 {-# INLINE theCatMetaData #-}
 
 -- almost a functor, the Ord constraint is the problem

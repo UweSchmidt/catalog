@@ -1,6 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE BangPatterns #-}
-
 module Data.Prim.CheckSum
        ( CheckSum
        , mkCheckSum
@@ -8,11 +5,23 @@ module Data.Prim.CheckSum
        )
 where
 
--- import           Data.Bits
+import Data.Word
+       ( Word64 )
+
+import Data.Prim.Prelude
+       ( (^.)
+       , iso
+       , (#)
+       , IsEmpty(..)
+       , IsoHex(..)
+       , IsoInteger(..)
+       , IsoString(..)
+       , IsoText
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       )
+
 import qualified Data.Digest.Murmur64 as MM
--- import           Data.Foldable
-import           Data.Word (Word64)
-import           Data.Prim.Prelude
 
 -- ----------------------------------------
 

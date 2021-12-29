@@ -1,11 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE LambdaCase #-}
-
 module Data.MetaData
   ( MetaKey
   , MetaValue
@@ -172,23 +164,89 @@ module Data.MetaData
   )
 where
 
-import           Data.Prim
-import           Data.Access         ( Access
-                                     , AccessRestr(..)
-                                     , all'restr
-                                     , no'restr
-                                     , accessRestr
-                                     , no'delete
-                                     , no'sort
-                                     , no'user
-                                     , no'write
-                                     , isoAccessRestr
-                                     , isoAccText
-                                     )
-import           Data.Bits           ( (.|.), (.&.), complement )
+import Data.Prim
+       ( Alternative(some, (<|>))
+       , MonadPlus(mzero)
+       , Text
+       , Field1(_1)
+       , Iso'
+       , Lens'
+       , IsEmpty(..)
+       , IsoString(isoString)
+       , IsoText(..)
+       , PrismString(prismString)
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       , CheckSum
+       , Name
+       , TimeStamp
+       , ImgType
+       , MimeType
+       , Geo
+       , GPSposDec
+       , fromMaybe
+       , nub
+       , partition
+       , readMaybe
+       , (&)
+       , (^?)
+       , (^.)
+       , (#)
+       , (%~)
+       , (.~)
+       , (.||.)
+       , (&&&)
+       , first
+       , iso
+       , isGifMT
+       , isImgMT
+       , isJpgMT
+       , isMetaMT
+       , isMovieMT
+       , isRawMT
+       , isShowablePartOrRawMT
+       , isTxtMT
+       , wackelGif
+       , geo'org
+       , readGeo''
+       , googleMapsGPSdec
+       , isoDegDec
+       )
+import Data.Access
+       ( Access
+       , AccessRestr(..)
+       , all'restr
+       , no'restr
+       , accessRestr
+       , no'delete
+       , no'sort
+       , no'user
+       , no'write
+       , isoAccessRestr
+       , isoAccText
+       )
+import Data.Bits
+       ( (.|.)
+       , (.&.)
+       , complement
+       )
+import Data.HashMap.Strict
+       ( HashMap )
+import Text.Printf
+       ( printf )
+import Text.SimpleParser
+       (SP
+       , anyString
+       , char
+       , count
+       , digitChar
+       , matchP
+       , oneOf'
+       , parseMaybe
+       , spaceChar
+       )
 
 import qualified Data.Aeson          as J
-import           Data.HashMap.Strict ( HashMap )
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap.Strict  as IM
 import qualified Data.List           as L
@@ -197,8 +255,8 @@ import qualified Data.Text           as T
 import qualified Data.Text.Fill      as T
 import qualified Data.Vector         as V
 import qualified Text.SimpleParser   as SP
-import           Text.SimpleParser
-import           Text.Printf         ( printf )
+
+
 -- import Debug.Trace
 
 -- --------------------
@@ -658,7 +716,7 @@ partitionMD ks (MD m) = (MD m1, MD m2)
 
 instance FromJSON MetaDataText where
   parseJSON j =
-    ( \ o -> MDT <$> parseJSON o    -- parse a {...} as Map Text Text
+    ( fmap MDT . parseJSON          -- parse a {...} as Map Text Text
     ) j
     <|>                             -- old version: parse a [{...}] as Map Text Text
                                     -- this is a wart, but donwards compatible
@@ -850,9 +908,9 @@ metaTimeStamp = iso
 
 metaGPS :: Iso' MetaValue (Maybe GPSposDec)  -- no default for GPS
 metaGPS = iso
-  (\ x -> case x of
-            MGps p -> Just p
-            _      -> Nothing
+  (\ case
+      MGps p -> Just p
+      _      -> Nothing
   )
   (maybe mempty MGps)
 {-# INLINE metaGPS #-}
@@ -933,8 +991,7 @@ metaGPSDegText = metaGPS . isoGPSDeg . isoText
 -- split metadata in image metadata and part specific metadata
 
 splitMetaData :: MimeType -> MetaData' a -> (MetaData' a, MetaData' a)
-splitMetaData ty md =
-  partitionMD (not <$> snd (keysByMimeType ty)) md
+splitMetaData ty = partitionMD (not <$> snd (keysByMimeType ty))
 
 -- filter relevant metadata from exiftool output
 cleanupMetaData :: MimeType -> MetaData' a -> MetaData' a
@@ -1086,7 +1143,7 @@ filterByImgType ty =
 
 lookupByKeys :: [MetaKey] -> MetaData -> MetaValue
 lookupByKeys ns mt =
-  mconcat $ map (flip lookupMD mt) ns
+  mconcat $ map (`lookupMD` mt) ns
 
 -- access the create date of an image
 -- usually formated as YYYY:MM:DD hh:mm:ss(.ss)
@@ -1262,7 +1319,7 @@ ratingMax = 5
 isoStars :: Iso' Rating Text
 isoStars = isoStars' . isoText
   where
-    isoStars' = iso (flip replicate '*')
+    isoStars' = iso (`replicate` '*')
                 (min ratingMax . length . filter (== '*'))
 {-# INLINE isoStars #-}
 

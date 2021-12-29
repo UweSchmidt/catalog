@@ -1,32 +1,29 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable    #-}
-{-# LANGUAGE DeriveTraversable #-}
-
 module Data.Journal where
 
-import Data.ImgTree  ( ColEntries'
-                     , DirEntries
-                     , ImgParts
-                     , ImgRef'
-                     )
-import Data.MetaData ( MetaData )
-import Data.Prim     ( Name
-                     , ObjId
-                     , Path
-                     , Text
-                     , TimeStamp
-                     )
-import Data.History  ( HistoryID )
+import Data.ImgTree
+       ( ColEntries'
+       , DirEntries
+       , ImgParts
+       , ImgRef'
+       )
+import Data.MetaData
+       ( MetaData )
 
-import Data.Aeson ( ToJSON(..)
-                  , (.=)
-                  , object
-                  )
+import Data.Prim
+       ( Name
+       , ObjId
+       , Path
+       , Text
+       , TimeStamp
+       )
+import Data.History
+       ( HistoryID )
+
+import Data.Aeson
+       ( ToJSON(..)
+       , (.=)
+       , object
+       )
 
 -- ----------------------------------------
 

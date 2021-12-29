@@ -1,11 +1,28 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
-
 module Data.Prim.ImageType
 where
 
-import           Data.Prim.Name
-import           Data.Prim.Prelude
+import Data.Prim.Name
+       ( Name )
+
+import Data.Prim.Prelude
+       ( MonadPlus(mzero)
+       , Text
+       , fromMaybe
+       , toLower
+       , readMaybe
+       , (^.)
+       , iso
+       , (#)
+       , (.||.)
+       , (&&&)
+       , Map
+       , Iso'
+       , IsEmpty(..)
+       , IsoString(..)
+       , IsoText(..)
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       )
 
 import qualified Data.Map.Strict     as M
 import qualified Data.IntMap.Strict  as IM

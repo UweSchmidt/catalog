@@ -1,7 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE DeriveFunctor #-}
-
 module Data.Prim.SysPath
   ( SysPath
   , isoFilePath
@@ -11,6 +7,12 @@ module Data.Prim.SysPath
 where
 
 import Data.Prim.Prelude
+    ( iso
+    , Iso'
+    , IsEmpty(..)
+    , FromJSON(parseJSON)
+    , ToJSON(toJSON)
+    )
 
 --
 -- file paths for file system paths with mount point prefix

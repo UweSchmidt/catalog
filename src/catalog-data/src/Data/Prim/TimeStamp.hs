@@ -1,5 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
-
 module Data.Prim.TimeStamp
        ( TimeStamp
        , now            -- TODO mv now into extra module
@@ -12,13 +10,41 @@ module Data.Prim.TimeStamp
        )
 where
 
-import           Control.Monad.IO.Class (MonadIO, liftIO)
-import qualified Data.Aeson as J
-import           Data.Prim.Prelude
-import           System.Posix (FileStatus)
+import Control.Monad.IO.Class
+       ( MonadIO
+       , liftIO
+       )
+
+import Data.Prim.Prelude
+       ( MonadPlus(mzero)
+       , Text
+       , readMaybe
+       , (^.)
+       , to
+       , view
+       , iso
+       , (#)
+       , Iso'
+       , IsEmpty(..)
+       , IsoString(..)
+       , IsoText(..)
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       )
+
+import System.Posix
+       ( FileStatus )
+
+import Data.Time.Clock.POSIX
+       ( posixSecondsToUTCTime )
+
+import Data.Time.Format
+       ( defaultTimeLocale
+       , formatTime
+       )
+
+import qualified Data.Aeson   as J
 import qualified System.Posix as X
-import           Data.Time.Clock.POSIX(posixSecondsToUTCTime)
-import           Data.Time.Format(defaultTimeLocale, formatTime)
 
 -- ----------------------------------------
 

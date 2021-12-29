@@ -1,5 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
-
 module Data.Prim.ObjId
   ( ObjId
   , mkObjId
@@ -10,14 +8,38 @@ module Data.Prim.ObjId
   )
 where
 
+import Data.Prim.Prelude
+       ( Alternative((<|>))
+       , MonadPlus(mzero)
+       , Iso'
+       , IsEmpty(..)
+       , IsoHex(..)
+       , IsoString(..)
+       , IsoText
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       , (^.)
+       , fromMaybe
+       , sort
+       , iso
+       )
+
+import Data.Bits
+       ( Bits (shiftL, (.&.)))
+
+import Data.Word
+       ( Word64 )
+
+import Numeric
+       ( readHex )
+
+import Text.Printf
+       ( printf )
+
+import Data.Aeson
+       ( withText )
+
 import qualified Data.Digest.Murmur64 as MM
-import           Data.Maybe
-import           Data.Bits
-import           Data.Prim.Prelude
-import           Data.Word
-import           Numeric     (readHex)
-import           Text.Printf (printf)
-import           Data.Aeson  (withText)
 
 -- ----------------------------------------
 

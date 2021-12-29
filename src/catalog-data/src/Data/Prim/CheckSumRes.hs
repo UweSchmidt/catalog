@@ -1,17 +1,24 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE BangPatterns #-}
-
 module Data.Prim.CheckSumRes
   ( CheckSumRes(..)
   , prettyCSR
   )
 where
 
-import Data.Prim.CheckSum  (CheckSum)
-import Data.Prim.TimeStamp (TimeStamp, formatTimeStamp)
+import Data.Prim.CheckSum
+       ( CheckSum )
+
+import Data.Prim.TimeStamp
+       ( TimeStamp
+       , formatTimeStamp
+       )
 import Data.Prim.Prelude
+       ( MonadPlus(mzero)
+       , (&)
+       , (^.)
+       , IsoString(isoString)
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       )
 
 import qualified Data.Aeson as J
 

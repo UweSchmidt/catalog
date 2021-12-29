@@ -1,8 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
-
 module Data.Prim.PathPos
   ( PathPos
   , Pos
@@ -14,12 +9,27 @@ module Data.Prim.PathPos
 where
 
 import Data.Prim.Path
+       ( snocPath
+       , viewBase
+       , Path
+       )
 import Data.Prim.Prelude
+       ( fromMaybe
+       , (^.)
+       , from
+       , iso
+       , fillLeft
+       , Iso'
+       , IsoString(isoString)
+       )
 
 import Text.SimpleParser
-       (SP, parseMaybe, string)
+       ( SP
+       , parseMaybe
+       , string
+       )
 import Text.Megaparsec.Char.Lexer
-       (decimal)
+       ( decimal )
 
 -- ----------------------------------------
 

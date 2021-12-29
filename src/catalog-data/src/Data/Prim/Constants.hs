@@ -3,8 +3,20 @@
 module Data.Prim.Constants where
 
 import Data.Prim.Name
+       ( Name )
+
 import Data.Prim.Path
+       ( mkPath
+       , snocPath
+       , Path
+       )
 import Data.Prim.Prelude
+       ( Text
+       , (</>)
+       , (^.)
+       , IsoString(isoString)
+       , IsoText(isoText)
+       )
 
 n'archive
   , n'albums

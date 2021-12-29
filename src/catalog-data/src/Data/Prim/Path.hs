@@ -1,9 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
-
 module Data.Prim.Path
   ( Path'
   , Path
@@ -38,11 +32,40 @@ where
 
 -- catalog-data
 import Data.Prim.Prelude
+       ( IsString(..)
+       , Foldable(foldl')
+       , Alternative(many, some)
+       , Text
+       , Field1(_1)
+       , Field2(_2)
+       , Iso'
+       , IsEmpty(..)
+       , IsoString(..)
+       , IsoText(..)
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       , (&)
+       , fromMaybe
+       , (^.)
+       , iso
+       , (#)
+       , (%~)
+       , (.~)
+       , isA
+       )
 import Data.Prim.Name
+       ( Name )
+
 import Text.SimpleParser
+       ( noneOf'
+       , parseMaybe
+       , single
+       , SP
+       )
 
 -- other libs
-import Data.Digest.Murmur64 (Hashable64(..))
+import Data.Digest.Murmur64
+       ( Hashable64(..) )
 
 import qualified Data.Text as T
 
@@ -175,8 +198,7 @@ isPathPrefix p1 p2 =
   )
 
 substPathPrefix :: Path -> Path -> (Path -> Path)
-substPathPrefix old'px new'px p0 =
-  go p0
+substPathPrefix old'px new'px = go
   where
     go p1
       | p1 == old'px = new'px
@@ -231,7 +253,7 @@ checkExtPath ext p
     T.length bn > ln
   where
     ln   = T.length ext
-    bn   = (p ^. viewBase . _2) ^. isoText
+    bn   = p ^. viewBase . _2 . isoText
     ext' = T.toLower . T.takeEnd ln $ bn
 
 ----------------------------------------

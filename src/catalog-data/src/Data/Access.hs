@@ -1,6 +1,5 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
+-- ----------------------------------------
+
 
 module Data.Access
   ( AccessRestr(..)
@@ -21,14 +20,27 @@ module Data.Access
   )
 where
 
-import           Data.Prim.Prelude
-import           Data.Bits           ( bit
-                                     , (.|.)
-                                     , testBit
-                                     , setBit
-                                     , clearBit
-                                     )
-import           Data.Maybe          (mapMaybe)
+import Data.Prim.Prelude
+       ( Foldable(foldl')
+       , Text
+       , Iso'
+       , Lens'
+       , (&)
+       , (^.)
+       , (.~)
+       , toLower
+       , iso
+       )
+import Data.Bits
+       ( bit
+       , (.|.)
+       , testBit
+       , setBit
+       , clearBit
+       )
+import Data.Maybe
+       ( mapMaybe )
+
 import qualified Data.Text  as T
 
 -- ----------------------------------------
@@ -107,7 +119,7 @@ isoAccText = iso toT frT
     toT = T.unwords . map (\ r -> accessNames !! fromEnum r)
 
     frT :: Text -> [AccessRestr]
-    frT = mapMaybe (flip lookup accessMap) . T.words
+    frT = mapMaybe (`lookup` accessMap) . T.words
 {-# INLINE isoAccText #-}
 
 -- ----------------------------------------

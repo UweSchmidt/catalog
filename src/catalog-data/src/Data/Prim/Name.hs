@@ -1,6 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Data.Prim.Name
        ( Name
        , mkName
@@ -10,10 +7,24 @@ module Data.Prim.Name
        )
 where
 
-import           Data.Prim.Prelude
+import Data.Prim.Prelude
+       ( IsString(..)
+       , MonadPlus(mzero)
+       , Text
+       , (&)
+       , (^.)
+       , iso
+       , (#)
+       , (%~)
+       , IsEmpty(..)
+       , IsoString(..)
+       , IsoText(..)
+       , FromJSON(parseJSON)
+       , ToJSON(toJSON)
+       )
 
 import qualified Data.Aeson as J
-import qualified Data.Text as T
+import qualified Data.Text  as T
 
 -- ----------------------------------------
 --
@@ -47,7 +58,7 @@ instance IsEmpty Name where
   {-# INLINE isempty #-}
 
 fromName :: Name -> String
-fromName (Name fsn) = T.unpack $ fsn
+fromName (Name fsn) = T.unpack fsn
 {-# INLINE fromName #-}
 
 isNameSuffix :: Name -> Name -> Bool

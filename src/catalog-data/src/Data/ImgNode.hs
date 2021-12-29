@@ -1,12 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable    #-}
-{-# LANGUAGE DeriveTraversable #-}
-
 module Data.ImgNode
        ( ImgNode'(..)
        , ImgParts
@@ -99,7 +90,42 @@ import           Data.MetaData ( MetaData
                                , isRemovable
                                , isAUserCol
                                )
-import           Data.Prim
+import Data.Prim
+    ( Alternative((<|>))
+    , Text
+    , Map
+    , Seq
+    , Set
+    , Ixed(ix)
+    , Field1(_1)
+    , Field2(_2)
+    , Field3(_3)
+    , Field4(_4)
+    , Iso'
+    , Lens'
+    , Prism'
+    , Traversal'
+    , IsEmpty(..)
+    , FromJSON(parseJSON)
+    , ToJSON(toJSON)
+    , CheckSum
+    , Name
+    , TimeStamp
+    , MimeType
+    , ObjId
+    , (&)
+    , (^.)
+    , to
+    , iso
+    , prism
+    , (#)
+    , (.~)
+    , isA
+    , isoMapElems
+    , isShowablePartMT
+    , t'archive
+    , t'collections
+    )
 
 import qualified Data.Aeson      as J
 import qualified Data.Map.Strict as M
@@ -266,7 +292,11 @@ theRootImgCol = theImgRoot . _2
 {-# INLINE theRootImgCol #-}
 
 theImgCol :: Prism' (ImgNode' ref)
-                    (MetaData, Maybe (ImgRef' ref), Maybe (ImgRef' ref), (ColEntries' ref))
+                    ( MetaData
+                    , Maybe (ImgRef' ref)
+                    , Maybe (ImgRef' ref)
+                    , ColEntries' ref
+                    )
 theImgCol =
   prism (\ (x1, x2, x3, x4) -> COL x1 x2 x3 x4)
         (\ x -> case x of
@@ -348,7 +378,7 @@ instance FromJSON ImgParts where
   parseJSON x =
     (isoImgParts #) <$> parseJSON x          -- parse new: [ImgPart]
     <|>
-    (ImgParts . M.fromList) <$> parseJSON x  -- parse old: Map Name ImgPart
+    ImgParts . M.fromList <$> parseJSON x    -- parse old: Map Name ImgPart
 
 mkImgParts :: [ImgPart] -> ImgParts
 mkImgParts ps = isoImgParts # ps
@@ -407,7 +437,7 @@ mkImgPart n t =
 {-# INLINE mkImgPart #-}
 
 theImgMeta :: Lens' ImgPart MetaData
-theImgMeta k (IPM md) = (\ new -> IPM new) <$> k md
+theImgMeta k (IPM md) = IPM <$> k md
 {-# INLINE theImgMeta #-}
 
 theImgName :: Lens' ImgPart Name
@@ -466,7 +496,7 @@ instance (Show ref) => Show (ColEntry' ref) where
   show = colEntry' show show
 
 instance (ToJSON ref) => ToJSON (ColEntry' ref) where
-  toJSON (ImgEnt (ImgRef i n)) = J.object $
+  toJSON (ImgEnt (ImgRef i n)) = J.object
     [ "ColEntry"  J..= ("IMG" :: Text)
     , "ref"       J..= i
     , "part"      J..= n
@@ -521,7 +551,7 @@ theColObjId k (ColEnt i           ) =           ColEnt                 <$> k i
 
 theColImgRef :: Prism' (ColEntry' ref) (ImgRef' ref)
 theColImgRef =
-  prism (\ ir -> ImgEnt ir)
+  prism ImgEnt
         (\ x -> case x of
                   ImgEnt ir -> Right ir
                   _         -> Left  x
@@ -540,8 +570,8 @@ theColColRef =
 isColColRef
   , isColImgRef :: ColEntry' ref -> Bool
 
-isColColRef (ColEnt{}) = True
-isColColRef _          = False
+isColColRef ColEnt{} = True
+isColColRef _        = False
 
 isColImgRef = not . isColColRef
 
@@ -613,7 +643,7 @@ singleObjId = S.singleton
 
 hasAccessRights :: (MetaData -> Bool) -> ImgNode' a -> Bool
 hasAccessRights p n =
-  isCOL n && (p $ n ^. theColMetaData)
+  isCOL n && p (n ^. theColMetaData)
 
 isWriteableCol
   , isSortableCol

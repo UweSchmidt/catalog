@@ -1,4 +1,3 @@
-{-# LANGUAGE TupleSections #-}
 -- | classify file names and compute a file type for a file name/path
 
 module Data.FilePath
@@ -10,9 +9,41 @@ module Data.FilePath
   )
 where
 
-import Control.Applicative
 import Data.Prim
+       ( Alternative(many, (<|>), some)
+       , MonadPlus(mzero)
+       , optional
+       , fromMaybe
+       , isJust
+       , isAlphaNum
+       , imgMimeExt'
+       , isJpgMT
+       , MimeType(Unknown'mime_type)
+       , ps'bycreatedate
+       )
+
 import Text.SimpleParser
+       ( SP
+       , (<++>)
+       , anyStringThen'
+       , atleast'ntimes
+       , lowerOrUpperCaseWord
+       , ntimes
+       , someChars
+       , parseMaybe
+       , satisfy
+       , single
+       , char
+       , digitChar
+       , letterChar
+       , lowerChar
+       , upperChar
+       , string
+       , option
+       , count
+       , try
+       , eof
+       )
 
 import qualified Text.SimpleParser          as SP
 
@@ -116,10 +147,10 @@ imgName =
 
 imgSubdir :: SP String
 imgSubdir =
-  try ( p'geo )
+  try p'geo
   <|>
-  try ( ( foldl1 (<|>) $
-          map (\ s -> try $ string s)   -- first "tiff", then "tif" !!!
+  try ( foldl1 (<|>) (
+          map (try . string)   -- first "tiff", then "tif" !!!
           [ "srgb-bw", "srgb", "small"
           , "web"
           , "bw"
@@ -127,20 +158,18 @@ imgSubdir =
           , "tiff", "tif"
           , "dng"
           , "dxo"
-          ]
-        )
+          ])
         <++> og
       )
   where
     og :: SP String
     og = ( string "-" <|> return "" )
          <++>
-         ( SP.option "" $ try
+         SP.option "" (try
            ( some digitChar
              <++>
-             ( SP.option "" $ try (string "x" <++> some digitChar) )
-           )
-         )
+             SP.option "" (try (string "x" <++> some digitChar))
+           ))
 
 type SplitName = (String, (String, String), String)
 
@@ -194,7 +223,7 @@ imgMimeLT = concatMap f imgMimeExt'
 splitExtMimeP :: SP (String, (String, MimeType))
 splitExtMimeP = anyStringThen' $ pext <* eof
   where
-    pext      = foldr (<|>) mzero $ map pe imgMimeLT
+    pext      = foldr ((<|>) . pe) mzero imgMimeLT
     pe (e, t) = (,t) <$> try (lowerOrUpperCaseWord e)
 
 splitPathNameExtMimeP :: SP (SplitName, MimeType)
