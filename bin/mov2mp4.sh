@@ -40,6 +40,7 @@ do
     then
         [[ $run -eq 1 ]] && echo $tomp4 -i "$i" "$fn"
         $tomp4 -loglevel warning -i "$i" "$fn"
+        [[ $run -eq 1 ]] && touch -r "$i" "$fn"
         ls -l "$dn/${bn}".*
     fi
 done
@@ -51,9 +52,9 @@ do
     ic="$dn/${bn}.jpg"
     if [[ ! -f "$ic" ]]
     then
-        set -x # [[ $run -eq 1 ]] && echo $tomp4 -i "$fn" "$ic"
+        [[ $run -eq 1 ]] && echo $tomp4 -i "$fn" "$ic"
         $tomp4 -loglevel warning -ss 1 -i "$i" -qscale:v 4 -frames:v 1 "$ic"
-        set +x
+        [[ $run -eq 1 ]] && touch -r "$i" "$ic"
         ls -l "$dn/${bn}".*
     fi
 done
