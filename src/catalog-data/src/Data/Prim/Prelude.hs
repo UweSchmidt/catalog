@@ -351,8 +351,8 @@ instance IsoMaybe Text
 instance IsoMaybe ByteString
 instance IsoMaybe LazyByteString
 
-take1st :: (IsoMaybe a, Monoid a) => [a] -> a
-take1st xs = isoMaybe # mconcat (map (^. isoMaybe) xs)
+take1st :: (IsEmpty a, Monoid a) => [a] -> a
+take1st = fromMaybe mempty . listToMaybe . take 1 . filter (not . isempty)
 
 -- ----------------------------------------
 
