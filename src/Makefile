@@ -4,5 +4,7 @@ build:
 install:
 	cabal install client-polysemy servant-polysemy --overwrite-policy=always
 
+clean:
+	cabal clean
 
-PHONY: build install install-local
+PHONY: build install install-local clean
