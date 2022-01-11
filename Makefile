@@ -18,6 +18,9 @@ start:
 clean:
 	$(MAKE) -C src clean
 
+check-external-progs:
+	bin/check-external-progs.sh
+
 # copy server and client to local bin dir ./bin
 
 catalogVersion :=$(shell grep -e '^version=' bin/versionbump.sh | sed -e 's/^version=//' -e 's/["]//g' )
@@ -32,4 +35,4 @@ copy-apps:
 	cp -f $(client-polysemy)  bin/client-polysemy
 	ls -l bin
 
-PHONY: build install install-local bump-version clean start copy-apps
+PHONY: build install install-local bump-version clean start check-external-progs copy-apps
