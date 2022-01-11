@@ -15,8 +15,10 @@ die () {
 catroot="$(basename $(dirname $PWD))"
 reldir="Bilder"
 port="3001"
+loglevel="--info"
 
 [[ "$catroot" = "$reldir" ]]         || port="3333"  # develop dir
+[[ "$catroot" = "$reldir" ]]         || loglevel="--verbose"
 
 [[ "$(basename $PWD)" = "catalog" ]] || die "current working dir must be 'catalog' "
 
