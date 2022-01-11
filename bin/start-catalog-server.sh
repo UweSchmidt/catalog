@@ -34,8 +34,9 @@ catalog="photos-0.5.pathid.json"
 [[ -f "$catdir/$catalog" ]]          || die "no catalog '$catdir/$catalog'"
 [[ -x "$server" ]]                   || die "no executable '$server'"
 
-$server \
-    -P "$port" \
-    -a "$catdir/$catalog" \
-    -j "${catdir}-journal-$(date "+%Y-%m-%dT%H:%M:%S").json" \
-    --save-hash-and-path-ix
+exec $server \
+     $loglevel \
+     -P "$port" \
+     -a "$catdir/$catalog" \
+     -j "${catdir}-journal-$(date "+%Y-%m-%dT%H:%M:%S").json" \
+     --save-hash-and-path-ix
