@@ -974,23 +974,27 @@ toPrevNextPar r =
 
 -- ----------------------------------------
 
-thePageCnfs :: [(Geo, (Geo, Geo, Int))]
-thePageCnfs =
-  [ (Geo 2560 1440, (Geo  160  120, Geo  1600 160, 14))
-  , (Geo 1920 1200, (Geo  160  120, Geo  1600 160, 11))
-  , (Geo 1600 1200, (Geo  160  120, Geo  1500 160,  9))
-  , (Geo 1400 1050, (Geo  140  105, Geo  1200 120,  9))
-  , (Geo 1280  800, (Geo  120   90, Geo  1200 120,  9))
-  ]
-
 lookupPageCnfs :: ReqType -> Geo -> (Geo, Geo, Int)
-lookupPageCnfs ty geo
-  = maybe (Geo  160  120, Geo 160 120,  9)
-          (pty ty)
-          (lookup geo thePageCnfs)
+lookupPageCnfs ty (Geo w _h)
+  | ty == RPage1
+    ||
+    ty == RJson  = f2
+  | otherwise    = f1
   where
-    pty RPage1 (geo1,  geo2, _ncol) = (geo1, geo2,    0)
-    pty _RPage (geo1, _geo2,  ncol) = (geo1, geo1, ncol)
+    geo1600x160 = Geo 1600 160
+    geo1200x120 = Geo 1200 120
+    geo160x120  = Geo 160  120
+    geo140x105  = Geo 140  105
+    geo120x90   = Geo 120   90
+
+    f1 | w <= 1280 = (geo120x90,  geo120x90,  w `div` 120 - 1)
+       | w <= 1400 = (geo140x105, geo140x105, w `div` 140 - 1)
+       | otherwise = (geo160x120, geo160x120, w `div` 160 - 1)
+
+    f2 | w <= 1280 = (geo120x90,  geo1200x120, 0)
+       | w <= 1400 = (geo140x105, geo1600x160, 0)
+       | otherwise = (geo160x120, geo1600x160, 0)
+
 
 -- ----------------------------------------
 
@@ -1131,34 +1135,28 @@ genReqImgPage' r = do
 -- icons in a collection page
 -- the icons are generated with a fixed aspect ratio (RIcon, not RIconp)
 
-type IconDescr3 = (Text, Text, Text)
-
-toIconDescr :: (Eff'ISE r) => Geo -> Req'IdNode a -> Sem r IconDescr3
+toIconDescr :: (Eff'ISE r) => Geo -> Req'IdNode a -> Sem r IconDescr
 toIconDescr icon'geo r = do
   let r'url         = toUrlPath  r
   let r'iconurl     = toUrlPath (r & rType %~ iType
                                    & rGeo  .~ icon'geo
                                 )
   r'meta           <- runMaybeEmpty (toImgMeta r)
-  let r'title       = r'meta ^. metaTextAt descrTitle
 
-  return (r'url, r'iconurl, r'title)
+  return $ IconDescr r'url r'iconurl r'meta
   where
-    iType RPage1 = RImg
-    iType _RPage = RIcon
-
-emptyIconDescr :: IconDescr3
-emptyIconDescr = (mempty, mempty, mempty)
+    iType RPage1 = RImg   -- icons with variable width
+    iType _      = RIcon  -- icons with fixed aspect ratio
 
 -- --------------------
 
 genReqColPage  :: (Eff'Img r)
                => Req'IdNode a -> Sem r LazyByteString
 genReqColPage r =
-  renderHtml <$> genReqColPage' r
+  renderHtml . jPageToHtml <$> genReqColPage' r
 
 genReqColPage' :: (Eff'Img r)
-               => Req'IdNode a -> Sem r Blaze.Html
+               => Req'IdNode a -> Sem r JPage
 genReqColPage' r = do
   now'  <- nowAsIso8601
 
@@ -1166,51 +1164,25 @@ genReqColPage' r = do
   let   this'geo         = r ^. rGeo
   let ( inav'geo,
         icon'geo,
-        icon'no )        = lookupPageCnfs this'ty this'geo
+        _icon'no )       = lookupPageCnfs this'ty this'geo
 
   let   this'meta        = r ^. rColNode . theMetaData
-  (     this'url,
-        this'iconurl,
-        this'title )    <- toIconDescr inav'geo r
-
-  let   base'ref         = "/"  -- will be changed when working with relative urls
-
+  this'icon             <- toIconDescr inav'geo r
   this'pos              <- thePos r
 
   -- the icons descr of the siblings
   nav   <- toPrevNextPar r
-  PrevNextPar
-        (prev'url, prev'iconurl, prev'title)
-        (next'url, next'iconurl, next'title)
-        ( par'url,  par'iconurl,  par'title)
-        (fwrd'url, fwrd'iconurl, _wrd'title)
-                        <- traverse
+  nav'icons             <- traverse
                            (fmap (fromMaybe emptyIconDescr)
                             .
                             traverse (toIconDescr inav'geo)
                            )
                            nav
-
   -- the icon descr of the children
   cs                    <- runMaybeEmpty (toChildren r)
   cs'descr              <- traverse (toIconDescr icon'geo) cs
-  ( c1'url,
-    c1'iconurl,
-    c1'title )          <- fromMaybe emptyIconDescr
+  c1'icon               <- fromMaybe emptyIconDescr
                            <$> traverse (toIconDescr inav'geo) (listToMaybe cs)
-
-  let   cs'descr4        = zipWith
-                           ( \ (x1, x2, x3) i ->
-                               ( x1
-                               , x2
-                               , if T.null x3
-                                 then (show i <> ". Bild") ^. isoText
-                                 else x3
-                               , i ^. isoPicNo . isoText
-                               )
-                           )
-                           cs'descr
-                           [1..]
 
   this'blogContents     <- runMaybeEmpty
                            ( do r' <- setColBlogRef r
@@ -1218,55 +1190,46 @@ genReqColPage' r = do
                                 genBlogHtml p'
                            )
 
-  return $
-    colPage'
-    base'ref
-    this'title
-    now'
-    this'title
-    this'geo
-    "1.0"   -- theDuration
-    this'url
-    this'pos
-    next'url
-    prev'url
-    par'url
-    c1'url
-    fwrd'url
-    "" -- theImgGeoDir
-    (icon'geo ^. isoText)
-    this'iconurl
-    next'iconurl
-    prev'iconurl
-    c1'iconurl
-    fwrd'iconurl
-    this'blogContents
-    par'title
-    par'iconurl
-    next'title
-    prev'title
-    c1'title
-    icon'no     -- == 0: floating icon layout
-    cs'descr4
-    this'meta
+  return JColPage { _colRType  = this'ty
+                  , _now       = now'
+                  , _colGeo    = this'geo
+                  , _colPos    = this'pos
+                  , _colMeta   = this'meta
+                  , _colIcon   = this'icon
+                  , _navIcons  = nav'icons
+                  , _c1Icon    = c1'icon
+                  , _contIcons = cs'descr
+                  , _blogCont  = this'blogContents
+                  }
 
 -- ----------------------------------------
 -- image attributes
 
-data JPage =
-  JImgPage { _imgRType   :: ReqType
-           , _now        :: Text
-           , _imgMeta    :: MetaData
-           , _imgNavRefs :: PrevNextParPath
-           , _imgNavImgs :: PrevNextParPath
-           , _imgPos     :: Text
-           , _imgUrl     :: TextPath
-           , _imgGeo     :: Geo
-           , _resGeo     :: Geo
-           , _orgUrl     :: TextPath
-           , _panoUrl    :: TextPath
-           , _blogCont   :: Text
-           }
+data JPage
+  = JImgPage { _imgRType   :: ReqType
+             , _now        :: Text
+             , _imgMeta    :: MetaData
+             , _imgNavRefs :: PrevNextParPath
+             , _imgNavImgs :: PrevNextParPath
+             , _imgPos     :: Text
+             , _imgUrl     :: TextPath
+             , _imgGeo     :: Geo
+             , _resGeo     :: Geo
+             , _orgUrl     :: TextPath
+             , _panoUrl    :: TextPath
+             , _blogCont   :: Text
+             }
+  | JColPage { _colRType   :: ReqType
+             , _now        :: Text
+             , _colGeo     :: Geo
+             , _colPos     :: Text
+             , _colMeta    :: MetaData
+             , _colIcon    :: IconDescr
+             , _navIcons   :: PrevNextParIcons
+             , _c1Icon     :: IconDescr
+             , _contIcons  :: [IconDescr]
+             , _blogCont   :: Text
+             }
 
 data PrevNextPar a =
   PrevNextPar { _prev :: a
@@ -1274,8 +1237,14 @@ data PrevNextPar a =
               , _par  :: a
               , _fwrd :: a
               }
+type PrevNextParPath  = PrevNextPar TextPath
+type PrevNextParIcons = PrevNextPar IconDescr
 
-type PrevNextParPath = PrevNextPar TextPath
+data IconDescr =
+  IconDescr { _targetUrl  :: Text
+            , _iconUrl    :: Text
+            , _targetMeta :: MetaData
+            }
 
 -- ----------------------------------------
 
@@ -1312,6 +1281,30 @@ instance ToJSON JPage where
         , "panoUrl"    J..= i11
         , "blogCont"   J..= i12
         ]
+  toJSON JColPage
+    { _colRType   = c1
+    , _now        = c2
+    , _colGeo     = c3
+    , _colPos     = c4
+    , _colMeta    = c5
+    , _colIcon    = c6
+    , _navIcons   = c7
+    , _c1Icon     = c8
+    , _contIcons  = c9
+    , _blogCont   = c10
+    } = J.object
+        [ "colRType"   J..= (c1 ^. isoText)
+        , "now"        J..= c2
+        , "colGeo"     J..= c3
+        , "colPos"     J..= c4
+        , "colMeta"    J..= c5
+        , "colIcon"    J..= c6
+        , "navIcons"   J..= c7
+        , "c1Icon"     J..= c8
+        , "contIcons"  J..= c9
+        , "blogCont"   J..= c10
+        ]
+
 
 instance ToJSON a => ToJSON (PrevNextPar a) where
   toJSON PrevNextPar
@@ -1324,6 +1317,17 @@ instance ToJSON a => ToJSON (PrevNextPar a) where
         , "next" J..= x2
         , "par"  J..= x3
         , "fwrd" J..= x4
+        ]
+
+instance ToJSON IconDescr where
+  toJSON IconDescr
+    { _targetUrl  = d1
+    , _iconUrl    = d2
+    , _targetMeta = d3
+    } = J.object
+        [ "targetUrl"  J..= d1
+        , "iconUrl"    J..= d2
+        , "targetMeta" J..= d3
         ]
 
 -- ----------------------------------------
@@ -1352,7 +1356,17 @@ emptyPrevNextPar =
               , _fwrd = mempty
               }
 
+emptyIconDescr :: IconDescr
+emptyIconDescr =
+  IconDescr { _targetUrl  = mempty
+            , _iconUrl    = mempty
+            , _targetMeta = mempty
+            }
+
 -- ----------------------------------------
+--
+-- JPage conversion to Blaze.HTML
+-- calling the ugly picPage', ... colPage' from Blaze module
 
 jPageToHtml :: JPage -> Blaze.Html
 jPageToHtml JImgPage
@@ -1450,5 +1464,92 @@ jPageToHtml JImgPage
           blogContents
         _others ->
           mempty
+
+jPageToHtml JColPage
+  { _colRType  = this'ty
+  , _now       = now'
+  , _colGeo    = this'geo
+  , _colPos    = this'pos
+  , _colMeta   = this'meta
+  , _colIcon   = this'icon
+  , _navIcons  = nav'icons
+  , _c1Icon    = c1'icon
+  , _contIcons = cs'descr
+  , _blogCont  = this'blogContents
+  } = let IconDescr
+            this'url
+            this'iconurl
+            _ = this'icon
+          IconDescr
+            c1'url
+            c1'iconurl
+            c1'meta = c1'icon
+
+          this'title   = this'meta ^. metaTextAt descrTitle
+          c1'title     = c1'meta   ^. metaTextAt descrTitle
+
+          PrevNextPar
+            prev'title
+            next'title
+            par'title
+            _ = fmap ((^. metaTextAt descrTitle) . _targetMeta) nav'icons
+          PrevNextPar
+            prev'url
+            next'url
+            par'url
+            fwrd'url = fmap _targetUrl nav'icons
+          PrevNextPar
+            prev'iconurl
+            next'iconurl
+            par'iconurl
+            fwrd'iconurl = fmap _iconUrl nav'icons
+
+          (_inav'geo, icon'geo, icon'no) = lookupPageCnfs this'ty this'geo
+
+          cs'descr4 = zipWith
+                      ( \ (IconDescr x1 x2 x3) i ->
+                          ( x1
+                          , x2
+                          , let t3 = x3 ^. metaTextAt descrTitle in
+                              if T.null t3
+                              then (show i <> ". Bild") ^. isoText
+                              else t3
+                          , i ^. isoPicNo . isoText
+                          )
+                      )
+                      cs'descr
+                      [1..]
+
+      in
+        colPage'
+        "/"
+        this'title
+        now'
+        this'title
+        this'geo
+        "1.0"   -- theDuration
+        this'url
+        this'pos
+        next'url
+        prev'url
+        par'url
+        c1'url
+        fwrd'url
+        "" -- theImgGeoDir
+        (icon'geo ^. isoText)
+        this'iconurl
+        next'iconurl
+        prev'iconurl
+        c1'iconurl
+        fwrd'iconurl
+        this'blogContents
+        par'title
+        par'iconurl
+        next'title
+        prev'title
+        c1'title
+        icon'no     -- == 0: floating icon layout
+        cs'descr4
+        this'meta
 
 -- ----------------------------------------
