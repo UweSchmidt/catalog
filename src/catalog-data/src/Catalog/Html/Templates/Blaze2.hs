@@ -1027,17 +1027,17 @@ picMeta md = mconcat mdTab
       , mdval  "Weißabgleich"           exifWhiteBalance
       , mdval0 "Aufnahmezähler"         makerNotesShutterCount
       , mdval0 "Geometrie"              compositeImageSize
+      , mdval0 "Raw-Datei"              fileRefRaw
       , mdval0 "Bilddatei"              fileRefImg
       , mdval0 "Dateityp"               fileMimeType
       , mdMPX  "Megapixel"
       , mdval0 "Dateigröße"             fileFileSize
+      , mdval0 "Bild-Kopie"             fileRefJpg
       , mdval0 "Animation: Wiederh."    gifAnimationIterations
       , mdval0 "Animation: Dauer"       gifDuration
       , mdval0 "Animation: # Bilder"    gifFrameCount
       , mdval0 "Video-Dauer"            quickTimeDuration
       , mdval0 "Frame-Rate"             quickTimeVideoFrameRate
-      , mdval0 "Bild-Kopie"             fileRefJpg
-      , mdval0 "Raw-Datei"              fileRefRaw
       , mdTs   "Bearbeitet"
       , mdRat  "Bewertung"
       ]

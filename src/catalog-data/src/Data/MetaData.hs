@@ -132,6 +132,7 @@ module Data.MetaData
   , fileName
   , fileRefImg
   , fileRefJpg
+  , fileRefMedia
   , fileRefRaw
   , fileTimeStamp
 
@@ -335,6 +336,7 @@ data MetaKey
   | File'Name
   | File'RefImg
   | File'RefJpg
+  | File'RefMedia
   | File'RefRaw
   | File'TimeStamp
   | GIF'AnimationIterations
@@ -530,6 +532,7 @@ fileCheckSum
   , fileName
   , fileRefImg
   , fileRefJpg
+  , fileRefMedia
   , fileRefRaw
   , fileTimeStamp :: MetaKey
 
@@ -542,6 +545,7 @@ keysAttrFile@[
   , fileName
   , fileRefImg
   , fileRefJpg
+  , fileRefMedia
   , fileRefRaw
   , fileTimeStamp
   ] = [File'CheckSum .. File'TimeStamp]

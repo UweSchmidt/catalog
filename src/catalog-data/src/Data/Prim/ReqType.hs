@@ -32,6 +32,7 @@ data ReqType = RPage    -- deliver HTML col-, img-, movie-, blog page  text/html
              | RRef     -- deliver an url, not a content
              | RMovie   -- currently redundant, movie files are served statically
              | RGif     -- Wackelgif
+             | RJson    -- JSON data for client generated pages
              deriving (Eq, Ord, Enum, Show, Read)
              -- !!! nameing convention of constr RXxxx used in isoString
 
