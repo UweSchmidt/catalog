@@ -1,13 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
-
-
 module Main where
 
 -- polysemy
@@ -26,7 +16,6 @@ import Polysemy.Logging
 -- client-polysemy
 import Catalog.Effects.CatCmd.ClientInterpreter
                                  ( evalClientCatCmd )
-import Client.Effects.ClientCmd
 import Client.Effects.ClientCmd.Interpreter
                                  ( evalClientCmd )
 import Client.Options            ( clientAction )
@@ -36,6 +25,8 @@ import Network.HTTP.Client       ( responseTimeoutNone )
 import System.Exit               ( ExitCode(..)
                                  , exitWith
                                  )
+
+import Data.Prim.Prelude
 
 import qualified Data.Text       as T
 

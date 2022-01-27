@@ -11,6 +11,13 @@ import Polysemy
        , interpret
        )
 
+import Polysemy.Logging
+       ( abortWith
+       -- , log'trc
+       -- , log'warn
+       -- , untext
+       )
+
 -- polysemy-tools
 import Polysemy.HttpRequest.SimpleRequests
        ( HttpEffects
@@ -21,29 +28,16 @@ import Polysemy.HttpRequest.SimpleRequests
 
 -- catalog
 import Data.Prim
-    ( Text
-    , ToJSON
-    , FromJSON
-    , p'archive
-    , consPath
-    , (^.)
-    , (#)
-    , Geo
-    , Name
-    , Path
-    , IsoText(isoText)
-    , LazyByteString
-    , ReqType(..)
-    )
 
 -- catalog-polysemy
-
 import Catalog.Effects.CatCmd
        ( CatCmd(..) )
 
 import Catalog.GenPages
        ( JPage )
 
+import Data.Aeson
+       ( decode' )
 
 ------------------------------------------------------------------------------
 
@@ -129,8 +123,11 @@ evalClientCatCmd =
       basicDocReq ".jpg" rt geo p
     HtmlPage rt geo p ->
       basicDocReq ".html" rt geo p
-    JsonPage geo p ->
-      toJPage <$> basicDocReq ".json" RJson geo p
+    JsonPage geo p -> do
+      lbs <- basicDocReq ".json" RJson geo p
+      case decode' @JPage lbs of
+        Just jp -> return jp
+        Nothing -> abortWith $ "JsonPage: JSON parse error"
 
     -- undo history commands
     --
@@ -151,9 +148,6 @@ evalClientCatCmd =
       simpleJSONmodify "listUndoEntries" p'archive
 
 ------------------------------------------------------------------------------
-
-toJPage :: LazyByteString -> JPage
-toJPage = undefined
 
 simpleJSONget :: (FromJSON a, HttpEffects r)
               => Name -> Path -> Sem r a

@@ -13,7 +13,7 @@ module Catalog.GenPages
 where
 
 -- catalog
-import Data.Prim
+import Data.Prim {- - }
        ( Alternative(empty, (<|>))
        , Field1(_1)
        , Field2(_2)
@@ -79,6 +79,7 @@ import Data.Prim
        , unless
        , viewBase
        )
+-- -}
 import Data.ImgNode
        ( ImgRef'(ImgRef)
        , ImgRef
@@ -188,7 +189,6 @@ import Catalog.TimeStamp
        ( nowAsIso8601 )
 
 -- libraries
-import           Data.Aeson ( ToJSON )
 import qualified Data.Aeson           as J
 import qualified Data.Sequence        as Seq
 import qualified Data.Text            as T
@@ -1286,7 +1286,7 @@ instance ToJSON JPage where
     , _panoUrl    = i11
     , _blogCont   = i12
     } = J.object
-        [ "imgRType"   J..= (i1 ^. isoText)
+        [ "imgRType"   J..= i1
         , "now"        J..= i2
         , "imgMeta"    J..= i3
         , "imgNavRefs" J..= i4
@@ -1311,7 +1311,7 @@ instance ToJSON JPage where
     , _contIcons  = c9
     , _blogCont   = c10
     } = J.object
-        [ "colRType"   J..= (c1 ^. isoText)
+        [ "colRType"   J..= c1
         , "now"        J..= c2
         , "colGeo"     J..= c3
         , "colPos"     J..= c4
@@ -1323,6 +1323,31 @@ instance ToJSON JPage where
         , "blogCont"   J..= c10
         ]
 
+instance FromJSON JPage where
+  parseJSON = J.withObject "JPage" $ \ o ->
+       JImgPage <$> o J..: "imgRType"
+                <*> o J..: "now"
+                <*> o J..: "imgMeta"
+                <*> o J..: "imgNavRefs"
+                <*> o J..: "imgNavImgs"
+                <*> o J..: "imgPos"
+                <*> o J..: "imgUrl"
+                <*> o J..: "imgGeo"
+                <*> o J..: "resGeo"
+                <*> o J..: "orgUrl"
+                <*> o J..: "panoUrl"
+                <*> o J..: "blogCont"
+      <|>
+      JColPage <$> o J..: "colRType"
+               <*> o J..: "now"
+               <*> o J..: "colGeo"
+               <*> o J..: "colPos"
+               <*> o J..: "colMeta"
+               <*> o J..: "colIcon"
+               <*> o J..: "navIcons"
+               <*> o J..: "c1Icon"
+               <*> o J..: "contIcons"
+               <*> o J..: "blogCont"
 
 instance ToJSON a => ToJSON (PrevNextPar a) where
   toJSON PrevNextPar
@@ -1337,6 +1362,13 @@ instance ToJSON a => ToJSON (PrevNextPar a) where
         , "fwrd" J..= x4
         ]
 
+instance FromJSON a => FromJSON (PrevNextPar a) where
+  parseJSON = J.withObject "PrevNextPar" $ \ o ->
+    do PrevNextPar <$> o J..: "prev"
+                   <*> o J..: "next"
+                   <*> o J..: "par"
+                   <*> o J..: "fwrd"
+
 instance ToJSON IconDescr where
   toJSON IconDescr
     { _targetUrl  = d1
@@ -1347,6 +1379,12 @@ instance ToJSON IconDescr where
         , "iconUrl"    J..= d2
         , "targetMeta" J..= d3
         ]
+
+instance FromJSON IconDescr where
+  parseJSON = J.withObject "IconDescr" $ \ o ->
+    do IconDescr <$> o J..: "targetUrl"
+                 <*> o J..: "iconUrl"
+                 <*> o J..: "targetMeta"
 
 -- ----------------------------------------
 

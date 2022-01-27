@@ -24,15 +24,7 @@ module Client.Effects.ClientCmd
   , ccExifUpdate
   , ccCheckMeta
   , ccGeoAddress
-
-    -- * reexported catalog types
-  , Geo
-  , HistoryID
-  , Name
-  , Path
-  , PathPos
-  , ReqType (..)
-  , Text
+  , ccPage
   )
 where
 
@@ -79,6 +71,7 @@ data ClientCmd m a where
   CcExifUpdate :: Path    -> Bool     -> Bool -> ClientCmd m ()
   CcCheckMeta  :: Path                        -> ClientCmd m ()
   CcGeoAddress :: Path    -> Bool             -> ClientCmd m ()
+  CcPage       :: Path                        -> ClientCmd m ()
 
 makeSem ''ClientCmd
 

@@ -33,6 +33,7 @@ import Polysemy.FileSystem
        )
 import Polysemy.Error
        ( Error )
+
 import Polysemy.Logging
        ( Logging
        , abortWith
@@ -53,11 +54,12 @@ import Polysemy.State
        )
 import Polysemy.HttpRequest
        ( HttpRequest )
+
 import Polysemy.HttpRequest.SimpleRequests
        ( Request )
 
 -- catalog-data
-import Data.Prim
+import Data.Prim {- - }
        ( sort
        , Text
        , ToJSON
@@ -106,6 +108,7 @@ import Data.Prim
        , IsoText(isoText)
        , ReqType
        )
+-- -}
 
 import Data.ImgTree
        ( ImgNodeP )
@@ -174,6 +177,8 @@ import Catalog.Effects.CatCmd
        , theMetaDataText
        , updateCheckSum
        , updateTimeStamp
+       , htmlPage
+       , jsonPage
        , CatCmd
        )
 
@@ -306,7 +311,48 @@ evalClientCmd =
       traverse_ (\ p' -> theEntry p' >>= setGeoAddress force p') ps
       saveGeoCache
 
+    CcPage path -> do
+      showDoc path
+
 {-# INLINE evalClientCmd #-}
+
+------------------------------------------------------------------------------
+
+showDoc :: CCmdEffects r => Path -> Sem r ()
+showDoc path
+  | Just (rty, geo, rp, _ext) <- parseDocPath path = do
+      case rty of
+        RJson -> do
+          jpage <- jsonPage geo rp
+          writeln (viaJsonToText jpage)
+        _
+          | rty == RPage || rty == RPage1 -> do
+              hpage <- htmlPage rty geo rp
+              writeln (lbsToText hpage)
+
+        _ -> do
+          abortWith $ "doc type not supported: " <> path ^. isoText
+
+  | otherwise =
+      abortWith $ "illegal doc path: " <> path ^. isoText
+
+
+parseDocPath :: Path -> Maybe (ReqType, Geo, Path, Text)
+parseDocPath p0
+  | Just rty     <- mrty
+    , Just rawPath <- checkAndRemExt (ext ^. isoString) p3
+    , Just geo     <- mgeo
+    , rty `elem` [RPage, RPage1, RJson, RImg, RImgfx, RIcon, RIconp]
+    , n0 == "docs"
+               = Just (rty, geo, rawPath, ext)
+  | otherwise  = Nothing
+  where
+    (n0, p1) = p0 ^. viewTop
+    (n1, p2) = p1 ^. viewTop
+    (n2, p3) = p2 ^. viewTop
+    mrty     = n1 ^? (isoString . prismString)
+    ext      = maybe "" reqType2ext mrty
+    mgeo     = readGeo' (n2 ^. isoString)
 
 ------------------------------------------------------------------------------
 
@@ -843,6 +889,49 @@ viaJsonToText :: ToJSON a => a -> Text
 viaJsonToText = TL.toStrict . TL.decodeUtf8 . J.encodePretty' conf
   where
     conf = J.defConfig
-           { J.confIndent  = J.Spaces 2 }
+           { J.confIndent  = J.Spaces 2
+           , J.confCompare = (compare `on` keyToInt) <> compare
+           }
+
+keyToInt :: Text -> Int
+keyToInt = fromMaybe 100 . (`lookup` jPageKeys)
+
+jPageKeys :: [(Text, Int)]
+jPageKeys = zip keys [0..]
+  where
+    keys = [ "now"
+           , "imgRType"
+           , "imgMeta"
+           , "imgNavRefs"
+           , "imgNavImgs"
+           , "imgPos"
+           , "imgUrl"
+           , "imgGeo"
+           , "resGeo"
+           , "orgUrl"
+           , "panoUrl"
+
+           , "colRType"
+           , "colGeo"
+           , "colPos"
+           , "colMeta"
+           , "colIcon"
+           , "navIcons"
+           , "c1Icon"
+           , "contIcons"
+           , "blogCont"
+
+           , "prev"
+           , "next"
+           , "par"
+           , "fwrd"
+
+           , "targetUrl"
+           , "iconUrl"
+           , "targetMeta"
+           ]
+
+lbsToText :: LazyByteString -> Text
+lbsToText = TL.toStrict . TL.decodeUtf8
 
 ------------------------------------------------------------------------------

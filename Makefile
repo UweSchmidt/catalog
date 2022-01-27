@@ -4,6 +4,9 @@ build:
 install:
 	$(MAKE) -C src install
 
+local:
+	$(MAKE) install-local
+
 install-local:
 	$(MAKE) build
 	$(MAKE) copy-apps
@@ -35,4 +38,4 @@ copy-apps:
 	cp -f $(client-polysemy)  bin/client-polysemy
 	ls -l bin
 
-PHONY: build install install-local bump-version clean start check-external-progs copy-apps
+PHONY: build install install-local local bump-version clean start check-external-progs copy-apps

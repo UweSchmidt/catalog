@@ -64,6 +64,7 @@ catalog="photos-0.5.pathid.json"
 [[ -f "$catdir/$catalog" ]]          || die "no catalog '$catdir/$catalog'"
 [[ -x "$server" ]]                   || die "no executable '$server'"
 
+set -x
 exec $server \
      $loglevel \
      -P "$port" \

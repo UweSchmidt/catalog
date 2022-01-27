@@ -2,20 +2,12 @@ module Data.Prim.ReqType
   ( ReqType (..)
   , imgReqTypes
   , reqType2AR
+  , reqType2ext
   )
 where
 
 import Data.Prim.Prelude
-       ( fromMaybe
-       , toLower
-       , toUpper
-       , readMaybe
-       , iso
-       , prism'
-       , IsoString(..)
-       , IsoText
-       , PrismString(..)
-       )
+
 import Data.Prim.Geometry
        ( AspectRatio(..) )
 
@@ -44,6 +36,14 @@ instance IsoString ReqType where
 instance PrismString ReqType where
   prismString = prism' show'ReqType read'ReqType
 
+instance ToJSON ReqType where
+  toJSON = toJSON . show'ReqType
+
+instance FromJSON ReqType where
+  parseJSON t = do
+    r <-  parseJSON t
+    maybe mzero return $ read'ReqType r
+
 show'ReqType :: ReqType -> String
 show'ReqType = drop 1 . map toLower . show
 
@@ -62,5 +62,15 @@ reqType2AR RIconp = Pad    -- aspect ratio of org img
 reqType2AR RImg   = Pad
 reqType2AR RImgfx = Flex   -- flex aspect ratio (crop or pad)
 reqType2AR _      = Pad    -- default
+
+reqType2ext :: ReqType -> Text
+reqType2ext RPage  = ".html"
+reqType2ext RPage1 = ".html"
+reqType2ext RImg   = ".jpg"
+reqType2ext RImgfx = ".jpg"
+reqType2ext RIcon  = ".jpg"
+reqType2ext RIconp = ".jpg"
+reqType2ext RJson  = ".json"
+reqType2ext _      = ""
 
 -- ----------------------------------------

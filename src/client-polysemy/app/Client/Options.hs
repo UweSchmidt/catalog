@@ -30,20 +30,15 @@ import Options.Applicative
        )
 import Options.Applicative.HostPort
        ( optHostPort )
+
 import Options.Applicative.LogLevel
        ( LogLevel
        , optLogLevel
        )
 
 import Client.Effects.ClientCmd
-       ( HistoryID
-       , Text
-       , Geo
-       , Name
-       , Path
-       , PathPos
-       , ReqType(RImg)
-       , ClientCmd(..) )
+       ( ClientCmd(..) )
+
 import Client.Effects.ClientCmd.Interpreter
        ( defaultPath )
 
@@ -53,6 +48,8 @@ import Data.MetaData
        , allKeysMetaData
        , globKeysMetaData
        )
+import Data.History
+       ( HistoryID )
 
 import Data.Prim
        ( intercalate
@@ -71,6 +68,12 @@ import Data.Prim
        , IsoString(isoString)
        , IsoText(isoText)
        , PrismString(prismString)
+       , Text
+       , Geo
+       , Name
+       , Path
+       , PathPos
+       , ReqType(..)
        )
 
 import Text.SimpleParser
@@ -208,6 +211,16 @@ cmdClient = subparser $
         <> show defaultPath
         <> ", key may be given as glob pattern."
         <> ". Path may contain glob style patterns, but must be unique"
+      )
+    )
+  <>
+  command "doc"
+    ( ( CcPage
+        <$> argPath1
+      )
+      `withInfo`
+      ( "Get HTML or JSON page for a collection or image entry."
+        <> " Path must conform to syntax '/doc/<reqType>/<geo>/<path>.<ext>'"
       )
     )
   <>
