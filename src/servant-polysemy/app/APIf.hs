@@ -66,6 +66,8 @@ import Data.MetaData
        ( MetaDataText
        , Rating
        )
+import Catalog.GenPages
+       ( JPage )
 
 import qualified Data.Text as T
 
@@ -180,10 +182,16 @@ type PageAPI
   = "page"  :> PageAPIfmt
     :<|>
     "page1" :> PageAPIfmt
+    :<|>
+    "json" :> PageAPIjson
 
 type PageAPIfmt
   = Capture "geo" Geo':> CaptureAll "path" Text :>
     Get '[HTMLStatic] LazyByteString
+
+type PageAPIjson
+  = Capture "geo" Geo':> CaptureAll "path" Text :>
+    Get '[JSON] JPage
 
 -- ----------------------------------------
 --

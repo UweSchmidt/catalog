@@ -73,9 +73,8 @@ import Catalog.Effects
        , runError
        )
 import Catalog.Effects.CatCmd
-       ( Text
-       , CatCmd
-       )
+       ( CatCmd )
+
 import Catalog.Effects.CatCmd.Interpreter
        ( evalCatCmd )
 
@@ -93,7 +92,8 @@ import Catalog.Journal
 
 -- catalog
 import Data.Prim
-       ( (^.)
+       ( Text
+       , (^.)
        , when
        )
 import Data.Journal

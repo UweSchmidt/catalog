@@ -5,6 +5,7 @@ module Catalog.GenPages
   , processReqMediaPath
   , processReqImg
   , processReqPage
+  , processReqJson
   , rType
   , rGeo
   , rPathPos
@@ -465,7 +466,20 @@ processReqImg' r0 = do
 
 processReqPage' :: (Eff'Img r, EffNonDet r)
                 => Req' a -> Sem r LazyByteString
-processReqPage' r0 = do
+processReqPage' = processReqPage'' genReqImgPage genReqColPage
+
+-- handle a json page request
+
+processReqJson' :: (Eff'Img r, EffNonDet r)
+                => Req' a -> Sem r JPage
+processReqJson' = processReqPage'' genReqImgPage' genReqColPage'
+
+
+processReqPage'' :: (Eff'Img r, EffNonDet r)
+                 => (Req'IdNode'ImgRef a -> Sem r p)
+                 -> (Req'IdNode        a -> Sem r p)
+                 ->  Req'              a -> Sem r p
+processReqPage'' genImg genCol r0 = do
   r1 <- normAndSetIdNode r0
   log'trc $ "processReqPage: " <> toUrlPath r1
 
@@ -473,11 +487,11 @@ processReqPage' r0 = do
     -- create an image page
     Just _pos -> do
       r2 <- setImgRef      r1
-      genReqImgPage r2
+      genImg r2
 
     -- create a collection page
     Nothing -> do
-      genReqColPage r1
+      genCol r1
 
 -- ----------------------------------------
 --
@@ -490,6 +504,10 @@ processReqImg  = processReq processReqImg'
 processReqPage :: (Eff'Img r)
                => Req' a -> Sem r LazyByteString
 processReqPage = processReq processReqPage'
+
+processReqJson :: (Eff'Img r)
+               => Req' a -> Sem r JPage
+processReqJson = processReq processReqJson'
 
 processReq :: (EffError r)
            => (Req' a -> Sem (NonDet ': r) b) -> Req' a -> Sem r b

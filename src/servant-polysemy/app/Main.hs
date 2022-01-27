@@ -35,6 +35,9 @@ import Prelude.Compat
 import Polysemy.State.RunTMVar
        ( createJobQueue )
 
+import Polysemy.FileSystem
+       ( TextPath )
+
 -- catalog-polysemy
 import Catalog.CatalogIO
        ( initImgStore )
@@ -51,16 +54,13 @@ import Catalog.CatEnv
        , catFontName
        )
 import Catalog.Effects.CatCmd
-       ( Path
-       , Text
-       , ReqType(RPage1, RIcon, RIconp, RImg, RImgfx, RPage)
-       , TextPath
-       , applyUndo
+       ( applyUndo
        , changeWriteProtected
        , checkImgPart
        , copyToCollection
        , dropUndoEntries
        , htmlPage
+       , jsonPage
        , isCollection
        , isRemovable
        , isSortable
@@ -102,6 +102,9 @@ import Catalog.Effects.CatCmd.Interpreter
 import Catalog.GenImages
        ( selectFont )
 
+import Catalog.GenPages
+       ( JPage )
+
 import Catalog.History
        ( emptyHistory )
 
@@ -116,7 +119,10 @@ import Catalog.Run
 
 -- catalog-data
 import Data.Prim
-       ( (^.)
+       ( Path
+       , ReqType(..)
+       , Text
+       , (^.)
        , (#)
        , (.~)
        , Alternative(some, many)
@@ -256,6 +262,8 @@ catalogServer env runReadC runModyC runBGC =
     ( get'html
       :<|>
       get'html1
+      :<|>
+      get'json
     )
   )
   :<|>
@@ -384,7 +392,11 @@ catalogServer env runReadC runModyC runBGC =
     get'html' rt (Geo' geo) =
       runReadC . htmlPage rt geo . listToPath
 
-    -- --------------------
+    get'json :: Geo' -> [Text] -> Handler JPage
+    get'json (Geo' geo) =
+      runReadC . jsonPage geo . listToPath
+
+-- --------------------
 {-
     runR0 :: forall a.
              CatApp a -> [Text] -> Handler a

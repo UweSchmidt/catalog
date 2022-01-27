@@ -24,15 +24,8 @@ import Catalog.Effects
        , throw
        )
 import Catalog.Effects.CatCmd
-       ( Text
-       , Name
-       , Path
-       , ReqType(RRef)
-       , ImgNodeP
-       , MetaDataText
-       , Rating
-       , CatCmd(..)
-       )
+       ( CatCmd(..) )
+
 import Catalog.GenCheckSum
        ( Eff'CheckSum )
 
@@ -97,6 +90,7 @@ import Catalog.GenPages
        , processReqMediaPath
        , processReqImg
        , processReqPage
+       , processReqJson
        , rType
        , rGeo
        , rPathPos
@@ -134,10 +128,14 @@ import Data.Prim
        , CheckSum
        , CheckSumRes
        , Geo
+       , Text
+       , Name
+       , Path
        , ObjId
        , PathPos
        , IsoText(isoText)
        , LazyByteString
+       , ReqType(..)
        , TimeStamp
        , Seq
        , Ixed(ix)
@@ -161,7 +159,8 @@ import Data.Journal
 
 import Data.MetaData
        ( MetaData
-         -- , MetaDataText
+       , MetaDataText
+       , Rating
          -- , metaDataAt
        , editMetaData
        , isoMetaDataMDT
@@ -179,6 +178,7 @@ import Data.ImageStore
 import Data.ImgTree
        ( ColEntry
        , ImgNode
+       , ImgNodeP
        )
 
 -- libraries
@@ -317,7 +317,14 @@ evalCatCmd =
           processReqPage (mkReq rt geo ppos)
 
       | otherwise ->
-          throw @Text $ msgPath path "illegal doc path "
+          throw @Text $ msgPath path "illegal HTML doc path "
+
+    JsonPage geo path
+      | Just ppos <- path2colPath ".json" path -> do
+          processReqJson (mkReq RJson geo ppos)
+
+      | otherwise ->
+          throw @Text $ msgPath path "illegal JSON doc path "
 
     -- eval undo commands
 

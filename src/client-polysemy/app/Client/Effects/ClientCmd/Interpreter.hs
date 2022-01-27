@@ -106,6 +106,10 @@ import Data.Prim
        , IsoText(isoText)
        , ReqType
        )
+
+import Data.ImgTree
+       ( ImgNodeP )
+
 import Data.ImgNode
        ( colEntry
        , isCOL
@@ -144,6 +148,8 @@ import Data.MetaData
        , fileMimeType
        , fileName
        )
+import Data.History
+       ( HistoryID )
 
 import Text.SimpleParser
        ( parseMaybe
@@ -152,8 +158,7 @@ import Text.SimpleParser
 
 -- catalog-polysemy
 import Catalog.Effects.CatCmd
-       ( HistoryID
-       , applyUndo
+       ( applyUndo
        , checkImgPart
        , dropUndoEntries
        , jpgImgCopy
@@ -169,7 +174,6 @@ import Catalog.Effects.CatCmd
        , theMetaDataText
        , updateCheckSum
        , updateTimeStamp
-       , ImgNodeP
        , CatCmd
        )
 

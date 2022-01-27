@@ -1,19 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE
-    DataKinds,
-    FlexibleContexts,
-    GADTs,
-    OverloadedStrings,
-    PolyKinds,
-    RankNTypes,
-    ScopedTypeVariables,
-    TemplateHaskell,
-    TypeApplications,
-    TypeOperators,
-    TypeFamilies,
-    LambdaCase
-#-} -- default extensions (only for emacs)
-
 module Catalog.Effects.CatCmd.ClientInterpreter
   ( -- * Interpreter
     evalClientCatCmd
@@ -49,11 +33,17 @@ import Data.Prim
     , Path
     , IsoText(isoText)
     , LazyByteString
-    , ReqType
+    , ReqType(..)
     )
 
 -- catalog-polysemy
-import Catalog.Effects.CatCmd ( CatCmd(..) )
+
+import Catalog.Effects.CatCmd
+       ( CatCmd(..) )
+
+import Catalog.GenPages
+       ( JPage )
+
 
 ------------------------------------------------------------------------------
 
@@ -139,6 +129,8 @@ evalClientCatCmd =
       basicDocReq ".jpg" rt geo p
     HtmlPage rt geo p ->
       basicDocReq ".html" rt geo p
+    JsonPage geo p ->
+      toJPage <$> basicDocReq ".json" RJson geo p
 
     -- undo history commands
     --
@@ -159,6 +151,9 @@ evalClientCatCmd =
       simpleJSONmodify "listUndoEntries" p'archive
 
 ------------------------------------------------------------------------------
+
+toJPage :: LazyByteString -> JPage
+toJPage = undefined
 
 simpleJSONget :: (FromJSON a, HttpEffects r)
               => Name -> Path -> Sem r a
