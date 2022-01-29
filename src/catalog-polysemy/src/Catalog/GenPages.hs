@@ -537,7 +537,7 @@ toRawPath r =
     pos'  = maybe mempty mk1 $ r ^. rPos
       where
         mk1 :: Int -> Path
-        mk1 x = x ^. isoPicNo . isoText . from isoText . to mkPath
+        mk1 = mkPath . (isoText #) . picNoToText
 
 -- --------------------
 --
@@ -1047,7 +1047,7 @@ thePos :: Eff'ISE r => Req'IdNode a -> Sem r Text
 thePos r =
   runMaybeEmpty $
   do r' <- denormPathPos r
-     return (r' ^. rPos . traverse . isoPicNo . isoText)
+     return (r' ^. rPos . isoPicNo)
 
 -- ----------------------------------------
 --
@@ -1064,7 +1064,6 @@ genReqImgPage' r = do
   now' <- nowAsIso8601
 
   this'meta             <- collectImgAttr r
-  this'pos              <- thePos r
 
   let     this'mediaUrl  = this'meta ^. metaTextAt fileRefMedia
   let     this'url       = toUrlPath r  -- !!! no toUrlPath' due to RPage
@@ -1092,11 +1091,11 @@ genReqImgPage' r = do
   mrq <- toMediaReq r
 
   let ipage = emptyJImgPage
-              { _now        = now'
+              { _imgPathPos = r ^. rPathPos
+              , _now        = now'
               , _imgMeta    = metaData
               , _imgNavRefs = navRefs
               , _imgNavImgs = navImgs
-              , _imgPos     = this'pos
               , _imgUrl     = this'url
               , _imgGeo     = this'geo
               , _resGeo     = res'geo
@@ -1225,11 +1224,11 @@ genReqColPage' r = do
 
 data JPage
   = JImgPage { _imgRType   :: ReqType
+             , _imgPathPos :: PathPos
              , _now        :: Text
              , _imgMeta    :: MetaData
              , _imgNavRefs :: PrevNextParPath
              , _imgNavImgs :: PrevNextParPath
-             , _imgPos     :: Text
              , _imgUrl     :: TextPath
              , _imgGeo     :: Geo
              , _resGeo     :: Geo
@@ -1274,11 +1273,11 @@ deriving instance (Show a) => Show (PrevNextPar a)
 instance ToJSON JPage where
   toJSON JImgPage
     { _imgRType   = i1
+    , _imgPathPos = i1a
     , _now        = i2
     , _imgMeta    = i3
     , _imgNavRefs = i4
     , _imgNavImgs = i5
-    , _imgPos     = i6
     , _imgUrl     = i7
     , _imgGeo     = i8
     , _resGeo     = i9
@@ -1287,11 +1286,11 @@ instance ToJSON JPage where
     , _blogCont   = i12
     } = J.object
         [ "imgRType"   J..= i1
+        , "imgPathPos" J..= i1a
         , "now"        J..= i2
         , "imgMeta"    J..= i3
         , "imgNavRefs" J..= i4
         , "imgNavImgs" J..= i5
-        , "imgPos"     J..= i6
         , "imgUrl"     J..= i7
         , "imgGeo"     J..= i8
         , "resGeo"     J..= i9
@@ -1326,11 +1325,11 @@ instance ToJSON JPage where
 instance FromJSON JPage where
   parseJSON = J.withObject "JPage" $ \ o ->
        JImgPage <$> o J..: "imgRType"
+                <*> o J..: "imgPathPos"
                 <*> o J..: "now"
                 <*> o J..: "imgMeta"
                 <*> o J..: "imgNavRefs"
                 <*> o J..: "imgNavImgs"
-                <*> o J..: "imgPos"
                 <*> o J..: "imgUrl"
                 <*> o J..: "imgGeo"
                 <*> o J..: "resGeo"
@@ -1391,11 +1390,11 @@ instance FromJSON IconDescr where
 emptyJImgPage :: JPage
 emptyJImgPage =
   JImgPage { _imgRType   = RRef
+           , _imgPathPos = (mempty, Nothing)
            , _now        = mempty
            , _imgMeta    = mempty
            , _imgNavRefs = emptyPrevNextPar
            , _imgNavImgs = emptyPrevNextPar
-           , _imgPos     = mempty
            , _imgUrl     = mempty
            , _imgGeo     = mempty
            , _resGeo     = mempty
@@ -1427,6 +1426,7 @@ emptyIconDescr =
 jPageToHtml :: JPage -> Blaze.Html
 jPageToHtml JImgPage
   { _imgRType   = rty
+  , _imgPathPos = (_iPath, iPos)
   , _now = now'
   , _imgMeta    = this'meta
   , _imgNavRefs = PrevNextPar
@@ -1439,7 +1439,6 @@ jPageToHtml JImgPage
                   next'imgRef
                   _par'imgRef
                   fwrd'imgRef
-  , _imgPos     = this'pos
   , _imgUrl     = this'url
   , _imgGeo     = this'geo
   , _resGeo     = res'geo
@@ -1451,6 +1450,7 @@ jPageToHtml JImgPage
           this'comment  = this'meta ^. metaTextAt descrComment
           this'duration = this'meta ^. metaTextAt descrDuration
           this'mediaUrl = this'meta ^. metaTextAt fileRefMedia
+          this'pos      = maybe mempty (^. isoText) iPos
       in
       case rty of
         RImg ->
@@ -1570,7 +1570,7 @@ jPageToHtml JColPage
                               if T.null t3
                               then (show i <> ". Bild") ^. isoText
                               else t3
-                          , i ^. isoPicNo . isoText
+                          , picNoToText i
                           )
                       )
                       cs'descr

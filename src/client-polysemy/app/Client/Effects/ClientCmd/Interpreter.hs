@@ -593,7 +593,7 @@ evalDownload1 rt geo d genSqn overwrite = evalDownload'
           dli dpath pos _ipath _ipart = do
             px <- genSqn
 
-            let pn = pos ^. isoPicNo . isoText
+            let pn = picNoToText pos
             let sp = d' +/+ (px <> pn <> ".jpg")
             let pp = dpath `snocPath` (isoText # pn)
 
@@ -901,6 +901,7 @@ jPageKeys = zip keys [0..]
   where
     keys = [ "now"
            , "imgRType"
+           , "imgPathPos"
            , "imgMeta"
            , "imgNavRefs"
            , "imgNavImgs"
