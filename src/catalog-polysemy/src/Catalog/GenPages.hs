@@ -105,7 +105,6 @@ import Data.MetaData
        , lookupGeo
        , lookupGeoOri
        , lookupMimeType
-       , lookupRating
 
          -- MetaKey's
        , descrComment
@@ -117,7 +116,6 @@ import Data.MetaData
        , fileRefMedia
        , fileRefRaw
        , imgNameRaw
-       , imgRating
        )
 import Data.TextPath
        ( baseNameMb
@@ -1016,30 +1014,31 @@ lookupPageCnfs ty (Geo w _h)
 
 -- ----------------------------------------
 
-collectImgAttr :: Eff'Img r => Req'IdNode'ImgRef a -> Sem r MetaData
+collectImgAttr :: Eff'Img r => Req'IdNode'ImgRef a -> Sem r (Path, Name, MetaData)
 collectImgAttr r = do
-  theMeta <- getImgMetaData ir
-  theUrl  <- toMediaReq r >>= toUrlPath'  -- not toUrlPath due to RMovie, RGif
-  theSrc  <- toSourcePath r
-  let rnm  = theMeta ^. metaDataAt imgNameRaw . metaName
+  theIPath <- objid2path iOid
+  theMeta  <- getImgMetaData ir
+  theUrl   <- toMediaReq r >>= toUrlPath'  -- not toUrlPath due to RMovie, RGif
+  theSrc   <- toSourcePath r
+  let rnm   = theMeta ^. metaDataAt imgNameRaw . metaName
   let rp
         | isempty rnm = mempty
         | otherwise   = substPathName rnm theSrc ^. isoText
-  return $
-    theMeta
-    & metaTextAt fileRefImg   .~ (theSrc ^. isoText)
-    & metaTextAt fileRefMedia .~ (theUrl ^. isoText)
-    & metaTextAt fileRefRaw   .~ rp
-    & metaTextAt descrTitle   .~ take1st
-                                 [ theMeta ^. metaTextAt descrTitle
-                                 , nm ^. isoText
-                                 ]
-    & metaTextAt descrDuration .~ take1st
-                                  [ theMeta ^. metaTextAt descrDuration
-                                  , "1.0"
-                                  ]
+  let md   = theMeta
+             & metaTextAt fileRefImg    .~ (theSrc ^. isoText)
+             & metaTextAt fileRefMedia  .~ (theUrl ^. isoText)
+             & metaTextAt fileRefRaw    .~ rp
+             & metaTextAt descrTitle    .~ take1st
+                                           [ theMeta ^. metaTextAt descrTitle
+                                           , nm ^. isoText
+                                           ]
+             & metaTextAt descrDuration .~ take1st
+                                           [ theMeta ^. metaTextAt descrDuration
+                                           , "1.0"
+                                           ]
+  return (theIPath, nm, md)
   where
-    ir@(ImgRef _iOid nm) = r ^. rImgRef
+    ir@(ImgRef iOid nm) = r ^. rImgRef
 
 -- --------------------
 
@@ -1063,7 +1062,9 @@ genReqImgPage' :: (Eff'Img r)
 genReqImgPage' r = do
   now' <- nowAsIso8601
 
-  this'meta             <- collectImgAttr r
+  ( this'ipath
+    , this'part
+    , this'meta )       <- collectImgAttr r
 
   let     this'mediaUrl  = this'meta ^. metaTextAt fileRefMedia
   let     this'url       = toUrlPath r  -- !!! no toUrlPath' due to RPage
@@ -1079,26 +1080,20 @@ genReqImgPage' r = do
                            <$> runMaybeEmpty (pureMaybe mr >>= toMediaUrl)
   navImgs               <- traverse tomu nav
 
-  let star               = '\9733'
-  let rating             = (\ x -> replicate x star ^. isoText) $
-                           lookupRating this'meta
-  let metaData           = this'meta -- add jpg filename and rating as stars
+  let metaData           = this'meta         -- add jpg filename
                            & metaTextAt fileRefJpg .~ (this'mediaUrl ^. isoText)
-                           & metaTextAt imgRating  .~ rating
   let org'geo            = lookupGeo metaData
-  let res'geo            = resizeGeo' org'geo this'geo
 
   mrq <- toMediaReq r
 
   let ipage = emptyJImgPage
-              { _imgPathPos = r ^. rPathPos
+              { _ipathPos = r ^. rPathPos
               , _now        = now'
-              , _imgMeta    = metaData
+              , _img        = (this'ipath, this'part ^. isoText, metaData)
               , _imgNavRefs = navRefs
               , _imgNavImgs = navImgs
               , _imgUrl     = this'url
-              , _imgGeo     = this'geo
-              , _resGeo     = res'geo
+              , _oirGeo     = (org'geo, this'geo, resizeGeo' org'geo this'geo)
               }
 
   case mrq ^. rType of
@@ -1224,14 +1219,13 @@ genReqColPage' r = do
 
 data JPage
   = JImgPage { _imgRType   :: ReqType
-             , _imgPathPos :: PathPos
+             , _ipathPos :: PathPos
              , _now        :: Text
-             , _imgMeta    :: MetaData
+             , _img        :: (Path, Text, MetaData)
              , _imgNavRefs :: PrevNextParPath
              , _imgNavImgs :: PrevNextParPath
              , _imgUrl     :: TextPath
-             , _imgGeo     :: Geo
-             , _resGeo     :: Geo
+             , _oirGeo     :: (Geo, Geo, Geo)
              , _orgUrl     :: TextPath
              , _panoUrl    :: TextPath
              , _blogCont   :: Text
@@ -1273,27 +1267,25 @@ deriving instance (Show a) => Show (PrevNextPar a)
 instance ToJSON JPage where
   toJSON JImgPage
     { _imgRType   = i1
-    , _imgPathPos = i1a
+    , _ipathPos   = i1a
     , _now        = i2
-    , _imgMeta    = i3
+    , _img        = i3
     , _imgNavRefs = i4
     , _imgNavImgs = i5
     , _imgUrl     = i7
-    , _imgGeo     = i8
-    , _resGeo     = i9
+    , _oirGeo     = i8
     , _orgUrl     = i10
     , _panoUrl    = i11
     , _blogCont   = i12
     } = J.object
         [ "imgRType"   J..= i1
-        , "imgPathPos" J..= i1a
+        , "ipathPos"   J..= i1a
         , "now"        J..= i2
-        , "imgMeta"    J..= i3
+        , "img"        J..= i3
         , "imgNavRefs" J..= i4
         , "imgNavImgs" J..= i5
         , "imgUrl"     J..= i7
-        , "imgGeo"     J..= i8
-        , "resGeo"     J..= i9
+        , "oirGeo"     J..= i8
         , "orgUrl"     J..= i10
         , "panoUrl"    J..= i11
         , "blogCont"   J..= i12
@@ -1325,14 +1317,13 @@ instance ToJSON JPage where
 instance FromJSON JPage where
   parseJSON = J.withObject "JPage" $ \ o ->
        JImgPage <$> o J..: "imgRType"
-                <*> o J..: "imgPathPos"
+                <*> o J..: "ipathPos"
                 <*> o J..: "now"
-                <*> o J..: "imgMeta"
+                <*> o J..: "img"
                 <*> o J..: "imgNavRefs"
                 <*> o J..: "imgNavImgs"
                 <*> o J..: "imgUrl"
-                <*> o J..: "imgGeo"
-                <*> o J..: "resGeo"
+                <*> o J..: "oirGeo"
                 <*> o J..: "orgUrl"
                 <*> o J..: "panoUrl"
                 <*> o J..: "blogCont"
@@ -1390,14 +1381,13 @@ instance FromJSON IconDescr where
 emptyJImgPage :: JPage
 emptyJImgPage =
   JImgPage { _imgRType   = RRef
-           , _imgPathPos = (mempty, Nothing)
+           , _ipathPos   = (mempty, Nothing)
            , _now        = mempty
-           , _imgMeta    = mempty
+           , _img        = (mempty, mempty, mempty)
            , _imgNavRefs = emptyPrevNextPar
            , _imgNavImgs = emptyPrevNextPar
            , _imgUrl     = mempty
-           , _imgGeo     = mempty
-           , _resGeo     = mempty
+           , _oirGeo     = (mempty, mempty, mempty)
            , _orgUrl     = mempty
            , _panoUrl    = mempty
            , _blogCont   = mempty
@@ -1426,9 +1416,9 @@ emptyIconDescr =
 jPageToHtml :: JPage -> Blaze.Html
 jPageToHtml JImgPage
   { _imgRType   = rty
-  , _imgPathPos = (_iPath, iPos)
+  , _ipathPos   = (_iPath, iPos)
   , _now = now'
-  , _imgMeta    = this'meta
+  , _img        = (_ipath, _ipart, this'meta)
   , _imgNavRefs = PrevNextPar
                   prev'url
                   next'url
@@ -1440,8 +1430,7 @@ jPageToHtml JImgPage
                   _par'imgRef
                   fwrd'imgRef
   , _imgUrl     = this'url
-  , _imgGeo     = this'geo
-  , _resGeo     = res'geo
+  , _oirGeo     = (_org'geo,this'geo, res'geo)
   , _orgUrl     = org'mediaUrl
   , _panoUrl    = pano'mediaUrl
   , _blogCont   = blogContents

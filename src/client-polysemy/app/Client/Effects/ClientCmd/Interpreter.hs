@@ -901,14 +901,13 @@ jPageKeys = zip keys [0..]
   where
     keys = [ "now"
            , "imgRType"
-           , "imgPathPos"
-           , "imgMeta"
+           , "ipathPos"
+           , "img"
            , "imgNavRefs"
            , "imgNavImgs"
            , "imgPos"
            , "imgUrl"
-           , "imgGeo"
-           , "resGeo"
+           , "oirGeo"
            , "orgUrl"
            , "panoUrl"
 

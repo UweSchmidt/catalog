@@ -24,6 +24,7 @@ import Data.MetaData
        , metaDataAt
        , metaTextAt
        , lookupGPSposDeg
+       , lookupRating
        , metaTimeStamp
 
        , compositeDOF
@@ -40,6 +41,7 @@ import Data.MetaData
        , descrCommentImg
        , descrKeywords
        , descrLocation
+       , descrRating
        , descrSubtitle
        , descrTitle
        , descrTitleEnglish
@@ -71,8 +73,6 @@ import Data.MetaData
        , gifAnimationIterations
        , gifDuration
        , gifFrameCount
-
-       , imgRating
 
        , makerNotesFocusDistance
        , makerNotesShootingMode
@@ -944,12 +944,13 @@ picMeta md = mconcat mdTab
 
     mdRat :: Text -> Html
     mdRat descr =
-      toEntry descr key val $
+      toEntry descr descrRating val $
       H.span ! A.style "color: red" $
       toHtml val
       where
-        key   = imgRating
-        val   = md ^. metaTextAt key
+        rat   = lookupRating md
+        star  = '\9733'
+        val   = replicate rat star ^. isoText
 
     mdTs :: Text -> Html
     mdTs descr =

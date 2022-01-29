@@ -142,7 +142,6 @@ module Data.MetaData
 
   , imgEXIFUpdate
   , imgNameRaw
-  , imgRating
 
   , makerNotesColorSpace
   , makerNotesDaylightSavings
@@ -344,7 +343,6 @@ data MetaKey
   | GIF'FrameCount
   | Img'EXIFUpdate
   | Img'NameRaw
-  | Img'Rating
   | MakerNotes'ColorSpace
   | MakerNotes'DaylightSavings
   | MakerNotes'FocusDistance
@@ -562,15 +560,13 @@ keysAttrGIF@[
   ] = [GIF'AnimationIterations .. GIF'FrameCount]
 
 imgEXIFUpdate
-  , imgNameRaw
-  , imgRating :: MetaKey
+  , imgNameRaw :: MetaKey
 
 keysAttrImg :: [MetaKey]
 keysAttrImg@[
   imgEXIFUpdate
   , imgNameRaw
-  , imgRating
-  ] = [Img'EXIFUpdate .. Img'Rating]
+  ] = [Img'EXIFUpdate .. Img'NameRaw]
 
 makerNotesColorSpace
   , makerNotesDaylightSavings
@@ -800,7 +796,6 @@ isoMetaValueText k = case k of
   File'MimeType         -> metaMimeType  . isoText
   File'Name             -> metaName      . isoText
   File'TimeStamp        -> metaTimeStamp . isoText
-  Img'Rating            -> metaText          -- used in genPages
   Img'NameRaw           -> metaName      . isoText
   Img'EXIFUpdate        -> metaTimeStamp . isoText
   QuickTime'ImageHeight -> metaIntText
@@ -1176,7 +1171,7 @@ lookupMimeType md = md ^. metaDataAt fileMimeType . metaMimeType
 
 lookupRating :: MetaData -> Rating
 lookupRating mt =
-  lookupByKeys      -- imgRating is used in genPages and has type Text
+  lookupByKeys
   [ descrRating     -- descr:Rating has priority over
   , descrRatingImg  -- rating from LR valid for all parts
   ] mt ^. metaRating
