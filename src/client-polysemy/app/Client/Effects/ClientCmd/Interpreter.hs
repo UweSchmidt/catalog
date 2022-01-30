@@ -899,9 +899,7 @@ keyToInt = fromMaybe 100 . (`lookup` jPageKeys)
 jPageKeys :: [(Text, Int)]
 jPageKeys = zip keys [0..]
   where
-    keys = [ "now"
-           , "imgRType"
-           , "ipathPos"
+    keys = [ "imgReq"
            , "img"
            , "imgNavRefs"
            , "imgNavImgs"
@@ -920,6 +918,7 @@ jPageKeys = zip keys [0..]
            , "c1Icon"
            , "contIcons"
            , "blogCont"
+           , "now"
 
            , "prev"
            , "next"

@@ -53,6 +53,7 @@ library
     DeriveFunctor
     DeriveTraversable
     FlexibleContexts
+    FlexibleInstances
     GADTs
     LambdaCase
     OverloadedStrings
@@ -64,7 +65,8 @@ library
     TypeApplications
     TypeFamilies
     TypeOperators
-
+    TypeSynonymInstances
+    
   ghc-options:
     -Wall -fwarn-tabs -O2 -funbox-strict-fields -flate-specialise
     -fspecialise-aggressively -fplugin=Polysemy.Plugin

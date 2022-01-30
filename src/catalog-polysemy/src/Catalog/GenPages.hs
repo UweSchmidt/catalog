@@ -1,5 +1,6 @@
 module Catalog.GenPages
   ( Req'
+  , Req0
   , JPage(..)
   , emptyReq'
   , processReqMediaPath
@@ -205,6 +206,7 @@ data Req' a
          , _rVal     :: a            -- varying data when processing request
          }
 
+type Req0                       = Req' ()
 type Req'IdNode                a = Req'              (IdNode,  a)
 type Req'IdNode'ImgRef         a = Req'IdNode        (ImgRef,  a)
 
@@ -212,11 +214,29 @@ type Req'IdNode'ImgRef         a = Req'IdNode        (ImgRef,  a)
 
 deriving instance Show a => Show (Req' a)
 
-emptyReq' :: Req' ()
+instance ToJSON Req0 where
+  toJSON Req'
+    { _rType    = rty
+    , _rPathPos = ppos
+    , _rGeo     = geo
+    } = J.object
+        [ "rType"    J..= rty
+        , "rPathPos" J..= ppos
+        , "rGeo"     J..= geo
+        ]
+
+instance FromJSON Req0 where
+  parseJSON = J.withObject "Req0" $ \ o ->
+    do Req' <$> o J..: "rType"
+            <*> o J..: "rPathPos"
+            <*> o J..: "rGeo"
+            <*> pure ()
+
+emptyReq' :: Req0
 emptyReq' =
   Req' { _rType    = RRef
        , _rPathPos = (mempty, Nothing)
-       , _rGeo     = geo'org
+       , _rGeo     = mempty
        , _rVal     = ()
        }
 
@@ -251,6 +271,9 @@ rColNode = rIdNode . _2
 
 rImgRef :: Lens' (Req'IdNode'ImgRef a) ImgRef
 rImgRef = rVal . _2 . _1
+
+toReq0 :: Req' a -> Req0
+toReq0 r = r & rVal .~ ()
 
 {-
 toReq'IdNode :: Req'IdNode a -> Req'IdNode ()
@@ -371,14 +394,14 @@ setColRef' theC r = do
 -- used in page generation for prefetching the next image
 -- before moving to the next image page
 
-toMediaUrl :: (Eff'Img r, EffNonDet r)
-           => Req'IdNode a -> Sem r TextPath
-toMediaUrl r = do
+toMediaReq0 :: (Eff'Img r, EffNonDet r)
+           => Req'IdNode a -> Sem r Req0
+toMediaReq0 r = do
   r' <- setImgRef r >>= toMediaReq
   case r' ^. rType of
-    RImg -> return $ toUrlPath r'  -- .jpg images
-                                   -- toUrlPath is sufficient, no need for toUrlPath'
-    _    -> mzero                  -- .txt, .md, .mp4
+    RImg -> return $ toReq0 r'  -- .jpg images
+                                -- toUrlPath is sufficient, no need for toUrlPath'
+    _    -> mzero               -- .txt, .md, .mp4
 
 -- compute the metadata of an img reg
 
@@ -526,8 +549,10 @@ processReq cmd r0 = do
 --
 -- example: /160x120/archive/pictures/abc/pic-0001
 
-toRawPath :: Req' a -> Path
-toRawPath r =
+-- toRawPath :: Req' a -> Path
+-- toRawPath r =
+--   toRawPath0 (r ^. rGeo) (r ^. rPath) (r ^. rPos)
+{-
   geo' `consPath` path' `concPath` pos'
   where
     path' = r ^. rPath
@@ -536,6 +561,31 @@ toRawPath r =
       where
         mk1 :: Int -> Path
         mk1 = mkPath . (isoText #) . picNoToText
+-}
+
+reqToPath :: Req0 -> Path
+reqToPath Req'{ _rType    = rty
+          , _rPathPos = (pt, ps)
+          , _rGeo     = g
+          } =
+  addRt rty (toRaw g pt ps)
+  where
+    toRaw :: Geo -> Path -> Pos -> Path
+    toRaw geo path' pos =
+      geo' `consPath` path' `concPath` pos'
+      where
+        geo'  = geo ^. isoText . from isoText
+        pos'  = maybe mempty mk1 pos
+          where
+            mk1 :: Int -> Path
+            mk1 = (isoText #) . picNoToText
+
+    addRt :: ReqType -> Path -> Path
+    addRt ty p =
+      p'docroot `concPath` px `consPath` fp
+      where
+        fp = p & viewBase . _2 %~ addNameSuffix (toUrlExt ty)
+        px = ty ^. isoText . from isoText
 
 -- --------------------
 --
@@ -546,18 +596,11 @@ toRawPath r =
 --          /page/1920x1200/archive/pictures/abc.html
 
 toUrlPath :: Req' a -> TextPath
-toUrlPath r0 = toUrlPath'' r0 ^. isoText
+toUrlPath = (^. isoText) . toUrlPath''
 
 toUrlPath'' :: Req' a -> Path
-toUrlPath'' r0 =
-  p'docroot `concPath` px `consPath` fp
+toUrlPath'' = reqToPath . unifyIconPath . toReq0
   where
-    r   = unifyIconPath r0
-    ty  = r ^. rType
-    fp' = toRawPath r
-    fp  = fp' & viewBase . _2 %~ addNameSuffix (toUrlExt ty)
-    px  = ty ^. isoText . from isoText
-
     -- scaling of icons smaller than 160x120 with fixed aspect ratio
     -- is done in browser, so the # of generated icons
     -- is reduced
@@ -1067,17 +1110,15 @@ genReqImgPage' r = do
     , this'meta )       <- collectImgAttr r
 
   let     this'mediaUrl  = this'meta ^. metaTextAt fileRefMedia
-  let     this'url       = toUrlPath r  -- !!! no toUrlPath' due to RPage
   let     this'geo       = r ^. rGeo
 
   -- the urls of the siblings
   nav                   <- toPrevNextPar r
-  let m2url              = maybe mempty ((^. isoText) . toUrlPath)
-  let navRefs            = m2url <$> nav
+  let navRefs            = maybe emptyReq' toReq0 <$> nav
 
   -- the image urls of the siblings
-  let tomu mr            = (^. isoText)
-                           <$> runMaybeEmpty (pureMaybe mr >>= toMediaUrl)
+  let tomu mr            = fromMaybe emptyReq'
+                           <$> runMaybe (pureMaybe mr >>= toMediaReq0)
   navImgs               <- traverse tomu nav
 
   let metaData           = this'meta         -- add jpg filename
@@ -1087,12 +1128,11 @@ genReqImgPage' r = do
   mrq <- toMediaReq r
 
   let ipage = emptyJImgPage
-              { _ipathPos = r ^. rPathPos
+              { _imgReq     = toReq0 r
               , _now        = now'
               , _img        = (this'ipath, this'part ^. isoText, metaData)
               , _imgNavRefs = navRefs
               , _imgNavImgs = navImgs
-              , _imgUrl     = this'url
               , _oirGeo     = (org'geo, this'geo, resizeGeo' org'geo this'geo)
               }
 
@@ -1100,25 +1140,7 @@ genReqImgPage' r = do
 
     --image page
     RImg -> do
-      -- .jpg images may be shown in original size
-      let org'mediaUrl   = toUrlPath
-                           (r & rType .~ RImg
-                              & rGeo  .~ geo'org
-                           ) ^. isoText
-
-      -- .jpg panoramas may be shown as moving fullscreen images
-      let pano'mediaUrl  = maybe
-                           mempty
-                           (\ geo -> toUrlPath
-                                     (r & rType .~ RImg
-                                        & rGeo  .~ geo
-                                     ) ^. isoText
-                           )
-                           (isPano this'geo org'geo)
-
-      return ipage { _imgRType = RImg
-                   , _orgUrl   = org'mediaUrl
-                   , _panoUrl  = pano'mediaUrl
+      return ipage { _imgReq   = _imgReq ipage & rType .~ RImg
                    }
 
     -- wackelgif or mp4 video
@@ -1127,14 +1149,14 @@ genReqImgPage' r = do
         ||
         rty == RGif -> do
 
-      return ipage {_imgRType = rty}
+      return ipage {_imgReq = _imgReq ipage & rType .~ rty}
 
 
     -- blog page
     RPage -> do
       blogContents <- toSourcePath r >>= genBlogHtml
 
-      return ipage { _imgRType = RPage
+      return ipage { _imgReq   = _imgReq ipage & rType .~ RPage
                    , _blogCont = blogContents
                    }
 
@@ -1218,16 +1240,12 @@ genReqColPage' r = do
 -- image attributes
 
 data JPage
-  = JImgPage { _imgRType   :: ReqType
-             , _ipathPos :: PathPos
+  = JImgPage { _imgReq     :: Req0
              , _now        :: Text
              , _img        :: (Path, Text, MetaData)
-             , _imgNavRefs :: PrevNextParPath
-             , _imgNavImgs :: PrevNextParPath
-             , _imgUrl     :: TextPath
+             , _imgNavRefs :: PrevNextParReq
+             , _imgNavImgs :: PrevNextParReq
              , _oirGeo     :: (Geo, Geo, Geo)
-             , _orgUrl     :: TextPath
-             , _panoUrl    :: TextPath
              , _blogCont   :: Text
              }
   | JColPage { _colRType   :: ReqType
@@ -1248,7 +1266,7 @@ data PrevNextPar a =
               , _par  :: a
               , _fwrd :: a
               }
-type PrevNextParPath  = PrevNextPar TextPath
+type PrevNextParReq   = PrevNextPar Req0
 type PrevNextParIcons = PrevNextPar IconDescr
 
 data IconDescr =
@@ -1266,28 +1284,20 @@ deriving instance (Show a) => Show (PrevNextPar a)
 
 instance ToJSON JPage where
   toJSON JImgPage
-    { _imgRType   = i1
-    , _ipathPos   = i1a
+    { _imgReq     = i1
     , _now        = i2
     , _img        = i3
     , _imgNavRefs = i4
     , _imgNavImgs = i5
-    , _imgUrl     = i7
     , _oirGeo     = i8
-    , _orgUrl     = i10
-    , _panoUrl    = i11
     , _blogCont   = i12
     } = J.object
-        [ "imgRType"   J..= i1
-        , "ipathPos"   J..= i1a
+        [ "imgReq"     J..= i1
         , "now"        J..= i2
         , "img"        J..= i3
         , "imgNavRefs" J..= i4
         , "imgNavImgs" J..= i5
-        , "imgUrl"     J..= i7
         , "oirGeo"     J..= i8
-        , "orgUrl"     J..= i10
-        , "panoUrl"    J..= i11
         , "blogCont"   J..= i12
         ]
   toJSON JColPage
@@ -1316,18 +1326,6 @@ instance ToJSON JPage where
 
 instance FromJSON JPage where
   parseJSON = J.withObject "JPage" $ \ o ->
-       JImgPage <$> o J..: "imgRType"
-                <*> o J..: "ipathPos"
-                <*> o J..: "now"
-                <*> o J..: "img"
-                <*> o J..: "imgNavRefs"
-                <*> o J..: "imgNavImgs"
-                <*> o J..: "imgUrl"
-                <*> o J..: "oirGeo"
-                <*> o J..: "orgUrl"
-                <*> o J..: "panoUrl"
-                <*> o J..: "blogCont"
-      <|>
       JColPage <$> o J..: "colRType"
                <*> o J..: "now"
                <*> o J..: "colGeo"
@@ -1337,6 +1335,14 @@ instance FromJSON JPage where
                <*> o J..: "navIcons"
                <*> o J..: "c1Icon"
                <*> o J..: "contIcons"
+               <*> o J..: "blogCont"
+      <|>
+      JImgPage <$> o J..: "imgReq"
+               <*> o J..: "now"
+               <*> o J..: "img"
+               <*> o J..: "imgNavRefs"
+               <*> o J..: "imgNavImgs"
+               <*> o J..: "oirGeo"
                <*> o J..: "blogCont"
 
 instance ToJSON a => ToJSON (PrevNextPar a) where
@@ -1380,26 +1386,23 @@ instance FromJSON IconDescr where
 
 emptyJImgPage :: JPage
 emptyJImgPage =
-  JImgPage { _imgRType   = RRef
-           , _ipathPos   = (mempty, Nothing)
+  JImgPage { _imgReq     = emptyReq'
            , _now        = mempty
            , _img        = (mempty, mempty, mempty)
-           , _imgNavRefs = emptyPrevNextPar
-           , _imgNavImgs = emptyPrevNextPar
-           , _imgUrl     = mempty
+           , _imgNavRefs = emptyPrevNextReq
+           , _imgNavImgs = emptyPrevNextReq
            , _oirGeo     = (mempty, mempty, mempty)
-           , _orgUrl     = mempty
-           , _panoUrl    = mempty
            , _blogCont   = mempty
            }
 
-emptyPrevNextPar :: Monoid a => PrevNextPar a
-emptyPrevNextPar =
-  PrevNextPar { _prev = mempty
-              , _next = mempty
-              , _par  = mempty
-              , _fwrd = mempty
+emptyPrevNextReq :: PrevNextPar Req0
+emptyPrevNextReq =
+  PrevNextPar { _prev = emptyReq'
+              , _next = emptyReq'
+              , _par  = emptyReq'
+              , _fwrd = emptyReq'
               }
+
 
 emptyIconDescr :: IconDescr
 emptyIconDescr =
@@ -1415,31 +1418,44 @@ emptyIconDescr =
 
 jPageToHtml :: JPage -> Blaze.Html
 jPageToHtml JImgPage
-  { _imgRType   = rty
-  , _ipathPos   = (_iPath, iPos)
+  { _imgReq     = r
+  -- , _ipathPos   = (_iPath, iPos)
   , _now = now'
   , _img        = (_ipath, _ipart, this'meta)
-  , _imgNavRefs = PrevNextPar
-                  prev'url
-                  next'url
-                  par'url
-                  fwrd'url
-  , _imgNavImgs = PrevNextPar
-                  prev'imgRef
-                  next'imgRef
-                  _par'imgRef
-                  fwrd'imgRef
-  , _imgUrl     = this'url
-  , _oirGeo     = (_org'geo,this'geo, res'geo)
-  , _orgUrl     = org'mediaUrl
-  , _panoUrl    = pano'mediaUrl
+  , _imgNavRefs = navRefs
+  , _imgNavImgs = navImgs
+  , _oirGeo     = (org'geo, this'geo, res'geo)
   , _blogCont   = blogContents
-  } = let this'title    = this'meta ^. metaTextAt descrTitle
+  } = let rty   = r ^. rType
+          this'url      = toUrlPath r
+          this'title    = this'meta ^. metaTextAt descrTitle
           this'subTitle = this'meta ^. metaTextAt descrSubtitle
           this'comment  = this'meta ^. metaTextAt descrComment
           this'duration = this'meta ^. metaTextAt descrDuration
           this'mediaUrl = this'meta ^. metaTextAt fileRefMedia
-          this'pos      = maybe mempty (^. isoText) iPos
+          this'pos      = r ^. rPos . isoPicNo
+          pano'mediaUrl = maybe
+                          mempty
+                          (\ geo -> toUrlPath
+                                    (r & rType .~ RImg
+                                      & rGeo  .~ geo
+                                    ) ^. isoText
+                          )
+                          (isPano this'geo org'geo)
+
+          PrevNextPar
+            prev'url
+            next'url
+            par'url
+            fwrd'url    = toUrlPath <$> navRefs
+          PrevNextPar
+            prev'imgRef
+            next'imgRef
+            _par'imgRef
+            fwrd'imgRef = toUrlPath <$> navImgs
+          org'mediaUrl  = toUrlPath (r & rType .~ RImg
+                                       & rGeo  .~ geo'org
+                                    ) ^. isoText
       in
       case rty of
         RImg ->

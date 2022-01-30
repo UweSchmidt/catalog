@@ -37,7 +37,7 @@ import Catalog.GenPages
        ( JPage )
 
 import Data.Aeson
-       ( decode' )
+       ( eitherDecode' )
 
 ------------------------------------------------------------------------------
 
@@ -125,9 +125,9 @@ evalClientCatCmd =
       basicDocReq ".html" rt geo p
     JsonPage geo p -> do
       lbs <- basicDocReq ".json" RJson geo p
-      case decode' @JPage lbs of
-        Just jp -> return jp
-        Nothing -> abortWith $ "JsonPage: JSON parse error"
+      either (abortWith . (^. isoText))
+             pure
+             (eitherDecode' @JPage lbs)
 
     -- undo history commands
     --
