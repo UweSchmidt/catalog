@@ -1,4 +1,6 @@
-.stack-work/
+/.stack-work/
 stack.yaml.lock
-.DS_Store
-dist-newstyle/
+**/.DS_Store
+/dist-newstyle/
+cabal.project.local*
+
