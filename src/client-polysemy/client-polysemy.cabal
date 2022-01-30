@@ -1,78 +1,73 @@
-cabal-version:  2.0
-name:           client-polysemy
-version:        0.5.7.12
-description:    Catalog client with polysemy effect library
-author:         Uwe Schmidt
-maintainer:     Uwe Schmidt
-copyright:      2020 Uwe Schmidt
-license:        BSD3
-license-file:   LICENSE
-build-type:     Simple
+cabal-version: 2.0
+name:          client-polysemy
+version:       0.5.7.12
+description:   Catalog client with polysemy effect library
+author:        Uwe Schmidt
+maintainer:    Uwe Schmidt
+copyright:     2020 Uwe Schmidt
+license:       BSD3
+license-file:  LICENSE
+build-type:    Simple
 
 source-repository head
   type:     git
   location: https://github.com/UweSchmidt/apps/catalog
 
-
 executable client-polysemy
   main-is:            Main.hs
-  other-modules:      Client.Effects.ClientCmd
-                      Client.Effects.ClientCmd.Interpreter
-                      Client.Options
-                      Client.Version
-                      Catalog.Effects.CatCmd.ClientInterpreter
-                      GPS.Effects.GeoLocCmd
-                      
-                      Paths_client_polysemy
+  other-modules:
+    Catalog.Effects.CatCmd.ClientInterpreter
+    Client.Effects.ClientCmd
+    Client.Effects.ClientCmd.Interpreter
+    Client.Options
+    Client.Version
+    GPS.Effects.GeoLocCmd
+    Paths_client_polysemy
 
   hs-source-dirs:     app
+  default-extensions:
+    ConstraintKinds
+    DataKinds
+    FlexibleContexts
+    FlexibleInstances
+    GADTs
+    LambdaCase
+    MultiParamTypeClasses
+    OverloadedStrings
+    PolyKinds
+    RankNTypes
+    ScopedTypeVariables
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
 
-  default-extensions: ConstraintKinds
-                      DataKinds
-                      FlexibleContexts
-                      FlexibleInstances
-                      GADTs
-                      LambdaCase
-                      MultiParamTypeClasses
-                      OverloadedStrings
-                      PolyKinds
-                      RankNTypes
-                      ScopedTypeVariables
-                      TupleSections
-                      TypeApplications
-                      TypeFamilies
-                      TypeOperators
+  ghc-options:
+    -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs -O2
+    -funbox-strict-fields -flate-specialise -fspecialise-aggressively
+    -fplugin=Polysemy.Plugin -threaded
 
-  ghc-options: -threaded
-               -rtsopts
-               -with-rtsopts=-N
-               -Wall -fwarn-tabs -O2
-               -funbox-strict-fields
-               -flate-specialise
-               -fspecialise-aggressively
-               -fplugin=Polysemy.Plugin
-               -threaded
-               
-  build-depends: async                >= 2.2.2
-               , aeson                >= 0.8
-               , aeson-pretty         >= 0.8
-               , base                 >= 4.7
-               , bytestring
-               , directory
-               , exceptions
-               , http-client
-               , http-client-tls
-               , http-types
-               , optparse-applicative
-               , polysemy             >= 1.2.3
-               , polysemy-plugin
-               , process
-               , stm
-               , text
-               , unix
-               -- local libs
-               , catalog-data
-               , catalog-polysemy
-               , polysemy-tools
-               
-  default-language: Haskell2010
+  build-depends:
+      aeson                 >=0.8
+    , aeson-pretty          >=0.8
+    , async                 >=2.2.2
+    , base                  >=4.7
+    , bytestring
+    , catalog-data
+    , catalog-polysemy
+    , directory
+    , exceptions
+    , http-client
+    , http-client-tls
+    , http-types
+    , optparse-applicative
+    , polysemy              >=1.2.3
+    , polysemy-plugin
+    , polysemy-tools
+    , process
+    , stm
+    , text
+    , unix
+
+  -- local libs
+  default-language:   Haskell2010

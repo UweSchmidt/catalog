@@ -1,106 +1,102 @@
-cabal-version:  2.0
-name:           catalog-polysemy
-version:        0.5.7.12
-description:    polysemy version of catalog
-author:         Uwe Schmidt
-maintainer:     Uwe Schmidt
-copyright:      2020 Uwe Schmidt
-license:        BSD3
-license-file:   LICENSE
-build-type:     Simple
+cabal-version: 2.0
+name:          catalog-polysemy
+version:       0.5.7.12
+description:   polysemy version of catalog
+author:        Uwe Schmidt
+maintainer:    Uwe Schmidt
+copyright:     2020 Uwe Schmidt
+license:       BSD3
+license-file:  LICENSE
+build-type:    Simple
 
 source-repository head
   type:     git
   location: https://github.com/UweSchmidt/apps/catalog
 
-
 library
-  exposed-modules:    Catalog.CatEnv
-                      Catalog.CatalogIO
-                      Catalog.CopyRemove
-                      Catalog.Effects
-                      Catalog.Effects.CatCmd
-                      Catalog.Effects.CatCmd.Interpreter
-                      Catalog.GenCheckSum
-                      Catalog.GenCollections
-                      Catalog.GenImages
-                      Catalog.GenPages
-                      Catalog.History
-                      Catalog.Html
-                      Catalog.ImgTree.Access
-                      Catalog.ImgTree.Fold
-                      Catalog.ImgTree.Modify
-                      Catalog.Invariant
-                      Catalog.Journal
-                      Catalog.Logging
-                      Catalog.MetaData.ExifTool
-                      Catalog.MetaData.Exif
-                      Catalog.MetaData.Sync
-                      Catalog.Run
-                      Catalog.SyncWithFileSys
-                      Catalog.TextPath
-                      Catalog.TimeStamp
-
-                      Options.Applicative.HostPort
-                      Options.Applicative.LogLevel
-                      Options.Applicative.CatEnv
-                      
-                      Paths_catalog_polysemy
+  exposed-modules:
+    Catalog.CatalogIO
+    Catalog.CatEnv
+    Catalog.CopyRemove
+    Catalog.Effects
+    Catalog.Effects.CatCmd
+    Catalog.Effects.CatCmd.Interpreter
+    Catalog.GenCheckSum
+    Catalog.GenCollections
+    Catalog.GenImages
+    Catalog.GenPages
+    Catalog.History
+    Catalog.Html
+    Catalog.ImgTree.Access
+    Catalog.ImgTree.Fold
+    Catalog.ImgTree.Modify
+    Catalog.Invariant
+    Catalog.Journal
+    Catalog.Logging
+    Catalog.MetaData.Exif
+    Catalog.MetaData.ExifTool
+    Catalog.MetaData.Sync
+    Catalog.Run
+    Catalog.SyncWithFileSys
+    Catalog.TextPath
+    Catalog.TimeStamp
+    Options.Applicative.CatEnv
+    Options.Applicative.HostPort
+    Options.Applicative.LogLevel
+    Paths_catalog_polysemy
 
   hs-source-dirs:     src
+  default-extensions:
+    BangPatterns
+    ConstraintKinds
+    DataKinds
+    DeriveFunctor
+    DeriveTraversable
+    FlexibleContexts
+    GADTs
+    LambdaCase
+    OverloadedStrings
+    PolyKinds
+    RankNTypes
+    ScopedTypeVariables
+    StandaloneDeriving
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
 
-  default-extensions: BangPatterns
-                      ConstraintKinds
-                      DataKinds
-                      DeriveFunctor
-                      DeriveTraversable
-                      FlexibleContexts
-                      GADTs
-                      LambdaCase
-                      OverloadedStrings
-                      PolyKinds
-                      RankNTypes
-                      ScopedTypeVariables
-                      StandaloneDeriving
-                      TupleSections
-                      TypeApplications
-                      TypeFamilies
-                      TypeOperators
+  ghc-options:
+    -Wall -fwarn-tabs -O2 -funbox-strict-fields -flate-specialise
+    -fspecialise-aggressively -fplugin=Polysemy.Plugin
 
-  ghc-options: -Wall -fwarn-tabs -O2
-               -funbox-strict-fields
-               -flate-specialise
-               -fspecialise-aggressively
-               -fplugin=Polysemy.Plugin
+  build-depends:
+      aeson                 >=0.8
+    , aeson-pretty
+    , base                  >=4.7
+    , blaze-html
+    , bytestring
+    , catalog-data
+    , containers            >=0.4
+    , directory
+    , exceptions
+    , filepath
+    , http-client
+    , http-types
+    , lens                  >=4.12
+    , murmur-hash
+    , optparse-applicative
+    , polysemy              >=1.2.3
+    , polysemy-plugin
+    , polysemy-tools
+    , process
+    , scientific
+    , stm
+    , text
+    , transformers
+    , unix
+    , unordered-containers  >=0.2
+    , utf8-string           >=1
+    , vector                >=0.10
 
-  build-depends: aeson                >= 0.8
-               , aeson-pretty
-               , base                 >= 4.7
-               , blaze-html
-               , bytestring
-               , containers           >= 0.4
-               , directory
-               , exceptions
-               , filepath
-               , http-client
-               , http-types
-               , lens                 >= 4.12
-               , murmur-hash
-               , optparse-applicative
-               , polysemy             >= 1.2.3
-               , polysemy-plugin
-               , process
-               , scientific
-               , stm
-               , text
-               , transformers
-               , unix
-               , unordered-containers >= 0.2
-               , utf8-string          >= 1
-               , vector               >= 0.10
-
-               -- local libraries
-               , catalog-data
-               , polysemy-tools
-               
-  default-language: Haskell2010
+  -- local libraries
+  default-language:   Haskell2010

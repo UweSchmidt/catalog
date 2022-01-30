@@ -1,76 +1,74 @@
-cabal-version:       2.0
-name:                servant-polysemy
-version:             0.5.7.12
-synopsis:            Servant server for catalog done with polysemy
-homepage:            https://github.com/UweSchmidt/apps/catalog
-license:             BSD3
-license-file:        LICENSE
-author:              Uwe Schmidt
-copyright:           2020 Uwe Schmidt
-category:            images
-build-type:          Simple
+cabal-version: 2.0
+name:          servant-polysemy
+version:       0.5.7.12
+synopsis:      Servant server for catalog done with polysemy
+homepage:      https://github.com/UweSchmidt/apps/catalog
+license:       BSD3
+license-file:  LICENSE
+author:        Uwe Schmidt
+copyright:     2020 Uwe Schmidt
+category:      images
+build-type:    Simple
 
 executable servant-polysemy
-  hs-source-dirs:      app
-  main-is:             Main.hs
-  other-modules:       APIf
-                       Options
-                       Logger
+  hs-source-dirs:     app
+  main-is:            Main.hs
+  other-modules:
+    APIf
+    Logger
+    Options
 
-  build-depends:       async
-                     , base >= 4.7
-                     , base-compat
-                     , blaze-html
-                     , bytestring
-                     , directory
-                     , fast-logger >= 3.0.1
-                     , filepath
-                     , ghc-prim
-                     , http-api-data
-                     , http-media
-                     , optparse-applicative
-                     , polysemy
-                     , polysemy-plugin
-                     , servant
-                     , servant-blaze
-                     , servant-server
-                     , stm
-                     , text
-                     , wai
-                     , wai-app-static
-                     , wai-logger
-                     , warp
-                     
-                     -- local libs
-                     , catalog-data
-                     , catalog-polysemy
-                     , polysemy-tools
-                     
-  default-language:    Haskell2010
+  build-depends:
+      async
+    , base                  >=4.7
+    , base-compat
+    , blaze-html
+    , bytestring
+    , catalog-data
+    , catalog-polysemy
+    , directory
+    , fast-logger           >=3.0.1
+    , filepath
+    , ghc-prim
+    , http-api-data
+    , http-media
+    , optparse-applicative
+    , polysemy
+    , polysemy-plugin
+    , polysemy-tools
+    , servant
+    , servant-blaze
+    , servant-server
+    , stm
+    , text
+    , wai
+    , wai-app-static
+    , wai-logger
+    , warp
 
-  default-extensions: ConstraintKinds
-                      DataKinds
-                      ExplicitNamespaces
-                      FlexibleContexts
-                      FlexibleInstances
-                      GADTs
-                      LambdaCase
-                      MultiParamTypeClasses
-                      OverloadedStrings
-                      PolyKinds
-                      RankNTypes
-                      ScopedTypeVariables
-                      TupleSections
-                      TypeApplications
-                      TypeFamilies
-                      TypeOperators
+  -- local libs
+  default-language:   Haskell2010
+  default-extensions:
+    ConstraintKinds
+    DataKinds
+    ExplicitNamespaces
+    FlexibleContexts
+    FlexibleInstances
+    GADTs
+    LambdaCase
+    MultiParamTypeClasses
+    OverloadedStrings
+    PolyKinds
+    RankNTypes
+    ScopedTypeVariables
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
 
-  ghc-options: -Wall -fwarn-tabs -O2
-               -funbox-strict-fields
-               -flate-specialise
-               -fspecialise-aggressively
-               -fplugin=Polysemy.Plugin
-               -threaded
+  ghc-options:
+    -Wall -fwarn-tabs -O2 -funbox-strict-fields -flate-specialise
+    -fspecialise-aggressively -fplugin=Polysemy.Plugin -threaded
 
 source-repository head
   type:     git

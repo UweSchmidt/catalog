@@ -1,74 +1,71 @@
-cabal-version:  2.0
-name:           polysemy-tools
-version:        0.5.7.12
-description:    tool and extensions for polysemy effect library
-author:         Uwe Schmidt
-maintainer:     Uwe Schmidt
-copyright:      2020 Uwe Schmidt
-license:        BSD3
-license-file:   LICENSE
-build-type:     Simple
+cabal-version: 2.0
+name:          polysemy-tools
+version:       0.5.7.12
+description:   tool and extensions for polysemy effect library
+author:        Uwe Schmidt
+maintainer:    Uwe Schmidt
+copyright:     2020 Uwe Schmidt
+license:       BSD3
+license-file:  LICENSE
+build-type:    Simple
 
 source-repository head
   type:     git
   location: https://github.com/UweSchmidt/apps/catalog
 
-
 library
   exposed-modules:
-                      -- own Polysemy effects
-                  Polysemy.Cache
-                  Polysemy.Consume
-                  Polysemy.Consume.BGQueue
-                  Polysemy.Delay
-                  Polysemy.EmbedExc
-                  Polysemy.ExecProg
-                  Polysemy.FileSystem
-                  Polysemy.HttpRequest
-                  Polysemy.HttpRequest.SimpleRequests
-                  Polysemy.Logging
-                  Polysemy.State.RunTMVar
-                  Polysemy.Time
-                      
-                  Paths_polysemy_tools
+    Paths_polysemy_tools
+    Polysemy.Cache
+    Polysemy.Consume
+    Polysemy.Consume.BGQueue
+    Polysemy.Delay
+    Polysemy.EmbedExc
+    Polysemy.ExecProg
+    Polysemy.FileSystem
+    Polysemy.HttpRequest
+    Polysemy.HttpRequest.SimpleRequests
+    Polysemy.Logging
+    Polysemy.State.RunTMVar
+    Polysemy.Time
 
+  -- own Polysemy effects
   hs-source-dirs:     src
+  default-extensions:
+    BangPatterns
+    ConstraintKinds
+    DataKinds
+    FlexibleContexts
+    GADTs
+    LambdaCase
+    OverloadedStrings
+    PolyKinds
+    RankNTypes
+    ScopedTypeVariables
+    TypeApplications
+    TypeFamilies
+    TypeOperators
 
-  default-extensions: BangPatterns
-                      ConstraintKinds
-                      DataKinds
-                      FlexibleContexts
-                      GADTs
-                      LambdaCase
-                      OverloadedStrings
-                      PolyKinds
-                      RankNTypes
-                      ScopedTypeVariables
-                      TypeApplications
-                      TypeFamilies
-                      TypeOperators
+  ghc-options:
+    -Wall -fwarn-tabs -O2 -funbox-strict-fields -flate-specialise
+    -fspecialise-aggressively -fplugin=Polysemy.Plugin
 
-  ghc-options: -Wall -fwarn-tabs -O2
-               -funbox-strict-fields
-               -flate-specialise
-               -fspecialise-aggressively
-               -fplugin=Polysemy.Plugin
+  build-depends:
+      aeson            >=0.8
+    , async            >=2.2.2
+    , base             >=4.7
+    , bytestring
+    , containers
+    , directory
+    , exceptions
+    , http-client
+    , http-client-tls
+    , http-types
+    , polysemy
+    , polysemy-plugin
+    , process-extras
+    , stm
+    , text
+    , unix
 
-  build-depends: async                >= 2.2.2
-               , aeson                >= 0.8
-               , base                 >= 4.7
-               , bytestring
-               , containers
-               , directory
-               , exceptions
-               , http-client
-               , http-client-tls
-               , http-types
-               , polysemy
-               , polysemy-plugin        
-               , process-extras
-               , stm
-               , text
-               , unix
-               
-  default-language: Haskell2010
+  default-language:   Haskell2010
