@@ -1,8 +1,4 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Catalog.Html.Templates.Blaze2
   ( Html

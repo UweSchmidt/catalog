@@ -899,35 +899,30 @@ keyToInt = fromMaybe 100 . (`lookup` jPageKeys)
 jPageKeys :: [(Text, Int)]
 jPageKeys = zip keys [0..]
   where
-    keys = [ "imgReq"
+    keys = [ "imgReq"         -- JImgPage
            , "img"
            , "imgNavRefs"
            , "imgNavImgs"
-           , "imgPos"
-           , "imgUrl"
            , "oirGeo"
-           , "orgUrl"
-           , "panoUrl"
 
-           , "colRType"
-           , "colGeo"
-           , "colPos"
-           , "colMeta"
-           , "colIcon"
+           , "colDescr"         -- JColPage
            , "navIcons"
            , "c1Icon"
            , "contIcons"
-           , "blogCont"
+           , "blogCont"       -- JPage
            , "now"
 
-           , "prev"
+           , "prev"           -- PrevNextPar
            , "next"
            , "par"
            , "fwrd"
 
-           , "targetUrl"
-           , "iconUrl"
-           , "targetMeta"
+           , "eReq"           -- EDescr
+           , "eMeta"
+
+           , "rType"          -- ReqType
+           , "rPathPos"
+           , "rGeo"
            ]
 
 lbsToText :: LazyByteString -> Text

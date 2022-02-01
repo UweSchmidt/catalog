@@ -206,31 +206,46 @@ data Req' a
          , _rVal     :: a            -- varying data when processing request
          }
 
-type Req0                       = Req' ()
+type Req0                        = Req' ()
 type Req'IdNode                a = Req'              (IdNode,  a)
 type Req'IdNode'ImgRef         a = Req'IdNode        (ImgRef,  a)
 
 -- --------------------
 
+deriving instance Eq   a => Eq   (Req' a)
 deriving instance Show a => Show (Req' a)
 
 instance ToJSON Req0 where
-  toJSON Req'
+  toJSON r@Req'
     { _rType    = rty
     , _rPathPos = ppos
     , _rGeo     = geo
-    } = J.object
-        [ "rType"    J..= rty
-        , "rPathPos" J..= ppos
-        , "rGeo"     J..= geo
-        ]
+    } | r == emptyReq'
+          = J.Null
+      | otherwise
+          = J.object $
+            [ "rType"    J..= rty
+            , "rPathPos" J..= ppos
+            ]
+            ++
+            if geo /= geo'org        -- forget default geometry
+            then [ "geo" J..= geo ]
+            else []
 
 instance FromJSON Req0 where
-  parseJSON = J.withObject "Req0" $ \ o ->
-    do Req' <$> o J..: "rType"
-            <*> o J..: "rPathPos"
-            <*> o J..: "rGeo"
-            <*> pure ()
+  parseJSON v =
+    J.withObject "Req0"
+    (\ o ->
+        Req' <$> o J..:  "rType"
+             <*> o J..:  "rPathPos"
+             <*> o J..:? "rGeo" J..!= geo'org
+             <*> pure ()
+    ) v
+    <|>
+    ( case v of
+        J.Null -> return emptyReq'
+        _else  -> mzero
+    )
 
 emptyReq' :: Req0
 emptyReq' =
@@ -552,16 +567,6 @@ processReq cmd r0 = do
 -- toRawPath :: Req' a -> Path
 -- toRawPath r =
 --   toRawPath0 (r ^. rGeo) (r ^. rPath) (r ^. rPos)
-{-
-  geo' `consPath` path' `concPath` pos'
-  where
-    path' = r ^. rPath
-    geo'  = r ^. rGeo  . isoText . from isoText
-    pos'  = maybe mempty mk1 $ r ^. rPos
-      where
-        mk1 :: Int -> Path
-        mk1 = mkPath . (isoText #) . picNoToText
--}
 
 reqToPath :: Req0 -> Path
 reqToPath Req'{ _rType    = rty
@@ -1034,11 +1039,11 @@ toPrevNextPar r =
 -- ----------------------------------------
 
 lookupPageCnfs :: ReqType -> Geo -> (Geo, Geo, Int)
-lookupPageCnfs ty (Geo w _h)
-  | ty == RPage1
-    ||
-    ty == RJson  = f2
-  | otherwise    = f1
+lookupPageCnfs ty geo@(Geo w _h)
+  | ty == RPage  = f1
+  | ty == RPage1 = f2
+  | ty == RJson  = f3
+  | otherwise    = f1   -- not used
   where
     geo1600x160 = Geo 1600 160
     geo1200x120 = Geo 1200 120
@@ -1054,6 +1059,8 @@ lookupPageCnfs ty (Geo w _h)
        | w <= 1400 = (geo140x105, geo1600x160, 0)
        | otherwise = (geo160x120, geo1600x160, 0)
 
+    f3 | geo == geo'org = (geo'org, geo'org, 0)
+       | otherwise      = f2
 
 -- ----------------------------------------
 
@@ -1083,14 +1090,6 @@ collectImgAttr r = do
   where
     ir@(ImgRef iOid nm) = r ^. rImgRef
 
--- --------------------
-
-thePos :: Eff'ISE r => Req'IdNode a -> Sem r Text
-thePos r =
-  runMaybeEmpty $
-  do r' <- denormPathPos r
-     return (r' ^. rPos . isoPicNo)
-
 -- ----------------------------------------
 --
 -- html/json page generation
@@ -1103,9 +1102,8 @@ genReqImgPage r =
 genReqImgPage' :: (Eff'Img r)
                => Req'IdNode'ImgRef a -> Sem r JPage
 genReqImgPage' r = do
-  now' <- nowAsIso8601
-
-  ( this'ipath
+  now'                  <- nowAsIso8601
+  (   this'ipath
     , this'part
     , this'meta )       <- collectImgAttr r
 
@@ -1142,7 +1140,6 @@ genReqImgPage' r = do
     RImg -> do
       return ipage { _imgReq   = _imgReq ipage & rType .~ RImg
                    }
-
     -- wackelgif or mp4 video
     rty
       | rty == RMovie
@@ -1150,7 +1147,6 @@ genReqImgPage' r = do
         rty == RGif -> do
 
       return ipage {_imgReq = _imgReq ipage & rType .~ rty}
-
 
     -- blog page
     RPage -> do
@@ -1166,21 +1162,26 @@ genReqImgPage' r = do
 
 -- ----------------------------------------
 --
--- icons in a collection page
--- the icons are generated with a fixed aspect ratio (RIcon, not RIconp)
 
-toIconDescr :: (Eff'ISE r) => Geo -> Req'IdNode a -> Sem r IconDescr
-toIconDescr icon'geo r = do
-  let r'url         = toUrlPath  r
-  let r'iconurl     = toUrlPath (r & rType %~ iType
-                                   & rGeo  .~ icon'geo
-                                )
-  r'meta           <- runMaybeEmpty (toImgMeta r)
+toEDescr :: (Eff'ISE r) => Req'IdNode a -> Sem r EDescr
+toEDescr r = do
+  r'meta <- runMaybeEmpty (toImgMeta r)
+  return $ EDescr (toReq0 r) r'meta
 
-  return $ IconDescr r'url r'iconurl r'meta
+toIconDescr' :: Geo -> EDescr -> IconDescr
+toIconDescr' icon'geo ed =
+  IconDescr r'url r'iconurl r'meta
   where
+    r            = _eReq ed
+    r'url        = toUrlPath  r
+    r'iconurl    = toUrlPath (r & rType %~ iType
+                                & rGeo  .~ icon'geo
+                             )
+    r'meta       = _eMeta ed
+
     iType RPage1 = RImg   -- icons with variable width
     iType _      = RIcon  -- icons with fixed aspect ratio
+
 
 -- --------------------
 
@@ -1192,31 +1193,23 @@ genReqColPage r =
 genReqColPage' :: (Eff'Img r)
                => Req'IdNode a -> Sem r JPage
 genReqColPage' r = do
-  now'  <- nowAsIso8601
+  now'                  <- nowAsIso8601
+  this'descr            <- toEDescr r
 
-  let   this'ty          = r ^. rType
-  let   this'geo         = r ^. rGeo
-  let ( inav'geo,
-        icon'geo,
-        _icon'no )       = lookupPageCnfs this'ty this'geo
-
-  let   this'meta        = r ^. rColNode . theMetaData
-  this'icon             <- toIconDescr inav'geo r
-  this'pos              <- thePos r
-
-  -- the icons descr of the siblings
-  nav   <- toPrevNextPar r
-  nav'icons             <- traverse
-                           (fmap (fromMaybe emptyIconDescr)
+  -- the descr of the siblings
+  nav                   <- toPrevNextPar r
+  nav'descr             <- traverse
+                           (fmap (fromMaybe emptyEDescr)
                             .
-                            traverse (toIconDescr inav'geo)
+                            traverse toEDescr
                            )
                            nav
-  -- the icon descr of the children
+
+  -- the descr of the children
   cs                    <- runMaybeEmpty (toChildren r)
-  cs'descr              <- traverse (toIconDescr icon'geo) cs
-  c1'icon               <- fromMaybe emptyIconDescr
-                           <$> traverse (toIconDescr inav'geo) (listToMaybe cs)
+  cs'descr              <- traverse toEDescr cs
+  let c1'descr           = fromMaybe emptyEDescr
+                           $ listToMaybe cs'descr
 
   this'blogContents     <- runMaybeEmpty
                            ( do r' <- setColBlogRef r
@@ -1224,14 +1217,10 @@ genReqColPage' r = do
                                 genBlogHtml p'
                            )
 
-  return JColPage { _colRType  = this'ty
+  return JColPage { _colDescr  = this'descr
                   , _now       = now'
-                  , _colGeo    = this'geo
-                  , _colPos    = this'pos
-                  , _colMeta   = this'meta
-                  , _colIcon   = this'icon
-                  , _navIcons  = nav'icons
-                  , _c1Icon    = c1'icon
+                  , _navIcons  = nav'descr
+                  , _c1Icon    = c1'descr
                   , _contIcons = cs'descr
                   , _blogCont  = this'blogContents
                   }
@@ -1248,15 +1237,11 @@ data JPage
              , _oirGeo     :: (Geo, Geo, Geo)
              , _blogCont   :: Text
              }
-  | JColPage { _colRType   :: ReqType
+  | JColPage { _colDescr   :: EDescr
              , _now        :: Text
-             , _colGeo     :: Geo
-             , _colPos     :: Text
-             , _colMeta    :: MetaData
-             , _colIcon    :: IconDescr
-             , _navIcons   :: PrevNextParIcons
-             , _c1Icon     :: IconDescr
-             , _contIcons  :: [IconDescr]
+             , _navIcons   :: PrevNextParDescr
+             , _c1Icon     :: EDescr
+             , _contIcons  :: [EDescr]
              , _blogCont   :: Text
              }
 
@@ -1267,13 +1252,18 @@ data PrevNextPar a =
               , _fwrd :: a
               }
 type PrevNextParReq   = PrevNextPar Req0
-type PrevNextParIcons = PrevNextPar IconDescr
+type PrevNextParDescr = PrevNextPar EDescr
 
 data IconDescr =
   IconDescr { _targetUrl  :: Text
             , _iconUrl    :: Text
             , _targetMeta :: MetaData
             }
+
+data EDescr =
+  EDescr { _eReq  :: Req0
+         , _eMeta :: MetaData
+         }
 
 -- ----------------------------------------
 
@@ -1301,23 +1291,15 @@ instance ToJSON JPage where
         , "blogCont"   J..= i12
         ]
   toJSON JColPage
-    { _colRType   = c1
+    { _colDescr   = c1
     , _now        = c2
-    , _colGeo     = c3
-    , _colPos     = c4
-    , _colMeta    = c5
-    , _colIcon    = c6
     , _navIcons   = c7
     , _c1Icon     = c8
     , _contIcons  = c9
     , _blogCont   = c10
     } = J.object
-        [ "colRType"   J..= c1
+        [ "colDescr"   J..= c1
         , "now"        J..= c2
-        , "colGeo"     J..= c3
-        , "colPos"     J..= c4
-        , "colMeta"    J..= c5
-        , "colIcon"    J..= c6
         , "navIcons"   J..= c7
         , "c1Icon"     J..= c8
         , "contIcons"  J..= c9
@@ -1326,12 +1308,8 @@ instance ToJSON JPage where
 
 instance FromJSON JPage where
   parseJSON = J.withObject "JPage" $ \ o ->
-      JColPage <$> o J..: "colRType"
+      JColPage <$> o J..: "colDescr"
                <*> o J..: "now"
-               <*> o J..: "colGeo"
-               <*> o J..: "colPos"
-               <*> o J..: "colMeta"
-               <*> o J..: "colIcon"
                <*> o J..: "navIcons"
                <*> o J..: "c1Icon"
                <*> o J..: "contIcons"
@@ -1365,22 +1343,19 @@ instance FromJSON a => FromJSON (PrevNextPar a) where
                    <*> o J..: "par"
                    <*> o J..: "fwrd"
 
-instance ToJSON IconDescr where
-  toJSON IconDescr
-    { _targetUrl  = d1
-    , _iconUrl    = d2
-    , _targetMeta = d3
+instance ToJSON EDescr where
+  toJSON EDescr
+    { _eReq  = d1
+    , _eMeta = d2
     } = J.object
-        [ "targetUrl"  J..= d1
-        , "iconUrl"    J..= d2
-        , "targetMeta" J..= d3
+        [ "eReq"  J..= d1
+        , "eMeta" J..= d2
         ]
 
-instance FromJSON IconDescr where
-  parseJSON = J.withObject "IconDescr" $ \ o ->
-    do IconDescr <$> o J..: "targetUrl"
-                 <*> o J..: "iconUrl"
-                 <*> o J..: "targetMeta"
+instance FromJSON EDescr where
+  parseJSON = J.withObject "EDescr" $ \ o ->
+    do EDescr <$> o J..: "eReq"
+              <*> o J..: "eMeta"
 
 -- ----------------------------------------
 
@@ -1404,12 +1379,11 @@ emptyPrevNextReq =
               }
 
 
-emptyIconDescr :: IconDescr
-emptyIconDescr =
-  IconDescr { _targetUrl  = mempty
-            , _iconUrl    = mempty
-            , _targetMeta = mempty
-            }
+emptyEDescr :: EDescr
+emptyEDescr =
+  EDescr { _eReq  = emptyReq'
+         , _eMeta = mempty
+         }
 
 -- ----------------------------------------
 --
@@ -1527,17 +1501,26 @@ jPageToHtml JImgPage
           mempty
 
 jPageToHtml JColPage
-  { _colRType  = this'ty
+  { _colDescr  = this'descr
   , _now       = now'
-  , _colGeo    = this'geo
-  , _colPos    = this'pos
-  , _colMeta   = this'meta
-  , _colIcon   = this'icon
-  , _navIcons  = nav'icons
-  , _c1Icon    = c1'icon
+  , _navIcons  = nav'descr
+  , _c1Icon    = c1'descr
   , _contIcons = cs'descr
   , _blogCont  = this'blogContents
-  } = let IconDescr
+  } = let r         = _eReq  this'descr
+          this'meta = _eMeta this'descr
+
+          this'ty  = r ^. rType
+          this'geo = r ^. rGeo
+
+          (inav'geo, icon'geo, icon'no) = lookupPageCnfs this'ty this'geo
+
+          this'icon = toIconDescr' inav'geo this'descr
+          nav'icons = toIconDescr' inav'geo <$> nav'descr
+          c1'icon   = toIconDescr' inav'geo c1'descr
+          cs'icons  = toIconDescr' icon'geo <$> cs'descr
+
+          IconDescr
             this'url
             this'iconurl
             _ = this'icon
@@ -1565,8 +1548,6 @@ jPageToHtml JColPage
             par'iconurl
             fwrd'iconurl = fmap _iconUrl nav'icons
 
-          (_inav'geo, icon'geo, icon'no) = lookupPageCnfs this'ty this'geo
-
           cs'descr4 = zipWith
                       ( \ (IconDescr x1 x2 x3) i ->
                           ( x1
@@ -1578,7 +1559,7 @@ jPageToHtml JColPage
                           , picNoToText i
                           )
                       )
-                      cs'descr
+                      cs'icons
                       [1..]
 
       in
@@ -1590,7 +1571,7 @@ jPageToHtml JColPage
         this'geo
         "1.0"   -- theDuration
         this'url
-        this'pos
+        ""      -- this'pos not used
         next'url
         prev'url
         par'url
