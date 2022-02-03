@@ -900,10 +900,10 @@ jPageKeys :: [(Text, Int)]
 jPageKeys = zip keys [0..]
   where
     keys = [ "imgReq"         -- JImgPage
+           , "oirGeo"
            , "img"
            , "imgNavRefs"
            , "imgNavImgs"
-           , "oirGeo"
 
            , "colDescr"         -- JColPage
            , "navIcons"

@@ -570,10 +570,11 @@ processReq cmd r0 = do
 
 reqToPath :: Req0 -> Path
 reqToPath Req'{ _rType    = rty
-          , _rPathPos = (pt, ps)
-          , _rGeo     = g
-          } =
-  addRt rty (toRaw g pt ps)
+              , _rPathPos = (pt, ps)
+              , _rGeo     = g
+              }
+  | isempty pt = mempty
+  | otherwise  = addRt rty (toRaw g pt ps)
   where
     toRaw :: Geo -> Path -> Pos -> Path
     toRaw geo path' pos =

@@ -238,6 +238,8 @@ createResized2 vico (s'geo, ori) d'geo src dst = do
 
 resizeGeo       :: Geo -> Geo -> Geo
 resizeGeo sGeo@(Geo sw sh) cGeo@(Geo dw dh)
+    | cGeo == geo'org                   -- dest geo == org?
+        = sGeo                          -- nothing to do
     | sw <= dw && sh <= dh              -- source fits into display
         = sGeo                          -- no downsizing, no magnification
     | otherwise

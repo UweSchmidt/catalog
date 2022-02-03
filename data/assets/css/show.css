@@ -1,0 +1,63 @@
+body {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #333;
+}
+
+#imageTab {
+  /* width: 100%; */
+  padding: 0px;
+  border:  0px;
+  margin:  0px;
+
+  background-color: #555;
+
+  position: absolute;
+  top:      0px;
+  left:     0px;
+}
+#collectionTab {
+  width:   100%;
+  margin:  0px;
+  border:  0px;
+  padding: 0px;
+
+  background-color: #500;
+
+  position: absolute;
+  top:      0px;
+  left:     0px;
+
+  display: none;
+}
+#image1 {
+  width:  100px;
+  height: 100px;
+  margin:  0px;
+  border:  0px;
+  padding: 0px;
+
+  background-color: red;
+
+  position: absolute;
+  top: 100px;
+  left: 100px;
+
+  display : block;
+}
+#image2 {
+  width:  100px;
+  height: 100px;
+  margin:  0px;
+  border:  0px;
+  padding: 0px;
+
+  background-color: green;
+
+  position: absolute;
+  top: 100px;
+  left: 100px;
+
+  display : none;
+}
