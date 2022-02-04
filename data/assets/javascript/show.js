@@ -145,6 +145,56 @@ function dirPath(p) {
 
 /* ---------------------------------------- */
 
+function newText(txt) {
+    return document.createTextNode(txt);
+}
+
+function newElem(tag) {
+    return document.createElement(tag);
+}
+
+function getElem(id) {
+    const e = document.getElementById(id);
+    if (! e) {
+        throw ("getElem: no elem found for " + id);
+    }
+    return e;
+}
+
+function clearCont(e) {
+    e.innerHTML = '';
+    return e;
+}
+
+function setCSS(e, attrs, val) {
+    if (typeof e === "string") {  // e is an id
+        setCSS(getElem(e), attrs, val);
+    }
+    else if (typeof attrs == "string"
+             &&
+             typeof val === "string"
+            ) {
+        e.style[attrs] = val;
+    }
+    else if (typeof e === "object"
+             &&
+             typeof attrs === "object"
+            ) {
+        for (let a in attrs) {    // e is an element
+            e.style[a] = "" + attrs[a];
+        }
+        return e;
+    }
+    else {
+        throw ("setCSS: illegal arg types: (" +
+               typeof e + "," +
+               typeof attrs + "," +
+               typeof val + ")");
+    }
+}
+
+// --------------------
+
 function setContents(id, cont) {
     document.getElementById(id).innerHTML = cont;
 }
@@ -171,11 +221,11 @@ function getStyle(id, attr) {
 /* ---------------------------------------- */
 
 function showElem(id) {
-    setStyle(id, "display", "block");
+    setCSS(id, "display", "block");
 }
 
 function hideElem(id) {
-    setStyle(id, "display", "none");
+    setCSS(id, "display", "none");
 }
 
 function showColTab() {
@@ -227,8 +277,8 @@ function initShow() {
     const g = toPx(screenGeo());
     console.log("initShow: screen geo=" + showGeo(g));
 
-    setStyles(imgTab, {width : g.w, height : g.h});
-    setStyles(colTab, {width : g.w});
+    setCSS(imgTab, {width : g.w, height : g.h});
+    setCSS(colTab, {width : g.w});
 }
 
 // ----------------------------------------
@@ -243,16 +293,17 @@ function loadImg(id, url, geo) {
                      left   : offset.x,
                      top    : offset.y
                    };
-    setStyles(id, style);
+    // get element, clear contents and set style attributes
+    const e = clearCont(getElem(id));
+    setCSS(e, style);
 
-    const id1   = id + "-img";
-    const ielem = "<image id='" + id1 + "'>";
-    setContents(id, ielem);
-    const g1  = { width  : g.w,
-                  height : g.h
-                };
-    setAttr(id1, "src", url);
-    setStyles(id1, g1);
+    const i = newElem("img");
+    i.id    = id + "-img";
+    i.classList.add("img");
+    i.src   = url;
+    setCSS(i, {width: g.w, height: g.h});
+
+    e.appendChild(i);
 }
 
 function showImg(page) {
@@ -271,7 +322,7 @@ function showImg(page) {
 
 // ----------------------------------------
 
-function loadMovie(id, url, geo) {
+function loadMovie(id, url, geo, rType) {
     const movGeo = fitToScreenGeo(geo);
     const offset = toPx(placeOnScreen(movGeo));
     const g      = toPx(movGeo);
@@ -280,17 +331,45 @@ function loadMovie(id, url, geo) {
                      left   : offset.x,
                      top    : offset.y
                    };
-    setStyles(id, style);
 
-    const id1   = id + "-img";
-    const ielem = "<video id='" + id1 + "' autoplay muted>";
-    setContents(id, ielem),
+    // get element, clear contents and set style attributes
+    const e = clearCont(getElem(id));
+    setCSS(e, style);
 
-    setAttr(id1, "width",  movGeo.w);
-    setAttr(id1, "height", movGeo.h);
-    const selem = "<source src='" + url + "' type='video/mp4'>";
-    const warn  = "<span> your browser does not support HTML5 video</span>";
-    setContents(id1, selem + warn);
+    // build new contents
+    const id1   = id + "-movie";
+
+    if (rType === "movie") {
+        const v    = newElem("video");
+        v.id       = id1;
+        v.classList.add("video");
+        v.autoplay = "autoplay";
+        v.muted    = "muted";
+        v.width    = movGeo.w;
+        v.heigth   = movGeo.h;
+
+        const s = newElem("source");
+        s.src  = url;
+        s.type = "video/mp4";
+
+        const w = newElem("span")
+                  .appendChild(
+                      newText("your browser does not support HTML5 video"));
+        v.appendChild(s).appendChild(w);
+
+        // insert new content into element
+        e.appendChild(v);
+
+    }
+    else if (rType === "gif") {
+        const v2 = newElem("img");
+        v2.id    = id1;
+        v2.classList.add("gif");
+        v2.src   = url;
+        setCSS(v2, {width: g.w, height: g.h});
+
+        e.appendChild(v2);
+    }
 }
 
 function showMovie(page) {
@@ -300,13 +379,44 @@ function showMovie(page) {
 
     trc(1, "showMovie: url=" + movUrl + ", geo=" + showGeo(movGeo));
 
-    loadMovie(nextImgId(), movUrl, movGeo);
+    loadMovie(nextImgId(), movUrl, movGeo, movReq.rType);
     toggleImg12();
 }
 
+// ----------------------------------------
+
 function showBlog(page) {
-    trc(1, "showBlog: not yet implemented");
+    const req = page.imgReq;
+    const geo = toPx(screenGeo());
+    const txt = page.blogCont;
+    const id  = nextImgId();
+
+    trc(1, "showBlog: " + txt);
+
+    // get element, clear contents and set style attributes
+    const e  = clearCont(getElem(id));
+    setCSS(e, { width:  geo.w,
+                height: geo.h,
+                top:    "0px",
+                left:   "0px"
+              });
+
+    // build blog contents div
+    const b  = newElem("div");
+    b.id     = id + "-blog";
+    b.classList.add( "blog");
+    setCSS(b, { width:    geo.w,
+                height:   geo.h,
+                overflow: "auto"
+              });
+    b.innerHTML = txt;
+
+    e.appendChild(b);
+
+    toggleImg12();
 }
+
+// ----------------------------------------
 
 function showCol(page) {
     trc(1, "showCol: not yet implemented");
@@ -317,17 +427,17 @@ function showPage(page) {
     if (rty == "col") {
         showCol(page);
     }
-    else if (rty === "movie") {
+    else if (rty === "movie" || rty === "gif") {
         showMovie(page);
     }
-    else if (rty === "blog") {
+    else if (rty === "page") {
         showBlog(page);
     }
-    else if (rty ) {
+    else if ( ["img", "imgfx", "icon", "iconp"].includes(rty) ) {
         showImg(page);
     }
     else {
-        trc(1, "illegal rType " + rty);
+        trc(1, "showPage: illegal rType " + rty);
     }
 
 }
@@ -518,4 +628,248 @@ const movPage = {
   ],
   "blogCont": "",
   "now": "2022-02-03T18:16:57"
+}
+
+const gifPage = {
+  "imgReq": {
+    "rType": "gif",
+    "rPathPos": [
+      "/archive/collections/photos/tests",
+      0
+    ]
+  },
+  "oirGeo": [
+    "200x35",
+    "1x1",
+    "1x0"
+  ],
+  "img": [
+    "/archive/photos/tests/hund",
+    "hund.gif",
+    {
+      "Composite:ImageSize": "200x35",
+      "Composite:Megapixels": "7.0e-3",
+      "Descr:Duration": "1.0",
+      "Descr:Title": "hund.gif",
+      "File:FileSize": "13 kB",
+      "File:MimeType": "video/x-gif",
+      "File:Name": "hund.gif",
+      "File:RefImg": "/photos/tests/hund.gif",
+      "File:RefJpg": "/archive/photos/tests/hund.gif",
+      "File:RefMedia": "/archive/photos/tests/hund.gif",
+      "File:TimeStamp": "1611057556",
+      "GIF:AnimationIterations": "1000",
+      "GIF:Duration": "1.00 s",
+      "GIF:FrameCount": "35",
+      "Img:EXIFUpdate": "1611165598"
+    }
+  ],
+  "imgNavRefs": {
+    "prev": null,
+    "next": {
+      "rType": "json",
+      "rPathPos": [
+        "/archive/collections/photos/tests",
+        1
+      ]
+    },
+    "par": {
+      "rType": "json",
+      "rPathPos": [
+        "/archive/collections/photos/tests",
+        null
+      ]
+    },
+    "fwrd": {
+      "rType": "json",
+      "rPathPos": [
+        "/archive/collections/photos/tests",
+        1
+      ]
+    }
+  },
+  "imgNavImgs": {
+    "prev": null,
+    "next": {
+      "rType": "img",
+      "rPathPos": [
+        "/archive/collections/photos/tests",
+        1
+      ]
+    },
+    "par": null,
+    "fwrd": {
+      "rType": "img",
+      "rPathPos": [
+        "/archive/collections/photos/tests",
+        1
+      ]
+    }
+  },
+  "blogCont": "",
+  "now": "2022-02-04T09:49:48"
+};
+
+const blogPage = {
+  "imgReq": {
+    "rType": "page",
+    "rPathPos": [
+      "/archive/collections/photos/2001",
+      9
+    ]
+  },
+  "oirGeo": [
+    "1x1",
+    "1x1",
+    "1x1"
+  ],
+  "img": [
+    "/archive/photos/2001/index",
+    "index.md",
+    {
+      "Descr:Duration": "1.0",
+      "Descr:Title": "index.md",
+      "File:MimeType": "text/x-markdown",
+      "File:Name": "index.md",
+      "File:RefImg": "/photos/2001/index.md",
+      "File:RefJpg": "/docs/page/1x1/archive/collections/photos/2001/pic-0009.html",
+      "File:RefMedia": "/docs/page/1x1/archive/collections/photos/2001/pic-0009.html",
+      "File:TimeStamp": "1536329082",
+      "Img:EXIFUpdate": "1610735082"
+    }
+  ],
+  "imgNavRefs": {
+    "prev": {
+      "rType": "json",
+      "rPathPos": [
+        "/archive/collections/photos/2001",
+        8
+      ]
+    },
+    "next": {
+      "rType": "json",
+      "rPathPos": [
+        "/archive/collections/photos/2001",
+        10
+      ]
+    },
+    "par": {
+      "rType": "json",
+      "rPathPos": [
+        "/archive/collections/photos/2001",
+        null
+      ]
+    },
+    "fwrd": {
+      "rType": "json",
+      "rPathPos": [
+        "/archive/collections/photos/2001",
+        10
+      ]
+    }
+  },
+  "imgNavImgs": {
+    "prev": {
+      "rType": "img",
+      "rPathPos": [
+        "/archive/collections/photos/2001",
+        8
+      ]
+    },
+    "next": {
+      "rType": "img",
+      "rPathPos": [
+        "/archive/collections/photos/2001",
+        10
+      ]
+    },
+    "par": null,
+    "fwrd": {
+      "rType": "img",
+      "rPathPos": [
+        "/archive/collections/photos/2001",
+        10
+      ]
+    }
+  },
+  "blogCont": "<h2 id=\"ein-paar-bunte-blumen\">ein paar bunte Blumen</h2>\n<p>allerdings nur 3 Stück aber im Augenblick werden die nicht\nimportiert</p>\n<p>inzwischen werden auch wieder .png und .tiff importiert Alles wird\nimmer besser</p>\n<p>bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla\nbla bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br>\nbla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla<br> bla bla bla bla bla bla\nbla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla\nbla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla\nbla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla\nbla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla\nbla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla\nbla bla bla bla bla bla bla bla bla bla</p>\n",
+  "now": "2022-02-04T12:08:56"
+};
+
+
+// ----------------------------------------
+// build metadata table
+
+const metaInfo = {
+    "Descr:Title":                  "Titel",
+    "Descr:Subtitle":               "Untertitel",
+    "Descr:TitleEnglish":           "Titel engl.",
+    "Descr:TitleLatin":             "Titel lat.",
+    "Descr:Comment":                "Kommentar (Aufnahme)",
+    "Descr:CommentImg":             "Kommentar (Kopie)",
+    "Exif:CreateDate":              "Aufnahmedatum",
+    "Descr:Address":                "Adresse",
+    "Descr:Location":               "Ort",
+    "Composite:GPSPosition":        "Position",
+    "Descr:GPSAltitude":            "Höhe",
+    "Descr:Web":                    "Web",
+    "Descr:Wikipedia":              "Wikipedia",
+    "Descr:Keywords":               "Schlüsselwörter",
+    "Exif:Model":                   "Kamera",
+    "Composite:LensSpec":           "Objektiv",
+    "Composite:LensID":             "Objektiv Typ",
+    "Exif:FocalLength":             "Brennweite",
+    "Exif:FocalLengthIn35mmFormat": "Brennweite in 35mm",
+    "Exif:ExposureTime":             "Belichtungszeit",
+    "Exif:FNumber":                  "Blende",
+    "Exif:ExposureCompensation":     "Belichtungskorrektur",
+    "Exif:ISO":                      "ISO",
+    "Exif:ExposureMode":             "Belichtungsmessung",
+    "Exif:ExposureProgram":          "Aufnahmebetriebsart",
+    "MakerNotes:FocusDistance":      "Entfernung",
+    "Composite:DOF":                 "Tiefenschärfe",
+    "Composite:FOV":                 "Sichtfeld",
+    "Composite:HyperfocalDistance":  "Hyperfokale Distanz",
+    "MakerNotes:ShootingMode":       "Aufnahmemodus",
+    "Exif:WhiteBalance":             "Weißabgleich",
+    "MakerNotes:ShutterCount":       "Aufnahmezähler",
+    "Composite:ImageSize":           "Geometrie",
+    "File:RefRaw":                   "Raw-Datei",
+    "File:RefImg":                   "Bilddatei",
+    "File:MimeType":                 "Dateityp",
+    "Composite:Megapixels":          "Megapixel",
+    "File:FileSize":                 "Dateigröße",
+    "File:RefJpg":                   "Bild-Kopie",
+    "Gif:AnimationIterations":       "Animation: Wiederh.",
+    "Gif:Duration":                  "Animation: Dauer",
+    "Gif:FrameCount":                "Animation: # Bilder",
+    "QuickTime:Duration":            "Video-Dauer",
+    "QuickTime:VideoFrameRate":      "Frame-Rate",
+    "File:TimeStamp":                "Bearbeitet",
+    "Descr:Rating":                  "Bewertung"
+};
+
+function buildMetaInfo (t, md) {
+    // clear metadata table
+    clearCont(t);
+
+    for (k in metaInfo) {
+        const v = md[k];
+        if ( v ) {
+            // build key div
+            const kw = newElem("div");
+            const kx = newText(metaInfo[k]);
+            kw.classList.add("key");
+            kw.appendChild(kx);
+
+            // build value div
+            const vl = newElem("div");
+            const tx = newText(md[k]);
+            vl.classList.add("value");
+            vl.applendChild(tx);
+
+            // insert key-value into info table
+            t.appendChild(kw).appendChild(vl);
+        }
+    }
 }
