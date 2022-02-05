@@ -59,9 +59,13 @@ body {
 
   display : none;
 }
+
+/* -------------------- */
+/* metadata table */
+
 #info {
   max-width: 100%;
-  border: 1px solid blue;
+  border: 1px solid #333;
   padding: 1ex;
   color: #eee;
   background-color: rgb(102,102,102);
@@ -78,27 +82,54 @@ body {
   display: none;
 }
 
-/* -------------------- */
-/* info table */
+#help {
+  max-width: 100%;
+  border: 1px solid #333;
+  padding: 1ex;
+  color: #eee;
+  background-color: rgb(102,102,102);
+
+  visibility: visible;
+  opacity: 0.8;
+
+  position: absolute;
+  bottom: 0px;
+  left:0px;
+
+  overflow: auto;
+
+  display: none;
+}
+
 
 #info > h1 {
   font-size: 28px;
   font-weight: bold;
 }
+
 #info-table {
   grid-column-gap: 1em;
   grid-template-columns: auto auto;
 
   display: grid;
 }
-#info-table > div.key {
+
+#help-table {
+  grid-column-gap: 1em;
+  grid-template-columns: auto auto;
+
+  display: grid;
+}
+
+div.key {
   font-weight: bold;
-  border: 1px solid yellow;
+  /* border: 1px solid yellow; */
   padding: 0.5ex;
   text-align: right;
 }
-#info-table > div.value {
-  border: 1px solid yellow;
+
+div.value {
+  /* border: 1px solid yellow; */
   padding: 0.5ex;
   text-align: left;
 }
@@ -120,3 +151,5 @@ div.blog {
 img.gif {
   background-color: #eee;
 }
+
+/* -------------------- */

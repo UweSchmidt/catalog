@@ -16,6 +16,7 @@ const img1    = "image1";
 const img2    = "image2";
 const info    = "info";
 const infoTab = "info-table";
+const help    = "help";
 
 /* ---------------------------------------- */
 /* basic operations */
@@ -480,6 +481,7 @@ function buildInfo(page) {
 }
 
 function showInfo() {
+    hideHelp();
     showElem(info);
 }
 
@@ -491,9 +493,27 @@ function toggleInfo() {
     if (isHidden(info)) {
         showInfo();
     } else {
-        hideElem(info);
+        hideInfo(info);
     }
 }
+
+function showHelp() {
+    hideInfo();
+    showElem(help);
+}
+
+function hideHelp() {
+    hideElem(help);
+}
+
+function toggleHelp() {
+    if (isHidden(help)) {
+        showHelp();
+    } else {
+        hideHelp(help);
+    }
+}
+
 
 // ----------------------------------------
 
