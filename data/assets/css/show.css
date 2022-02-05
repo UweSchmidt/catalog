@@ -77,17 +77,22 @@ body {
 
   display: none;
 }
+
+/* -------------------- */
+/* info table */
+
 #info > h1 {
   font-size: 28px;
   font-weight: bold;
 }
 #info-table {
-  grid-gap: 0.5ex;
+  grid-column-gap: 1em;
   grid-template-columns: auto auto;
 
   display: grid;
 }
 #info-table > div.key {
+  font-weight: bold;
   border: 1px solid yellow;
   padding: 0.5ex;
   text-align: right;
@@ -97,6 +102,13 @@ body {
   padding: 0.5ex;
   text-align: left;
 }
+
+span.rating {
+  color : red;
+  font-weight: bold;
+}
+
+/* -------------------- */
 
 div.blog {
   padding-left:     1em;

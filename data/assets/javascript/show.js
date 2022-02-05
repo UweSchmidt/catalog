@@ -9,17 +9,46 @@ function trc (t, Text) {
 /* ---------------------------------------- */
 /* id's */
 
-const imgTab ="imageTab";
-const colTab ="collectionTab";
-const img1   = "image1";
-const img2   = "image2";
+const title   = "head-title";
+const imgTab  = "imageTab";
+const colTab  = "collectionTab";
+const img1    = "image1";
+const img2    = "image2";
+const info    = "info";
+const infoTab = "info-table";
 
 /* ---------------------------------------- */
 /* basic operations */
 
 function div(x, y) {
-    return Math.floor(x/y);
+    return Math.floor(x / y);
 }
+
+function mod(x, y) {
+    return Math.floor(x % y);
+}
+
+function odd(x) {
+    return mod(x, 2) === 1;
+}
+
+function even(x) {
+    return mod(x, 2) === 0;
+}
+
+function replicate(n, s) {
+    if (n < 1)
+        return "";
+    if (n < 2)
+        return s;
+    if (odd(n))
+        return s + replicate(n - 1, s);
+    if (even(n)) {
+        const s1 = replicate(div(n,2), s);
+        return s1 + s1;
+    };
+}
+
 
 /* ---------------------------------------- */
 /* geometry ops */
@@ -442,7 +471,40 @@ function showPage(page) {
 
 }
 
-/* ---------------------------------------- */
+// ----------------------------------------
+
+function buildInfo(page) {
+    const md = page.img[2];
+    const it = getElem(infoTab);
+    buildMetaInfo(it, md);
+}
+
+function showInfo() {
+    showElem(info);
+}
+
+function hideInfo() {
+    hideElem(info);
+}
+
+function toggleInfo() {
+    if (isHidden(info)) {
+        showInfo();
+    } else {
+        hideElem(info);
+    }
+}
+
+// ----------------------------------------
+
+function setPageTitle (page) {
+    const md = page.img[2];
+    const t  = md["Descr:Title1"] || "Bilder-Show";
+
+    setContents(title, t);
+}
+
+// ----------------------------------------
 
 const u1 = "/docs/iconp/900x600/archive/collections/photos/tests/pic-0012.jpg";
 const u2 = "/docs/img/160x120/archive/collections/photos/tests/pic-0003.jpg";
@@ -481,6 +543,7 @@ const imgPage =
                   "Composite:Megapixels": "10.1",
                   "Descr:Duration": "1.0",
                   "Descr:Title": "xxx-Stockente-1.png",
+                  "Descr:Title1": "xxx-Stockente-1.png",
                   "File:FileSize": "13 MB",
                   "File:MimeType": "image/png",
                   "File:Name": "xxx-Stockente-1.png",
@@ -488,7 +551,8 @@ const imgPage =
                   "File:RefJpg": "/docs/img/1280x800/archive/collections/albums/EinPaarBilder/pic-0001.jpg",
                   "File:RefMedia": "/docs/img/1280x800/archive/collections/albums/EinPaarBilder/pic-0001.jpg",
                   "File:TimeStamp": "1575482988",
-                  "Img:EXIFUpdate": "1610735082"
+                  "Img:EXIFUpdate": "1610735082",
+                  "Descr:Rating": "5"
               }
           ],
           "imgNavRefs": {
@@ -810,7 +874,8 @@ const metaInfo = {
     "Exif:CreateDate":              "Aufnahmedatum",
     "Descr:Address":                "Adresse",
     "Descr:Location":               "Ort",
-    "Composite:GPSPosition":        "Position",
+    // "Descr:GPSPosition":            "Position",
+    "Descr:GPSPositionDeg":         "Position in Grad",
     "Descr:GPSAltitude":            "Höhe",
     "Descr:Web":                    "Web",
     "Descr:Wikipedia":              "Wikipedia",
@@ -820,38 +885,89 @@ const metaInfo = {
     "Composite:LensID":             "Objektiv Typ",
     "Exif:FocalLength":             "Brennweite",
     "Exif:FocalLengthIn35mmFormat": "Brennweite in 35mm",
-    "Exif:ExposureTime":             "Belichtungszeit",
-    "Exif:FNumber":                  "Blende",
-    "Exif:ExposureCompensation":     "Belichtungskorrektur",
-    "Exif:ISO":                      "ISO",
-    "Exif:ExposureMode":             "Belichtungsmessung",
-    "Exif:ExposureProgram":          "Aufnahmebetriebsart",
-    "MakerNotes:FocusDistance":      "Entfernung",
-    "Composite:DOF":                 "Tiefenschärfe",
-    "Composite:FOV":                 "Sichtfeld",
-    "Composite:HyperfocalDistance":  "Hyperfokale Distanz",
-    "MakerNotes:ShootingMode":       "Aufnahmemodus",
-    "Exif:WhiteBalance":             "Weißabgleich",
-    "MakerNotes:ShutterCount":       "Aufnahmezähler",
-    "Composite:ImageSize":           "Geometrie",
-    "File:RefRaw":                   "Raw-Datei",
-    "File:RefImg":                   "Bilddatei",
-    "File:MimeType":                 "Dateityp",
-    "Composite:Megapixels":          "Megapixel",
-    "File:FileSize":                 "Dateigröße",
-    "File:RefJpg":                   "Bild-Kopie",
-    "Gif:AnimationIterations":       "Animation: Wiederh.",
-    "Gif:Duration":                  "Animation: Dauer",
-    "Gif:FrameCount":                "Animation: # Bilder",
-    "QuickTime:Duration":            "Video-Dauer",
-    "QuickTime:VideoFrameRate":      "Frame-Rate",
-    "File:TimeStamp":                "Bearbeitet",
-    "Descr:Rating":                  "Bewertung"
+    "Exif:ExposureTime":            "Belichtungszeit",
+    "Exif:FNumber":                 "Blende",
+    "Exif:ExposureCompensation":    "Belichtungskorrektur",
+    "Exif:ISO":                     "ISO",
+    "Exif:ExposureMode":            "Belichtungsmessung",
+    "Exif:ExposureProgram":         "Aufnahmebetriebsart",
+    "MakerNotes:FocusDistance":     "Entfernung",
+    "Composite:DOF":                "Tiefenschärfe",
+    "Composite:FOV":                "Sichtfeld",
+    "Composite:HyperfocalDistance": "Hyperfokale Distanz",
+    "MakerNotes:ShootingMode":      "Aufnahmemodus",
+    "Exif:WhiteBalance":            "Weißabgleich",
+    "MakerNotes:ShutterCount":      "Aufnahmezähler",
+    "Composite:ImageSize":          "Geometrie",
+    "File:RefRaw":                  "Raw-Datei",
+    "File:RefImg":                  "Bilddatei",
+    "File:MimeType":                "Dateityp",
+    "Composite:Megapixels":         "Megapixel",
+    "File:FileSize":                "Dateigröße",
+    "File:RefJpg":                  "Bild-Kopie",
+    "Gif:AnimationIterations":      "Animation: Wiederh.",
+    "Gif:Duration":                 "Animation: Dauer",
+    "Gif:FrameCount":               "Animation: # Bilder",
+    "QuickTime:Duration":           "Video-Dauer",
+    "QuickTime:VideoFrameRate":     "Frame-Rate",
+    "File:DateTime":                "Bearbeitet",
+    "Descr:Rating":                 "Bewertung"
 };
+
+// the function table for formating values
+// default is newText(v)
+
+const metaFmt = {
+    // TODO not yet complete
+    "Descr:GPSPositionDeg":    fmtGPS,
+    "Composite:Megapixels": fmtMPX,
+    "Descr:Rating": fmtRating
+};
+
+function lookupFmt(k) {
+    return metaFmt[k] || newText;
+}
+
+function fmtMPX(t) {
+    return newText("" + (1 * t));
+}
+
+var gpsUrl;
+
+function fmtGPS(t) {
+    const deg = String.fromCharCode(176);
+
+    const a   = newElem("a");
+    const txt = newText(t.replace(" deg", deg));
+
+    a.href    = gpsUrl;
+    a.target  = "_blank";
+    a.classList.add("gpslink");
+    a.appendChild(txt);
+    return a;
+}
+
+function toDegree(t) {
+    trc(1, "toDegree: " + t);
+    return t;
+}
+
+function fmtRating(n) {
+    const star  = String.fromCharCode(9733);
+    const stars = replicate(1 * n, star);   // conversion to int
+    const txt   = newText(stars);
+    const spn   = newElem("span");
+    spn.classList.add("rating");
+    spn.appendChild(txt);
+    return spn;
+}
 
 function buildMetaInfo (t, md) {
     // clear metadata table
     clearCont(t);
+
+    // hack for google maps url
+    gpsUrl = md["Descr:GPSurl"];
 
     for (k in metaInfo) {
         const v = md[k];
@@ -864,12 +980,15 @@ function buildMetaInfo (t, md) {
 
             // build value div
             const vl = newElem("div");
-            const tx = newText(md[k]);
+            const tx = lookupFmt(k)(md[k]);
             vl.classList.add("value");
-            vl.applendChild(tx);
+            vl.appendChild(tx);
 
             // insert key-value into info table
-            t.appendChild(kw).appendChild(vl);
+            t.appendChild(kw);
+            t.appendChild(vl);
         }
     }
 }
+
+// ----------------------------------------

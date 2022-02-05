@@ -82,6 +82,7 @@ module Data.MetaData
   , compositeSubSecDateTimeOriginal
 
   , descrTitle
+  , descrTitle1
   , descrSubtitle
   , descrTitleEnglish
   , descrTitleLatin
@@ -101,6 +102,8 @@ module Data.MetaData
   , descrRatingImg
   , descrGPSAltitude
   , descrGPSPosition
+  , descrGPSPositionDeg
+  , descrGPSurl
   , descrCatalogVersion
   , descrCatalogWrite
 
@@ -134,6 +137,7 @@ module Data.MetaData
   , fileRefJpg
   , fileRefMedia
   , fileRefRaw
+  , fileDateTime
   , fileTimeStamp
 
   , gifAnimationIterations
@@ -296,6 +300,8 @@ data MetaKey
   | Descr'Duration
   | Descr'GPSAltitude
   | Descr'GPSPosition
+  | Descr'GPSPositionDeg
+  | Descr'GPSurl
   | Descr'GoogleMaps
   | Descr'Keywords
   | Descr'Location
@@ -304,6 +310,7 @@ data MetaKey
   | Descr'RatingImg
   | Descr'Subtitle
   | Descr'Title
+  | Descr'Title1
   | Descr'TitleEnglish
   | Descr'TitleLatin
   | Descr'Web
@@ -337,6 +344,7 @@ data MetaKey
   | File'RefJpg
   | File'RefMedia
   | File'RefRaw
+  | File'DateTime
   | File'TimeStamp
   | GIF'AnimationIterations
   | GIF'Duration
@@ -430,6 +438,7 @@ keysAttrComposite@[
   ] = [Composite'Aperture .. Composite'SubSecDateTimeOriginal]
 
 descrTitle
+  , descrTitle1
   , descrSubtitle
   , descrTitleEnglish
   , descrTitleLatin
@@ -449,6 +458,8 @@ descrTitle
   , descrRatingImg
   , descrGPSAltitude
   , descrGPSPosition
+  , descrGPSPositionDeg
+  , descrGPSurl
   , descrCatalogVersion
   , descrCatalogWrite :: MetaKey
 
@@ -464,6 +475,8 @@ keysAttrDescr@[
   , descrDuration
   , descrGPSAltitude
   , descrGPSPosition
+  , descrGPSPositionDeg
+  , descrGPSurl
   , descrGoogleMaps
   , descrKeywords
   , descrLocation
@@ -472,6 +485,7 @@ keysAttrDescr@[
   , descrRatingImg
   , descrSubtitle
   , descrTitle
+  , descrTitle1
   , descrTitleEnglish
   , descrTitleLatin
   , descrWeb
@@ -532,6 +546,7 @@ fileCheckSum
   , fileRefJpg
   , fileRefMedia
   , fileRefRaw
+  , fileDateTime
   , fileTimeStamp :: MetaKey
 
 keysAttrFile :: [MetaKey]
@@ -545,6 +560,7 @@ keysAttrFile@[
   , fileRefJpg
   , fileRefMedia
   , fileRefRaw
+  , fileDateTime
   , fileTimeStamp
   ] = [File'CheckSum .. File'TimeStamp]
 

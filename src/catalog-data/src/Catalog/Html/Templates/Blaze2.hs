@@ -14,69 +14,6 @@ module Catalog.Html.Templates.Blaze2
 where
 
 import Data.MetaData
-       ( MetaData
-       , MetaKey
-
-       , metaDataAt
-       , metaTextAt
-       , lookupGPSposDeg
-       , lookupRating
-       , metaTimeStamp
-
-       , compositeDOF
-       , compositeFOV
-       , compositeHyperfocalDistance
-       , compositeGPSPosition
-       , compositeImageSize
-       , compositeLensID
-       , compositeLensSpec
-       , compositeMegapixels
-
-       , descrAddress
-       , descrComment
-       , descrCommentImg
-       , descrKeywords
-       , descrLocation
-       , descrRating
-       , descrSubtitle
-       , descrTitle
-       , descrTitleEnglish
-       , descrTitleLatin
-       , descrGPSAltitude
-       , descrWeb
-       , descrWikipedia
-
-       , exifCreateDate
-       , exifExposureCompensation
-       , exifExposureMode
-       , exifExposureProgram
-       , exifExposureTime
-       , exifFNumber
-       , exifFocalLength
-       , exifFocalLengthIn35mmFormat
-       , exifISO
-       , exifModel
-       , exifWhiteBalance
-
-       , fileFileSize
-       , fileMimeType
-         -- , fileName
-       , fileRefImg
-       , fileRefJpg
-       , fileRefRaw
-       , fileTimeStamp
-
-       , gifAnimationIterations
-       , gifDuration
-       , gifFrameCount
-
-       , makerNotesFocusDistance
-       , makerNotesShootingMode
-       , makerNotesShutterCount
-
-       , quickTimeDuration
-       , quickTimeVideoFrameRate
-       )
 
 import Data.Prim.GPS
        ( googleMapsGPSdec )

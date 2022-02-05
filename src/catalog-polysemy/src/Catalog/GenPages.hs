@@ -14,73 +14,10 @@ module Catalog.GenPages
 where
 
 -- catalog
-import Data.Prim {- - }
-       ( Alternative(empty, (<|>))
-       , Field1(_1)
-       , Field2(_2)
-       , Geo(..)
-       , GeoAR
-       , IsEmpty(isempty)
-       , IsoString(isoString)
-       , IsoText(isoText)
-       , Ixed(ix)
-       , LazyByteString
-       , Lens
-       , Lens'
-       , MonadPlus(mzero)
-       , ObjId
-       , Path
-       , PathPos
-       , Pos
-       , ReqType(..)
-       , Text
-       , Traversal'
-       , (#)
-       , (%~)
-       , (&)
-       , (.~)
-       , (>=>)
-       , (^.)
-       , (^..)
-       , (^?)
-       , addNameSuffix
-       , concPath
-       , consPath
-       , from
-       , fromMaybe
-       , geo'org
-       , isAlphaNum
-       , isImgMT
-       , isJpgMT
-       , isJust
-       , isMovieMT
-       , isTxtMT
-       , isWackelGifMT
-       , isoEpochTime
-       , isoPicNo
-       , isoSeqList
-       , listToMaybe
-       , mkGeoAR
-       , mkPath
-       , msgPath
-       , p'archive
-       , p'docroot
-       , p'gen'icon
-       , p'qmark
-       , ps'archive
-       , ps'docroot
-       , readPath
-       , reqType2AR
-       , snocPath
-       , substPathName
-       , tailPath
-       , take1st
-       , to
-       , toText
-       , unless
-       , viewBase
-       )
--- -}
+import Data.Prim
+
+import Data.MetaData
+
 import Data.ImgNode
        ( ImgRef'(ImgRef)
        , ImgRef
@@ -98,26 +35,6 @@ import Data.ImgNode
 import Data.ImgTree
        ( ImgNode )
 
-import Data.MetaData
-       ( MetaData
-       , metaTextAt
-       , metaDataAt
-       , metaName
-       , lookupGeo
-       , lookupGeoOri
-       , lookupMimeType
-
-         -- MetaKey's
-       , descrComment
-       , descrDuration
-       , descrSubtitle
-       , descrTitle
-       , fileRefImg
-       , fileRefJpg
-       , fileRefMedia
-       , fileRefRaw
-       , imgNameRaw
-       )
 import Data.TextPath
        ( baseNameMb
        , ymdNameMb
@@ -185,7 +102,8 @@ import Catalog.TextPath
        ( toFileSysPath )
 
 import Catalog.TimeStamp
-       ( nowAsIso8601 )
+       ( nowAsIso8601
+       )
 
 -- libraries
 import qualified Data.Aeson           as J
@@ -1079,7 +997,7 @@ collectImgAttr r = do
              & metaTextAt fileRefImg    .~ (theSrc ^. isoText)
              & metaTextAt fileRefMedia  .~ (theUrl ^. isoText)
              & metaTextAt fileRefRaw    .~ rp
-             & metaTextAt descrTitle    .~ take1st
+             & metaTextAt descrTitle1   .~ take1st
                                            [ theMeta ^. metaTextAt descrTitle
                                            , nm ^. isoText
                                            ]
@@ -1109,6 +1027,8 @@ genReqImgPage' r = do
     , this'meta )       <- collectImgAttr r
 
   let     this'mediaUrl  = this'meta ^. metaTextAt fileRefMedia
+  let     this'fileDate  = this'meta ^. metaDataAt fileTimeStamp . metaTimeStamp
+  let     this'gps       = lookupGPSposDeg this'meta
   let     this'geo       = r ^. rGeo
 
   -- the urls of the siblings
@@ -1120,8 +1040,15 @@ genReqImgPage' r = do
                            <$> runMaybe (pureMaybe mr >>= toMediaReq0)
   navImgs               <- traverse tomu nav
 
-  let metaData           = this'meta         -- add jpg filename
-                           & metaTextAt fileRefJpg .~ (this'mediaUrl ^. isoText)
+  let metaData           = this'meta                 -- normalize metadata
+                           & metaTextAt fileRefJpg   .~ (this'mediaUrl ^. isoText)
+                           & metaTextAt fileDateTime .~ ( if isempty this'fileDate
+                                                          then mempty
+                                                          else timeStampToText this'fileDate)
+                           & metaTextAt descrGPSPositionDeg
+                                                     .~ this'gps
+                           & metaTextAt descrGPSurl  .~ (this'gps & isoString . googleMapsGPSdec %~ id)
+
   let org'geo            = lookupGeo metaData
 
   mrq <- toMediaReq r
@@ -1403,7 +1330,7 @@ jPageToHtml JImgPage
   , _blogCont   = blogContents
   } = let rty   = r ^. rType
           this'url      = toUrlPath r
-          this'title    = this'meta ^. metaTextAt descrTitle
+          this'title    = this'meta ^. metaTextAt descrTitle1
           this'subTitle = this'meta ^. metaTextAt descrSubtitle
           this'comment  = this'meta ^. metaTextAt descrComment
           this'duration = this'meta ^. metaTextAt descrDuration
