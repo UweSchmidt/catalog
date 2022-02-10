@@ -61,6 +61,34 @@ body {
 }
 
 /* -------------------- */
+/* collection page */
+
+#collection {
+  /* width: 100%; */
+  border: 1px solid red;
+  padding: 1ex;
+
+  overflow: auto;
+  display: block;
+}
+
+#collection-header {
+  width: 100%;
+  border: 1px solid green;
+}
+
+#collection-footer {
+  width: 100%;
+  border: 1px solid green;
+}
+
+#collection-contents {
+  width: 100%;
+  border: 1px solid blue;
+
+}
+
+/* -------------------- */
 /* metadata table */
 
 #info {

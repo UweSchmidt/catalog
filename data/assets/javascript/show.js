@@ -136,6 +136,10 @@ function bestFitToScreenGeo () {
     return geoOrg;
 }
 
+function bestFitIconGeo() {
+    return readGeo("160x120");
+}
+
 /* ---------------------------------------- */
 /* urls */
 
@@ -461,8 +465,74 @@ function showBlog(page) {
 // ----------------------------------------
 
 function showCol(page) {
-    trc(1, "showCol: not yet implemented");
+    trc(1, "showCol: still a dummy page");
+    const colDescr = page.colDescr;
+    const colReq   = colDescr.eReq;
+    const colMeta  = colDescr.eMeta;
+    const navIcons = page.navIcons;
+    const c1Icon   = page.c1Icon;
+    const colIcons = page.contIcons;
+    const iconReq  = { rType: "icon",
+                       rPathPos: colReq.rPathPos
+                     };
+    const g        = toPx(screenGeo());
+
+    const e = clearCont(getElem(nextImgId()));
+    setCSS(e, { width:  g.w,
+                height: g.h,
+                left:   "0px",
+                top:    "0px"
+              });
+    e.appendChild(buildCollection(iconReq, colMeta, navIcons, c1Icon, colIcons));
+
+    toggleImg12();
 }
+
+function buildCollection(iconReq, colMeta, navIcons, c1Icon, colIcons) {
+    const iconGeo = bestFitIconGeo();
+    const c = newElem("div");
+    c.id = "collection";
+    c.classList.add("col");
+
+    c.appendChild(buildColHeader(iconReq, colMeta, navIcons, c1Icon, iconGeo));
+    c.appendChild(buildColContents(colIcons, iconGeo));
+    c.appendChild(buildColFooter(navIcons, c1Icon, iconGeo));
+
+    return c;
+}
+
+
+function buildColHeader(iconReq, colMeta, navIcons, c1Icon, iconGeo) {
+    const c = newText("The Page Header"); // TODO
+
+    const h = newElem("div");
+    h.id = "collection-header";
+    h.appendChild(c);
+
+    return h;
+}
+
+function buildColContents(colIcons, iconGeo) {
+    const c = newText("The Collection Contents"); // TODO
+
+    const col = newElem("div");
+    col.id = "collection-contents";
+    col.appendChild(c);
+
+    return col;
+}
+
+function buildColFooter(navIcons, c1Icon, iconGeo) {
+    const c = newText("The Page Footer"); // TODO
+
+    const f = newElem("div");
+    f.id = "collection-footer";
+    f.appendChild(c);
+
+    return f;
+}
+
+// ----------------------------------------
 
 function showPage(page) {
     trc(1, "showPage:" + page);
@@ -470,8 +540,9 @@ function showPage(page) {
     // store page as new currPage
     currPage = page;
 
-    const rty = page.imgReq.rType;
-    if (rty == "col") {
+    const rty = isCol() ? page.colDescr.eReq.rType : page.imgReq.rType;
+
+    if (rty == "json") {
         showCol(page);
     }
     else if (rty === "movie" || rty === "gif") {
@@ -611,6 +682,14 @@ function sss() {
 
 
 /* ---------------------------------------- */
+
+const req1 = {
+    "rType": "json",
+    "rPathPos": [
+        "/archive/collections/albums/2021",
+        null
+    ]
+};
 
 const imgPage =
       {
