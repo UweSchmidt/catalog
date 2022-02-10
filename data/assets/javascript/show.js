@@ -139,6 +139,14 @@ function bestFitToScreenGeo () {
 /* ---------------------------------------- */
 /* urls */
 
+function jsonReqToUrl(jsonReq) {
+    const pp = rPathPosToUrl(jsonReq.rPathPos);
+    return "/docs/json/"
+        + showGeo(bestFitToScreenGeo())
+        + pp
+        + ".json";
+}
+
 function imgReqToUrl(imgReq) {
     const pp = rPathPosToUrl(imgReq.rPathPos);
     return "/docs/"
@@ -171,6 +179,10 @@ function toMediaUrl(img) {
 function dirPath(p) {
     const ix = p.lastIndexOf("/");
     return p.substr(0, ix);
+}
+
+function nullReq(req) {
+    return (! req);
 }
 
 /* ---------------------------------------- */
@@ -295,7 +307,7 @@ function nextImgId() {
 /* ---------------------------------------- */
 /* global state */
 
-var lastPage;
+var nextPage;
 var currPage;
 
 var picCache = new Image();
@@ -453,6 +465,11 @@ function showCol(page) {
 }
 
 function showPage(page) {
+    trc(1, "showPage:" + page);
+
+    // store page as new currPage
+    currPage = page;
+
     const rty = page.imgReq.rType;
     if (rty == "col") {
         showCol(page);
@@ -470,6 +487,60 @@ function showPage(page) {
         trc(1, "showPage: illegal rType " + rty);
     }
 
+}
+
+function showNextPage(req) {
+    if (! nullReq(req)) {
+        const url = jsonReqToUrl(req);
+        getJsonPage(url, showPage, showErr);
+    } else {
+        trc(1, "showNextPage: req is empty");
+    }
+}
+
+function showErr(err) {
+    trc(1, "showErr:" + err);
+    trc(1, "not yet handled");
+}
+
+// ----------------------------------------
+// event handler
+
+function isCol() {
+    return ! (currPage.imgReq);
+}
+
+function gotoPrev() {
+    const req = isCol() ? currPage.navIcons.prev.eReq : currPage.imgNavRefs.prev;
+    showNextPage(req);
+}
+
+function gotoNext() {
+    const req = isCol() ? currPage.navIcons.next.eReq : currPage.imgNavRefs.next;
+    showNextPage(req);
+}
+
+function gotoPar() {
+    const req = isCol() ? currPage.navIcons.par.eReq : currPage.imgNavRefs.par;
+    showNextPage(req);
+}
+
+// for slideshows
+function goForward() {
+    const req = isCol() ? currPage.navIcons.fwrd.eReq : currPage.imgNavRefs.fwrd;
+    showNextPage(req);
+}
+
+function gotoChild(i) {
+    if (isCol()) {
+        showNextPage(currPage.navIcons.contIcons[i].eReq);
+    }
+}
+
+// reload
+function stayHere() {
+    const req = isCol() ? currPage.colDescr.eReq : currPage.imgReq;
+    showNextPage(req);
 }
 
 // ----------------------------------------
@@ -1009,6 +1080,32 @@ function buildMetaInfo (t, md) {
             t.appendChild(vl);
         }
     }
+}
+
+// ----------------------------------------
+
+function getJsonPage(url, processRes, processErr, processNext) {
+    trc(1, "getJsonPage: " + url);
+
+    $.ajax({
+        type: "GET",
+        url: url
+    }).done(function (res) {
+        trc(1, "getJsonPage: new page=" + res);
+        processRes(res);
+    }).fail(function (err) {
+        trc(1, "getJsonPage: server error=" + err + ", status=" + err.status);
+        if (err.status == 500) {
+            const msg = err.responseJSON || err.responseText;
+            processErr(msg);
+        }
+        else if (err.status == 404) {
+            processErr("archive entry not found: " + url);
+        }
+        else {
+            processErr("server error: " + err.status + " when loading json page");
+        }
+    }).always(processNext);
 }
 
 // ----------------------------------------
