@@ -50,9 +50,31 @@ function replicate(n, s) {
     };
 }
 
+function qt(s) {
+    return '"' + s + '"';
+}
 
 /* ---------------------------------------- */
 /* geometry ops */
+
+function addGeo(g1, g2) {
+    if (typeof g2 === "number") {
+        return { w : g1.w + g2,   // geo + scalar
+                 h : g1.h + g2
+               };
+
+    } else {
+        return { w : g1.w + g2.w,
+                 h : g1.h + g2.h
+               };
+    }
+}
+
+function scaleGeo(g, s) {
+    return { w : Math.floor(g.w * s),
+             h : Math.floor(g.h * s)
+    };
+}
 
 function readGeo(txt) {
     if (txt === "org")
@@ -151,12 +173,15 @@ function jsonReqToUrl(jsonReq) {
         + ".json";
 }
 
-function imgReqToUrl(imgReq) {
+function imgReqToUrl(imgReq, imgGeo) {
     const pp = rPathPosToUrl(imgReq.rPathPos);
     return "/docs/"
         + imgReq.rType
         + "/"
-        + showGeo(bestFitToScreenGeo())
+        + ( imgGeo
+            ? showGeo(imgGeo)
+            : showGeo(bestFitToScreenGeo())
+          )
         + pp
         + ".jpg";
 }
@@ -187,6 +212,14 @@ function dirPath(p) {
 
 function nullReq(req) {
     return (! req);
+}
+
+function editUrl(req) {
+    return 'javascript:openEditUrl('
+        + qt(req.rPathPos[0])
+        + ","
+        + req.rPathPos[1]
+        + ');' ;
 }
 
 /* ---------------------------------------- */
@@ -483,44 +516,90 @@ function showCol(page) {
                 left:   "0px",
                 top:    "0px"
               });
-    e.appendChild(buildCollection(iconReq, colMeta, navIcons, c1Icon, colIcons));
+    e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons));
 
     toggleImg12();
 }
 
-function buildCollection(iconReq, colMeta, navIcons, c1Icon, colIcons) {
+function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
     const iconGeo = bestFitIconGeo();
+    const g       = toPx(iconGeo);
+
+    function buildIcon(req) {
+        const r = newElem("img");
+        setCSS(r, { width:  g.w,
+                    height: g.h
+                  });
+        r.src = imgReqToUrl(iconReq, iconGeo);
+        return r;
+    }
+
+    function buildColHeader() {
+
+        function buildHeadIcon() {
+            const a = newElem("a");
+            a.href = editUrl(colReq);
+            a.appendChild(buildIcon(iconReq));
+
+            const r = newElem("div");
+            r.id = "collection-header-icon";
+            setCSS(r, { width: g.w });
+            r.appendChild(a);
+
+            return r;
+        }
+
+        function buildHeadLine() {
+            const t = newText("The Title");
+
+            const r = newElem("div");
+            r.id = "collection-header-title"
+            r.appendChild(t);
+            return r;
+        }
+
+        const c = newText("NAV"); // TODO
+
+        const h = newElem("div");
+        h.id = "collection-header";
+        setCSS(h, { display: "grid",
+                    "grid-template-columns": g.w + " auto " + g.w,
+                    "grid-column-gap": "1em"
+                  });
+        h.appendChild(buildHeadIcon());
+        h.appendChild(buildHeadLine());
+        h.appendChild(c);
+        return h;
+    }
+
+    function buildColContents() {
+        const c = newText("The Collection Contents"); // TODO
+
+        const col = newElem("div");
+        col.id = "collection-contents";
+        col.appendChild(c);
+        return col;
+    }
+
+    function buildColFooter() {
+        const c = newText("The Page Footer"); // TODO
+
+        const f = newElem("div");
+        f.id = "collection-footer";
+        f.appendChild(c);
+        return f;
+    }
+
     const c = newElem("div");
     c.id = "collection";
     c.classList.add("col");
 
-    c.appendChild(buildColHeader(iconReq, colMeta, navIcons, c1Icon, iconGeo));
-    c.appendChild(buildColContents(colIcons, iconGeo));
-    c.appendChild(buildColFooter(navIcons, c1Icon, iconGeo));
-
+    c.appendChild(buildColHeader());
+    c.appendChild(buildColContents());
+    c.appendChild(buildColFooter());
     return c;
 }
 
-
-function buildColHeader(iconReq, colMeta, navIcons, c1Icon, iconGeo) {
-    const c = newText("The Page Header"); // TODO
-
-    const h = newElem("div");
-    h.id = "collection-header";
-    h.appendChild(c);
-
-    return h;
-}
-
-function buildColContents(colIcons, iconGeo) {
-    const c = newText("The Collection Contents"); // TODO
-
-    const col = newElem("div");
-    col.id = "collection-contents";
-    col.appendChild(c);
-
-    return col;
-}
 
 function buildColFooter(navIcons, c1Icon, iconGeo) {
     const c = newText("The Page Footer"); // TODO
