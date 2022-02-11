@@ -180,4 +180,18 @@ img.gif {
   background-color: #eee;
 }
 
+.title  {
+  font-size:   36px;
+  font-weight: bold;
+}
+
+.subtitle {
+  font-size:   24px;
+  font-weight: bold;
+}
+
+.comment {
+  font-weight: bold;
+}
+
 /* -------------------- */
