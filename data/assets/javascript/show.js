@@ -161,14 +161,17 @@ const serverSupportedGeos =
         "2560x1440"
       ];
 
-function bestFitToScreenGeo () {
-    const s = screenGeo();
+function bestFitToGeo (s) {
     for (let v of serverSupportedGeos) {
         const g = readGeo(v);
         if (g.w >= s.w && g.h >= s.h)
             return g;
     }
     return geoOrg;
+}
+
+function bestFitToScreenGeo () {
+    return bestFitToGeo(screenGeo());
 }
 
 function bestFitIconGeo() {
@@ -183,6 +186,10 @@ function bestFitIconGeo() {
 
 /* ---------------------------------------- */
 /* urls */
+
+function toHref(url) {
+    return "javascript:gotoUrl('" + url + "');"
+}
 
 function jsonReqToUrl(jsonReq) {
     const pp = rPathPosToUrl(jsonReq.rPathPos);
@@ -211,7 +218,7 @@ function rPathPosToUrl(rPathPos) {
 }
 
 function posToUrl(pos) {
-    if (pos) {
+    if (typeof pos === "number") {
         let txt = "" + pos;
         let len = txt.length;
         let px  = Math.max(0, 4 - txt.length);
@@ -384,12 +391,13 @@ function initShow() {
 
 function loadImg(id, url, geo) {
     const imgGeo = fitToScreenGeo(geo);
-    const offset = toPx(placeOnScreen(imgGeo));
+    const offset = placeOnScreen(imgGeo);
+    const off    = toPx(offset);
     const g      = toPx(imgGeo);
     const style  = { width  : g.w,
                      height : g.h,
-                     left   : offset.x,
-                     top    : offset.y
+                     left   : off.x,
+                     top    : off.y
                    };
     // get element, clear contents and set style attributes
     const e = clearCont(getElem(id));
@@ -403,6 +411,7 @@ function loadImg(id, url, geo) {
 
     e.appendChild(i);
 }
+
 
 function showImg(page) {
     const imgReq = page.imgReq;
@@ -541,7 +550,9 @@ function showCol(page) {
 }
 
 function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
-    const iconGeo = bestFitIconGeo();
+    const iconGeo = bestFitIconGeo();       // the geometry of nav icons
+    const reqGeo  = bestFitToGeo(iconGeo);  // the geometry of the requested icons (maybe larger than iconGeo)
+    const scrGeo  = screenGeo();
     const g       = toPx(iconGeo);
 
     // geometry for navigation grid
@@ -553,21 +564,26 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
                     h: 2 * i2w + 1 * gap
                    };
     const icoGpx = toPx(icoGeo);
-    const reqGeo = bestFitIconGeo();       // the geometry of nav icons in server requests
+    const numCols = Math.max(div(scrGeo.w, iconGeo.w + gap));
 
     trc(1, "iconGeo=" + showGeo(iconGeo));
-    trc(1, "icoGeo=" + showGeo(icoGeo));
-    trc(1, "navGeo=" + showGeo(navGeo));
-    trc(1, "reqGeo=" + showGeo(reqGeo));
-
+    trc(1, "icoGeo="  + showGeo(icoGeo));
+    trc(1, "navGeo="  + showGeo(navGeo));
+    trc(1, "reqGeo="  + showGeo(reqGeo));
+    trc(1, "numCols=" + numCols);
 
     function buildIcon(req) {
         const r = newElem("img");
         setCSS(r, { width:  g.w,
                     height: g.h
                   });
-        r.src = imgReqToUrl(iconReq, iconGeo);
+        r.src = imgReqToUrl(iconReq, reqGeo);
         return r;
+    }
+
+    function toIconUrl(req) {
+        const ireq = { rType: "icon", rPathPos: req.rPathPos};
+        return imgReqToUrl(ireq, reqGeo);
     }
 
     function buildColHeaderFooter(isHeader) {
@@ -620,11 +636,6 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
 
         function buildNav() {
 
-            function toIconUrl(req) {
-                const ireq = { rType: "icon", rPathPos: req.rPathPos};
-                return imgReqToUrl(ireq, reqGeo);
-            }
-
             function buildNavIcon(ico, tt) {
                 const r = newElem("div");
                 if (! ico) {
@@ -638,7 +649,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
                 }
 
                 const a = newElem("a");
-                a.href  = jsonReqToUrl(req);
+                a.href  = toHref(jsonReqToUrl(req));
                 a.title = md["Descr:Title"] || tt || "";
 
                 const i = newElem("img");
@@ -660,11 +671,11 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
                       });
 
             const i1 = buildNavIcon();
-            const i2 = buildNavIcon(navIcons.par,  "umfassende Sammlung");
+            const i2 = buildNavIcon(navIcons.par,  "umfassendes Album");
             const i3 = buildNavIcon();
-            const i4 = buildNavIcon(navIcons.prev, "vorige(s) Sammlung/Bild");
-            const i5 = buildNavIcon(c1Icon,        "erste(s) Sammlung/Bild");
-            const i6 = buildNavIcon(navIcons.next, "nächste(s) Samlung/Bild");
+            const i4 = buildNavIcon(navIcons.prev, "voriges Bild/Album");
+            const i5 = buildNavIcon(c1Icon,        "erstes Bild/Album");
+            const i6 = buildNavIcon(navIcons.next, "nächstes Bild/Album");
 
 
             r.appendChild(i1);
@@ -689,21 +700,40 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
     }
 
     function buildColContents() {
-        const c = newText("The Collection Contents"); // TODO
+        const r = newElem("div");
+        r.id = "collection-contents";
+        setCSS(r, { display: "grid",
+                    "grid-template-columns": replicate(numCols, " " + g.w),
+                    "grid-auto-rows": g.h,
+                    "grid-gap":       gap + "px",
+                    "margin-bottom": "12px",
+                    "margin-top":    "12px"
+                  });
 
-        const col = newElem("div");
-        col.id = "collection-contents";
-        col.appendChild(c);
-        return col;
-    }
 
-    function buildColFooter() {
-        const c = newText("The Page Footer"); // TODO
+        for (let i = 0; i < colIcons.length; i++) {
+            const ce = colIcons[i];
 
-        const f = newElem("div");
-        f.id = "collection-footer";
-        f.appendChild(c);
-        return f;
+            // trc(1, "buildColContents: i=" + i + ", val=" + JSON.stringify(ce));
+
+            const ir = ce.eReq;
+            const md = ce.eMeta;
+            const e  = newElem("div");
+
+            const a  = newElem("a");
+            a.href   = toHref(jsonReqToUrl(ir));
+            a.title  = md["Descr:Title"] || ((i + 1) + ". Bild");
+
+            const im = newElem("img");
+            setCSS(im, { width:  g.w,
+                         height: g.h
+                       });
+            im.src = toIconUrl(ir, reqGeo);
+            a.appendChild(im);
+            e.appendChild(a);
+            r.appendChild(e);
+        }
+        return r;
     }
 
     const c = newElem("div");
@@ -716,17 +746,6 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
     return c;
 }
 
-
-function buildColFooter(navIcons, c1Icon, iconGeo) {
-    const c = newText("The Page Footer"); // TODO
-
-    const f = newElem("div");
-    f.id = "collection-footer";
-    f.appendChild(c);
-
-    return f;
-}
-
 // ----------------------------------------
 
 function showPage(page) {
@@ -734,6 +753,8 @@ function showPage(page) {
 
     // store page as new currPage
     currPage = page;
+
+    buildInfo();
 
     const rty = isCol() ? page.colDescr.eReq.rType : page.imgReq.rType;
 
@@ -755,10 +776,13 @@ function showPage(page) {
 
 }
 
+function gotoUrl(url) {
+    getJsonPage(url, showPage, showErr);
+}
+
 function showNextPage(req) {
     if (! nullReq(req)) {
-        const url = jsonReqToUrl(req);
-        getJsonPage(url, showPage, showErr);
+        gotoUrl(jsonReqToUrl(req));
     } else {
         trc(1, "showNextPage: req is empty");
     }
@@ -825,8 +849,8 @@ function openEditPage(path, pos) {
 
 // ----------------------------------------
 
-function buildInfo(page) {
-    const md = page.img[2];
+function buildInfo() {
+    const md = isCol() ? currPage.colDescr.eMeta : currPage.img[2];
     const it = getElem(infoTab);
     buildMetaInfo(it, md);
 }
