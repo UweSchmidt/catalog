@@ -54,6 +54,20 @@ function qt(s) {
     return '"' + s + '"';
 }
 
+function intercalate(s, xs) {
+    const l = xs.length;
+    if (l === 0) {
+        return "";
+
+    } else {
+        let res = xs[0];
+        for (let i = 1; i < l; i++) {
+            res += s + xs[i];
+        }
+        return res;
+    }
+}
+
 /* ---------------------------------------- */
 /* geometry ops */
 
@@ -248,6 +262,19 @@ function editUrl(req) {
         + ');' ;
 }
 
+function pathToPathPos(path0) {
+    const path  = path0.split("/");
+    const t0    = path.pop();
+    const t1    = t0.split("-");
+    const n     = t1[1] * 1;
+
+    if (t1[0] === "pic" && typeof n === "number") {
+        return [intercalate("/", path), n];
+    }
+    return [path0, null];
+}
+
+
 /* ---------------------------------------- */
 
 function newText(txt) {
@@ -378,12 +405,15 @@ var picCache = new Image();
 /* ---------------------------------------- */
 /* initialization */
 
+const startPath = "/archive/collections";
+
 function initShow() {
     const g = toPx(screenGeo());
     console.log("initShow: screen geo=" + showGeo(g));
 
     setCSS(imgTab, {width : g.w, height : g.h});
     setCSS(colTab, {width : g.w});
+    showPath(startPath);
 }
 
 // ----------------------------------------
@@ -774,6 +804,13 @@ function showPage(page) {
         trc(1, "showPage: illegal rType " + rty);
     }
 
+}
+
+function showPath(path) {
+    const rPathPos = pathToPathPos(path);
+    const jReq = { rType: "json", rPathPos: rPathPos};
+    const jUrl = jsonReqToUrl(jReq);
+    gotoUrl(jUrl);
 }
 
 function gotoUrl(url) {
