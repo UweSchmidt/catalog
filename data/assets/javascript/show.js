@@ -11,7 +11,6 @@ function trc (t, Text) {
 
 const title   = "head-title";
 const imgTab  = "imageTab";
-const colTab  = "collectionTab";
 const img1    = "image1";
 const img2    = "image2";
 const info    = "info";
@@ -80,6 +79,19 @@ function addGeo(g1, g2) {
     } else {
         return { w : g1.w + g2.w,
                  h : g1.h + g2.h
+               };
+    }
+}
+
+function mulGeo(g1, g2) {
+    if (typeof g2 === "number") {
+        return { w : g1.w * g2,   // geo + scalar
+                 h : g1.h * g2
+               };
+
+    } else {
+        return { w : g1.w * g2.w,
+                 h : g1.h * g2.h
                };
     }
 }
@@ -202,7 +214,9 @@ function bestFitIconGeo() {
 /* urls */
 
 function toHref(url) {
-    return "javascript:gotoUrl('" + url + "');"
+    return "javascript:gotoUrl('"
+        + url
+        + "');";
 }
 
 function jsonReqToUrl(jsonReq) {
@@ -254,6 +268,11 @@ function nullReq(req) {
     return (! req);
 }
 
+function isColReq(req) {
+    const pos = req.rPathPos[1];
+    return (typeof pos != "number");
+}
+
 function editUrl(req) {
     return 'javascript:openEditUrl('
         + qt(req.rPathPos[0])
@@ -274,6 +293,9 @@ function pathToPathPos(path0) {
     return [path0, null];
 }
 
+// path constants
+function pathArchive()     { return "/archive"; }
+function pathCollections() { return "/archive/collections"; }
 
 /* ---------------------------------------- */
 
@@ -360,18 +382,14 @@ function hideElem(id) {
     setCSS(id, "display", "none");
 }
 
-function showColTab() {
-    hideElem(imgTab);
-    showElem(colTab);
-}
-
 function showImg2() {
     hideElem(img1);
     showElem(img2);
 }
 
 function isHidden(id) {
-    return getStyle(id, "display") === "none";
+    const s = getStyle(id, "display");
+    return ! s || s === "none";
 }
 
 function changeElems(id1, id2) {
@@ -388,7 +406,6 @@ function toggleElems(id1, id2) {
 }
 
 function toggleImg12()  { toggleElems(img1,   img2);   }
-function toggleImgCol() { toggleElems(imgTab, colTab); }
 
 function nextImgId() {
     return isHidden(img1) ? img1 : img2;
@@ -405,15 +422,12 @@ var picCache = new Image();
 /* ---------------------------------------- */
 /* initialization */
 
-const startPath = "/archive/collections";
-
 function initShow() {
     const g = toPx(screenGeo());
     console.log("initShow: screen geo=" + showGeo(g));
 
     setCSS(imgTab, {width : g.w, height : g.h});
-    setCSS(colTab, {width : g.w});
-    showPath(startPath);
+    showPath(pathCollections());
 }
 
 // ----------------------------------------
@@ -580,32 +594,53 @@ function showCol(page) {
 }
 
 function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
-    const iconGeo = bestFitIconGeo();       // the geometry of nav icons
-    const reqGeo  = bestFitToGeo(iconGeo);  // the geometry of the requested icons (maybe larger than iconGeo)
-    const scrGeo  = screenGeo();
-    const g       = toPx(iconGeo);
-
     // geometry for navigation grid
-    const gap    = 4;
-    const i2h    = div(iconGeo.h - gap, 2);
-    const i2w    = div(3 * i2h, 2);
-    const icoGeo = {w: i2w, h: i2h};       // the icon size for nav icons
-    const navGeo = {w: 3 * i2w + 2 * gap,  // the size of the navigation grid
-                    h: 2 * i2w + 1 * gap
-                   };
-    const icoGpx = toPx(icoGeo);
-    const numCols = Math.max(div(scrGeo.w, iconGeo.w + gap));
+    const gap      = 4;
+    const padding  = 10;
+    const border   = 1;
+    const border2  = 2 * border;
+    const gridGeo  = {w: 3, h: 2};
 
-    trc(1, "iconGeo=" + showGeo(iconGeo));
-    trc(1, "icoGeo="  + showGeo(icoGeo));
-    trc(1, "navGeo="  + showGeo(navGeo));
-    trc(1, "reqGeo="  + showGeo(reqGeo));
-    trc(1, "numCols=" + numCols);
+    // geometry for icons with/without border
+    // in full and half size
+
+    const iconGeo  = bestFitIconGeo();       // the geometry of nav icons
+    const reqGeo   = bestFitToGeo(iconGeo);  // the geometry of the requested icons (maybe larger than iconGeo)
+    const scrGeo   = screenGeo();
+
+    // icon geo with border
+    const iconGeoB = addGeo(iconGeo, border2);
+
+    const i2h      = div(iconGeo.h - border2 - gap, 2);
+    const i2w      = div(3 * i2h, 2);
+    const ico2Geo  = {w: i2w, h: i2h};
+    const ico2GeoB = addGeo(ico2Geo,border2);
+
+    const gapGeo   = mulGeo(subGeo(gridGeo, 1), gap);
+    const navGeo   = addGeo(mulGeo(ico2GeoB, gridGeo), gapGeo);
+
+    const numCols = Math.max(div(scrGeo.w - 2 * padding, iconGeoB.w + gap));
+
+    // geometry in px
+    const iG       = toPx(iconGeo);
+    const iGB      = toPx(iconGeoB);
+    const i2G      = toPx(ico2Geo);
+    const i2GB     = toPx(ico2GeoB);
+
+    const cssBorder = border + "px solid #444";
+
+    trc(1, "iconGeo="  + showGeo(iconGeo));
+    trc(1, "ico2Geo="  + showGeo(ico2Geo));
+    trc(1, "iconGeoB=" + showGeo(iconGeoB));
+    trc(1, "ico2GeoB=" + showGeo(ico2GeoB));
+    trc(1, "navGeo="   + showGeo(navGeo));
+    trc(1, "reqGeo="   + showGeo(reqGeo));
+    trc(1, "numCols="  + numCols);
 
     function buildIcon(req) {
         const r = newElem("img");
-        setCSS(r, { width:  g.w,
-                    height: g.h
+        setCSS(r, { width:  "100%",
+                    height: "100%"
                   });
         r.src = imgReqToUrl(iconReq, reqGeo);
         return r;
@@ -616,13 +651,27 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
         return imgReqToUrl(ireq, reqGeo);
     }
 
+    function addBild(req, txt) {
+        return txt.endsWith(" ")
+            ? ( txt +
+                ( isColReq(req)
+                  ? "Album"
+                  : "Bild"
+                )
+              )
+            : txt;
+    }
+
     function buildColHeaderFooter(isHeader) {
 
         function buildHeadIcon() {
             const r = newElem("div");
-            setCSS(r, { width: g.w });
 
             if ( isHeader ) {
+                setCSS(r, { width:  iG.w,
+                            heigth: iG.h,
+                            border: cssBorder
+                          });
                 const a = newElem("a");
                 a.href = editUrl(colReq);
                 a.appendChild(buildIcon(iconReq));
@@ -649,7 +698,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
                 const t2 = colMeta["Descr:Subtitle"];
                 const t3 = colMeta["Descr:Comment"];
 
-                r.id = "collection-header-title"
+                r.id = "collection-header-title";
 
                 if (t1) {
                     r.appendChild(buildLine("title", t1));
@@ -666,13 +715,20 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
 
         function buildNav() {
 
-            function buildNavIcon(ico, tt) {
-                const r = newElem("div");
+            function buildNavIcon(ico, tt0) {
                 if (! ico) {
-                    return r;
+                    return newElem("div");
                 }
+
                 const req = ico.eReq;
                 const md  = ico.eMeta;
+
+                const r = newElem("div");
+                setCSS(r, { width:  i2G.w,
+                            height: i2G.h,
+                            border: cssBorder
+                          });
+                r.classList.add("navicon");
 
                 if (! req) {
                     return r;
@@ -680,11 +736,13 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
 
                 const a = newElem("a");
                 a.href  = toHref(jsonReqToUrl(req));
-                a.title = md["Descr:Title"] || tt || "";
+                a.title = md["Descr:Title"]
+                       || addBild(req, tt0)
+                       || "";
 
                 const i = newElem("img");
-                setCSS(i, { width:  icoGpx.w,
-                            height: icoGpx.h
+                setCSS(i, { width:  "100%",
+                            height: "100%"
                           });
                 i.src = toIconUrl(req, reqGeo);
                 a.appendChild(i);
@@ -695,17 +753,17 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
 
             const r = newElem("div");
             setCSS(r, { display:                 "grid",
-                        "grid-template-columns": replicate(3, " " + icoGpx.w),
-                        "grid-template-rows":    replicate(2, " " + icoGpx.h),
+                        "grid-template-columns": replicate(3, " " + i2GB.w),
+                        "grid-template-rows":    replicate(2, " " + i2GB.h),
                         "grid-gap":              gap + "px"
                       });
 
             const i1 = buildNavIcon();
             const i2 = buildNavIcon(navIcons.par,  "umfassendes Album");
             const i3 = buildNavIcon();
-            const i4 = buildNavIcon(navIcons.prev, "voriges Bild/Album");
-            const i5 = buildNavIcon(c1Icon,        "erstes Bild/Album");
-            const i6 = buildNavIcon(navIcons.next, "nächstes Bild/Album");
+            const i4 = buildNavIcon(navIcons.prev, "voriges ");
+            const i5 = buildNavIcon(c1Icon,        "erstes ");
+            const i6 = buildNavIcon(navIcons.next, "nächstes ");
 
 
             r.appendChild(i1);
@@ -720,7 +778,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
         const h = newElem("div");
         h.id = isHeader ? "collection-header" : "collection-footer";
         setCSS(h, { display: "grid",
-                    "grid-template-columns": g.w + " auto " + navGeo.w + "px",
+                    "grid-template-columns": iGB.w + " auto " + navGeo.w + "px",
                     "grid-column-gap": "1em"
                   });
         h.appendChild(buildHeadIcon());
@@ -733,11 +791,9 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
         const r = newElem("div");
         r.id = "collection-contents";
         setCSS(r, { display: "grid",
-                    "grid-template-columns": replicate(numCols, " " + g.w),
-                    "grid-auto-rows": g.h,
+                    "grid-template-columns": replicate(numCols, " " + iGB.w),
+                    "grid-auto-rows": iGB.h,
                     "grid-gap":       gap + "px",
-                    "margin-bottom": "12px",
-                    "margin-top":    "12px"
                   });
 
 
@@ -749,14 +805,19 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
             const ir = ce.eReq;
             const md = ce.eMeta;
             const e  = newElem("div");
+            setCSS(e, { width:  iG.w,
+                        height: iG.h,
+                        border: cssBorder
+                      });
 
             const a  = newElem("a");
             a.href   = toHref(jsonReqToUrl(ir));
-            a.title  = md["Descr:Title"] || ((i + 1) + ". Bild");
+            a.title  = md["Descr:Title"]
+                    || addBild(ir, (i + 1) + ". ");
 
             const im = newElem("img");
-            setCSS(im, { width:  g.w,
-                         height: g.h
+            setCSS(im, { width:  "100%",
+                         height: "100%"
                        });
             im.src = toIconUrl(ir, reqGeo);
             a.appendChild(im);
@@ -767,6 +828,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
     }
 
     const c = newElem("div");
+    setCSS(c, { padding: padding + "px"});
     c.id = "collection";
     c.classList.add("col");
 
@@ -786,7 +848,7 @@ function showPage(page) {
 
     buildInfo();
 
-    const rty = isCol() ? page.colDescr.eReq.rType : page.imgReq.rType;
+    const rty = isColPage() ? page.colDescr.eReq.rType : page.imgReq.rType;
 
     if (rty == "json") {
         showCol(page);
@@ -833,40 +895,40 @@ function showErr(err) {
 // ----------------------------------------
 // event handler
 
-function isCol() {
+function isColPage() {
     return ! (currPage.imgReq);
 }
 
 function gotoPrev() {
-    const req = isCol() ? currPage.navIcons.prev.eReq : currPage.imgNavRefs.prev;
+    const req = isColPage() ? currPage.navIcons.prev.eReq : currPage.imgNavRefs.prev;
     showNextPage(req);
 }
 
 function gotoNext() {
-    const req = isCol() ? currPage.navIcons.next.eReq : currPage.imgNavRefs.next;
+    const req = isColPage() ? currPage.navIcons.next.eReq : currPage.imgNavRefs.next;
     showNextPage(req);
 }
 
 function gotoPar() {
-    const req = isCol() ? currPage.navIcons.par.eReq : currPage.imgNavRefs.par;
+    const req = isColPage() ? currPage.navIcons.par.eReq : currPage.imgNavRefs.par;
     showNextPage(req);
 }
 
 // for slideshows
 function goForward() {
-    const req = isCol() ? currPage.navIcons.fwrd.eReq : currPage.imgNavRefs.fwrd;
+    const req = isColPage() ? currPage.navIcons.fwrd.eReq : currPage.imgNavRefs.fwrd;
     showNextPage(req);
 }
 
 function gotoChild(i) {
-    if (isCol()) {
+    if (isColPage()) {
         showNextPage(currPage.navIcons.contIcons[i].eReq);
     }
 }
 
 // reload
 function stayHere() {
-    const req = isCol() ? currPage.colDescr.eReq : currPage.imgReq;
+    const req = isColPage() ? currPage.colDescr.eReq : currPage.imgReq;
     showNextPage(req);
 }
 
@@ -887,7 +949,7 @@ function openEditPage(path, pos) {
 // ----------------------------------------
 
 function buildInfo() {
-    const md = isCol() ? currPage.colDescr.eMeta : currPage.img[2];
+    const md = isColPage() ? currPage.colDescr.eMeta : currPage.img[2];
     const it = getElem(infoTab);
     buildMetaInfo(it, md);
 }

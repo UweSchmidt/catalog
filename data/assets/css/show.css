@@ -5,6 +5,7 @@ body {
   color: white;
   background-color: #333;
   font-family:  Verdana, sans-serif;
+  font-size: 100%
 }
 
 #imageTab {
@@ -13,31 +14,17 @@ body {
   border:  0px;
   margin:  0px;
 
-  background-color: #555;
+  /*  background-color: #555; */
 
   position: absolute;
   top:      0px;
   left:     0px;
-}
-#collectionTab {
-  width:   100%;
-  margin:  0px;
-  border:  0px;
-  padding: 0px;
-
-  background-color: #500;
-
-  position: absolute;
-  top:      0px;
-  left:     0px;
-
-  display: none;
 }
 #image1 {
   width:  100px;
   height: 100px;
   margin:  0px;
-  border:  1px solid red;
+  /* border:  1px solid red; /* test */
   padding: 0px;
 
   position: absolute;
@@ -50,7 +37,7 @@ body {
   width:  100px;
   height: 100px;
   margin:  0px;
-  border:  1px solid green;
+  /* border:  1px solid green; /* test */
   padding: 0px;
 
   position: absolute;
@@ -65,8 +52,8 @@ body {
 
 #collection {
   /* width: 100%; */
-  border: 1px solid red;
-  padding: 1ex;
+  /* border: 1px solid red; */
+  background-color: #555;
 
   overflow: auto;
   display: block;
@@ -74,18 +61,27 @@ body {
 
 #collection-header {
   width: 100%;
-  border: 1px solid green;
+  /* border: 1px solid green;  /* test */
 }
 
 #collection-footer {
   width: 100%;
-  border: 1px solid green;
+  /* border: 1px solid green; /* test */
 }
 
 #collection-contents {
   width: 100%;
-  border: 1px solid blue;
+  /* border: 1px solid blue; /* test */
+  margin-bottom: 0.5em;
+  margin-top: 0.5em;
+}
 
+.navicon {
+  background-color: #505050;
+}
+
+.iconborder {
+  border: 1px solid #444;
 }
 
 /* -------------------- */
@@ -131,7 +127,7 @@ body {
 
 
 #info > h1 {
-  font-size: 28px;
+  font-size: 1.4em;
   font-weight: bold;
 }
 
@@ -152,13 +148,13 @@ body {
 div.key {
   font-weight: bold;
   /* border: 1px solid yellow; */
-  padding: 0.5ex;
+  padding: 0.1em;
   text-align: right;
 }
 
 div.value {
   /* border: 1px solid yellow; */
-  padding: 0.5ex;
+  padding: 0.1em;
   text-align: left;
 }
 
@@ -181,12 +177,12 @@ img.gif {
 }
 
 .title  {
-  font-size:   36px;
+  font-size:   1.4em;
   font-weight: bold;
 }
 
 .subtitle {
-  font-size:   24px;
+  font-size:   1.2em;
   font-weight: bold;
 }
 
