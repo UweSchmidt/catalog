@@ -115,6 +115,10 @@ function scaleGeo(g, s) {
     };
 }
 
+function fitsInto(g1, g2) {
+    return g1.w <= g2.w && g1.h <= g2.h;
+}
+
 function readGeo(txt) {
     if (txt === "org")
         return { w : 1, h : 1 };
@@ -140,11 +144,14 @@ function toPx(obj) {
 }
 
 function shrinkGeo(s, d) {
-    if (s.w <= d.w && s.h <= d.h)
+    if (fitsInto(s,d))
         return s;
     else
         return resizeGeo(s, d);
 }
+
+// computes the maximum geo with aspect ratio of s
+// that fits into d
 
 function resizeGeo(s, d) {
     if (s.w * d.h >= d.w * s.h)
@@ -163,8 +170,8 @@ function screenGeo() {
            };
 }
 
-function fitToScreenGeo(geo) {
-    return shrinkGeo(geo, screenGeo());
+function fitToScreenGeo(geo, blowUp) {
+    return (blowUp === "magnify" ? resizeGeo : shrinkGeo)(geo, screenGeo());
 }
 
 function placeOnScreen(geo) {
@@ -370,7 +377,13 @@ function newElem(tag, x2, x3, x4) {
         e.id = id;                 // set id
     }
     if (cls) {
-        e.classList.add(cls);      // set class
+        const clss = cls.split(" ");
+        for (let i = 0; i < clss.length; i++ ) {
+            const c = clss[i];
+            if (c) {
+                e.classList.add(c);
+            }
+        }
     }
     return e;
 }
@@ -461,8 +474,8 @@ function initShow() {
 // ----------------------------------------
 // display an ordinary image
 
-function loadImg(id, url, geo) {
-    const imgGeo = fitToScreenGeo(geo);
+function loadImg(id, url, geo, resizeAlg) {
+    const imgGeo = fitToScreenGeo(geo, resizeAlg);
     const offset = placeOnScreen(imgGeo);
     const off    = toPx(offset);
     const g      = toPx(imgGeo);
@@ -479,7 +492,7 @@ function loadImg(id, url, geo) {
                       { width:  g.w,
                         height: g.h
                       },
-                      "img"
+                      "img " + resizeAlg
                      );
     i.src   = url;
 
@@ -487,24 +500,27 @@ function loadImg(id, url, geo) {
 }
 
 
-function showImg(page) {
+function showImg1(page, resizeAlg) {
     const imgReq = page.imgReq;
-    const imgGeo = readGeo(page.oirGeo[0]);
+    const imgGeo = readGeo(page.oirGeo[0]);  // original geo of image
     const imgUrl = imgReqToUrl(imgReq);
 
     trc(1, "showImg: url=" + imgUrl + ", geo=" + showGeo(imgGeo));
 
     picCache.onload = () => {
-        loadImg(nextImgId(), imgUrl, imgGeo);
+        loadImg(nextImgId(), imgUrl, imgGeo, resizeAlg);
         toggleImg12();
     };
     picCache.src = imgUrl; // the .onload handler is triggered here
 }
 
+function showImg(page)          { showImg1(page, "no-magnify"); }
+function showMagnifiedImg(page) { showImg1(page, "magnify");    }
+
 // ----------------------------------------
 
-function loadMovie(id, url, geo, rType) {
-    const movGeo = fitToScreenGeo(geo);
+function loadMovie(id, url, geo, rType, resizeAlg) {
+    const movGeo = fitToScreenGeo(geo, resizeAlg);
     const offset = toPx(placeOnScreen(movGeo));
     const g      = toPx(movGeo);
     const style  = { width  : g.w,
@@ -545,7 +561,7 @@ function loadMovie(id, url, geo, rType) {
                            { width:  g.w,
                              height: g.h
                            },
-                           "gif"
+                           "gif " + resizeAlg
                           );
         v2.src   = url;
 
@@ -553,16 +569,19 @@ function loadMovie(id, url, geo, rType) {
     }
 }
 
-function showMovie(page) {
+function showMovie1(page, resizeAlg) {
     const movReq = page.imgReq;
     const movGeo = readGeo(page.oirGeo[0]);
     const movUrl = toMediaUrl(page.img);
 
     trc(1, "showMovie: url=" + movUrl + ", geo=" + showGeo(movGeo));
 
-    loadMovie(nextImgId(), movUrl, movGeo, movReq.rType);
+    loadMovie(nextImgId(), movUrl, movGeo, movReq.rType, resizeAlg);
     toggleImg12();
 }
+
+function showMovie(page)          { showMovie1(page, "no-magnify"); }
+function showMagnifiedMovie(page) { showMovie1(page,    "magnify"); }
 
 // ----------------------------------------
 
