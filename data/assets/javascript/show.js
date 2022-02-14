@@ -303,7 +303,7 @@ function newText(txt) {
     return document.createTextNode(txt);
 }
 
-function newElem(tag) {
+function newElem0(tag) {
     return document.createElement(tag);
 }
 
@@ -345,6 +345,34 @@ function setCSS(e, attrs, val) {
                typeof attrs + "," +
                typeof val + ")");
     }
+}
+
+function newElem(tag, x2, x3, x4) {
+    let id = "";
+    if (typeof x2 === "string") {  // elem id found
+        id = x2;
+        x2 = x3;
+        x3 = x4;
+    }
+    let css = {};
+    if (typeof x2 === "object") {  // style obj found
+        css = x2;
+        x2  = x3;
+    }
+    let cls = "";
+    if (typeof x2 === "string") {  // css class found
+        cls = x2;
+    }
+
+    const e = newElem0(tag);
+    setCSS(e, css);                // set style
+    if (id) {
+        e.id = id;                 // set id
+    }
+    if (cls) {
+        e.classList.add(cls);      // set class
+    }
+    return e;
 }
 
 // --------------------
@@ -447,11 +475,13 @@ function loadImg(id, url, geo) {
     const e = clearCont(getElem(id));
     setCSS(e, style);
 
-    const i = newElem("img");
-    i.id    = id + "-img";
-    i.classList.add("img");
+    const i = newElem("img", id + "-img",
+                      { width:  g.w,
+                        height: g.h
+                      },
+                      "img"
+                     );
     i.src   = url;
-    setCSS(i, {width: g.w, height: g.h});
 
     e.appendChild(i);
 }
@@ -491,9 +521,7 @@ function loadMovie(id, url, geo, rType) {
     const id1   = id + "-movie";
 
     if (rType === "movie") {
-        const v    = newElem("video");
-        v.id       = id1;
-        v.classList.add("video");
+        const v    = newElem("video", id1, {}, "video");
         v.autoplay = "autoplay";
         v.muted    = "muted";
         v.width    = movGeo.w;
@@ -513,11 +541,13 @@ function loadMovie(id, url, geo, rType) {
 
     }
     else if (rType === "gif") {
-        const v2 = newElem("img");
-        v2.id    = id1;
-        v2.classList.add("gif");
+        const v2 = newElem("img", id1,
+                           { width:  g.w,
+                             height: g.h
+                           },
+                           "gif"
+                          );
         v2.src   = url;
-        setCSS(v2, {width: g.w, height: g.h});
 
         e.appendChild(v2);
     }
@@ -553,13 +583,13 @@ function showBlog(page) {
               });
 
     // build blog contents div
-    const b  = newElem("div");
-    b.id     = id + "-blog";
-    b.classList.add( "blog");
-    setCSS(b, { width:    geo.w,
-                height:   geo.h,
-                overflow: "auto"
-              });
+    const b  = newElem("div", id + "-blog",
+                       { width:    geo.w,
+                         height:   geo.h,
+                         overflow: "auto"
+                       },
+                       "blog"
+                      );
     b.innerHTML = txt;
 
     e.appendChild(b);
@@ -638,10 +668,10 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
     trc(1, "numCols="  + numCols);
 
     function buildIcon(req) {
-        const r = newElem("img");
-        setCSS(r, { width:  "100%",
-                    height: "100%"
-                  });
+        const r = newElem("img",
+                          { width:  "100%",
+                            height: "100%"
+                          });
         r.src = imgReqToUrl(iconReq, reqGeo);
         return r;
     }
@@ -665,29 +695,28 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
     function buildColHeaderFooter(isHeader) {
 
         function buildHeadIcon() {
-            const r = newElem("div");
-
             if ( isHeader ) {
-                setCSS(r, { width:  iG.w,
-                            heigth: iG.h,
-                            border: cssBorder
-                          });
+                const r = newElem("div", "collection-header-icon",
+                                  { width:  iG.w,
+                                    heigth: iG.h,
+                                    border: cssBorder
+                                  });
+
                 const a = newElem("a");
-                a.href = editUrl(colReq);
+                a.href  = editUrl(colReq);
                 a.appendChild(buildIcon(iconReq));
 
-                r.id = "collection-header-icon";
                 r.appendChild(a);
+                return r;
+            } else {
+                return newElem("div");
             }
-
-            return r;
         }
 
         function buildLine(cls, txt) {
-            const l = newElem("div");
-            l.classList.add(cls);
+            const l = newElem("div", "", {}, cls);
             l.appendChild(newText(txt));
-            return l
+            return l;
         }
 
         function buildHeadLine() {
@@ -723,13 +752,13 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
                 const req = ico.eReq;
                 const md  = ico.eMeta;
 
-                const r = newElem("div");
-                setCSS(r, { width:  i2G.w,
-                            height: i2G.h,
-                            border: cssBorder
-                          });
-                r.classList.add("navicon");
-
+                const r = newElem("div",
+                                  { width:  i2G.w,
+                                    height: i2G.h,
+                                    border: cssBorder
+                                  },
+                                  "navicon"
+                                 );
                 if (! req) {
                     return r;
                 }
@@ -740,10 +769,10 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
                        || addBild(req, tt0)
                        || "";
 
-                const i = newElem("img");
-                setCSS(i, { width:  "100%",
-                            height: "100%"
-                          });
+                const i = newElem("img",
+                                  { width:  "100%",
+                                    height: "100%"
+                                  });
                 i.src = toIconUrl(req, reqGeo);
                 a.appendChild(i);
 
@@ -751,12 +780,12 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
                 return r;
             }
 
-            const r = newElem("div");
-            setCSS(r, { display:                 "grid",
-                        "grid-template-columns": replicate(3, " " + i2GB.w),
-                        "grid-template-rows":    replicate(2, " " + i2GB.h),
-                        "grid-gap":              gap + "px"
-                      });
+            const r = newElem("div",
+                              { display:                 "grid",
+                                "grid-template-columns": replicate(3, " " + i2GB.w),
+                                "grid-template-rows":    replicate(2, " " + i2GB.h),
+                                "grid-gap":              gap + "px"
+                              });
 
             const i1 = buildNavIcon();
             const i2 = buildNavIcon(navIcons.par,  "umfassendes Album");
@@ -775,12 +804,12 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
             return r;
         }
 
-        const h = newElem("div");
-        h.id = isHeader ? "collection-header" : "collection-footer";
-        setCSS(h, { display: "grid",
-                    "grid-template-columns": iGB.w + " auto " + navGeo.w + "px",
-                    "grid-column-gap": "1em"
-                  });
+        const h = newElem("div",
+                          isHeader ? "collection-header" : "collection-footer",
+                          { display: "grid",
+                            "grid-template-columns": iGB.w + " auto " + navGeo.w + "px",
+                            "grid-column-gap": "1em"
+                          });
         h.appendChild(buildHeadIcon());
         h.appendChild(buildHeadLine());
         h.appendChild(buildNav());
@@ -788,13 +817,12 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
     }
 
     function buildColContents() {
-        const r = newElem("div");
-        r.id = "collection-contents";
-        setCSS(r, { display: "grid",
-                    "grid-template-columns": replicate(numCols, " " + iGB.w),
-                    "grid-auto-rows": iGB.h,
-                    "grid-gap":       gap + "px",
-                  });
+        const r = newElem("div", "collection-contents",
+                          { display: "grid",
+                            "grid-template-columns": replicate(numCols, " " + iGB.w),
+                            "grid-auto-rows": iGB.h,
+                            "grid-gap":       gap + "px",
+                          });
 
 
         for (let i = 0; i < colIcons.length; i++) {
@@ -804,21 +832,21 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
 
             const ir = ce.eReq;
             const md = ce.eMeta;
-            const e  = newElem("div");
-            setCSS(e, { width:  iG.w,
-                        height: iG.h,
-                        border: cssBorder
-                      });
+            const e  = newElem("div",
+                               { width:  iG.w,
+                                 height: iG.h,
+                                 border: cssBorder
+                               });
 
             const a  = newElem("a");
             a.href   = toHref(jsonReqToUrl(ir));
             a.title  = md["Descr:Title"]
                     || addBild(ir, (i + 1) + ". ");
 
-            const im = newElem("img");
-            setCSS(im, { width:  "100%",
-                         height: "100%"
-                       });
+            const im = newElem("img",
+                               { width:  "100%",
+                                 height: "100%"
+                               });
             im.src = toIconUrl(ir, reqGeo);
             a.appendChild(im);
             e.appendChild(a);
@@ -827,11 +855,12 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
         return r;
     }
 
-    const c = newElem("div");
-    setCSS(c, { padding: padding + "px"});
-    c.id = "collection";
-    c.classList.add("col");
-
+    const c = newElem("div", "collection",
+                      { padding:      padding + "px",
+                        "min-height": scrGeo.h + "px"
+                      },
+                      "col"
+                     );
     c.appendChild(buildColHeaderFooter(true));
     c.appendChild(buildColContents());
     c.appendChild(buildColHeaderFooter(false));
@@ -1475,15 +1504,13 @@ function buildMetaInfo (t, md) {
         const v = md[k];
         if ( v ) {
             // build key div
-            const kw = newElem("div");
+            const kw = newElem("div", "", "key");
             const kx = newText(metaInfo[k]);
-            kw.classList.add("key");
             kw.appendChild(kx);
 
             // build value div
-            const vl = newElem("div");
+            const vl = newElem("div", "", "value");
             const tx = lookupFmt(k)(md[k]);
-            vl.classList.add("value");
             vl.appendChild(tx);
 
             // insert key-value into info table
