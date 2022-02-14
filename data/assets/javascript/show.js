@@ -479,10 +479,11 @@ function loadImg(id, url, geo, resizeAlg) {
     const offset = placeOnScreen(imgGeo);
     const off    = toPx(offset);
     const g      = toPx(imgGeo);
-    const style  = { width  : g.w,
-                     height : g.h,
-                     left   : off.x,
-                     top    : off.y
+    const style  = { width    : g.w,
+                     height   : g.h,
+                     left     : off.x,
+                     top      : off.y,
+                     overflow : "hidden"
                    };
     // get element, clear contents and set style attributes
     const e = clearCont(getElem(id));
@@ -499,16 +500,49 @@ function loadImg(id, url, geo, resizeAlg) {
     e.appendChild(i);
 }
 
+function loadFullImg(id, url, imgGeo) {
+    const scrGeo = screenGeo();
+    const style  = { width    : scrGeo.w + "px",
+                     height   : scrGeo.h + "px",
+                     left     : "0px",
+                     top      : "0px",
+                     overflow : "auto"     // !!! image becomes scrollable
+                   };
+    // get element, clear contents and set style attributes
+    const e = clearCont(getElem(id));
+    setCSS(e, style);
+
+    const i = newElem("img", id + "-img",
+                      { width:  imgGeo.w + "px",  // original geo
+                        height: imgGeo.h + "px"   // often larger than screen geo
+                      },
+                      "img fullsize"
+                     );
+    i.src   = url;
+
+    e.appendChild(i);
+}
+
+function loadImg1(id, req, geo, resizeAlg) {
+    if (resizeAlg === "fullsize") {
+        loadFullImg(id, req, geo);
+    } else {
+        loadImg(id, req, geo, resizeAlg);
+    }
+}
 
 function showImg1(page, resizeAlg) {
     const imgReq = page.imgReq;
     const imgGeo = readGeo(page.oirGeo[0]);  // original geo of image
-    const imgUrl = imgReqToUrl(imgReq);
 
-    trc(1, "showImg: url=" + imgUrl + ", geo=" + showGeo(imgGeo));
+    const imgUrl = (resizeAlg === "fullsize" && fitsInto(screenGeo(), imgGeo))
+          ? imgReqToUrl(imgReq, readGeo("org"))
+          : imgReqToUrl(imgReq);
+
+    trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
 
     picCache.onload = () => {
-        loadImg(nextImgId(), imgUrl, imgGeo, resizeAlg);
+        loadImg1(nextImgId(), imgUrl, imgGeo, resizeAlg);
         toggleImg12();
     };
     picCache.src = imgUrl; // the .onload handler is triggered here
@@ -516,6 +550,7 @@ function showImg1(page, resizeAlg) {
 
 function showImg(page)          { showImg1(page, "no-magnify"); }
 function showMagnifiedImg(page) { showImg1(page, "magnify");    }
+function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
 
 // ----------------------------------------
 
