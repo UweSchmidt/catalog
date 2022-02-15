@@ -119,6 +119,10 @@ function fitsInto(g1, g2) {
     return g1.w <= g2.w && g1.h <= g2.h;
 }
 
+function lessThan(g1, g2) {
+    return g1.w < g2.w && g1.h < g2.h;
+}
+
 function readGeo(txt) {
     if (txt === "org")
         return { w : 1, h : 1 };
@@ -278,6 +282,14 @@ function nullReq(req) {
 function isColReq(req) {
     const pos = req.rPathPos[1];
     return (typeof pos != "number");
+}
+
+function isPicReq(req) {
+    return ["img", "imgfx", "icon", "iconp"].includes(req.rType);
+}
+
+function isMovieReq(req) {
+    return ["movie", "gif"].includes(req.rType);
 }
 
 function editUrl(req) {
@@ -452,6 +464,10 @@ function nextImgId() {
     return isHidden(img1) ? img1 : img2;
 }
 
+function currImgId() {
+    return isHidden(img1) ? img2 : img1;
+}
+
 /* ---------------------------------------- */
 /* global state */
 
@@ -552,6 +568,8 @@ function showImg(page)          { showImg1(page, "no-magnify"); }
 function showMagnifiedImg(page) { showImg1(page, "magnify");    }
 function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
 
+function isFullImg() {
+}
 // ----------------------------------------
 
 function loadMovie(id, url, geo, rType, resizeAlg) {
@@ -572,7 +590,7 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
     const id1   = id + "-movie";
 
     if (rType === "movie") {
-        const v    = newElem("video", id1, {}, "video");
+        const v    = newElem("video", id1, {}, "movie video " + resizeAlg);
         v.autoplay = "autoplay";
         v.muted    = "muted";
         v.width    = movGeo.w;
@@ -596,7 +614,7 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
                            { width:  g.w,
                              height: g.h
                            },
-                           "gif " + resizeAlg
+                           "movie gif " + resizeAlg
                           );
         v2.src   = url;
 
@@ -976,11 +994,71 @@ function showErr(err) {
 }
 
 // ----------------------------------------
-// event handler
+// predicates for currPage
 
 function isColPage() {
     return ! (currPage.imgReq);
 }
+
+function isImgPage() {
+    return ! isColPage();
+}
+
+function isPanoImgPage() {               // a panoaram image is larger
+    if ( isImgPage() ) {                 // tha the screen and has an
+        const req = currPage.imgReq;     // aspect ratio >= 2
+        if ( isPicReq(req) ) {
+            const orgGeo = currPage.oirGeo[0];
+            if ( fitsInto(screenGeo(), orgGeo) ) {
+                const ar = orgGeo.w / orgGeo.h;
+                return ar >= 2;
+            }
+        }
+    }
+    return false;
+}
+
+function isTinyImgPage() {
+    if ( isImgPage() ) {
+        const req = currPage.imgReq;
+        if ( isPicReq(req) || isMovieReq(req) ) {
+            const orgGeo = currPage.oirGeo[0];
+            return lessThan(orgGeo, screenGeo());
+        }
+    }
+    return false;
+}
+
+// ----------------------------------------
+// predicates for current visible part of DOM
+
+function isPic() {
+    const e = getElem(currImgId() + "-img");
+    return e && e.classList.contains("img");
+}
+
+function isMovie() {
+    const e = getElem(currImgId() + "-movie");
+    return e && e.classList.contains("movie");
+}
+
+function isFullImg() {
+    const e = getElem(currImgId() + "-img");
+    return e && e.classList.contains("fullsize");
+}
+
+function isMagnifiedImg() {
+    const e = getElem(currImgId() + "-img") || getElem(currImgId + "-movie");
+    return e && e.classList.contains("magnify");
+}
+
+function isPanoImg() {
+    const e = getElem(currImgId() + "-img");
+    return e && e.classList.contains("panorama");
+}
+
+// ----------------------------------------
+// event handler
 
 function gotoPrev() {
     const req = isColPage() ? currPage.navIcons.prev.eReq : currPage.imgNavRefs.prev;
@@ -1071,6 +1149,31 @@ function toggleHelp() {
     }
 }
 
+function toggleFullImg() {
+    if ( isPic() ) {
+        if ( isFullImg() ) {
+            showImg(currPage);            // reset to normal size
+        } else {
+            showFullSizeImg(currPage);    // show in full resolution
+        }
+    }
+}
+
+function toggleMagnifiedImg() {
+    if ( isPic() || isMovie() ) {
+        if ( isTinyImgPage() ) {
+            if ( isMagnifiedImg() ) {
+                showPage(currPage);
+            } else {
+                if ( isPic() ) {
+                    showMagnifiedImg(currPage);
+                } else {
+                    showMagnifiedMovie(currPage);
+                }
+            }
+        }
+    }
+}
 
 // ----------------------------------------
 
