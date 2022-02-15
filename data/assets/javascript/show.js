@@ -275,6 +275,17 @@ function dirPath(p) {
     return p.substr(0, ix);
 }
 
+function baseName(x) {      // basename works with requests, pathPos and strings
+    if ( typeof x === "string") {
+        const ix = x.lastIndexOf("/");
+        return x.slice(ix + 1);
+    }
+    if (x.rPathPos) {
+        return baseName(x.rPathPos);
+    }
+    return baseName(x[0]);
+}
+
 function nullReq(req) {
     return (! req);
 }
@@ -948,6 +959,7 @@ function showPage(page) {
     currPage = page;
 
     buildInfo();
+    setPageTitle();
 
     const rty = isColPage() ? page.colDescr.eReq.rType : page.imgReq.rType;
 
@@ -1183,6 +1195,21 @@ function setPageTitle (page) {
 
     setContents(title, t);
 }
+
+function setPageTitle() {
+    let txt = "";
+    if ( isColPage() ) {
+        const cd = currPage.colDescr;
+        const md = cd.eMeta;
+        const rq = cd.rPathPos;
+        txt = md["Descr:Title"] || baseName(rq);
+    } else {
+        txt = baseName(Page.img[0]);
+    }
+    const e = getElem(title);
+    clearCont(e).appendChild(newText(txt));
+}
+
 
 // ----------------------------------------
 
