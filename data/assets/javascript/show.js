@@ -70,6 +70,8 @@ function intercalate(s, xs) {
 /* ---------------------------------------- */
 /* geometry ops */
 
+const infiniteWidth = 1000000;
+
 function addGeo(g1, g2) {
     if (typeof g2 === "number") {
         return { w : g1.w + g2,   // geo + scalar
@@ -123,6 +125,11 @@ function lessThan(g1, g2) {
     return g1.w < g2.w && g1.h < g2.h;
 }
 
+function isPano(g) {
+    return fitsInto(screenGeo(), g)
+        && (g.w / g.h >= 2);
+}
+
 function readGeo(txt) {
     if (txt === "org")
         return { w : 1, h : 1 };
@@ -166,6 +173,14 @@ function resizeGeo(s, d) {
         return { w : div(d.h * s.w, s.h),
                  h : d.h
                };
+}
+
+function resizeToHeight(s, d) {
+    return resizeGeo(s, {w: infiniteWidth, h: d.h});
+}
+
+function resizeToScreenHeight(g) {
+    return resizeToHeight(g, screenGeo());
 }
 
 function screenGeo() {
@@ -550,10 +565,19 @@ function loadFullImg(id, url, imgGeo) {
     e.appendChild(i);
 }
 
+function loadPanoramaImg(id, url, imgGeo) {
+    // TODO dummy
+    loadFullImg(id, url, imgGeo);
+}
+
 function loadImg1(id, req, geo, resizeAlg) {
     if (resizeAlg === "fullsize") {
         loadFullImg(id, req, geo);
-    } else {
+    }
+    else if (resizeAlg === "panorama") {
+        loadPanoramaImg(id, req, geo);
+    }
+    else {
         loadImg(id, req, geo, resizeAlg);
     }
 }
@@ -564,7 +588,10 @@ function showImg1(page, resizeAlg) {
 
     const imgUrl = (resizeAlg === "fullsize" && fitsInto(screenGeo(), imgGeo))
           ? imgReqToUrl(imgReq, readGeo("org"))
-          : imgReqToUrl(imgReq);
+          : ( resizeAlg === "panorama" && isPano(imgGeo)
+              ? imgReqToUrl(imgReq, resizeToScreenHeight(imgGeo))
+              : imgReqToUrl(imgReq)
+            );
 
     trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
 
@@ -578,6 +605,7 @@ function showImg1(page, resizeAlg) {
 function showImg(page)          { showImg1(page, "no-magnify"); }
 function showMagnifiedImg(page) { showImg1(page, "magnify");    }
 function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
+function showPanoramaImg(page)  { showImg1(page, "panorama");   }
 
 function isFullImg() {
 }
@@ -683,7 +711,6 @@ function showBlog(page) {
 // ----------------------------------------
 
 function showCol(page) {
-    trc(1, "showCol: still a dummy page");
     const colDescr = page.colDescr;
     const colReq   = colDescr.eReq;
     const colMeta  = colDescr.eMeta;
@@ -1020,13 +1047,9 @@ function isPanoImgPage() {               // a panoaram image is larger
     if ( isImgPage() ) {                 // tha the screen and has an
         const req = currPage.imgReq;     // aspect ratio >= 2
         if ( isPicReq(req) ) {
-            const orgGeo = currPage.oirGeo[0];
-            if ( fitsInto(screenGeo(), orgGeo) ) {
-                const ar = orgGeo.w / orgGeo.h;
-                return ar >= 2;
+            return isPano(readGeo(currPage.oirGeo[0]));
             }
         }
-    }
     return false;
 }
 
@@ -1189,13 +1212,6 @@ function toggleMagnifiedImg() {
 
 // ----------------------------------------
 
-function setPageTitle (page) {
-    const md = page.img[2];
-    const t  = md["Descr:Title1"] || "Bilder-Show";
-
-    setContents(title, t);
-}
-
 function setPageTitle() {
     let txt = "";
     if ( isColPage() ) {
@@ -1204,7 +1220,7 @@ function setPageTitle() {
         const rq = cd.rPathPos;
         txt = md["Descr:Title"] || baseName(rq);
     } else {
-        txt = baseName(Page.img[0]);
+        txt = baseName(currPage.img[0]);
     }
     const e = getElem(title);
     clearCont(e).appendChild(newText(txt));
