@@ -538,7 +538,6 @@ function loadImg(id, url, geo, resizeAlg) {
                       "img " + resizeAlg
                      );
     i.src   = url;
-
     e.appendChild(i);
 }
 
@@ -561,13 +560,52 @@ function loadFullImg(id, url, imgGeo) {
                       "img fullsize"
                      );
     i.src   = url;
-
     e.appendChild(i);
 }
 
 function loadPanoramaImg(id, url, imgGeo) {
-    // TODO dummy
-    loadFullImg(id, url, imgGeo);
+    const scrGeo = screenGeo();
+    const leftOffset = scrGeo.w - imgGeo.w;
+
+    // add keyframe style
+    const s = clearCont(getElem("panorama-css"));
+    const kf  = "pano-move-right";
+    const css = "@keyframes " + kf + " {"
+          + "   0% {left: 0px}"
+          + "  45% {left: " + leftOffset + "px}"
+          + "  55% {left: " + leftOffset + "px}"
+          + " 100% {left: 0px}"
+          + "}";
+    s.appendChild(newText(css));
+
+    const style = { width    : scrGeo.w + "px",
+                    height   : scrGeo.h + "px",
+                    left     : "0px",
+                    top      : "0px",
+                    overflow : "hidden"
+                  };
+    const e = clearCont(getElem(id));
+    setCSS(e, style);
+
+    const d = 2.5 * 7.0 * (imgGeo.w / imgGeo.h);
+    const i = newElem("img", id + "-img",
+                      { position:                    "absolute",
+                        left:                        "0px",
+                        top:                         "0px",
+                        "animation-name":            kf,
+                        "animation-duration":        d + "s",
+                        "animation-delay":           "2s",
+                        "animation-iteration-count": 1,
+                        "animation-direction":       "alternate", // redundant due to animation-iteration-count: 1
+                        "animation-timing-function": "ease-in-out",
+                        "animation-play-state":      "paused"
+                      },
+                      "img panorama"
+                     );
+    // i.onload = "javascript:togglePanoAnimation()";
+    i.addEventListener("load", togglePanoAnimation);
+    i.src = url;
+    e.appendChild(i);
 }
 
 function loadImg1(id, req, geo, resizeAlg) {
@@ -584,9 +622,10 @@ function loadImg1(id, req, geo, resizeAlg) {
 
 function showImg1(page, resizeAlg) {
     const imgReq = page.imgReq;
-    const imgGeo = readGeo(page.oirGeo[0]);  // original geo of image
+    const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
+    const imgGeo = resizeToScreenHeight(orgGeo);
 
-    const imgUrl = (resizeAlg === "fullsize" && fitsInto(screenGeo(), imgGeo))
+    const imgUrl = (resizeAlg === "fullsize" && fitsInto(screenGeo(), orgGeo))
           ? imgReqToUrl(imgReq, readGeo("org"))
           : ( resizeAlg === "panorama" && isPano(imgGeo)
               ? imgReqToUrl(imgReq, resizeToScreenHeight(imgGeo))
@@ -1207,6 +1246,16 @@ function toggleMagnifiedImg() {
                 }
             }
         }
+    }
+}
+
+function togglePanoAnimation() {
+    trc(1, "togglePanoAnimation fired");
+    if (isPanoImg()) {
+        const i = getElem(currImgId() + "-img");
+        const s = i.style.animationPlayState;
+        setCSS(i, { animationPlayState: (s === "paused" ? "running" : "paused")
+                  });
     }
 }
 
