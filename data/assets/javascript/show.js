@@ -566,17 +566,37 @@ function loadFullImg(id, url, imgGeo) {
 function loadPanoramaImg(id, url, imgGeo) {
     const scrGeo = screenGeo();
     const leftOffset = scrGeo.w - imgGeo.w;
+    const d = 2.5 * 7.0 * (imgGeo.w / imgGeo.h);
 
     // add keyframe style
     const s = clearCont(getElem("panorama-css"));
+
     const kf  = "pano-move-right";
-    const css = "@keyframes " + kf + " {"
-          + "   0% {left: 0px}"
-          + "  45% {left: " + leftOffset + "px}"
-          + "  55% {left: " + leftOffset + "px}"
-          + " 100% {left: 0px}"
-          + "}";
-    s.appendChild(newText(css));
+    const cssKeyFrames = `
+          @keyframes ${kf} {
+                0% {left: 0px}
+               45% {left: ${leftOffset}px}
+               55% {left: ${leftOffset}px}
+              100% {left: 0px}
+          }
+          `;
+
+    const cssPanoClass = `
+          img.panorama {
+              position: absolute;
+              left:     0px;
+              top:      0px;
+              animation-name:            ${kf};
+              animation-duration:        ${d}s;
+              animation-delay:           2s;
+              animation-iteration-count: 1;
+              animation-direction:       alternate;    /* redundant due to animation-iteration-count: 1 */
+              animation-timing-function: ease-in-out;
+              animation-play-state:      paused;
+          }
+          `;
+
+    s.appendChild(newText(cssKeyFrames + cssPanoClass));
 
     const style = { width    : scrGeo.w + "px",
                     height   : scrGeo.h + "px",
@@ -587,22 +607,7 @@ function loadPanoramaImg(id, url, imgGeo) {
     const e = clearCont(getElem(id));
     setCSS(e, style);
 
-    const d = 2.5 * 7.0 * (imgGeo.w / imgGeo.h);
-    const i = newElem("img", id + "-img",
-                      { position:                    "absolute",
-                        left:                        "0px",
-                        top:                         "0px",
-                        "animation-name":            kf,
-                        "animation-duration":        d + "s",
-                        "animation-delay":           "2s",
-                        "animation-iteration-count": 1,
-                        "animation-direction":       "alternate", // redundant due to animation-iteration-count: 1
-                        "animation-timing-function": "ease-in-out",
-                        "animation-play-state":      "paused"
-                      },
-                      "img panorama"
-                     );
-    // i.onload = "javascript:togglePanoAnimation()";
+    const i = newElem("img", id + "-img", {}, "img panorama");
     i.addEventListener("load", togglePanoAnimation);
     i.src = url;
     e.appendChild(i);
@@ -1254,8 +1259,21 @@ function togglePanoAnimation() {
     if (isPanoImg()) {
         const i = getElem(currImgId() + "-img");
         const s = i.style.animationPlayState;
-        setCSS(i, { animationPlayState: (s === "paused" ? "running" : "paused")
+        setCSS(i, { animationPlayState: (s === "running" ? "paused" : "running")
                   });
+    }
+}
+
+function restartPanoAnimation() {
+    trc(1, "restartPanoAnimation fired");
+    if (isPanoImg()) {
+        const i = getElem(currImgId() + "-img");
+        i.style.animationPlayState = null;
+        i.classList.remove("panorama");
+        setTimeout(() => {
+            i.classList.add("panorama");
+            togglePanoAnimation();
+        }, 1000);
     }
 }
 
