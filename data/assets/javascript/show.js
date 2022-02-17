@@ -126,8 +126,17 @@ function lessThan(g1, g2) {
 }
 
 function isPano(g) {
+    const ar = aspectRatio(g);
     return fitsInto(screenGeo(), g)
-        && (g.w / g.h >= 2);
+        && ( ar >= 2 || ar <= 0.5 );
+}
+
+function isHorizontal(g) {
+    return aspectRatio(g) > 1;
+}
+
+function aspectRatio(g) {
+    return g.w / g.h;
 }
 
 function readGeo(txt) {
@@ -179,8 +188,16 @@ function resizeToHeight(s, d) {
     return resizeGeo(s, {w: infiniteWidth, h: d.h});
 }
 
+function resizeToWidth(s, d) {
+    return resizeGeo(s, {w: d.w, h: infiniteWidth});
+}
+
 function resizeToScreenHeight(g) {
     return resizeToHeight(g, screenGeo());
+}
+
+function resizeToScreenWidth(g) {
+    return resizeToWidth(g, screenGeo());
 }
 
 function screenGeo() {
@@ -565,27 +582,31 @@ function loadFullImg(id, url, imgGeo) {
 
 function loadPanoramaImg(id, url, imgGeo) {
     const scrGeo = screenGeo();
-    const leftOffset = scrGeo.w - imgGeo.w;
-    const d = 2.5 * 7.0 * (imgGeo.w / imgGeo.h);
+    const isH    = isHorizontal(imgGeo);
+    const ar     = aspectRatio(imgGeo);
+    const offset = isH ? scrGeo.w - imgGeo.w : scrGeo.h - imgGeo.h;
+    const d = 2.5 * 7.0 * Math.max(ar, 1/ar);
 
     // add keyframe style
     const s = clearCont(getElem("panorama-css"));
 
-    const kf  = "pano-move-right";
+    const kf  = "pano-move";
+    const dr  = isH ? "left" : "bottom";
+    const dr1 = isH ? "top"  : "left";
     const cssKeyFrames = `
           @keyframes ${kf} {
-                0% {left: 0px}
-               45% {left: ${leftOffset}px}
-               55% {left: ${leftOffset}px}
-              100% {left: 0px}
+                0% {${dr}: 0px}
+               45% {${dr}: ${offset}px}
+               55% {${dr}: ${offset}px}
+              100% {${dr}: 0px}
           }
           `;
 
     const cssPanoClass = `
           img.panorama {
               position: absolute;
-              left:     0px;
-              top:      0px;
+              ${dr}:     0px;
+              ${dr1}:    0px;
               animation-name:            ${kf};
               animation-duration:        ${d}s;
               animation-delay:           2s;
