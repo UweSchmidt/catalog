@@ -190,4 +190,34 @@ img.gif {
   font-weight: bold;
 }
 
+/* links */
+
+a {
+  text-decoration: none;
+}
+
+a:link {
+  text-decoration: none;
+  color:           #ffff00;
+}
+
+a:visited {
+  text-decoration: none;
+  color:           #ffff00;
+}
+
+a:hover {
+  text-decoration: none;
+  color:           #ff9900;
+}
+
+a:active {
+  text-decoration: none;
+  color:           #ff0000;
+}
+
+a:focus {
+  text-decoration: none;
+  color:           #ff0000;
+}
 /* -------------------- */

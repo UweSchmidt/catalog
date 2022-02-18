@@ -1908,7 +1908,7 @@ const metaInfo = {
     "Descr:TitleLatin":             "Titel lat.",
     "Descr:Comment":                "Kommentar (Aufnahme)",
     "Descr:CommentImg":             "Kommentar (Kopie)",
-    "Exif:CreateDate":              "Aufnahmedatum",
+    "EXIF:CreateDate":              "Aufnahmedatum",
     "Descr:Address":                "Adresse",
     "Descr:Location":               "Ort",
     // "Descr:GPSPosition":            "Position",
@@ -1917,23 +1917,23 @@ const metaInfo = {
     "Descr:Web":                    "Web",
     "Descr:Wikipedia":              "Wikipedia",
     "Descr:Keywords":               "Schlüsselwörter",
-    "Exif:Model":                   "Kamera",
+    "EXIF:Model":                   "Kamera",
     "Composite:LensSpec":           "Objektiv",
     "Composite:LensID":             "Objektiv Typ",
-    "Exif:FocalLength":             "Brennweite",
-    "Exif:FocalLengthIn35mmFormat": "Brennweite in 35mm",
-    "Exif:ExposureTime":            "Belichtungszeit",
-    "Exif:FNumber":                 "Blende",
-    "Exif:ExposureCompensation":    "Belichtungskorrektur",
-    "Exif:ISO":                     "ISO",
-    "Exif:ExposureMode":            "Belichtungsmessung",
-    "Exif:ExposureProgram":         "Aufnahmebetriebsart",
+    "EXIF:FocalLength":             "Brennweite",
+    "EXIF:FocalLengthIn35mmFormat": "Brennweite in 35mm",
+    "EXIF:ExposureTime":            "Belichtungszeit",
+    "EXIF:FNumber":                 "Blende",
+    "EXIF:ExposureCompensation":    "Belichtungskorrektur",
+    "EXIF:ISO":                     "ISO",
+    "EXIF:ExposureMode":            "Belichtungsmessung",
+    "EXIF:ExposureProgram":         "Aufnahmebetriebsart",
     "MakerNotes:FocusDistance":     "Entfernung",
     "Composite:DOF":                "Tiefenschärfe",
     "Composite:FOV":                "Sichtfeld",
     "Composite:HyperfocalDistance": "Hyperfokale Distanz",
     "MakerNotes:ShootingMode":      "Aufnahmemodus",
-    "Exif:WhiteBalance":            "Weißabgleich",
+    "EXIF:WhiteBalance":            "Weißabgleich",
     "MakerNotes:ShutterCount":      "Aufnahmezähler",
     "Composite:ImageSize":          "Geometrie",
     "File:RefRaw":                  "Raw-Datei",
@@ -1955,10 +1955,10 @@ const metaInfo = {
 // default is newText(v)
 
 const metaFmt = {
-    // TODO not yet complete
-    "Descr:GPSPositionDeg":    fmtGPS,
+    "Composite:FOV":        fmtDeg,
     "Composite:Megapixels": fmtMPX,
-    "Descr:Rating": fmtRating
+    "Descr:GPSPositionDeg": fmtGPS,
+    "Descr:Rating":         fmtRating
 };
 
 function lookupFmt(k) {
@@ -1969,13 +1969,16 @@ function fmtMPX(t) {
     return newText("" + (1 * t));
 }
 
-var gpsUrl;
+function fmtDeg(t) {
+    const deg = String.fromCharCode(176);
+    return newText(t.replace(/ deg/g, deg));  // regex to replace all occourences
+}
+
+var gpsUrl;  // hack: global var for 2. parameter
 
 function fmtGPS(t) {
-    const deg = String.fromCharCode(176);
-
     const a   = newElem("a");
-    const txt = newText(t.replace(" deg", deg));
+    const txt = fmtDeg(t);
 
     a.href    = gpsUrl;
     a.target  = "_blank";
