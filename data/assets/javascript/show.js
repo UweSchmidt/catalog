@@ -308,6 +308,7 @@ function dirPath(p) {
 }
 
 function baseName(x) {      // basename works with requests, pathPos and strings
+    trc(1, "baseName: x=" + JSON.stringify(x));
     if ( typeof x === "string") {
         const ix = x.lastIndexOf("/");
         return x.slice(ix + 1);
@@ -333,14 +334,6 @@ function isPicReq(req) {
 
 function isMovieReq(req) {
     return ["movie", "gif"].includes(req.rType);
-}
-
-function editUrl(req) {
-    return 'javascript:openEditUrl('
-        + qt(req.rPathPos[0])
-        + ","
-        + req.rPathPos[1]
-        + ');' ;
 }
 
 function pathToPathPos(path0) {
@@ -691,8 +684,6 @@ function showMagnifiedImg(page) { showImg1(page, "magnify");    }
 function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
 function showPanoramaImg(page)  { showImg1(page, "panorama");   }
 
-function isFullImg() {
-}
 // ----------------------------------------
 
 function loadMovie(id, url, geo, rType, resizeAlg) {
@@ -896,7 +887,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
                                   });
 
                 const a = newElem("a");
-                a.href  = editUrl(colReq);
+                a.href  = "javascript:openEdit()";
                 a.appendChild(buildIcon(iconReq));
 
                 r.appendChild(a);
@@ -1201,7 +1192,10 @@ function goForward() {
 
 function gotoChild(i) {
     if (isColPage()) {
-        showNextPage(currPage.navIcons.contIcons[i].eReq);
+        const c = currPage.contIcons[i];
+        if (c) {
+            showNextPage(c.eReq);
+        }
     }
 }
 
@@ -1213,6 +1207,13 @@ function stayHere() {
 
 // call catalog edit
 
+function openEdit() {
+    const page = currPage;
+    const req  = isColPage ? page.colDescr.eReq : page.imgReq;
+    const pPos = req.rPathPos;
+    openEditPage(pPos[0], pPos[1]);
+}
+
 function openEditPage(path, pos) {
     var url = "edit-4.5.0.html"
         + "?path=" + path
@@ -1223,7 +1224,6 @@ function openEditPage(path, pos) {
     trc(1, "openEditPage: url=" + url);
     window.open(url, "_blank");
 }
-
 
 // ----------------------------------------
 
@@ -1316,15 +1316,25 @@ function restartPanoAnimation() {
     }
 }
 
+function togglePanoImg() {
+    if (isPanoImgPage()) {
+        if (isPanoImg()) {
+            stayHere();
+        } else {
+            showPanoramaImg(currPage);
+        }
+    }
+}
+
 // ----------------------------------------
 
 function setPageTitle() {
     let txt = "";
     if ( isColPage() ) {
         const cd = currPage.colDescr;
-        const md = cd.eMeta;
-        const rq = cd.rPathPos;
-        txt = md["Descr:Title"] || baseName(rq);
+        txt = cd.eMeta["Descr:Title"]
+            ||
+            baseName(cd.eReq.rPathPos);
     } else {
         txt = baseName(currPage.img[0]);
     }
@@ -1334,6 +1344,199 @@ function setPageTitle() {
 
 
 // ----------------------------------------
+// keyboard input
+
+// just for testing
+
+function charToKey(c) {
+    return {keyCode: c.charCodeAt(0), which: c.charCodeAt(0)};
+}
+
+function isKey(e, c, s) {
+    if ((e.keyCode == 0
+         ||
+         e.keyCode == e.which
+        )
+        &&
+        e.which == c
+       ) { return true;}
+    return false;
+}
+
+function keyCodeToString(e, c) {
+    if ((e.keyCode == 0
+         ||
+         e.keyCode == e.which
+        )
+        &&
+        e.which == c
+       ) { return String.fromCharCode(c); }
+    return "";
+}
+
+function keyUp(e) {
+    if (! e)
+        e = window.event;
+
+    trc(1, "keyUp: keyCode=" + e.keyCode + " which=" + e.which);
+
+    if ( (e.keyCode == 39)   /* right arrow */
+         ||
+         (e.keyCode == 34)   /* page down, presenter: right arrow */
+       ) {
+        gotoNext();
+        return false;
+    }
+    if ( (e.keyCode == 37)   /* left arrow */
+         ||
+         (e.keyCode == 33)   /* page up, presenter: left arrow */
+         ||
+         (e.keyCode == 8)    /* backspace*/
+       ) {
+        gotoPrev();
+        return false;
+    }
+    if ( (e.keyCode == 27)     /* escape, presenter: left screen icon */
+         ||                    /* presenter: left screen: 116, 27, 116, 27, ... */
+         (e.keyCode == 116)    /* F5, presenter: left screen icon */
+         ||
+         (e.keyCode == 38)     /* up arrow */
+       ) {
+        gotoPar();
+        return false;
+    }
+    if ( (e.keyCode == 40)     /* down arrow */
+         ||
+         (e.keyCode == 190)    /* '.' , presenter right screen icon */
+       ) {
+        gotoChild(0);
+        return false;
+    }
+}
+
+function keyPressed (e) {
+    if (! e)
+        e = window.event;
+
+    trc(1, "keyPressed: KeyCode=" + e.keyCode + " which=" + e.which);
+
+    if ( isKey(e, 32, " ")
+         ||
+         isKey(e, 62, ">")
+         ||
+         isKey(e, 110, "n")
+       ) {
+        gotoNext();
+        return false;
+    }
+
+    if ( isKey(e, 60, "<")
+         ||
+         isKey(e, 112, "p")
+       ) {
+        gotoPrev();
+        return false;
+    }
+
+    if ( isKey(e, 94, "^")
+         ||
+         isKey(e, 117, "u")
+       ) {
+        gotoPar();
+        return false;
+    }
+
+    if ( isKey(e, 118, "v")
+         ||
+         isKey(e, 100, "d")
+       ) {
+        gotoChild(0);
+        return false;
+    }
+
+    if ( isKey(e, 115, "s") ) {
+        // startStopSlideShow("thisColl");
+        return false;
+    }
+
+    if ( isKey(e,  83, "S") ) {
+        // startStopSlideShow("allColls");
+        return false;
+    }
+
+    // if ( isKey(e, 116, "t") ) {
+    //    toggleTitle();
+    //    return false;
+    // }
+
+    if ( isKey(e, 105, "i") ) {
+        toggleInfo();
+        return false;
+    }
+
+    if ( isKey(e, 43, "+") ) {
+        // speedUpSlideShow();
+        return false;
+    }
+
+    if ( isKey(e, 45, "-") ) {
+        // slowDownSlideShow();
+        return false;
+    }
+
+    if ( isKey(e, 48, "0") ) {
+        // initSpeedSlideShow();
+        return false;
+    }
+
+    if ( isKey(e, 102, "f") ) {
+        toggleFullImg();
+        return false;
+    }
+
+    if ( isKey(e, 97, "a") ) {
+        togglePanoImg();
+        return false;
+    }
+
+    if ( isKey(e, 113, "q") ) {
+        togglePanoAnimation();
+        return false;
+    }
+
+    if ( isKey(e, 101, "e") ) {
+        openEdit();
+        return false;
+    }
+
+    if ( isKey(e, 109, "m") ) {
+        // toggleMute();
+        return false;
+    }
+
+    if ( isKey(e, 99, "c") ) {
+        // toggleControls();
+        return false;
+    }
+
+    s = keyCodeToString(e.keyCode);
+    if ( s != "" ) {
+        toggleHelp();
+        return false;
+    }
+
+    return true;
+}
+
+// ----------------------------------------
+
+// install keyboard event handlers
+
+document.onkeypress = keyPressed;
+document.onkeyup    = keyUp;
+
+// ----------------------------------------
+// testcasees
 
 const u1 = "/docs/iconp/900x600/archive/collections/photos/tests/pic-0012.jpg";
 const u2 = "/docs/img/160x120/archive/collections/photos/tests/pic-0003.jpg";
@@ -1344,9 +1547,6 @@ function ttt() {
 function sss() {
     loadImg(img2, u2, readGeo("160x120"));
 }
-
-
-
 
 /* ---------------------------------------- */
 
