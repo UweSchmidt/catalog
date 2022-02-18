@@ -201,8 +201,8 @@ function resizeToScreenWidth(g) {
 }
 
 function screenGeo() {
-    return { w : screen.availWidth  / 2,  // just for testing
-             h : screen.availHeight / 2
+    return { w : window.innerWidth, // screen.availWidth  / 2,  // just for testing
+             h : window.innerHeight // screen.availHeight / 2
            };
 }
 
@@ -372,7 +372,7 @@ function newElem0(tag) {
 function getElem(id) {
     const e = document.getElementById(id);
     if (! e) {
-        throw ("getElem: no elem found for " + id);
+        trc(1, "getElem: warning: no elem found for " + id);
     }
     return e;
 }
@@ -468,6 +468,20 @@ function getStyle(id, attr) {
     return document.getElementById(id).style[attr];
 }
 
+// ----------------------------------------
+
+function mkImgId(id) {
+    return id + "-img";
+}
+
+function newImgElem(id, css, cls) {
+    return newElem("img", mkImgId(id), css, cls);
+}
+
+function getCurrImgElem() {
+    return getElem(mkImgId(currImgId()));
+}
+
 /* ---------------------------------------- */
 
 function showElem(id) {
@@ -548,12 +562,12 @@ function loadImg(id, url, geo, resizeAlg) {
     const e = clearCont(getElem(id));
     setCSS(e, style);
 
-    const i = newElem("img", id + "-img",
-                      { width:  g.w,
-                        height: g.h
-                      },
-                      "img " + resizeAlg
-                     );
+    const i = newImgElem(id,
+                         { width:  g.w,
+                           height: g.h
+                         },
+                         "img " + resizeAlg
+                        );
     i.src   = url;
     e.appendChild(i);
 }
@@ -570,12 +584,12 @@ function loadFullImg(id, url, imgGeo) {
     const e = clearCont(getElem(id));
     setCSS(e, style);
 
-    const i = newElem("img", id + "-img",
-                      { width:  imgGeo.w + "px",  // original geo
-                        height: imgGeo.h + "px"   // often larger than screen geo
-                      },
-                      "img fullsize"
-                     );
+    const i = newImgElem(id,
+                         { width:  imgGeo.w + "px",  // original geo
+                           height: imgGeo.h + "px"   // often larger than screen geo
+                         },
+                         "img fullsize"
+                        );
     i.src   = url;
     e.appendChild(i);
 }
@@ -628,8 +642,13 @@ function loadPanoramaImg(id, url, imgGeo) {
     const e = clearCont(getElem(id));
     setCSS(e, style);
 
-    const i = newElem("img", id + "-img", {}, "img panorama");
+    function animationEndFunction() {
+        trc(1, "animation of panorama has finished");
+    }
+
+    const i = newImgElem(id, {}, "img panorama");
     i.addEventListener("load", togglePanoAnimation);
+    i.addEventListener("animationend", animationEndFunction);
     i.src = url;
     e.appendChild(i);
 }
@@ -690,11 +709,10 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
     const e = clearCont(getElem(id));
     setCSS(e, style);
 
-    // build new contents
-    const id1   = id + "-movie";
+    // build video/img element
 
     if (rType === "movie") {
-        const v    = newElem("video", id1, {}, "movie video " + resizeAlg);
+        const v    = newElem("video", mkImgId(id), {}, "movie video " + resizeAlg);
         v.autoplay = "autoplay";
         v.muted    = "muted";
         v.width    = movGeo.w;
@@ -714,12 +732,12 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
 
     }
     else if (rType === "gif") {
-        const v2 = newElem("img", id1,
-                           { width:  g.w,
-                             height: g.h
-                           },
-                           "movie gif " + resizeAlg
-                          );
+        const v2 = newImgElem(id,
+                              { width:  g.w,
+                                height: g.h
+                              },
+                              "movie gif " + resizeAlg
+                             );
         v2.src   = url;
 
         e.appendChild(v2);
@@ -1133,27 +1151,27 @@ function isTinyImgPage() {
 // predicates for current visible part of DOM
 
 function isPic() {
-    const e = getElem(currImgId() + "-img");
+    const e = getCurrImgElem();
     return e && e.classList.contains("img");
 }
 
 function isMovie() {
-    const e = getElem(currImgId() + "-movie");
+    const e = getCurrImgElem();
     return e && e.classList.contains("movie");
 }
 
 function isFullImg() {
-    const e = getElem(currImgId() + "-img");
+    const e = getCurrImgElem();
     return e && e.classList.contains("fullsize");
 }
 
 function isMagnifiedImg() {
-    const e = getElem(currImgId() + "-img") || getElem(currImgId + "-movie");
+    const e = getCurrImgElem();
     return e && e.classList.contains("magnify");
 }
 
 function isPanoImg() {
-    const e = getElem(currImgId() + "-img");
+    const e = getCurrImgElem();
     return e && e.classList.contains("panorama");
 }
 
@@ -1278,7 +1296,7 @@ function toggleMagnifiedImg() {
 function togglePanoAnimation() {
     trc(1, "togglePanoAnimation fired");
     if (isPanoImg()) {
-        const i = getElem(currImgId() + "-img");
+        const i = getCurrImgElem();
         const s = i.style.animationPlayState;
         setCSS(i, { animationPlayState: (s === "running" ? "paused" : "running")
                   });
@@ -1288,7 +1306,7 @@ function togglePanoAnimation() {
 function restartPanoAnimation() {
     trc(1, "restartPanoAnimation fired");
     if (isPanoImg()) {
-        const i = getElem(currImgId() + "-img");
+        const i = getCurrImgElem();
         i.style.animationPlayState = null;
         i.classList.remove("panorama");
         setTimeout(() => {
