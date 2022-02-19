@@ -673,7 +673,9 @@ function showImg1(page, resizeAlg) {
     trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
 
     picCache.onload = () => {
-        loadImg1(nextImgId(), imgUrl, imgGeo, resizeAlg);
+        loadImg1(nextImgId(), imgUrl,
+                 resizeAlg === "fullsize" ? orgGeo : imgGeo,
+                 resizeAlg);
         toggleImg12();
     };
     picCache.src = imgUrl; // the .onload handler is triggered here
