@@ -1133,7 +1133,7 @@ function isTinyImgPage() {
     if ( isImgPage() ) {
         const req = currPage.imgReq;
         if ( isPicReq(req) || isMovieReq(req) ) {
-            const orgGeo = currPage.oirGeo[0];
+            const orgGeo = readGeo(currPage.oirGeo[0]);
             return lessThan(orgGeo, screenGeo());
         }
     }
@@ -1493,6 +1493,11 @@ function keyPressed (e) {
 
     if ( isKey(e, 102, "f") ) {
         toggleFullImg();
+        return false;
+    }
+
+    if ( isKey(e, 108, "l") ) {
+        toggleMagnifiedImg();
         return false;
     }
 
