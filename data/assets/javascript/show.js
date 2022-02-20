@@ -1093,7 +1093,7 @@ function showPage(page) {
     buildInfo();
     setPageTitle();
 
-    const rty = isColPage() ? page.colDescr.eReq.rType : page.imgReq.rType;
+    const rty = getCurrPageType();
 
     if (rty == "json") {
         showCol(page);
@@ -1127,8 +1127,10 @@ function gotoUrl(url) {
 function showNextPage(req) {
     if (! nullReq(req)) {
         gotoUrl(jsonReqToUrl(req));
+        return true;
     } else {
         trc(1, "showNextPage: req is empty");
+        return false;
     }
 }
 
@@ -1197,50 +1199,67 @@ function isPanoImg() {
     return e && e.classList.contains("panorama");
 }
 
+function getCurrPageType() {
+    return getCurrPageReq().rType;
+}
+
+function getCurrPageReq() {
+    return isColPage()
+        ? currPage.colDescr.eReq
+        : currPage.imgReq;
+}
+
+function getCurrPageMeta() {
+    return isColPage()
+        ? currPage.colDescr.eMeta
+        : currPage.img[2];
+}
+
 // ----------------------------------------
 // event handler
 
 function gotoPrev() {
     const req = isColPage() ? currPage.navIcons.prev.eReq : currPage.imgNavRefs.prev;
-    showNextPage(req);
+    return showNextPage(req);
 }
 
 function gotoNext() {
     const req = isColPage() ? currPage.navIcons.next.eReq : currPage.imgNavRefs.next;
-    showNextPage(req);
+    return showNextPage(req);
 }
 
 function gotoPar() {
     const req = isColPage() ? currPage.navIcons.par.eReq : currPage.imgNavRefs.par;
-    showNextPage(req);
+    return showNextPage(req);
 }
 
 // for slideshows
 function goForward() {
     const req = isColPage() ? currPage.navIcons.fwrd.eReq : currPage.imgNavRefs.fwrd;
-    showNextPage(req);
+    return showNextPage(req);
 }
 
 function gotoChild(i) {
     if (isColPage()) {
         const c = currPage.contIcons[i];
         if (c) {
-            showNextPage(c.eReq);
+            return showNextPage(c.eReq);
         }
     }
+    return false;
 }
 
 // reload
 function stayHere() {
-    const req = isColPage() ? currPage.colDescr.eReq : currPage.imgReq;
-    showNextPage(req);
+    const req = getCurrPageReq();
+    return showNextPage(req);
 }
 
 // call catalog edit
 
 function openEdit() {
     const page = currPage;
-    const req  = isColPage ? page.colDescr.eReq : page.imgReq;
+    const req  = getCurrPageReq();
     const pPos = req.rPathPos;
     openEditPage(pPos[0], pPos[1]);
 }
@@ -1259,7 +1278,7 @@ function openEditPage(path, pos) {
 // ----------------------------------------
 
 function buildInfo() {
-    const md = isColPage() ? currPage.colDescr.eMeta : currPage.img[2];
+    const md = getCurrPageMeta();
     const it = getElem(infoTab);
     buildMetaInfo(it, md);
 }
@@ -1415,6 +1434,7 @@ function keyUp(e) {
          ||
          (e.keyCode == 34)   /* page down, presenter: right arrow */
        ) {
+        stopSlideShow();
         gotoNext();
         return false;
     }
@@ -1424,6 +1444,7 @@ function keyUp(e) {
          ||
          (e.keyCode == 8)    /* backspace*/
        ) {
+        stopSlideShow();
         gotoPrev();
         return false;
     }
@@ -1433,6 +1454,7 @@ function keyUp(e) {
          ||
          (e.keyCode == 38)     /* up arrow */
        ) {
+        stopSlideShow();
         gotoPar();
         return false;
     }
@@ -1440,6 +1462,7 @@ function keyUp(e) {
          ||
          (e.keyCode == 190)    /* '.' , presenter right screen icon */
        ) {
+        stopSlideShow();
         gotoChild(0);
         return false;
     }
@@ -1457,6 +1480,7 @@ function keyPressed (e) {
          ||
          isKey(e, 110, "n")
        ) {
+        stopSlideShow();
         gotoNext();
         return false;
     }
@@ -1465,6 +1489,7 @@ function keyPressed (e) {
          ||
          isKey(e, 112, "p")
        ) {
+        stopSlideShow();
         gotoPrev();
         return false;
     }
@@ -1473,6 +1498,7 @@ function keyPressed (e) {
          ||
          isKey(e, 117, "u")
        ) {
+        stopSlideShow();
         gotoPar();
         return false;
     }
@@ -1481,24 +1507,20 @@ function keyPressed (e) {
          ||
          isKey(e, 100, "d")
        ) {
+        stopSlideShow();
         gotoChild(0);
         return false;
     }
 
     if ( isKey(e, 115, "s") ) {
-        // startStopSlideShow("thisColl");
+        startStopSlideShow("thisColl");
         return false;
     }
 
     if ( isKey(e,  83, "S") ) {
-        // startStopSlideShow("allColls");
+        startStopSlideShow("allColls");
         return false;
     }
-
-    // if ( isKey(e, 116, "t") ) {
-    //    toggleTitle();
-    //    return false;
-    // }
 
     if ( isKey(e, 105, "i") ) {
         toggleInfo();
@@ -1506,31 +1528,34 @@ function keyPressed (e) {
     }
 
     if ( isKey(e, 43, "+") ) {
-        // speedUpSlideShow();
+        speedUpSlideShow();
         return false;
     }
 
     if ( isKey(e, 45, "-") ) {
-        // slowDownSlideShow();
+        slowDownSlideShow();
         return false;
     }
 
     if ( isKey(e, 48, "0") ) {
-        // initSpeedSlideShow();
+        resetSpeedSlideShow();
         return false;
     }
 
     if ( isKey(e, 102, "f") ) {
+        stopSlideShow();
         toggleFullImg();
         return false;
     }
 
     if ( isKey(e, 108, "l") ) {
+        stopSlideShow();
         toggleMagnifiedImg();
         return false;
     }
 
     if ( isKey(e, 97, "a") ) {
+        stopSlideShow();
         togglePanoImg();
         return false;
     }
@@ -1541,6 +1566,7 @@ function keyPressed (e) {
     }
 
     if ( isKey(e, 101, "e") ) {
+        stopSlideShow();
         openEdit();
         return false;
     }
@@ -2090,5 +2116,91 @@ function getJsonPage(url, processRes, processErr, processNext) {
         }
     }).always(processNext);
 }
+
+// ----------------------------------------
+// slideshow stuff
+
+var slideShow      = false;
+var slideShowTimer;
+var slideShowType  = "";
+
+const slideShowDefaultSpeed = 5000;  // default: 5 sec in milliseconds
+var   slideShowSpeed = slideShowDefaultSpeed;  // default: 5 sec in milliseconds
+
+function slideDur() {
+    const md = getCurrPageMeta();
+    const d  = md["Descr:Duration"];
+    let   t  = 1; // seconds
+    if (d) {
+        t = d * 1;         // convert to number
+        if (!t) { t = 1;}  // no conv: reset to defaoult
+    }
+    return t * slideShowSpeed;
+}
+
+function advanceSlideShow() {
+    trc(1, "advance SlideShow");
+    const hasNext = ( slideShowType == "allColls")
+          ? goForward()
+          : ( isColPage()
+              ? gotoChild(0)
+              : gotoNext()
+            );
+    if (! hasNext) {
+        stopSlideShow();
+        gotoPar();
+    } else {
+        const ms = slideDur();
+        slideShowTimer = setTimeout(advanceSlideShow, ms);
+        trc(1, "advanceSlideShow timer set msec: " + ms + " (" + slideShowType + ")");
+    }
+}
+
+function stopSlideShow() {
+    if (slideShow) {
+        if (typeof slideShowTimer != "undefined") {
+            clearTimeout(slideShowTimer);
+            trc(1, "timer cleared");
+        }
+        slideShow      = false;
+        slideShowType  = "";
+        slideShowTimer = undefined;
+        trc(1, "slideShow stopped");
+    }
+}
+
+function startSlideShow() {
+    if (! slideShow) {
+        slideShow = true;
+        trc(1, "SlideShow started");
+        advanceSlideShow();
+    }
+}
+
+function startStopSlideShow(stype) {
+    slideShowType=stype;
+    toggleSlideShow();
+}
+
+function toggleSlideShow() {
+    if (slideShow) {
+        stopSlideShow();
+    } else {
+        startSlideShow();
+    }
+}
+
+function resetSpeedSlideShow() {
+    slideShowSpeed = slideShowDefaultSpeed;
+}
+
+function slowDownSlideShow() {
+    slideShowSpeed = slideShowSpeed * 1.2;
+}
+
+function speedUpSlideShow() {
+    slideShowSpeed = Math.max(slideShowSpeed / 1.2, 2500);
+}
+
 
 // ----------------------------------------
