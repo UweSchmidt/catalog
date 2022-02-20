@@ -76,6 +76,26 @@ body {
   margin-top: 0.5em;
 }
 
+#collection-blog {
+  max-width: 50em;
+}
+
+#collection-blog h1 {
+  font-size:   1.6em;
+  font-weight: bold;
+  margin-block: 0.6em;
+}
+
+#collection-blog h2 {
+  font-size:   1.3em;
+  font-weight: bold;
+  margin-block: 0.4em;
+}
+
+#collection-blog p {
+  margin-block: 0.4em;
+}
+
 .navicon {
   background-color: #505050;
 }
@@ -174,6 +194,10 @@ div.blog {
 
 img.gif {
   background-color: #eee;
+}
+
+div.ruler {
+  background-color: #333;
 }
 
 .title  {

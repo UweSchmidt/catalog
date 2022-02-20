@@ -790,6 +790,7 @@ function showCol(page) {
     const colDescr = page.colDescr;
     const colReq   = colDescr.eReq;
     const colMeta  = colDescr.eMeta;
+    const colBlog  = page.blogCont;
     const navIcons = page.navIcons;
     const c1Icon   = page.c1Icon;
     const colIcons = page.contIcons;
@@ -804,12 +805,12 @@ function showCol(page) {
                 left:   "0px",
                 top:    "0px"
               });
-    e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons));
+    e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog));
 
     toggleImg12();
 }
 
-function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
+function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog) {
     // geometry for navigation grid
     const gap      = 4;
     const padding  = 10;
@@ -843,7 +844,8 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
     const i2G      = toPx(ico2Geo);
     const i2GB     = toPx(ico2GeoB);
 
-    const cssBorder = border + "px solid #444";
+    const cssBorderColor = "#444";
+    const cssBorder      = border + "px solid " + cssBorderColor;
 
     trc(1, "iconGeo="  + showGeo(iconGeo));
     trc(1, "ico2Geo="  + showGeo(ico2Geo));
@@ -1041,6 +1043,26 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
         return r;
     }
 
+    function buildColBlog(){
+        const r = newElem("div", "collection-blog", {});
+        r.innerHTML = colBlog;
+        return r;
+    }
+
+    function ruler() {
+        const r = newElem("div",
+                          { "padding-left":     padding + "px",
+                            "padding-right":    padding + "px",
+                            "margin-top":       padding + "px",
+                            "margin-bottom":    padding + "px",
+                            height:             border  + "px",
+                            "background-color": cssBorderColor
+                          },
+                          "ruler"
+                         );
+        return r;
+    }
+
     const c = newElem("div", "collection",
                       { padding:      padding + "px",
                         "min-height": scrGeo.h + "px"
@@ -1048,8 +1070,15 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons) {
                       "col"
                      );
     c.appendChild(buildColHeaderFooter(true));
+    c.appendChild(ruler());
+    if (colBlog) {
+        c.appendChild(buildColBlog());
+        c.appendChild(ruler());
+    }
     c.appendChild(buildColContents());
+    c.appendChild(ruler());
     c.appendChild(buildColHeaderFooter(false));
+    c.appendChild(ruler());
     return c;
 }
 
