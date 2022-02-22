@@ -17,6 +17,13 @@ const info    = "info";
 const infoTab = "info-table";
 const help    = "help";
 
+// default video attributes
+
+const videoAttrs = { controls: "",
+                     autoplay: null,
+                     muted:    null
+                   };
+
 /* ---------------------------------------- */
 /* basic operations */
 
@@ -1377,6 +1384,39 @@ function togglePanoImg() {
 }
 
 // ----------------------------------------
+// video play config options
+
+function toggleVideoMutedDefault()    { toggleVideoAttrDefault("muted"); }
+function toggleVideoAutoplayDefault() { toggleVideoAttrDefault("autoplay"); }
+function toggleVideoControlsDefault() { toggleVideoAttrDefault("controls"); }
+
+function toggleVideoAttrDefault(a) {
+    // toggle video attr default
+    const v = videoAttrs[a];
+    const n = v === null ? n = '' : n = null;
+    videoAttrs[a] = n;
+    trc(1, "video attr default: " + a + "=" + n);
+}
+
+function toggleVideoMuted()    { toggleVideoAttr("muted"); }
+function toggleVideoAutoplay() { toggleVideoAttr("autoplay"); }
+function toggleVideoControls() { toggleVideoAttr("controls"); }
+
+function toggleVideoAttr(a) {
+    // toggle current video attr
+    const e = getCurrImgElem();
+    if (e.classList.contains("video")) {
+        if (e.hasAttr(a)) {
+            trc(1, "current video attr " + a + "removed");
+            e.removeAttribute(a);
+        } else {
+            trc(1, "current video attr " + a + "set");
+            e.setAttribute(a,"");
+        }
+    }
+}
+
+// ----------------------------------------
 
 function setPageTitle() {
     let txt = "";
@@ -1572,12 +1612,27 @@ function keyPressed (e) {
     }
 
     if ( isKey(e, 109, "m") ) {
-        // toggleMute();
+        toggleVideoMuted();
         return false;
     }
 
     if ( isKey(e, 99, "c") ) {
-        // toggleControls();
+        toggleVideoControls();
+        return false;
+    }
+
+    if ( isKey(e, 65, "A") ) {
+        toggleVideoAutoplayDefault();
+        return false;
+    }
+
+    if ( isKey(e, 109, "M") ) {
+        toggleVideoMutedDefault();
+        return false;
+    }
+
+    if ( isKey(e, 77, "C") ) {
+        toggleVideoControlsDefault();
         return false;
     }
 
