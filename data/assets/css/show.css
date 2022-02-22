@@ -145,6 +145,28 @@ body {
   display: none;
 }
 
+#status {
+  max-width: 50em;
+  border: 1px solid #333;
+  padding: 1ex;
+  color: #eee;
+  background-color: rgb(102,102,102);
+
+  visibility: visible;
+  opacity: 0.8;
+
+  position: absolute;
+  bottom: 0px;
+  right:0px;
+
+  overflow: auto;
+
+  display: none;
+}
+
+span.errormsg {
+  color: #800;
+}
 
 #info > h1 {
   font-size: 1.4em;

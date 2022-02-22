@@ -16,6 +16,7 @@ const img2    = "image2";
 const info    = "info";
 const infoTab = "info-table";
 const help    = "help";
+const status  = "status";
 
 // default video attributes
 
@@ -490,6 +491,10 @@ function showElem(id) {
 
 function hideElem(id) {
     setCSS(id, "display", "none");
+}
+
+function clearElem(id) {
+    clearCont(getElem(id));
 }
 
 function showImg2() {
@@ -1149,9 +1154,18 @@ function showNextPage(req) {
     }
 }
 
-function showErr(err) {
-    trc(1, "showErr:" + err);
-    trc(1, "not yet handled");
+function showErr(errno, url, msg) {
+    trc(1, "showErr:" + url + ": " + errno + ", " + msg);
+
+    let txt = "";
+    if (errno === 500) {
+        txt = 'Server Fehler: ' + msg + ', url=' + url;
+    } else if (errno === 404) {
+        txt = 'Server Fehler: Kein Eintrag gefunden für ' + url;
+    } else {
+        txt = 'Server Fehler: ' + errno + ', url=' + url;
+    }
+    showStatus('<span class="errormsg">' + txt + '</span>', 4);
 }
 
 // ----------------------------------------
@@ -1420,7 +1434,13 @@ function togglePanoImg() {
 // video play config options
 
 function toggleVideoMutedDefault()    { toggleVideoAttrDefault("muted"); }
-function toggleVideoAutoplayDefault() { toggleVideoAttrDefault("autoplay"); }
+function toggleVideoAutoplayDefault() {
+    const v = toggleVideoAttrDefault("autoplay");
+    const msg = 'Videos werden'
+          + (v === null ? ' nicht' : '')
+          + 'automatisch gestartet';
+    showStatus(msg);
+}
 function toggleVideoControlsDefault() { toggleVideoAttrDefault("controls"); }
 
 function toggleVideoAttrDefault(a) {
@@ -1429,6 +1449,7 @@ function toggleVideoAttrDefault(a) {
     const n = v === null ? '' : null;
     videoAttrs[a] = n;
     trc(1, "video attr default: " + a + "=" + n);
+    return n;
 }
 
 function toggleVideoMuted()    { toggleVideoAttr("muted"); }
@@ -2206,16 +2227,8 @@ function getJsonPage(url, processRes, processErr, processNext) {
         processRes(res);
     }).fail(function (err) {
         trc(1, "getJsonPage: server error=" + err + ", status=" + err.status);
-        if (err.status == 500) {
-            const msg = err.responseJSON || err.responseText;
-            processErr(msg);
-        }
-        else if (err.status == 404) {
-            processErr("archive entry not found: " + url);
-        }
-        else {
-            processErr("server error: " + err.status + " when loading json page");
-        }
+        const msg = err.responseJSON || err.responseText;
+        processErr(err.status, url, msg);
     }).always(processNext);
 }
 
@@ -2267,14 +2280,14 @@ function stopSlideShow() {
         slideShow      = false;
         slideShowType  = "";
         slideShowTimer = undefined;
-        trc(1, "slideShow stopped");
+        showStatus("Automatischer Bildwechsel beendet");
     }
 }
 
 function startSlideShow() {
     if (! slideShow) {
         slideShow = true;
-        trc(1, "SlideShow started");
+        showStatus("Automatischer Bildwechsel gestartet");
         advanceSlideShow();
     }
 }
@@ -2294,15 +2307,49 @@ function toggleSlideShow() {
 
 function resetSpeedSlideShow() {
     slideShowSpeed = slideShowDefaultSpeed;
+    showDur();
 }
 
 function slowDownSlideShow() {
     slideShowSpeed = slideShowSpeed * 1.2;
+    showDur();
 }
 
 function speedUpSlideShow() {
     slideShowSpeed = Math.max(slideShowSpeed / 1.2, 2500);
+    showDur();
 }
 
+function showDur() {
+    const s =  Math.round(slideShowSpeed / 100) / 10;
+    showStatus('Automatischer Bildwechsel nach ' + s + " sec.");
+}
+
+// ----------------------------------------
+// status line
+
+var statusEnabled = true;
+var statusTimer   = undefined;
+const statusDur   = 2.0 * 1000;      // default: status messages are shown for 2 seconds
+
+function showStatus(msg, dur) {
+    if (statusEnabled) {
+        dur = dur || 1;
+        dur = statusDur * dur;
+        hideStatus();
+        const s = getElem(status);
+        s.innerHTML = msg;
+        statusTimer = setTimeout(hideStatus, dur);
+        showElem(status);
+    }
+}
+
+function hideStatus() {
+    if (typeof statusTimer != "undefined") {
+        clearTimeout(statusTimer);
+    }
+    hideElem(status);
+    clearElem(status);
+}
 
 // ----------------------------------------
