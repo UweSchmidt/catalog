@@ -1592,6 +1592,13 @@ function keyPressed (e) {
         return false;
     }
 
+    if ( isKey(e, 120, "x")
+       ) {
+        stopSlideShow();
+        stayHere();
+        return false;
+    }
+
     if ( isKey(e, 115, "s") ) {
         startStopSlideShow("thisColl");
         return false;
