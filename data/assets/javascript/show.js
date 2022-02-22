@@ -771,7 +771,7 @@ function showMagnifiedMovie(page) { showMovie1(page,    "magnify"); }
 function showBlog(page) {
     const req = page.imgReq;
     const geo = toPx(screenGeo());
-    const txt = page.blogCont;
+    const txt = getPageBlog(page);
     const id  = nextImgId();
 
     trc(1, "showBlog: " + txt);
@@ -805,7 +805,7 @@ function showCol(page) {
     const colDescr = page.colDescr;
     const colReq   = colDescr.eReq;
     const colMeta  = colDescr.eMeta;
-    const colBlog  = page.blogCont;
+    const colBlog  = getPageBlog(page);
     const navIcons = page.navIcons;
     const c1Icon   = page.c1Icon;
     const colIcons = page.contIcons;
@@ -1108,7 +1108,7 @@ function showPage(page) {
     buildInfo();
     setPageTitle();
 
-    const rty = getCurrPageType();
+    const rty = getPageType(page);
 
     if (rty == "json") {
         showCol(page);
@@ -1157,12 +1157,14 @@ function showErr(err) {
 // ----------------------------------------
 // predicates for currPage
 
-function isColPage() {
-    return ! (currPage.imgReq);
+function isColPage(page) {
+    page = page || currPage;
+    return ! page.imgReq;
 }
 
-function isImgPage() {
-    return ! isColPage();
+function isImgPage(page) {
+    page = page || currPage;
+    return ! isColPage(page);
 }
 
 function isPanoImgPage() {               // a panoaram image is larger
@@ -1214,49 +1216,72 @@ function isPanoImg() {
     return e && e.classList.contains("panorama");
 }
 
-function getCurrPageType() {
-    return getCurrPageReq().rType;
+// ----------------------------------------
+// page access functions
+
+function getPageType(page) {
+    page = page || currPage;
+    return getPageReq(page).rType;
 }
 
-function getCurrPageReq() {
-    return isColPage()
-        ? currPage.colDescr.eReq
-        : currPage.imgReq;
+function getPageReq(page) {
+    page = page || currPage;
+    return isColPage(page)
+        ? page.colDescr.eReq
+        : page.imgReq;
 }
 
-function getCurrPageMeta() {
-    return isColPage()
-        ? currPage.colDescr.eMeta
-        : currPage.img[2];
+function getPageMeta(page) {
+    page = page || currPage;
+    return isColPage(page)
+        ? page.colDescr.eMeta
+        : page.img[2];
 }
 
+function getPageBlog(page) {
+    page = page || currPage;
+    const md = getPageMeta(page);   // new blog access: blog is part of metadata
+    const bt = md["Descr:Blog"];
+    if (bt) {
+        return bt;
+    } // else {return "";}         // TODO cleanup, when server has been updated
+    return page.blogCont;      // old blog access: blog is in blogCont field;
+}
+
+function getNavReq(nav, page) {
+    page = page || currPage;
+    return isColPage(page)
+        ? page.navIcons[nav].eReq
+        : page.imgNavRefs[nav];
+}
 // ----------------------------------------
 // event handler
 
 function gotoPrev() {
-    const req = isColPage() ? currPage.navIcons.prev.eReq : currPage.imgNavRefs.prev;
+    const req = getNavReq("prev");
     return showNextPage(req);
 }
 
 function gotoNext() {
-    const req = isColPage() ? currPage.navIcons.next.eReq : currPage.imgNavRefs.next;
+    const req = getNavReq("next");
     return showNextPage(req);
 }
 
 function gotoPar() {
-    const req = isColPage() ? currPage.navIcons.par.eReq : currPage.imgNavRefs.par;
+    const req = getNavReq("par");
     return showNextPage(req);
 }
 
 // for slideshows
 function goForward() {
-    const req = isColPage() ? currPage.navIcons.fwrd.eReq : currPage.imgNavRefs.fwrd;
+    const req = getNavReq("fwrd");
     return showNextPage(req);
 }
 
-function gotoChild(i) {
-    if (isColPage()) {
-        const c = currPage.contIcons[i];
+function gotoChild(i, page) {
+    page = page || currPage;
+    if (isColPage(page)) {
+        const c = page.contIcons[i];
         if (c) {
             return showNextPage(c.eReq);
         }
@@ -1266,7 +1291,7 @@ function gotoChild(i) {
 
 // reload
 function stayHere() {
-    const req = getCurrPageReq();
+    const req = getPageReq();
     return showNextPage(req);
 }
 
@@ -1274,7 +1299,7 @@ function stayHere() {
 
 function openEdit() {
     const page = currPage;
-    const req  = getCurrPageReq();
+    const req  = getPageReq();
     const pPos = req.rPathPos;
     openEditPage(pPos[0], pPos[1]);
 }
@@ -1293,7 +1318,7 @@ function openEditPage(path, pos) {
 // ----------------------------------------
 
 function buildInfo() {
-    const md = getCurrPageMeta();
+    const md = getPageMeta();
     const it = getElem(infoTab);
     buildMetaInfo(it, md);
 }
@@ -1521,6 +1546,13 @@ function keyPressed (e) {
         e = window.event;
 
     trc(1, "keyPressed: KeyCode=" + e.keyCode + " which=" + e.which);
+
+    if ( isKey(e, 32, " ")
+       ) {
+        stopSlideShow();
+        goForward();
+        return false;
+    }
 
     if ( isKey(e, 32, " ")
          ||
@@ -2191,7 +2223,7 @@ const slideShowDefaultSpeed = 5000;  // default: 5 sec in milliseconds
 var   slideShowSpeed = slideShowDefaultSpeed;  // default: 5 sec in milliseconds
 
 function slideDur() {
-    const md = getCurrPageMeta();
+    const md = getPageMeta();
     const d  = md["Descr:Duration"];
     let   t  = 1; // seconds
     if (d) {
