@@ -505,6 +505,7 @@ function isHidden(id) {
 function changeElems(id1, id2) {
     hideElem(id2);
     showElem(id1);
+    clearCont(getElem(id2));  // remove content of old image, e.g. to stop video
 }
 
 function toggleElems(id1, id2) {
@@ -713,10 +714,17 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
 
     if (rType === "movie") {
         const v    = newElem("video", mkImgId(id), {}, "movie video " + resizeAlg);
-        v.autoplay = "autoplay";
-        v.muted    = "muted";
         v.width    = movGeo.w;
         v.heigth   = movGeo.h;
+        if (videoAttrs.autoplay != null) {
+            v.autoplay = "autoplay";
+        }
+        if (videoAttrs.controls != null) {
+            v.controls = "controls";
+        }
+        if (videoAttrs.muted != null) {
+            v.muted = "muted";
+        }
 
         const s = newElem("source");
         s.src  = url;
@@ -1393,7 +1401,7 @@ function toggleVideoControlsDefault() { toggleVideoAttrDefault("controls"); }
 function toggleVideoAttrDefault(a) {
     // toggle video attr default
     const v = videoAttrs[a];
-    const n = v === null ? n = '' : n = null;
+    const n = v === null ? '' : null;
     videoAttrs[a] = n;
     trc(1, "video attr default: " + a + "=" + n);
 }
@@ -1406,7 +1414,7 @@ function toggleVideoAttr(a) {
     // toggle current video attr
     const e = getCurrImgElem();
     if (e.classList.contains("video")) {
-        if (e.hasAttr(a)) {
+        if (e.hasAttribute(a)) {
             trc(1, "current video attr " + a + "removed");
             e.removeAttribute(a);
         } else {
@@ -1626,12 +1634,12 @@ function keyPressed (e) {
         return false;
     }
 
-    if ( isKey(e, 109, "M") ) {
+    if ( isKey(e, 77, "M") ) {
         toggleVideoMutedDefault();
         return false;
     }
 
-    if ( isKey(e, 77, "C") ) {
+    if ( isKey(e, 67, "C") ) {
         toggleVideoControlsDefault();
         return false;
     }
