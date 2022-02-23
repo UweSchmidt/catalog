@@ -53,7 +53,7 @@ body {
 #collection {
   /* width: 100%; */
   /* border: 1px solid red; */
-  background-color: #555;
+  /* background-color: #555; */
 
   overflow: auto;
   display: block;
@@ -97,7 +97,7 @@ body {
 }
 
 .navicon {
-  background-color: #505050;
+  background-color: #444;
 }
 
 .iconborder {

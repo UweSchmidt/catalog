@@ -1075,7 +1075,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                             "padding-right":    padding + "px",
                             "margin-top":       padding + "px",
                             "margin-bottom":    padding + "px",
-                            height:             border  + "px",
+                            height:             border2 + "px",
                             "background-color": cssBorderColor
                           },
                           "ruler"
