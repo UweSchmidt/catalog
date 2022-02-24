@@ -546,6 +546,8 @@ function initShow() {
     const g = toPx(screenGeo());
     console.log("initShow: screen geo=" + showGeo(g));
 
+    initHandlers();
+
     setCSS(imgTab, {width : g.w, height : g.h});
     showPath(pathCollections());
 }
@@ -1339,15 +1341,15 @@ function buildInfo() {
 
 function showInfo() {
     hideHelp();
-    showElem(info);
+    showAnimElem(info);
 }
 
 function hideInfo() {
-    hideElem(info);
+    hideAnimElem(info);
 }
 
 function toggleInfo() {
-    if (isHidden(info)) {
+    if (isHiddenAnim(info)) {
         showInfo();
     } else {
         hideInfo(info);
@@ -1356,15 +1358,15 @@ function toggleInfo() {
 
 function showHelp() {
     hideInfo();
-    showElem(help);
+    showAnimElem(help);
 }
 
 function hideHelp() {
-    hideElem(help);
+    hideAnimElem(help);
 }
 
 function toggleHelp() {
-    if (isHidden(help)) {
+    if (isHiddenAnim(help)) {
         showHelp();
     } else {
         hideHelp(help);
@@ -2340,7 +2342,7 @@ function showStatus(msg, dur) {
         const s = getElem(status);
         s.innerHTML = msg;
         statusTimer = setTimeout(hideStatus, dur);
-        showElem(status);
+        showAnimElem(status);
     }
 }
 
@@ -2348,8 +2350,57 @@ function hideStatus() {
     if (typeof statusTimer != "undefined") {
         clearTimeout(statusTimer);
     }
-    hideElem(status);
-    clearElem(status);
+    hideAnimElem(status);
+    // clearElem(status);
+}
+
+// ----------------------------------------
+
+function initHandlers() {
+    for (let id of [info, help, status]) {
+        const e = getElem(id);
+        e.addEventListener("animationend",
+                           function () {
+                               handleInfoAnim(id);
+                           });
+    }
+}
+
+function handleInfoAnim(id) {
+    trc(1, "handleInfoanim:" + id);
+    const e = getElem(id);
+    nextAnimClass(e, "fadeinInfo", "visibleInfo");
+    nextAnimClass(e, "fadeoutInfo", "hiddenInfo");
+}
+
+function nextAnimClass(e, cur, nxt) {
+    const cs = e.classList;
+    // trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
+    if (cs.contains(cur)) {
+        cs.remove(cur);
+        cs.add(nxt);
+    }
+    // trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
+}
+
+function hideAnimElem(id) {
+    // trc(1, "showAnimElem:" + id);
+    const e = getElem(id);
+    nextAnimClass(e, "fadeinInfo",  "fadeoutInfo");
+    nextAnimClass(e, "visibleInfo", "fadeoutInfo");
+}
+
+function showAnimElem(id) {
+    // trc(1, "toggleAnimElem:" + id);
+    const e = getElem(id);
+    nextAnimClass(e, "fadeoutInfo", "fadeinInfo");
+    nextAnimClass(e, "hiddenInfo",  "fadeinInfo");
+}
+
+function isHiddenAnim(id) {
+    // trc(1, 'isHiddenAnim: id=' + id);
+    const cs = getElem(id).classList;
+    return cs.contains("hiddenInfo") || cs.contains("fadeoutInfo");
 }
 
 // ----------------------------------------

@@ -115,7 +115,7 @@ body {
   background-color: rgb(102,102,102);
 
   visibility: visible;
-  opacity: 0.8;
+  /* opacity: 0.8; */
 
   position: absolute;
   bottom: 0px;
@@ -123,7 +123,7 @@ body {
 
   overflow: auto;
 
-  display: none;
+  /* display: none; */
 }
 
 #help {
@@ -134,7 +134,7 @@ body {
   background-color: rgb(102,102,102);
 
   visibility: visible;
-  opacity: 0.8;
+ /* opacity: 0.8; */
 
   position: absolute;
   bottom: 0px;
@@ -142,7 +142,7 @@ body {
 
   overflow: auto;
 
-  display: none;
+  /* display: none; */
 }
 
 #status {
@@ -153,7 +153,7 @@ body {
   background-color: rgb(102,102,102);
 
   visibility: visible;
-  opacity: 0.8;
+  /* opacity: 0.8; */
 
   position: absolute;
   bottom: 0px;
@@ -161,7 +161,7 @@ body {
 
   overflow: auto;
 
-  display: none;
+  /* display: none; */
 }
 
 @keyframes fadein {
@@ -174,14 +174,28 @@ body {
   100% {opacity: 0.0}
 }
 
+.hiddenInfo {
+  display: none;
+  opacity: 0.0;
+}
+
 .fadeinInfo {
-  animation-name:     fadein;
-  animation-duration: 2s
+  display:             block;
+  animation-name:      fadein;
+  animation-duration:  0.5s;
+  animation-fill-mode: forwards;
+}
+
+.visibleInfo {
+  display: block;
+  opacity: 0.8;
 }
 
 .fadeoutInfo {
-  animation-name:     fadeout;
-  animation-duration: 2s
+  display:             block;
+  animation-name:      fadeout;
+  animation-duration:  0.5s;
+  animation-fill-mode: forwards;
 }
 
 span.errormsg {
