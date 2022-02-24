@@ -164,6 +164,26 @@ body {
   display: none;
 }
 
+@keyframes fadein {
+    0% {opacity: 0.0}
+  100% {opacity: 0.8}
+}
+
+@keyframes fadeout {
+    0% {opacity: 0.8}
+  100% {opacity: 0.0}
+}
+
+.fadeinInfo {
+  animation-name:     fadein;
+  animation-duration: 2s
+}
+
+.fadeoutInfo {
+  animation-name:     fadeout;
+  animation-duration: 2s
+}
+
 span.errormsg {
   color: #800;
 }
