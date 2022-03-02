@@ -2364,7 +2364,47 @@ function initHandlers() {
                                handleInfoAnim(id);
                            });
     }
+    for (let id of [img1, img2]) {
+        const e = getElem(id);
+        e.addEventListener("animationend",
+                           function () {
+                               handleImageAnim(id);
+                            });
+    }
 }
+
+// ----------------------------------------
+// image1 / image2 overlay animation
+
+function handleImageAnim(id) {
+    trc(1, `handleImageAnim: ${id}`);
+    const e = getElem(id);
+    nextAnimClass(e, "fadeinImage", "visibleImage");
+    nextAnimClass(e, "fadeoutImage", "hiddenImage");
+}
+
+function hideImageElem(id) {
+    trc(1, "hideImageElem:" + id);
+    const e = getElem(id);
+    nextAnimClass(e, "fadeinImage",  "fadeoutImage");
+    nextAnimClass(e, "visibleImage", "fadeoutImage");
+}
+
+function showImageElem(id) {
+    trc(1, "showImageElem:" + id);
+    const e = getElem(id);
+    nextAnimClass(e, "fadeoutImage", "fadeinImage");
+    nextAnimClass(e, "hiddenImage",  "fadeinImage");
+}
+
+function isHiddenImage(id) {
+    trc(1, 'isHiddenImage: id=' + id);
+    const cs = getElem(id).classList;
+    return cs.contains("hiddenImage") || cs.contains("fadeoutImage");
+}
+
+// ----------------------------------------
+// info, help & status animation
 
 function handleInfoAnim(id) {
     trc(1, "handleInfoanim:" + id);
@@ -2375,12 +2415,11 @@ function handleInfoAnim(id) {
 
 function nextAnimClass(e, cur, nxt) {
     const cs = e.classList;
-    // trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
     if (cs.contains(cur)) {
         cs.remove(cur);
         cs.add(nxt);
+        trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
     }
-    // trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
 }
 
 function hideAnimElem(id) {

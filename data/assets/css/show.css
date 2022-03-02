@@ -47,6 +47,43 @@ body {
   display : none;
 }
 
+/* ---------------------------------------- */
+/* image overlay animation */
+
+@keyframes fadein {
+    0% {opacity: 0.0}
+  100% {opacity: 1.0}
+}
+
+@keyframes fadeout {
+    0% {opacity: 1.0}
+  100% {opacity: 0.0}
+}
+
+.hiddenImage {
+  display: none;
+  /* opacity: 0.0; */
+}
+
+.fadeinImage {
+  display:             block;
+  animation-name:      fadein;
+  animation-duration:  1s;       /* default */
+  animation-fill-mode: forwards;
+}
+
+.visibleImage {
+  display: block;
+  opacity: 1.0;
+}
+
+.fadoutImage {
+  display:             block;
+  animation-name:      fadeout;
+  animation-duration:  1s;       /*default */
+  animation-fill-mode: forwards;
+}
+
 /* -------------------- */
 /* collection page */
 
@@ -164,12 +201,12 @@ body {
   /* display: none; */
 }
 
-@keyframes fadein {
+@keyframes fadeinI {
     0% {opacity: 0.0}
   100% {opacity: 0.8}
 }
 
-@keyframes fadeout {
+@keyframes fadeoutI {
     0% {opacity: 0.8}
   100% {opacity: 0.0}
 }
@@ -181,7 +218,7 @@ body {
 
 .fadeinInfo {
   display:             block;
-  animation-name:      fadein;
+  animation-name:      fadeinI;
   animation-duration:  0.5s;
   animation-fill-mode: forwards;
 }
@@ -193,7 +230,7 @@ body {
 
 .fadeoutInfo {
   display:             block;
-  animation-name:      fadeout;
+  animation-name:      fadeoutI;
   animation-duration:  0.5s;
   animation-fill-mode: forwards;
 }
