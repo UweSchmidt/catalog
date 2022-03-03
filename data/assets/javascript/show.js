@@ -514,7 +514,8 @@ function toggleImg12(id)  {
 
 function getTransition(cp, lp) {
     // return cut;
-    return crossFade;
+    // return crossFade;
+    return fadeOutIn;
 }
 
 // ----------------------------------------
@@ -527,28 +528,61 @@ function cut(id1, id2) {
 
     nextAnimClass(e2, "visibleImage", "hiddenImage");
     nextAnimClass(e1, "hiddenImage", "visibleImage");
-    clearCont(e2);
+    clearImageElem(e2);
 }
 
 // ----------------------------------------
 // crossfade images
 
-const defaultCrossFadeDur = 1.0;
+const defaultTransDur = 1.0;
 
 function crossFade(id1, id2, dur0) {
     const e1 = getElem(id1);
     const e2 = getElem(id2);
-    const dur = dur0 || defaultCrossFadeDur;
+    const dur = dur0 || defaultTransDur;
     trc(1, `crossFade: ${id1}, ${dur}sec`);
 
-    setCSS(e2, {"animation-duration": dur + "s"});
+    setAnimDur(e2, dur);
     nextAnimClass(e2, "visibleImage", "fadeoutImage")
         || nextAnimClass(e2, "fadeinImage", "fadeoutImage");
 
-    setCSS(e1, {"animation-duration": dur + "s"});
+    setAnimDur(e1, dur);
+    nextAnimClass(e1, "hiddenImage", "fadeinImage");
+}
+
+// ----------------------------------------
+// fadeout fadein
+
+function fadeOutIn(id1, id2, dur0) {
+    const e1 = getElem(id1);
+    const e2 = getElem(id2);
+    const dur = (dur0 || defaultTransDur) / 1;
+    trc(1, `fadeOutIn: ${id1}, ${dur}sec`);
+
+    setAnimDur(e2, dur);
+    nextAnimClass(e2, "visibleImage", "fadeoutImage")
+        || nextAnimClass(e2, "fadeinImage", "fadeoutImage");
+
+    // setCSS(e1, {opacity: 0});
+    setAnimDur(e1, dur, dur);
     nextAnimClass(e1, "hiddenImage", "fadeinImage");
 
-    // cleanup is done by animation end eventhandlers
+}
+
+// ----------------------------------------
+
+function setAnimDur(e, dur, delay) {
+    const del = delay || 0;
+    setCSS(e, {"animation-duration": dur + "s",
+               "animation-delay":    del + "s"
+              });
+}
+
+function clearImageElem(e) {
+    clearCont(e);
+    setCSS(e, {"animation-duration": null,
+               "animation-delay":    null,
+              });
 }
 
 /* ---------------------------------------- */
@@ -2401,7 +2435,7 @@ function handleImageAnim(id) {
     const e = getElem(id);
     nextAnimClass(e, "fadeinImage", "visibleImage");
     nextAnimClass(e, "fadeoutImage", "hiddenImage")
-        && clearCont(e);
+        && clearImageElem(e);
 }
 
 function hideImageElem(id) {

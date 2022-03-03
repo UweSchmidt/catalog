@@ -67,6 +67,7 @@ body {
 
 .fadeinImage {
   display:             block;
+  opacity:             0;
   animation-name:      fadein;
   animation-duration:  1s;       /* default */
   animation-fill-mode: forwards;
