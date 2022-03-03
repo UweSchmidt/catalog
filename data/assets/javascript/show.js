@@ -13,6 +13,8 @@ const title   = "head-title";
 const imgTab  = "imageTab";
 const img1    = "image1";
 const img2    = "image2";
+const nextimg = {image1: img2, image2: img1};
+
 const info    = "info";
 const infoTab = "info-table";
 const help    = "help";
@@ -379,8 +381,17 @@ function getElem(id) {
 }
 
 function clearCont(e) {
-    e.innerHTML = '';
-    return e;
+    if (typeof e === "string") {
+        const e1 = getElem(e);
+        if (e1 != null) {
+            clearCont(e1);
+        }
+        return e1;
+    } else {
+        e.innerHTML = '';
+        trc(1, "clearCont:" + JSON.stringify(e));
+        return e;
+    }
 }
 
 function setCSS(e, attrs, val) {
@@ -485,56 +496,65 @@ function getCurrImgElem() {
 
 /* ---------------------------------------- */
 
-function showElem(id) {
-    setCSS(id, "display", "block");
+function currImgId() {
+    return isHiddenImage(img1) ? img2 : img1;
 }
-
-function hideElem(id) {
-    setCSS(id, "display", "none");
-}
-
-function clearElem(id) {
-    clearCont(getElem(id));
-}
-
-function showImg2() {
-    hideElem(img1);
-    showElem(img2);
-}
-
-function isHidden(id) {
-    const s = getStyle(id, "display");
-    return ! s || s === "none";
-}
-
-function changeElems(id1, id2) {
-    hideElem(id2);
-    showElem(id1);
-    clearCont(getElem(id2));  // remove content of old image, e.g. to stop video
-}
-
-function toggleElems(id1, id2) {
-    if (isHidden(id1)) {
-        changeElems(id1,id2);
-    } else {
-        changeElems(id2,id1);
-    }
-}
-
-function toggleImg12()  { toggleElems(img1,   img2);   }
 
 function nextImgId() {
-    return isHidden(img1) ? img1 : img2;
+    return nextimg[currImgId()];
 }
 
-function currImgId() {
-    return isHidden(img1) ? img2 : img1;
+function toggleImg12(id)  {
+    const trans = getTransition(currPage, lastPage);
+    trans(id, nextimg[id]);
+}
+
+// ----------------------------------------
+// simplest transition: exchange images without animation
+
+function getTransition(cp, lp) {
+    // return cut;
+    return crossFade;
+}
+
+// ----------------------------------------
+// simplest transition: exchange images without animation
+
+function cut(id1, id2) {
+    trc(1, "cut: " + id1);
+    const e1 = getElem(id1);
+    const e2 = getElem(id2);
+
+    nextAnimClass(e2, "visibleImage", "hiddenImage");
+    nextAnimClass(e1, "hiddenImage", "visibleImage");
+    clearCont(e2);
+}
+
+// ----------------------------------------
+// crossfade images
+
+const defaultCrossFadeDur = 1.0;
+
+function crossFade(id1, id2, dur0) {
+    const e1 = getElem(id1);
+    const e2 = getElem(id2);
+    const dur = dur0 || defaultCrossFadeDur;
+    trc(1, `crossFade: ${id1}, ${dur}sec`);
+
+    setCSS(e2, {"animation-duration": dur + "s"});
+    nextAnimClass(e2, "visibleImage", "fadeoutImage")
+        || nextAnimClass(e2, "fadeinImage", "fadeoutImage");
+
+    setCSS(e1, {"animation-duration": dur + "s"});
+    nextAnimClass(e1, "hiddenImage", "fadeinImage");
+
+    // cleanup is done by animation end eventhandlers
 }
 
 /* ---------------------------------------- */
 /* global state */
 
-var nextPage;
+var lastPage;
 var currPage;
 
 var picCache = new Image();
@@ -567,7 +587,7 @@ function loadImg(id, url, geo, resizeAlg) {
                      overflow : "hidden"
                    };
     // get element, clear contents and set style attributes
-    const e = clearCont(getElem(id));
+    const e = clearCont(id);
     setCSS(e, style);
 
     const i = newImgElem(id,
@@ -589,7 +609,7 @@ function loadFullImg(id, url, imgGeo) {
                      overflow : "auto"     // !!! image becomes scrollable
                    };
     // get element, clear contents and set style attributes
-    const e = clearCont(getElem(id));
+    const e = clearCont(id);
     setCSS(e, style);
 
     const i = newImgElem(id,
@@ -610,7 +630,7 @@ function loadPanoramaImg(id, url, imgGeo) {
     const d = 2.5 * 7.0 * Math.max(ar, 1/ar);
 
     // add keyframe style
-    const s = clearCont(getElem("panorama-css"));
+    const s = clearCont("panorama-css");
 
     const kf  = "pano-move";
     const dr  = isH ? "left" : "bottom";
@@ -647,7 +667,7 @@ function loadPanoramaImg(id, url, imgGeo) {
                     top      : "0px",
                     overflow : "hidden"
                   };
-    const e = clearCont(getElem(id));
+    const e = clearCont(id);
     setCSS(e, style);
 
     function animationEndFunction() {
@@ -688,10 +708,11 @@ function showImg1(page, resizeAlg) {
     trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
 
     picCache.onload = () => {
-        loadImg1(nextImgId(), imgUrl,
+        const id = nextImgId();
+        loadImg1(id, imgUrl,
                  resizeAlg === "fullsize" ? orgGeo : imgGeo,
                  resizeAlg);
-        toggleImg12();
+        toggleImg12(id);
     };
     picCache.src = imgUrl; // the .onload handler is triggered here
 }
@@ -714,7 +735,7 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
                    };
 
     // get element, clear contents and set style attributes
-    const e = clearCont(getElem(id));
+    const e = clearCont(id);
     setCSS(e, style);
 
     // build video/img element
@@ -763,11 +784,12 @@ function showMovie1(page, resizeAlg) {
     const movReq = page.imgReq;
     const movGeo = readGeo(page.oirGeo[0]);
     const movUrl = toMediaUrl(page.img);
+    const id     = nextImgId();
 
     trc(1, "showMovie: url=" + movUrl + ", geo=" + showGeo(movGeo));
 
-    loadMovie(nextImgId(), movUrl, movGeo, movReq.rType, resizeAlg);
-    toggleImg12();
+    loadMovie(id, movUrl, movGeo, movReq.rType, resizeAlg);
+    toggleImg12(id);
 }
 
 function showMovie(page)          { showMovie1(page, "no-magnify"); }
@@ -784,7 +806,7 @@ function showBlog(page) {
     trc(1, "showBlog: " + txt);
 
     // get element, clear contents and set style attributes
-    const e  = clearCont(getElem(id));
+    const e  = clearCont(id);
     setCSS(e, { width:  geo.w,
                 height: geo.h,
                 top:    "0px",
@@ -800,10 +822,8 @@ function showBlog(page) {
                        "blog"
                       );
     b.innerHTML = txt;
-
     e.appendChild(b);
-
-    toggleImg12();
+    toggleImg12(id);
 }
 
 // ----------------------------------------
@@ -820,8 +840,8 @@ function showCol(page) {
                        rPathPos: colReq.rPathPos
                      };
     const g        = toPx(screenGeo());
-
-    const e = clearCont(getElem(nextImgId()));
+    const id       = nextImgId();
+    const e = clearCont(id);
     setCSS(e, { width:  g.w,
                 height: g.h,
                 left:   "0px",
@@ -829,7 +849,7 @@ function showCol(page) {
               });
     e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog));
 
-    toggleImg12();
+    toggleImg12(id);
 }
 
 function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog) {
@@ -1110,6 +1130,7 @@ function showPage(page) {
     trc(1, "showPage:" + page);
 
     // store page as new currPage
+    lastPage = currPage;
     currPage = page;
 
     buildInfo();
@@ -2351,7 +2372,6 @@ function hideStatus() {
         clearTimeout(statusTimer);
     }
     hideAnimElem(status);
-    // clearElem(status);
 }
 
 // ----------------------------------------
@@ -2380,14 +2400,15 @@ function handleImageAnim(id) {
     trc(1, `handleImageAnim: ${id}`);
     const e = getElem(id);
     nextAnimClass(e, "fadeinImage", "visibleImage");
-    nextAnimClass(e, "fadeoutImage", "hiddenImage");
+    nextAnimClass(e, "fadeoutImage", "hiddenImage")
+        && clearCont(e);
 }
 
 function hideImageElem(id) {
     trc(1, "hideImageElem:" + id);
     const e = getElem(id);
     nextAnimClass(e, "fadeinImage",  "fadeoutImage");
-    nextAnimClass(e, "visibleImage", "fadeoutImage");
+    nextAnimClass(e, "visibleImage", "fadeoutImage") && clearCont(e);
 }
 
 function showImageElem(id) {
@@ -2419,7 +2440,9 @@ function nextAnimClass(e, cur, nxt) {
         cs.remove(cur);
         cs.add(nxt);
         trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
+        return true;
     }
+    return false;
 }
 
 function hideAnimElem(id) {

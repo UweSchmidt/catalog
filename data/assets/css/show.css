@@ -28,10 +28,10 @@ body {
   padding: 0px;
 
   position: absolute;
-  top: 100px;
+  top:  100px;   /* dummys */
   left: 100px;
 
-  display : block;
+  /* display : block; /* set by class */
 }
 #image2 {
   width:  100px;
@@ -41,10 +41,10 @@ body {
   padding: 0px;
 
   position: absolute;
-  top: 100px;
+  top:  100px;   /* dummys */
   left: 100px;
 
-  display : none;
+  /* display : none; /* set by class */
 }
 
 /* ---------------------------------------- */
@@ -77,7 +77,7 @@ body {
   opacity: 1.0;
 }
 
-.fadoutImage {
+.fadeoutImage {
   display:             block;
   animation-name:      fadeout;
   animation-duration:  1s;       /*default */
