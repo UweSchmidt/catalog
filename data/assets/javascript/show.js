@@ -258,7 +258,7 @@ function bestFitIconGeo() {
     if (s.w <= 1280)
         return readGeo("120x90");
     if (s.w <= 1400)
-        return readGeo("40x105");
+        return readGeo("140x105");
 
     return readGeo("160x120");
 }
@@ -513,8 +513,15 @@ function toggleImg12(id)  {
 // simplest transition: exchange images without animation
 
 function getTransition(cp, lp) {
-    // return cut;
-    // return crossFade;
+    if ( defaultTransDur === 0) {
+        return cut;
+    }
+    if (isImgPage(currPage)
+        && lastPage != null
+        && isImgPage(lastPage)
+       ) {
+        return crossFade;
+    }
     return fadeOutIn;
 }
 
@@ -534,7 +541,7 @@ function cut(id1, id2) {
 // ----------------------------------------
 // crossfade images
 
-const defaultTransDur = 1.0;
+let defaultTransDur = 1.0;
 
 function crossFade(id1, id2, dur0) {
     const e1 = getElem(id1);
@@ -585,11 +592,32 @@ function clearImageElem(e) {
               });
 }
 
+// ----------------------------------------
+
+function slowDownTransAnim() {
+    defaultTransDur += 0.5;
+    showAnimDur();
+}
+
+function speedUpTransAnim() {
+    defaultTransDur = Math.max(0, defaultTransDur - 0.5);
+    showAnimDur();
+}
+
+function showAnimDur() {
+    const msg = "Animation bei Bildwechsel "
+          + (defaultTransDur === 0
+             ? "aus"
+             : defaultTransDur + " sec."
+            );
+    showStatus(msg);
+}
+
 /* ---------------------------------------- */
 /* global state */
 
-var lastPage;
-var currPage;
+var lastPage = null;
+var currPage = null;
 
 var picCache = new Image();
 
@@ -1684,6 +1712,16 @@ function keyPressed (e) {
 
     if ( isKey(e,  83, "S") ) {
         startStopSlideShow("allColls");
+        return false;
+    }
+
+    if ( isKey(e, 116, "t") ) {
+        slowDownTransAnim();
+        return false;
+    }
+
+    if ( isKey(e,  84, "T") ) {
+        speedUpTransAnim();
         return false;
     }
 
