@@ -154,7 +154,7 @@ function shortenHistList(hl) {
     var hid = searchSaveCmd(hl);
     if (hid > 0) {
         dropHistAtInServer(hid);
-        statusMsg("Undo history shorted until last catalog save");
+        statusMsg("Undo history truncated until last catalog save");
     } else {
         statusMsg("No catalog save command found in undo history");
     }
