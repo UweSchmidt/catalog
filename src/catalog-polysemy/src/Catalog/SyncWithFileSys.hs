@@ -32,6 +32,7 @@ import Catalog.Effects
        , TextPath
        , dirExist
        , fileExist
+       , log'info
        , log'trc
        , log'verb
        , log'warn
@@ -363,7 +364,7 @@ syncDir = do
 
 syncDirP :: Eff'Sync r => TimeStamp -> Path -> Sem r ()
 syncDirP ts p = do
-  log'verb $ msgPath p "syncDir for: "
+  log'info $ msgPath p "sync catalog with filesystem dir: "
 
   -- remember all ImgRef's in dir to be synchronized
   old'refs <- collectImgRefs' p
@@ -380,12 +381,12 @@ syncDirP ts p = do
   let mod'refs = buildImgRefUpdates old'refs new'refs
 
   -- cleanup collections
-  log'verb $ "syncDir: images removed or renamed: " <> toText mod'refs
+  log'info $ "images removed or renamed: " <> toText mod'refs
   updateAllImgRefs mod'refs  -- cleanupAllRefs rem'refs
 
   -- compute set of ImgRef's for new images
   let es = buildNewColEntries new'refs old'refs mod'refs
-  log'verb $ "syncDir: images added:   " <> toText es
+  log'info $ "images added:   " <> toText es
 
   -- generate dir collection
   log'verb $ msgPath p "syncDir: create the assocciated collection for: "
@@ -398,6 +399,9 @@ syncDirP ts p = do
   -- insert the new images into a new import collection
   log'verb $ msgPath p "syncDir: update the imports collection: "
   updateImportsDir ts es
+
+  log'info $ msgPath p "sync catalog finished for: "
+
 
 syncDir' :: Eff'Sync r => Path -> Sem r ()
 syncDir' p = do
@@ -429,8 +433,8 @@ syncDir' p = do
 
 syncNewDirs :: Eff'Sync r => Path -> Sem r ()
 syncNewDirs p = do
-  log'verb $
-    msgPath p "syncNewDirs: add new subdirs from filesystem into dir: "
+  log'info $
+    msgPath p "add new filesystem dirs into catalog at: "
 
   mbi <- lookupByPath p
   case mbi of
