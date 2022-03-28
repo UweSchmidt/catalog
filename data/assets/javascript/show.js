@@ -904,10 +904,11 @@ function showCol(page) {
     const g        = toPx(screenGeo());
     const id       = nextImgId();
     const e = clearCont(id);
-    setCSS(e, { width:  g.w,
-                height: g.h,
-                left:   "0px",
-                top:    "0px"
+    setCSS(e, { width:    g.w,
+                height:   g.h,
+                left:     "0px",
+                top:      "0px",
+                overflow: "auto"
               });
     e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog));
 
