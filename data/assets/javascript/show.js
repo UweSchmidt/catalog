@@ -2239,7 +2239,9 @@ const metaFmt = {
     "Composite:FOV":        fmtDeg,
     "Composite:Megapixels": fmtMPX,
     "Descr:GPSPositionDeg": fmtGPS,
-    "Descr:Rating":         fmtRating
+    "Descr:Rating":         fmtRating,
+    "Descr:Web":            fmtWeb,
+    "Descr:Wikipedia":      fmtWeb
 };
 
 function lookupFmt(k) {
@@ -2281,6 +2283,16 @@ function fmtRating(n) {
     spn.classList.add("rating");
     spn.appendChild(txt);
     return spn;
+}
+
+function fmtWeb(url) {
+    const txt = newText(url);
+    const a   = newElem("a");
+    a.href    = url;
+    a.target  = "_blank";
+    a.classList.add("weblink");
+    a.appendChild(txt);
+    return a;
 }
 
 function buildMetaInfo (t, md) {
