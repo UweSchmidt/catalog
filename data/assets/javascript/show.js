@@ -595,12 +595,12 @@ function clearImageElem(e) {
 // ----------------------------------------
 
 function slowDownTransAnim() {
-    defaultTransDur += 0.5;
+    defaultTransDur += 0.25;
     showAnimDur();
 }
 
 function speedUpTransAnim() {
-    defaultTransDur = Math.max(0, defaultTransDur - 0.5);
+    defaultTransDur = Math.max(0, defaultTransDur - 0.25);
     showAnimDur();
 }
 
