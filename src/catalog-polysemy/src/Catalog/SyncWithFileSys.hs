@@ -75,8 +75,10 @@ import Catalog.MetaData.Sync
        ( syncMetaData )
 
 import Catalog.TextPath
-       ( toFileSysTailPath )
-
+       ( toFileSysPath
+       , toFileSysTailPath
+       , buildImgPath0
+       )
 import Catalog.TimeStamp
        ( whatTimeIsIt
        , lastModified
@@ -364,7 +366,7 @@ syncDir = do
 
 syncDirP :: Eff'Sync r => TimeStamp -> Path -> Sem r ()
 syncDirP ts p = do
-  log'info $ msgPath p "sync catalog with filesystem dir: "
+  log'sync1
 
   -- remember all ImgRef's in dir to be synchronized
   old'refs <- collectImgRefs' p
@@ -381,12 +383,12 @@ syncDirP ts p = do
   let mod'refs = buildImgRefUpdates old'refs new'refs
 
   -- cleanup collections
-  log'info $ "images removed or renamed: " <> toText mod'refs
+  log'syncRM $ M.toList mod'refs
   updateAllImgRefs mod'refs  -- cleanupAllRefs rem'refs
 
   -- compute set of ImgRef's for new images
   let es = buildNewColEntries new'refs old'refs mod'refs
-  log'info $ "images added:   " <> toText es
+  log'syncAD es
 
   -- generate dir collection
   log'verb $ msgPath p "syncDir: create the assocciated collection for: "
@@ -400,7 +402,42 @@ syncDirP ts p = do
   log'verb $ msgPath p "syncDir: update the imports collection: "
   updateImportsDir ts es
 
-  log'info $ msgPath p "sync catalog finished for: "
+  log'sync9
+  where
+    qt t = "\"" <> t <> "\""
+
+    log'sync1 = do
+      fsp <- toFileSysPath p
+      log'info $ msgPath p ("syncDir: catalog dir: ")
+      log'info $            "syncDir: filesys dir: " <> qt fsp
+
+    log'sync9 =
+      log'info "syncDir: finished"
+
+    log'syncAD refs
+      | null refs = log'info "syncDir: no images added"
+      | otherwise = traverse_ (colEntry' logIref logCref) refs
+      where
+        logIref ref = do
+          tp <- buildImgPath0 ref
+          log'info $ "syncDir: image added: " <> qt tp
+
+        logCref ref = do
+          tp <- (^. isoText) <$> objid2path ref
+          log'info $ "syncDir: dir   added: " <> qt tp
+
+    log'syncRM refs
+      | null refs = log'info "syncDir: no images removed or renamed"
+      | otherwise = traverse_ (uncurry logRef) refs
+      where
+        logRef ref Nothing = do
+          tp <- buildImgPath0 ref
+          log'info $ "syncDir: image removed: " <> qt tp
+
+        logRef ref (Just nref) = do
+          tp <- buildImgPath0 ref
+          np <- buildImgPath0 nref
+          log'info $ "syncDir: image " <> qt tp <> " renamed to " <> qt np
 
 
 syncDir' :: Eff'Sync r => Path -> Sem r ()
@@ -434,7 +471,7 @@ syncDir' p = do
 syncNewDirs :: Eff'Sync r => Path -> Sem r ()
 syncNewDirs p = do
   log'info $
-    msgPath p "add new filesystem dirs into catalog at: "
+    msgPath p "syncDir: import new filesystem dirs into catalog at: "
 
   mbi <- lookupByPath p
   case mbi of
@@ -450,6 +487,8 @@ syncNewDirs p = do
                  dirExist sp
             ) $
         syncNewDirsCont i'
+  log'info "syncDir: import of new filesystem dirs finished"
+
 
 syncNewDirsCont :: Eff'Sync r => ObjId -> Sem r ()
 syncNewDirsCont i = do
