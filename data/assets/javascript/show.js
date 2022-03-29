@@ -522,6 +522,12 @@ function getTransition(cp, lp) {
        ) {
         return crossFade;
     }
+    if (isColPage(currPage)
+        && lastPage != null
+        && isColPage(lastPage)
+       ) {
+        return crossFade;
+    }
     return fadeOutIn;
 }
 
