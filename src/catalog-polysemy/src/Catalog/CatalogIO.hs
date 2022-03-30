@@ -153,11 +153,13 @@ encodeJSON = J.encodePretty' conf
 saveImgStore :: Eff'CatIO r => TextPath -> Sem r ()
 saveImgStore p = do
   sp <- pxMountPath p
-  log'info $ "store catalog into file " <> toText sp
+  log'info $ "saveImgStore: store catalog into file:   " <> toText sp
 
   bs <- toBS
   writeFileLB sp bs
   journal $ SaveImgStore (p ^. isoString)   -- FilePath in Journal def
+
+  log'info $ "saveImgStore: catalog stored into file: " <> toText sp
   where
     toBS
       | isHashIdArchive p =
@@ -226,7 +228,7 @@ checkinImgStore cmt f = do
 loadImgStore :: Eff'CatIO r => TextPath -> Sem r ()
 loadImgStore f = do
   sp <- pxMountPath f
-  log'info $ "load catalog from file " <> sp
+  log'info $ "loadImgStore: load catalog from file " <> sp
   bs <- readFileLB sp
 
   case fromBS bs of
@@ -237,7 +239,7 @@ loadImgStore f = do
     Just st -> do
       let md = st ^. theCatMetaData
       log'info $
-        "catalog loaded, version " <>
+        "loadImgStore: catalog loaded, version " <>
         md ^. metaTextAt descrCatalogVersion <>
         " written at " <>
         md ^. metaTextAt descrCatalogWrite
@@ -245,7 +247,10 @@ loadImgStore f = do
       put st
       journal $ LoadImgStore (f ^. isoString)
       -- make a "FS check" and throw away undefined refs
+
+      log'info "loadImgStore: check catalog integrity"
       checkImgStore
+      log'info "loadImgStore: catalog loading complete"
   where
 
     fromBS
@@ -262,7 +267,7 @@ initImgRoot rootName colName dirName = do
 
 initImgStore :: Eff'CatIO r => Sem r ()
 initImgStore = do
-  log'info $ "catalog-polysemy version " <> (isoString # version) <>
+  log'info $ "initImgStore: catalog-polysemy version " <> (isoString # version) <>
              " from " <> (isoString # date)
 
   env <- ask
@@ -270,6 +275,8 @@ initImgStore = do
   loadImgStore (env ^. catJsonArchive)
   genSysCollections
   setCatMetaData
+
+  log'info "initImgStore: server initialized"
 
 ----------------------------------------
 
