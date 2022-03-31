@@ -1,8 +1,10 @@
 build:
-	cabal build all
+	cabal build all \
+	--disable-documentation
 
 install:
-	cabal install client-polysemy servant-polysemy --overwrite-policy=always
+	cabal install client-polysemy servant-polysemy \
+	--overwrite-policy=always  --disable-documentation
 
 clean:
 	cabal clean

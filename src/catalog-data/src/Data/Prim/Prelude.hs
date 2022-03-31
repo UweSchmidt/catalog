@@ -393,15 +393,15 @@ all3 inj (x1, x2, x3) = (,,) <$> inj x1 <*> inj x2 <*> inj x3
 --
 -- mothers little helper for en/decoding optional fileds
 
-(.=?!) :: (ToJSON v, IsEmpty v) =>
-          Text -> v -> [J.Pair]
+(.=?!) :: (IsEmpty v, J.KeyValue a, ToJSON v)
+       => J.Key -> v -> [a]
 t .=?! x
   | isempty x = []
   | otherwise = [t J..= x]
 {-# INLINE (.=?!) #-}
 
-(.:?!) :: (FromJSON v, Monoid v) =>
-          J.Object -> Text -> J.Parser v
+(.:?!) :: (FromJSON v, Monoid v)
+       => J.Object -> J.Key -> J.Parser v
 o .:?! t =
   o J..:? t J..!= mempty
 {-# INLINE (.:?!) #-}

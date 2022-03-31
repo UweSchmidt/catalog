@@ -128,6 +128,7 @@ import Data.Prim
     )
 
 import qualified Data.Aeson      as J
+import qualified Data.Aeson.Key  as J
 import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
@@ -173,8 +174,8 @@ instance ToJSON ref => ToJSON (ImgNode' ref) where
     ]
   toJSON (ROOT rd rc) = J.object
     [ "ImgNode"     J..= ("ROOT" :: Text)
-    , t'archive     J..= rd
-    , t'collections J..= rc
+    , J.fromText t'archive     J..= rd
+    , J.fromText t'collections J..= rc
     ]
   toJSON (COL md im be es) = J.object $
     [ "ImgNode"    J..= ("COL" :: Text)
@@ -199,8 +200,8 @@ instance (FromJSON ref) => FromJSON (ImgNode' ref) where
            DIR  <$> o J..: "children"
                 <*> o J..:? "sync" J..!= mempty
          "ROOT" ->
-           ROOT <$> o J..: t'archive
-                <*> o J..: t'collections
+           ROOT <$> o J..: J.fromText t'archive
+                <*> o J..: J.fromText t'collections
          "COL" ->
            COL  <$> o J..: "metadata"
                 <*> ((uncurry ImgRef <$>) <$> o J..:? "image" J..!= Nothing)
