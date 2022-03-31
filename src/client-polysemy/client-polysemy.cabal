@@ -48,8 +48,8 @@ executable client-polysemy
     -fplugin=Polysemy.Plugin -threaded
 
   build-depends:
-      aeson                 >=0.8
-    , aeson-pretty          >=0.8
+      aeson                 >=2.0
+    , aeson-pretty
     , async                 >=2.2.2
     , base                  >=4.7
     , bytestring

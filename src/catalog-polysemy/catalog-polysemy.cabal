@@ -72,7 +72,7 @@ library
     -fspecialise-aggressively -fplugin=Polysemy.Plugin
 
   build-depends:
-      aeson                 >=0.8
+      aeson                 >=2.0
     , aeson-pretty
     , base                  >=4.7
     , blaze-html

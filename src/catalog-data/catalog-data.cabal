@@ -49,8 +49,8 @@ library
 
   -- Other library packages from which modules are imported.
   build-depends:
-      aeson                 >=0.8
-    , aeson-pretty          >=0.8
+      aeson                 >=2.0
+    , aeson-pretty
     , base                  >=4.5
     , blaze-html
     , bytestring            >=0.9
