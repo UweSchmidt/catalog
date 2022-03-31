@@ -24,6 +24,7 @@ module Client.Effects.ClientCmd
   , ccExifUpdate
   , ccCheckMeta
   , ccGeoAddress
+  , ccGetAddress
   , ccPage
   )
 where
@@ -39,6 +40,7 @@ import Data.MetaData
 
 import Data.Prim
        ( Geo
+       , GPSposDec
        , Name
        , Path
        , PathPos
@@ -71,6 +73,7 @@ data ClientCmd m a where
   CcExifUpdate :: Path    -> Bool     -> Bool -> ClientCmd m ()
   CcCheckMeta  :: Path                        -> ClientCmd m ()
   CcGeoAddress :: Path    -> Bool             -> ClientCmd m ()
+  CcGetAddress :: GPSposDec                   -> ClientCmd m ()
   CcPage       :: Path                        -> ClientCmd m ()
 
 makeSem ''ClientCmd

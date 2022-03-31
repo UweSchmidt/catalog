@@ -37,8 +37,10 @@ import Polysemy.Error
 import Polysemy.Logging
        ( Logging
        , abortWith
+       , log'err
        , log'trc
        , log'warn
+       , log'verb
        , untext
        )
 import Polysemy.Reader
@@ -310,6 +312,16 @@ evalClientCmd =
       ps  <- globExpand p
       traverse_ (\ p' -> theEntry p' >>= setGeoAddress force p') ps
       saveGeoCache
+
+    CcGetAddress g -> do
+      log'verb $ untext ["get address for GPS coordinate: ", (prismString # g) ^. isoText]
+      loadGeoCache
+      a <- lookupGeoCache g
+      case a of
+        Just (GA{_display_name = ad} : _) -> do
+          writeln ad
+          saveGeoCache
+        _ -> log'err $ "no address found for: " <> (prismString # g) ^. isoText
 
     CcPage path -> do
       showDoc path
@@ -826,7 +838,6 @@ setGeoAddress force p e
 
         mAddr :: Text
         mAddr = md ^. metaTextAt descrAddress
-
 
 ------------------------------------------------------------------------------
 

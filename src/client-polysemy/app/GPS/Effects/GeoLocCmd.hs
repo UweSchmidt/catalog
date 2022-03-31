@@ -82,6 +82,7 @@ import Polysemy.Reader
 import Data.Prim
        ( (#)
        , (^.)
+       , (<|>)
        , GeoAddress
        , IsoString(isoString)
        , GeoAddrList
@@ -246,7 +247,7 @@ nominatimHttps' req0 = do
               `catch`
               (\ msg ->
                   do
-                    log'warn $ untext ["geoLocAddress: ", msg]
+                    log'trc $ untext ["geoLocAddress: error catched: ", msg]
                     return $ Just []
               )
         )
@@ -298,6 +299,8 @@ newtype GeoAddress'  = GA'  GeoAddress
 instance FromJSON GeoAddrList' where
   parseJSON = J.withObject "GeoAddrList'" $ \ o ->
     GAL' <$> o J..: "features"
+    <|>
+    pure (GAL' [])  -- no features -> no addresses
 
 instance FromJSON GeoAddress' where
   parseJSON = J.withObject "GeoAddress'" $ \ o ->

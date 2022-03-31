@@ -179,7 +179,7 @@ abort :: forall e r a
       => (Text -> e) -> Text
       -> Sem r a
 abort ef msg = do
-  log'err msg
+  log'trc msg
   throw @e (ef msg)
 
 

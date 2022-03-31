@@ -55,6 +55,7 @@ import Data.Prim
        ( intercalate
        , readMaybe
        , readGeo'
+       , googleMapsGPSdec
        , mkName
        , lastPath
        , isoPathPos
@@ -70,6 +71,7 @@ import Data.Prim
        , PrismString(prismString)
        , Text
        , Geo
+       , GPSposDec
        , Name
        , Path
        , PathPos
@@ -430,6 +432,12 @@ cmdClient = subparser $
         <> " Open street map is used for reverse geo location service."
       )
     )
+  <>
+  command "get-address"
+    ( (CcGetAddress <$> argGPS)
+      `withInfo`
+      ( "Get address for a GPS location or google maps url" )
+    )
 
 ----------------------------------------
 --
@@ -466,6 +474,9 @@ argPart :: Parser Name
 argPart = mkName <$> argument str (metavar "PART")
           <|>
           pure mempty
+
+argGPS :: Parser GPSposDec
+argGPS = argument gpsReader (metavar "GSP-or-URL")
 
 -- ----------------------------------------
 --
@@ -536,6 +547,15 @@ geoReader = eitherReader parse
         (Left $ "Wrong geometry: " <> arg)
         Right
         (readGeo' arg)
+
+gpsReader :: ReadM GPSposDec
+gpsReader = eitherReader parse
+  where
+    parse arg =
+      maybe
+        (Left $ "Not a GPS location: " <> arg)
+        Right
+        (arg ^? isoString . googleMapsGPSdec)
 
 globParser :: ReadM [MetaKey]
 globParser = globParser' notNull

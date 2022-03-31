@@ -153,7 +153,7 @@ encodeJSON = J.encodePretty' conf
 saveImgStore :: Eff'CatIO r => TextPath -> Sem r ()
 saveImgStore p = do
   sp <- pxMountPath p
-  log'info $ "saveImgStore: store catalog into file:   " <> toText sp
+  log'info $ "saveImgStore: store catalog into file:  " <> toText sp
 
   bs <- toBS
   writeFileLB sp bs
