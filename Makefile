@@ -15,6 +15,9 @@ bump-version:
 	bin/versionbump.sh
 	$(MAKE) build
 
+configure:
+	$(MAKE) -C src configure
+
 start:
 	bin/start-catalog-server.sh
 
@@ -38,4 +41,4 @@ copy-apps:
 	cp -f $(client-polysemy)  bin/client-polysemy
 	ls -l bin
 
-PHONY: build install install-local local bump-version clean start check-external-progs copy-apps
+PHONY: configure build install install-local local bump-version clean start check-external-progs copy-apps
