@@ -662,7 +662,7 @@ instance IsoValueText MetaValue where
   isoValueText = isoMetaValueText
 
 instance IsoValueText Text where
-  isoValueText = const id
+  isoValueText _k = iso id id
 
 isoMetaDataMDT :: (IsEmpty a, IsoValueText a)
                => Iso' (MetaData' a) MetaDataText

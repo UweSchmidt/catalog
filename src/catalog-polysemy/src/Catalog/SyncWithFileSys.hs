@@ -28,7 +28,6 @@ import Catalog.Effects
        , EffLogging
        , EffTime
        , Sem
-       , SemISEJL
        , TextPath
        , dirExist
        , fileExist
@@ -300,11 +299,11 @@ collectImgRefs =
 
 -- --------------------
 
-updateAllImgRefs :: ImgRefUpdateMap -> SemISEJL r ()
+updateAllImgRefs :: Eff'ISEJL r => ImgRefUpdateMap -> Sem r ()
 updateAllImgRefs um =
   getRootImgColId >>= updateImgRefs um
 
-updateImgRefs :: ImgRefUpdateMap -> ObjId -> SemISEJL r ()
+updateImgRefs :: Eff'ISEJL r => ImgRefUpdateMap -> ObjId -> Sem r ()
 updateImgRefs um i0
   | isempty um = return ()
   | otherwise  = cleanupRefs' adjIR adjCE i0

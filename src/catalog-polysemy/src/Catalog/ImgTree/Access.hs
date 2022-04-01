@@ -44,9 +44,9 @@ module Catalog.ImgTree.Access
 where
 
 import Catalog.Effects
-       ( SemIS
-       , SemISE
-       , Sem
+       ( Sem
+       , EffIStore
+       , Eff'ISE
        , get
        , throw
        )
@@ -136,19 +136,19 @@ import qualified Data.Sequence as Seq
 -- and error effect used
 -- no logging, no journaling
 
-dt :: SemIS r ImgTree
+dt :: EffIStore r => Sem r ImgTree
 dt = do
   s <- get
   return (s ^. theImgTree)
 {-# INLINE dt #-}
 
-getTreeAt :: ObjId -> SemIS r (Maybe UplNode)
+getTreeAt :: EffIStore r => ObjId -> Sem r (Maybe UplNode)
 getTreeAt i = do
   s <- get
   return (s ^. theImgTree . entryAt i)
 {-# INLINE getTreeAt #-}
 
-getTree' :: Getting a UplNode a -> ObjId -> SemISE r a
+getTree' :: Eff'ISE r => Getting a UplNode a -> ObjId -> Sem r a
 getTree' l i = do
   mn <- getTreeAt i
   case mn of
@@ -156,64 +156,64 @@ getTree' l i = do
     Nothing -> throw $ "getTree': illegal ObjId: " <> i ^. isoText
 {-# INLINE getTree' #-}
 
-getImgName :: ObjId -> SemISE r Name
+getImgName :: Eff'ISE r => ObjId -> Sem r Name
 getImgName = getTree' nodeName
 {-# INLINE getImgName #-}
 
-getImgParent :: ObjId -> SemISE r ObjId
+getImgParent :: Eff'ISE r => ObjId -> Sem r ObjId
 getImgParent = getTree' parentRef
 {-# INLINE getImgParent #-}
 
-getImgVal :: ObjId -> SemISE r ImgNode
+getImgVal :: Eff'ISE r => ObjId -> Sem r ImgNode
 getImgVal = getTree' nodeVal
 {-# INLINE getImgVal #-}
 
-getImgVals :: ObjId -> Getting a ImgNode a -> SemISE r a
+getImgVals :: Eff'ISE r => ObjId -> Getting a ImgNode a -> Sem r a
 getImgVals i l = getTree' (nodeVal . l) i
 {-# INLINE getImgVals #-}
 
-getImgSubDirs :: DirEntries -> SemISE r (Seq ObjId)
+getImgSubDirs :: Eff'ISE r => DirEntries -> Sem r (Seq ObjId)
 getImgSubDirs es =
   filterSeqM (\ i' -> getImgVals i' (to isDIR)) (es ^. isoDirEntries)
 
 -- ----------------------------------------
 
-getRootId :: SemIS r ObjId
+getRootId :: EffIStore r => Sem r ObjId
 getRootId = do
   s <- get
   return (s ^. theImgTree . rootRef)
 {-# INLINE getRootId #-}
 
-getRootImgDirId :: SemISE r ObjId
+getRootImgDirId :: Eff'ISE r => Sem r ObjId
 getRootImgDirId = do
   ri <- getRootId
   getImgVals ri theRootImgDir
 {-# INLINE getRootImgDirId #-}
 
-getRootImgColId :: SemISE r ObjId
+getRootImgColId :: Eff'ISE r => Sem r ObjId
 getRootImgColId = do
   ri <- getRootId
   getImgVals ri theRootImgCol
 {-# INLINE getRootImgColId #-}
 
-existsEntry :: ObjId -> SemIS r Bool
+existsEntry :: EffIStore r => ObjId -> Sem r Bool
 existsEntry i = do
   s <- get
   return $ isJust (s ^. theImgTree . entryAt i)
 {-# INLINE existsEntry #-}
 
-lookupByName :: Name -> ObjId -> SemIS r (Maybe (ObjId, ImgNode))
+lookupByName :: EffIStore r => Name -> ObjId -> Sem r (Maybe (ObjId, ImgNode))
 lookupByName n i = do
   p <- (`snocPath` n) <$> objid2path i
   lookupByPath p
 
-lookupByPath :: Path -> SemIS r (Maybe (ObjId, ImgNode))
+lookupByPath :: EffIStore r => Path -> Sem r (Maybe (ObjId, ImgNode))
 lookupByPath p = lookupImgPath p <$> dt
 {-# INLINE lookupByPath #-}
 
 -- save lookup by path
 
-getIdNode :: Text -> Path -> SemISE r (ObjId, ImgNode)
+getIdNode :: Eff'ISE r => Text -> Path -> Sem r (ObjId, ImgNode)
 getIdNode msg p = do
   mv <- lookupImgPath p <$> dt
   case mv of
@@ -222,15 +222,15 @@ getIdNode msg p = do
     Just res ->
       return res
 
-getIdNode' :: Path -> SemISE r (ObjId, ImgNode)
+getIdNode' :: Eff'ISE r => Path -> Sem r (ObjId, ImgNode)
 getIdNode' = getIdNode "cant' find entry for path:"
 
-getId :: Path -> SemISE r ObjId
+getId :: Eff'ISE r => Path -> Sem r ObjId
 getId p = fst <$> getIdNode' p
 
 -- check path not there
 
-alreadyTherePath :: Text -> Path -> SemISE r ()
+alreadyTherePath :: Eff'ISE r => Text -> Path -> Sem r ()
 alreadyTherePath msg p = do
   whenM (isJust <$> lookupByPath p) $
     throw $ msgPath p msg
@@ -239,18 +239,18 @@ alreadyTherePath msg p = do
 --
 -- | ref to path
 
-objid2path :: ObjId -> SemIS r Path
+objid2path :: EffIStore r => ObjId -> Sem r Path
 objid2path i = refPath i <$> dt
 
-objid2list :: ObjId -> SemIS r [ObjId]
+objid2list :: EffIStore r => ObjId -> Sem r [ObjId]
 objid2list i = refObjIdPath i <$> dt
 
-isPartOfTree :: ObjId -> ObjId -> SemIS r Bool
+isPartOfTree :: EffIStore r => ObjId -> ObjId -> Sem r Bool
 isPartOfTree r p = refInTree r p <$> dt
 
 
 -- | ref to type
-objid2type :: ObjId -> SemISE r Text
+objid2type :: Eff'ISE r => ObjId -> Sem r Text
 objid2type i = getImgVal i >>= go
   where
     go e = return $ mconcat $
@@ -260,7 +260,7 @@ objid2type i = getImgVal i >>= go
               theImgCol     . to (const "COL")
             )
 
-objid2contNames :: ObjId -> SemISE r [Name]
+objid2contNames :: Eff'ISE r => ObjId -> Sem r [Name]
 objid2contNames i =
   getImgVal i >>= go
   where
@@ -279,10 +279,10 @@ objid2contNames i =
       | otherwise =
           return []
 
-getMetaData :: ObjId -> SemISE r MetaData
+getMetaData :: Eff'ISE r => ObjId -> Sem r MetaData
 getMetaData i = getImgVals i theMetaData
 
-getImgMetaData :: ImgRef -> SemISE r MetaData
+getImgMetaData :: Eff'ISE r => ImgRef -> Sem r MetaData
 getImgMetaData (ImgRef i nm) =
   (<>) <$> getImgVals i (theImgPart nm . theImgMeta)
        <*> getMetaData i
@@ -295,20 +295,20 @@ getImgMetaData (ImgRef i nm) =
 -- is more readable, and it's needed by clients, cilents can't handle
 -- internal keys, like hashes or similar data
 
-mapObjId2Path :: Functor f => f ObjId -> SemIS r (f Path)
+mapObjId2Path :: (EffIStore r, Functor f) => f ObjId -> Sem r (f Path)
 mapObjId2Path x =
   (<$> x) <$> objid2pathMap
   -- do f <- objid2pathMap
   --    return $ fmap f x
 
 -- convert an ImgStore to an isomorphic ImgStore' Path with paths as keys
-mapImgStore2Path :: SemIS r (ImgStore' Path)
+mapImgStore2Path :: EffIStore r => Sem r (ImgStore' Path)
 mapImgStore2Path = do
   x <- get
   (`mapImgStore` x) <$> objid2pathMap
 
 -- get the mapping from internal keys, ObjId, to paths as keys
-objid2pathMap :: SemIS r (ObjId -> Path)
+objid2pathMap :: EffIStore r => Sem r (ObjId -> Path)
 objid2pathMap = flip refPath <$> dt
 
 mapPath2ObjId :: Functor f => f Path -> f ObjId
@@ -321,25 +321,28 @@ mapImgStore2ObjId = mapImgStore mkObjId
 --
 -- search, sort and merge ops for collections
 
-findAllColEntries :: (ColEntry -> Sem r Bool)    -- ^ the filter predicate
+findAllColEntries :: Eff'ISE r
+                  => (ColEntry -> Sem r Bool)    -- ^ the filter predicate
                   -> ObjId                       -- ^ the collection
-                  -> SemISE r [(Int, ColEntry)]  -- ^ the list of entries with pos
+                  -> Sem r [(Int, ColEntry)]     -- ^ the list of entries with pos
 findAllColEntries p i = do
   es <- getImgVals i theColEntries
   filterM (p . snd) $ zip [0..] (es ^. isoSeqList)
 {-# INLINE findAllColEntries #-}
 
-findFstColEntry  :: (ColEntry -> Sem r Bool)
+findFstColEntry  :: Eff'ISE r
+                 => (ColEntry -> Sem r Bool)
                  -> ObjId
-                 -> SemISE r (Maybe (Int, ColEntry))
+                 -> Sem r (Maybe (Int, ColEntry))
 findFstColEntry p i = listToMaybe <$> findAllColEntries p i
 {-# INLINE findFstColEntry #-}
 
 
-sortColEntries :: (ColEntry -> Sem r a)
+sortColEntries :: Eff'ISE r
+               => (ColEntry -> Sem r a)
                -> (a -> a -> Ordering)
                -> ColEntries
-               -> SemISE r ColEntries
+               -> Sem r ColEntries
 sortColEntries getVal cmpVal es =
   fmap fst . Seq.sortBy (cmpVal `on` snd) <$> traverse mkC es
   where
@@ -360,7 +363,7 @@ mergeColEntries es1 es2 =
 -- get the collection entry at an index pos
 -- if it's not there an error is thrown
 
-colEntryAt :: Int -> ImgNode -> SemISE r ColEntry
+colEntryAt :: Eff'ISE r => Int -> ImgNode -> Sem r ColEntry
 colEntryAt pos n =
   maybe
     (throw $ "colEntryAt: illegal index in collection: " <> pos ^. isoText)
@@ -371,11 +374,12 @@ colEntryAt pos n =
 -- process a collection entry at an index pos
 -- if the entry isn't there, an error is thrown
 
-processColEntryAt :: (ImgRef -> Sem r a)
+processColEntryAt :: Eff'ISE r
+                  => (ImgRef -> Sem r a)
                   -> (ObjId  -> Sem r a)
                   -> Int
                   -> ImgNode
-                  -> SemISE r a
+                  -> Sem r a
 processColEntryAt imgRef colRef pos n =
   colEntryAt pos n >>=
   colEntry' imgRef colRef
@@ -384,11 +388,11 @@ processColEntryAt imgRef colRef pos n =
 -- process a collection image entry at an index pos
 -- if the entry isn't there, an error is thrown
 
-processColImgEntryAt :: Monoid a
+processColImgEntryAt :: (Eff'ISE r, Monoid a)
                      => (ImgRef -> Sem r a)
                      -> Int
                      -> ImgNode
-                     -> SemISE r a
+                     -> Sem r a
 processColImgEntryAt imgRef =
   processColEntryAt imgRef (const $ return mempty)
 
@@ -399,10 +403,11 @@ foldObjIds :: (Monoid m) => (ObjId -> Sem r m) -> ObjIds -> Sem r m
 foldObjIds cmd os = mconcat <$> traverse cmd (toList os)
 {-# INLINE foldObjIds #-}
 
-filterObjIds :: (ImgNode -> Bool) -> ObjIds -> SemISE r ObjIds
+filterObjIds :: Eff'ISE r => (ImgNode -> Bool) -> ObjIds -> Sem r ObjIds
 filterObjIds p =
   foldObjIds sel
   where
+    sel :: Eff'ISE r => ObjId -> Sem r ObjIds
     sel i = do
       v <- getImgVal i
       return $
@@ -412,7 +417,7 @@ filterObjIds p =
 
 -- ----------------------------------------
 
-bitsUsedInImgTreeMap :: SemIS r Int
+bitsUsedInImgTreeMap :: EffIStore r => Sem r Int
 bitsUsedInImgTreeMap = do
   t <- dt
   return (noOfBitsUsedInKeys . keysImgTree $ t)

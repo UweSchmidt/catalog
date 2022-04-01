@@ -618,14 +618,14 @@ isoDirEntries = iso (\ (DE xs) -> xs) DE
 addDirEntry :: ref -> DirEntries' ref -> DirEntries' ref
 addDirEntry r (DE rs) = DE rs'
   where
-    ! rs' = r Seq.<| rs
+    !rs' = r Seq.<| rs
 {-# INLINE addDirEntry #-}
 
 delDirEntry :: (Eq ref) => ref -> DirEntries' ref -> DirEntries' ref
 delDirEntry r (DE rs) =
   DE rs'
   where
-    ! rs' = Seq.filter (/= r) rs
+    !rs' = Seq.filter (/= r) rs
 {-# INLINE delDirEntry #-}
 
 delColEntry :: (Eq ref) => ref -> ColEntries' ref -> ColEntries' ref

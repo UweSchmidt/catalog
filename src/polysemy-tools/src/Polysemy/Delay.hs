@@ -113,7 +113,7 @@ delayedExec'' :: forall r a
                  )
               => Sem (Delay : r) a -> Sem r a
 delayedExec'' cmd = do
-  refLast <- embed @ IO $ newTMVarIO 0
+  refLast <- embed @IO $ newTMVarIO 0
   delayedExec' refLast cmd
 
 

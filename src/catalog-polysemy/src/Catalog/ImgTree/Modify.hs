@@ -24,9 +24,9 @@ where
 
 import Catalog.Effects
        ( Sem
-       , SemISEJ
-       , SemISEJL
-       , SemISJ
+       , Eff'ISJ
+       , Eff'ISEJ
+       , Eff'ISEJL
        , liftExcept
        , log'warn
        , modify'
@@ -105,12 +105,13 @@ import qualified Data.Sequence as Seq
 --
 -- create a catalog node
 
-mkCatEntry :: (ObjId -> Name -> Sem r ())   -- ^ journal action
+mkCatEntry :: Eff'ISEJ r
+           => (ObjId -> Name -> Sem r ())   -- ^ journal action
            -> (ImgNode -> Bool)             -- ^ parent editable
            -> ImgNode                       -- ^ the catalog node value
            -> ObjId                         -- ^ parent node
            -> Name                          -- ^ the name of the node
-           -> SemISEJ r ObjId               -- ^ the new ref
+           -> Sem r ObjId                   -- ^ the new ref
 mkCatEntry journal' isN v i n =
   dt >>= go
   where
@@ -121,29 +122,31 @@ mkCatEntry journal' isN v i n =
       journal' i n
       return d
 
-mkJEntry :: (ObjId -> Name -> Journal) -> ObjId -> Name -> SemISJ r ()
+mkJEntry :: Eff'ISJ r
+         => (ObjId -> Name -> Journal)
+         ->  ObjId -> Name -> Sem r ()
 mkJEntry km i n = journal $ km i n
 {-# INLINE mkJEntry #-}
 
 -- create a new empty DIR node
-mkImgDir :: ObjId -> Name -> SemISEJ r ObjId
+mkImgDir :: Eff'ISEJ r => ObjId -> Name -> Sem r ObjId
 mkImgDir = mkCatEntry (mkJEntry MkDIR) isDIR emptyImgDir
 {-# INLINE mkImgDir #-}
 
 -- create a new empty COL node
-mkImgCol :: ObjId -> Name -> SemISEJ r ObjId
+mkImgCol :: Eff'ISEJ r => ObjId -> Name -> Sem r ObjId
 mkImgCol = mkCatEntry (mkJEntry MkCOL) isCOL emptyImgCol
 {-# INLINE mkImgCol #-}
 
 -- create a new empty IMG node
-mkImg :: ObjId -> Name -> SemISEJ r ObjId
+mkImg :: Eff'ISEJ r => ObjId -> Name -> Sem r ObjId
 mkImg = mkCatEntry (mkJEntry MkIMG) isDIR emptyImg
 {-# INLINE mkImg #-}
 
 
 -- remove an entry from catalog tree
 
-rmImgNode :: ObjId -> SemISEJL r ()
+rmImgNode :: Eff'ISEJL r => ObjId -> Sem r ()
 rmImgNode i = do
   ex <- existsEntry i
   if ex
@@ -164,16 +167,17 @@ rmImgNode i = do
 
 -- create a new empty subcollection and append it to the colrefs
 
-mkCollection :: Path -> SemISEJL r ObjId
+mkCollection :: Eff'ISEJL r => Path -> Sem r ObjId
 mkCollection = mkCollection' $ flip (Seq.|>)
 
 -- create a new empty subcollection and cons it to the colrefs
-mkCollectionC :: Path -> SemISEJL r ObjId
+mkCollectionC :: Eff'ISEJL r => Path -> Sem r ObjId
 mkCollectionC = mkCollection' (Seq.<|)
 
-mkCollection' :: (ColEntry -> ColEntries -> ColEntries)
+mkCollection' :: Eff'ISEJL r
+              => (ColEntry -> ColEntries -> ColEntries)
               -> Path
-              -> SemISEJL r ObjId
+              -> Sem r ObjId
 mkCollection' merge target'path = do
   -- parent exists
   (parent'id, parent'node) <-
@@ -195,12 +199,12 @@ mkCollection' merge target'path = do
 
 -- ----------------------------------------
 
-adjustNodeVal :: Show a
+adjustNodeVal :: (Eff'ISEJL r, Show a)
               => (ObjId -> a -> Journal)
               -> Traversal' ImgNode a
               -> (a -> a)
               -> ObjId
-              -> SemISEJL r ()
+              -> Sem r ()
 adjustNodeVal mkj theComp f i = do
   -- modify the image node
   modify' $ \ s ->
@@ -228,46 +232,54 @@ adjustNodeVal mkj theComp f i = do
                        <> ": "
                        <> toText vs
 
-adjustImg :: (ImgParts -> ImgParts) -> ObjId -> SemISEJL r ()
+adjustImg :: Eff'ISEJL r
+          => (ImgParts -> ImgParts) -> ObjId -> Sem r ()
 adjustImg = adjustNodeVal AdjImgParts theParts
 {-# INLINE adjustImg #-}
 
-adjustDirEntries :: (DirEntries -> DirEntries) -> ObjId -> SemISEJL r ()
+adjustDirEntries :: Eff'ISEJL r
+                 => (DirEntries -> DirEntries) -> ObjId -> Sem r ()
 adjustDirEntries = adjustNodeVal AdjDirEntries theDirEntries
 {-# INLINE adjustDirEntries #-}
 
-adjustMetaData :: (MetaData -> MetaData) -> ObjId -> SemISEJL r ()
+adjustMetaData :: Eff'ISEJL r
+               => (MetaData -> MetaData) -> ObjId -> Sem r ()
 adjustMetaData = adjustNodeVal AdjMetaData theMetaData
 {-# INLINE adjustMetaData #-}
 
-adjustPartMetaData :: (MetaData -> MetaData) -> ImgRef -> SemISEJL r ()
+adjustPartMetaData :: Eff'ISEJL r
+                   => (MetaData -> MetaData) -> ImgRef -> Sem r ()
 adjustPartMetaData mf (ImgRef i nm) =
   adjustNodeVal (AdjPartMetaData nm) (theImgPart nm . theImgMeta) mf i
 
-adjustColImg :: (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> SemISEJL r ()
+adjustColImg :: Eff'ISEJL r
+             => (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> Sem r ()
 adjustColImg = adjustNodeVal AdjColImg theColImg
 {-# INLINE adjustColImg #-}
 
-adjustColBlog :: (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> SemISEJL r ()
+adjustColBlog :: Eff'ISEJL r
+              => (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> Sem r ()
 adjustColBlog = adjustNodeVal AdjColBlog theColBlog
 {-# INLINE adjustColBlog #-}
 
-adjustColEntries :: (ColEntries -> ColEntries) -> ObjId -> SemISEJL r ()
+adjustColEntries :: Eff'ISEJL r
+                 => (ColEntries -> ColEntries) -> ObjId -> Sem r ()
 adjustColEntries = adjustNodeVal AdjColEntries theColEntries
 {-# INLINE adjustColEntries #-}
 
-adjustColEntry :: (ColEntry -> ColEntry) -> Int -> ObjId -> SemISEJL r ()
+adjustColEntry :: Eff'ISEJL r
+               => (ColEntry -> ColEntry) -> Int -> ObjId -> Sem r ()
 adjustColEntry f i = adjustColEntries f'
   where
     f' :: ColEntries -> ColEntries
     f' = Seq.adjust f i
 {-# INLINE adjustColEntry #-}
 
-remColEntry :: Int -> ObjId -> SemISEJL r ()
+remColEntry :: Eff'ISEJL r => Int -> ObjId -> Sem r ()
 remColEntry pos = adjustColEntries (Seq.deleteAt pos)
 {-# INLINE remColEntry #-}
 
-setSyncTime :: TimeStamp -> ObjId -> SemISEJL r ()
+setSyncTime :: Eff'ISEJL r => TimeStamp -> ObjId -> Sem r ()
 setSyncTime t i = do
   adjustNodeVal SetSyncTime theSyncTime (const t) i
 {-# INLINE setSyncTime #-}

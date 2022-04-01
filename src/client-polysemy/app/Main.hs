@@ -51,8 +51,8 @@ main = do
          . logToStdErr              -- Consume LogMsg
          . logWithLevel             -- Logging
              loglev
-         . runError  @ Text         -- Error Text
-         . runReader @ Request      -- Reader Request
+         . runError  @Text          -- Error Text
+         . runReader @Request       -- Reader Request
              req
          . basicFileSystem          -- FileStatus  (file system calls)
              ioExcToText

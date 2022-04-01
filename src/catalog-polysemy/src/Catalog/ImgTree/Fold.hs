@@ -6,7 +6,6 @@ where
 import Catalog.Effects
        ( EffError
        , EffIStore
-       , SemIS
        , Sem
        , throw
        )
@@ -157,7 +156,7 @@ foldCollections = foldMT ignoreImg ignoreDir foldRootCol
 --
 -- compute all ObjIds reachable from a starting ObjId, e.g. the root
 
-allObjIds :: ObjId -> SemIS r ObjIds
+allObjIds :: EffIStore r => ObjId -> Sem r ObjIds
 allObjIds =
   foldMTU imgA dirA rootA colA
   where
@@ -185,7 +184,7 @@ allObjIds =
 --
 -- compute all image ObjIds reachable from an ObjId, e.g. a collection
 
-allImgObjIds :: ObjId -> SemIS r ObjIds
+allImgObjIds :: EffIStore r => ObjId -> Sem r ObjIds
 allImgObjIds =
   foldMTU imgA foldDir foldRoot foldCol
   where
@@ -198,7 +197,7 @@ allImgObjIds =
 --
 -- compute all subcollection ObjIds reachable from an ObjId, e.g. a collection
 
-allColObjIds :: ObjId -> SemIS r ObjIds
+allColObjIds :: EffIStore r => ObjId -> Sem r ObjIds
 allColObjIds =
   foldMTU ignoreImg ignoreDir foldRootCol colA
   where
@@ -214,7 +213,7 @@ allColObjIds =
 -- compute all dead ObjIds
 -- for consistency check of ImgTree
 
-allUndefObjIds :: ObjId -> SemIS r ObjIds
+allUndefObjIds :: EffIStore r => ObjId -> Sem r ObjIds
 allUndefObjIds =
   foldMT' undefId ignoreImg foldDir foldRoot foldCol
   where

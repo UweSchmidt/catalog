@@ -8,7 +8,8 @@ import Catalog.Effects
        , Embed
        , InterpreterFor
        , Member
-       , SemISJ
+       , Sem
+       , Eff'ISJ
        , consumeNull
        , consumeIO
        , consume
@@ -45,7 +46,7 @@ import qualified Data.ByteString.Lazy     as LB
 --
 -- journaling
 
-journal :: Journal -> SemISJ r ()
+journal :: Eff'ISJ r => Journal -> Sem r ()
 journal jc = do
   jcp <- traverse objid2path jc
   consume @JournalP jcp

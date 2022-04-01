@@ -60,7 +60,7 @@ runStateTMVar
 
 runStateTMVar ref stateCmd = do
   s0 <- embed $ atomically $ takeTMVar ref
-  (! s1, res) <- runState s0 stateCmd
+  (!s1, res) <- runState s0 stateCmd
   embed $ atomically $ putTMVar ref s1
   return res
 

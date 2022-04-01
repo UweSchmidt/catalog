@@ -24,23 +24,13 @@ module Catalog.Effects
   , EffUndoHist
 
   , Eff'ISE     -- combined effect constraints
+  , Eff'ISJ
+  , Eff'ISEJ
   , Eff'ISEL
   , Eff'ISEJL
   , Eff'ISEJLT
   , Eff'ISEJLFS
   , Eff'ALL
-
-    -- * action types
-  , SemCE
-  , SemE
-  , SemIS
-  , SemISE
-  , SemISJ
-  , SemISEJ
-  , SemISEL
-  , SemISEJL
-  , SemISEJLFS
-  , SemISEJLT
 
     -- * lifting functions
   , liftExcept
@@ -102,9 +92,17 @@ type Eff'ISE     r = ( EffIStore  r
                      , EffError   r
                      )
 
+type Eff'ISJ     r = ( EffIStore  r
+                     , EffJournal r
+                     )
+
 type Eff'ISEL    r = ( EffIStore  r
                      , EffError   r
                      , EffLogging r
+                     )
+type Eff'ISEJ    r = ( EffIStore  r
+                     , EffError   r
+                     , EffJournal r
                      )
 
 type Eff'ISEJL   r = ( EffIStore  r
@@ -138,59 +136,11 @@ type Eff'ALL  r  = ( EffCatEnv   r
                    , EffUndoHist r
                    )
 
-
-type SemCE      r a = ( EffCatEnv r
-                      ) => Sem r a
-
-type SemE       r a = ( EffError r
-                      ) => Sem r a
-
-type SemIS      r a = ( EffIStore r
-                      ) => Sem r a
-
-type SemISE     r a = ( EffIStore r
-                      , EffError  r
-                      ) => Sem r a
-
-type SemISJ     r a = ( EffIStore  r
-                      , EffJournal r
-                      ) => Sem r a
-
-type SemISEJ    r a = ( EffIStore  r
-                      , EffError   r
-                      , EffJournal r
-                      ) => Sem r a
-
-type SemISEL    r a = ( EffIStore  r
-                      , EffError   r
-                      , EffLogging r
-                      ) => Sem r a
-
-type SemISEJL   r a = ( EffIStore  r
-                      , EffError   r
-                      , EffJournal r
-                      , EffLogging r
-                      ) => Sem r a
-
-type SemISEJLFS r a = ( EffIStore  r
-                      , EffError   r
-                      , EffJournal r
-                      , EffLogging r
-                      , EffFileSys r
-                      ) => Sem r a
-
-type SemISEJLT  r a = ( EffIStore  r
-                      , EffError   r
-                      , EffJournal r
-                      , EffLogging r
-                      , EffTime r
-                      ) => Sem r a
-
 -- ----------------------------------------
 --
 -- basic Cmd combinators
 
-liftExcept :: Except String a -> SemE r a
+liftExcept :: EffError r => Except String a -> Sem r a
 liftExcept cmd =
   case runExcept cmd of
     Left  msg -> throw $ msg ^. isoText

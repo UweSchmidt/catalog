@@ -10,19 +10,19 @@ where
 
 -- catalog-polysemy modules
 import Catalog.Effects
-       ( TextPath,
-         readFileBS,
-         fsFileStat,
-         fileExist,
-         throw,
-         Eff'ISEJL,
-         EffLogging,
-         EffJournal,
-         EffIStore,
-         EffFileSys,
-         EffError,
-         EffCatEnv,
-         Sem
+       ( TextPath
+       , readFileBS
+       , fsFileStat
+       , fileExist
+       , throw
+       , Eff'ISEJL
+       , EffLogging
+       , EffJournal
+       , EffIStore
+       , EffFileSys
+       , EffError
+       , EffCatEnv
+       , Sem
        )
 import Catalog.ImgTree.Modify
        ( adjustImg )

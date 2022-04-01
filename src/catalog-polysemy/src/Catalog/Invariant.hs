@@ -5,15 +5,16 @@ module Catalog.Invariant
 where
 
 import Catalog.Effects
-       ( EffError
+       ( Sem
+       , EffError
        , EffIStore
+       , Eff'ISE
+       , Eff'ISEL
+       , Eff'ISEJL
        , Logging
        , Member
        , NonDet
        , Sem
-       , SemISE
-       , SemISEJL
-       , SemISEL
        , gets
        , liftMaybe
        , log'trc
@@ -100,10 +101,10 @@ import qualified Data.Sequence   as Seq
 
 -- ----------------------------------------
 
-allCleanupImgRefs :: SemISEJL r ()
+allCleanupImgRefs :: Eff'ISEJL r => Sem r ()
 allCleanupImgRefs = getRootId >>= cleanupImgRefs
 
-cleanupImgRefs :: ObjId -> SemISEJL r ()
+cleanupImgRefs :: Eff'ISEJL r => ObjId -> Sem r ()
 cleanupImgRefs i0 = do
   verb'Obj i0 "cleanupImgRefs: remove outdated img refs in "
 
@@ -216,7 +217,7 @@ cleanupImgRefs i0 = do
 
 -- ----------------------------------------
 
-checkImgStore :: SemISEJL r ()
+checkImgStore :: Eff'ISEJL r => Sem r ()
 checkImgStore = do
   log'verb "checkImgStore: check integrity of the archive"
   allCleanupImgRefs
@@ -230,7 +231,7 @@ checkImgStore = do
 
 -- ----------------------------------------
 
-checkUndefObjIds :: SemISEL r ()
+checkUndefObjIds :: Eff'ISEL r => Sem r ()
 checkUndefObjIds =
   getRootId >>= allUndefObjIds >>= showUndefObjIds
   where
@@ -248,14 +249,14 @@ checkUndefObjIds =
 
 -- ----------------------------------------
 
-checkDeadObjIds :: SemISEJL r ()
+checkDeadObjIds :: Eff'ISEJL r => Sem r ()
 checkDeadObjIds = do
   dos <- getRootId >>= allDeadObjIds
   showDeadObjIds dos
   cleanupDeadObjIds dos
   where
 
-    allDeadObjIds :: ObjId -> SemISE r ObjIds
+    allDeadObjIds :: Eff'ISE r => ObjId -> Sem r ObjIds
     allDeadObjIds t = do
       us <- allObjIds t
       as <- S.fromList . M.keys <$> gets (^. theImgTree . entries)
@@ -274,7 +275,7 @@ checkDeadObjIds = do
       where
         n = S.size os
 
-    cleanupDeadObjIds :: ObjIds -> SemISEJL r ()
+    cleanupDeadObjIds :: Eff'ISEJL r => ObjIds -> Sem r ()
     cleanupDeadObjIds ds =
       unless (S.null ds) $ do
         log'warn "checkDeadObjIds: removing dead ObjIds"
@@ -284,7 +285,7 @@ checkDeadObjIds = do
 
 -- ----------------------------------------
 
-checkUsedImgObjIds :: SemISEJL r ()
+checkUsedImgObjIds :: Eff'ISEJL r => Sem r ()
 checkUsedImgObjIds = do
   ds <- getRootImgDirId >>= allImgObjIds
   cs <- getRootImgColId >>= allImgObjIds
@@ -309,7 +310,7 @@ checkUsedImgObjIds = do
   cleanupOrphanIds orphanIds
   where
 
-    showRes :: ObjIds -> ObjIds -> SemISEL r ()
+    showRes :: Eff'ISEL r => ObjIds -> ObjIds -> Sem r ()
     showRes ds cs = do
       case (nds, ncs) of
         (True,  True ) ->
@@ -333,7 +334,7 @@ checkUsedImgObjIds = do
         nds = S.null ds
         ncs = S.null cs
 
-    cleanupOrphanIds :: ObjIds -> SemISEJL r ()
+    cleanupOrphanIds :: Eff'ISEJL r => ObjIds -> Sem r ()
     cleanupOrphanIds os
       | S.null os =
           return ()
@@ -352,12 +353,12 @@ checkUsedImgObjIds = do
 
 -- ----------------------------------------
 
-checkUpLinkObjIds :: SemISEJL r ()
+checkUpLinkObjIds :: Eff'ISEJL r => Sem r ()
 checkUpLinkObjIds =
   getRootId >>= allWrongUpLinks >>= showWrongUpLinks
   where
 
-    allWrongUpLinks :: ObjId -> SemISE r ObjIds
+    allWrongUpLinks :: Eff'ISE r => ObjId -> Sem r ObjIds
     allWrongUpLinks =
       foldMTU ignoreImg dirA rootA colA
       where
@@ -391,7 +392,7 @@ checkUpLinkObjIds =
             neI j | j == i    = mempty
                   | otherwise = S.singleton j
 
-    showWrongUpLinks :: ObjIds -> SemISEL r ()
+    showWrongUpLinks :: Eff'ISEL r => ObjIds -> Sem r ()
     showWrongUpLinks os
       | S.null os =
           log'trc "checkUpLinkObjIds: all uplinks o.k."

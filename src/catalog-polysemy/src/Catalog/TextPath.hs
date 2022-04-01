@@ -13,9 +13,10 @@ where
 
 -- catalog-polysemy
 import Catalog.Effects
-       ( ask
-       , SemIS
-       , SemCE
+       ( Sem
+       , EffIStore
+       , EffCatEnv
+       , ask
        , TextPath
        )
 import Catalog.CatEnv
@@ -47,12 +48,12 @@ import Data.TextPath
 -- monadic path to/from file path operations
 
 
-buildImgPath0 :: ImgRef -> SemIS r TextPath
+buildImgPath0 :: EffIStore r => ImgRef -> Sem r TextPath
 buildImgPath0 (ImgRef i n) = do
   p <- objid2path i
   return $ substPathName n p ^. isoText
 
-buildImgPath :: ImgRef -> SemIS r TextPath
+buildImgPath :: EffIStore r => ImgRef -> Sem r TextPath
 buildImgPath ir = addExt ".jpg" <$> buildImgPath0 ir
 
 ----------------------------------------
@@ -61,15 +62,15 @@ buildImgPath ir = addExt ".jpg" <$> buildImgPath0 ir
 -- the file system path of the referenced catalog entry
 -- mount path of the catalog
 
-toFileSysPath :: Path -> SemCE r TextPath
+toFileSysPath :: EffCatEnv r => Path -> Sem r TextPath
 toFileSysPath p = do
   env <- ask @CatEnv
   return $ env ^. catMountPath <> p ^. isoText
 
-toFileSysTailPath :: Path -> SemCE r TextPath
+toFileSysTailPath :: EffCatEnv r => Path -> Sem r TextPath
 toFileSysTailPath = toFileSysPath . tailPath
 
-pxMountPath :: TextPath -> SemCE r TextPath
+pxMountPath :: EffCatEnv r => TextPath -> Sem r TextPath
 pxMountPath tp = do
   env <- ask @CatEnv
   return $ env ^. catMountPath <//> tp

@@ -23,7 +23,8 @@ import Catalog.Effects
        , log'verb
        , log'warn
        , throw
-       , SemISEJL
+       , Sem
+       , Eff'ISEJL
        )
 import Catalog.ImgTree.Fold
        ( allColObjIds
@@ -127,7 +128,7 @@ import qualified Data.Sequence   as Seq
 
 -- ----------------------------------------
 
-copyCollection :: Path -> Path -> SemISEJL r ()
+copyCollection :: Eff'ISEJL r => Path -> Path -> Sem r ()
 copyCollection path'src path'dst = do
 
   -- find source and dst id
@@ -149,7 +150,7 @@ copyCollection path'src path'dst = do
 -- copy a collection src into a collection dstParent
 -- with new collection name dstName
 
-dupColRec :: ObjId -> ObjId -> Name -> SemISEJL r ()
+dupColRec :: Eff'ISEJL r => ObjId -> ObjId -> Name -> Sem r ()
 dupColRec src dstParent dstName = do
   srcVal  <- getImgVal src
   srcPath <- objid2path src
@@ -173,7 +174,7 @@ dupColRec src dstParent dstName = do
 --
 -- create a copy of a collection src'id at target'path
 
-createColCopy :: Path -> ObjId -> SemISEJL r ObjId
+createColCopy :: Eff'ISEJL r => Path -> ObjId -> Sem r ObjId
 createColCopy target'path src'id = do
   col'id <- mkCollection target'path
 
@@ -188,7 +189,7 @@ createColCopy target'path src'id = do
 -- create a copy of all collection entries at path
 -- computed by path edit function pf and source path
 
-copyColEntries :: (Path -> Path) -> ObjId -> SemISEJL r ()
+copyColEntries :: Eff'ISEJL r => (Path -> Path) -> ObjId -> Sem r ()
 copyColEntries pf =
       foldMT ignoreImg ignoreDir ignoreRoot colA
       where
@@ -203,7 +204,7 @@ copyColEntries pf =
           foldColEntries go i md im be cs
           where
 
-            copy :: ColEntry -> SemISEJL r ColEntry
+            copy :: Eff'ISEJL r => ColEntry -> Sem r ColEntry
             copy ce =
               colEntry'
               (\ _ir -> return ce)
@@ -215,12 +216,12 @@ copyColEntries pf =
 
 -- ----------------------------------------
 
-removeEntry :: Path -> SemISEJL r ()
+removeEntry :: Eff'ISEJL r => Path -> Sem r ()
 removeEntry p = do
   i <- fst <$> getIdNode "removeEntry: entry not found " p
   rmRec i
 
-rmRec :: ObjId -> SemISEJL r ()
+rmRec :: Eff'ISEJL r => ObjId -> Sem r ()
 rmRec = foldMT imgA dirA foldRoot colA
   where
     imgA i _p _md = rmImgNode i
@@ -251,12 +252,12 @@ rmRec = foldMT imgA dirA foldRoot colA
 -- delete all empty subcollections in a given collection
 -- used for generated collection "bycreatedate"
 
-removeEmptyColls :: Path -> SemISEJL r ()
+removeEmptyColls :: Eff'ISEJL r => Path -> Sem r ()
 removeEmptyColls p = do
   i <- fst <$> getIdNode "removeEntry: entry not found " p
   rmEmptyRec i
 
-rmEmptyRec :: ObjId -> SemISEJL r ()
+rmEmptyRec :: Eff'ISEJL r => ObjId -> Sem r ()
 rmEmptyRec i0 = foldCollections colA i0
   where
     colA go i md im be cs = do
@@ -281,16 +282,16 @@ rmEmptyRec i0 = foldCollections colA i0
 -- updated, removed images must also be removed in the collections
 -- especially in the byDate collections
 
-cleanupColByPath :: Path -> SemISEJL r ()
+cleanupColByPath :: Eff'ISEJL r => Path -> Sem r ()
 cleanupColByPath p = do
   log'verb $ msgPath p "cleanupColByPath: cleanup col: "
   lookupByPath p >>= maybe (return ()) (cleanupCollections . fst)
 
-cleanupAllCollections :: SemISEJL r ()
+cleanupAllCollections :: Eff'ISEJL r => Sem r ()
 cleanupAllCollections =
   getRootImgColId >>= cleanupCollections
 
-cleanupCollections :: ObjId -> SemISEJL r ()
+cleanupCollections :: Eff'ISEJL r => ObjId -> Sem r ()
 cleanupCollections i0 = do
   p <- objid2path i0
   log'trc $
@@ -302,7 +303,7 @@ cleanupCollections i0 = do
     msgPath p "cleanupcollections: cleanup finished in "
   where
 
-    cleanup :: ObjId -> SemISEJL r ()
+    cleanup :: Eff'ISEJL r => ObjId -> Sem r ()
     cleanup i = do
       n <- getImgVal i
       case n of
@@ -314,27 +315,27 @@ cleanupCollections i0 = do
           return ()
       where
 
-        cleanupIm :: ObjId -> Maybe ImgRef -> SemISEJL r ()
+        cleanupIm :: Eff'ISEJL r => ObjId -> Maybe ImgRef -> Sem r ()
         cleanupIm i' (Just ir) =
           unlessM (exImg ir) $
             adjustColImg (const Nothing) i'
         cleanupIm _ Nothing =
           return ()
 
-        cleanupBe :: ObjId -> Maybe ImgRef -> SemISEJL r ()
+        cleanupBe :: Eff'ISEJL r => ObjId -> Maybe ImgRef -> Sem r ()
         cleanupBe i' (Just ir) =
           unlessM (exImg ir) $
             adjustColBlog (const Nothing) i'
         cleanupBe _ Nothing =
           return ()
 
-        cleanupEs :: ObjId -> ColEntries -> SemISEJL r ()
+        cleanupEs :: Eff'ISEJL r => ObjId -> ColEntries -> Sem r ()
         cleanupEs i' es = do
           es' <- filterSeqM cleanupE es
           unless (length es' == length es) $
             adjustColEntries (const es') i'
           where
-            cleanupE :: ColEntry -> SemISEJL r Bool
+            cleanupE :: Eff'ISEJL r => ColEntry -> Sem r Bool
             cleanupE (ImgEnt ir) =
               exImg ir
             cleanupE (ColEnt j) = do
@@ -346,7 +347,7 @@ cleanupCollections i0 = do
                 rmRec j
               return j'not'empty
 
-        exImg :: ImgRef -> SemISEJL r Bool
+        exImg :: Eff'ISEJL r => ImgRef -> Sem r Bool
         exImg (ImgRef i' n') = do
           me <- getTreeAt i'
           let ex = case me of
@@ -375,7 +376,8 @@ cleanupCollections i0 = do
 type AdjustImgRef = Maybe ImgRef -> Maybe (Maybe ImgRef)
 type AdjustColEnt = ColEntries   -> Maybe  ColEntries
 
-cleanupRefs' :: forall r. AdjustImgRef -> AdjustColEnt -> ObjId -> SemISEJL r ()
+cleanupRefs' :: forall r. Eff'ISEJL r
+             =>  AdjustImgRef -> AdjustColEnt -> ObjId -> Sem r ()
 cleanupRefs' adjIR adjCE =
   foldCollections colA
   where
@@ -389,7 +391,7 @@ cleanupRefs' adjIR adjCE =
       return ()
       where
 
-        cleanupIm :: Path -> SemISEJL r ()
+        cleanupIm :: Eff'ISEJL r => Path -> Sem r ()
         cleanupIm p = case adjIR im of
           Nothing -> return ()
           Just new'im -> do
@@ -398,7 +400,7 @@ cleanupRefs' adjIR adjCE =
             log'trc $ "new: " <> toText new'im
             adjustColImg (const new'im) i
 
-        cleanupBe :: Path -> SemISEJL r ()
+        cleanupBe :: Eff'ISEJL r => Path -> Sem r ()
         cleanupBe p = case adjIR be of
           Nothing -> return ()
           Just new'be -> do
@@ -407,7 +409,7 @@ cleanupRefs' adjIR adjCE =
             log'trc $ "new: " <> toText new'be
             adjustColBlog (const new'be) i
 
-        cleanupEs :: Path -> SemISEJL r ()
+        cleanupEs :: Eff'ISEJL r => Path -> Sem r ()
         cleanupEs p = case adjCE es of
           Nothing -> return ()
           Just new'es -> do
@@ -416,24 +418,24 @@ cleanupRefs' adjIR adjCE =
             log'trc $ "new: " <> toText (new'es ^. isoSeqList)
             adjustColEntries (const new'es) i
 
-        cleanupSubCols :: SemISEJL r ()
+        cleanupSubCols :: Eff'ISEJL r => Sem r ()
         cleanupSubCols =
           traverse_ cleanupSubCol es
           where
             cleanupSubCol =
               colEntry' (const $ return ()) go
 
-        removeEmptySubCols :: SemISEJL r ()
+        removeEmptySubCols :: Eff'ISEJL r => Sem r ()
         removeEmptySubCols = do
           -- recompute colentries, maybe modified by calls of cleanupSubCol
           es1 <- getImgVals i theColEntries
           es2 <- emptySubCols es1
           mapM_ rmRec es2
 
-        emptySubCols :: ColEntries -> SemISEJL r [ObjId]
+        emptySubCols :: Eff'ISEJL r => ColEntries -> Sem r [ObjId]
         emptySubCols = foldM checkESC []
           where
-            checkESC :: [ObjId] -> ColEntry -> SemISEJL r [ObjId]
+            checkESC :: Eff'ISEJL r => [ObjId] -> ColEntry -> Sem r [ObjId]
             checkESC res =
               colEntry'
               (\ _i -> return res)
@@ -450,7 +452,7 @@ cleanupRefs' adjIR adjCE =
 
 -- ----------------------------------------
 
-selectCollections :: ObjIds -> SemISEJL r ()
+selectCollections :: Eff'ISEJL r => ObjIds -> Sem r ()
 selectCollections cols = do
   subcols <- foldObjIds allColObjIds cols
   filterCols subcols                   -- remove all but these collections
@@ -462,7 +464,7 @@ selectCollections cols = do
 
   return ()                            -- everything not selected is removed
 
-filterDirs :: ObjIds -> SemISEJL r ()
+filterDirs :: Eff'ISEJL r => ObjIds -> Sem r ()
 filterDirs imgs =
   getRootId >>= foldMTU imgA dirA foldRootDir ignoreCol
   where
@@ -483,7 +485,7 @@ filterDirs imgs =
         unless r $
           rmRec i                           -- remove dir
 
-filterCols :: ObjIds -> SemISEJL r ()
+filterCols :: Eff'ISEJL r => ObjIds -> Sem r ()
 filterCols cols =
   getRootId >>= foldMTU ignoreImg ignoreDir foldRootCol colA
   where

@@ -167,7 +167,6 @@ import qualified Data.Text       as T (intercalate)
 
 -- ----------------------------------------
 --
--- SemISEJLT: EffIStore, EffError, EffJournal, EffLogging, EffTime
 
 genSysCollections :: Eff'ISEJLT r => Sem r ()
 genSysCollections = do
@@ -447,9 +446,6 @@ insertColByAppend i = adjustColEntries (<> Seq.singleton (mkColColRef i))
 
 insertColByName :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
 insertColByName i = adjustColByName $ Seq.singleton $ mkColColRef i
-
--- insertColByDate :: ObjId -> ObjId -> SemISEJLT r ()
--- insertColByDate i = adjustColByDate [mkColColRef i]
 
 adjustColByName :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
 adjustColByName = adjustColBy sortByName

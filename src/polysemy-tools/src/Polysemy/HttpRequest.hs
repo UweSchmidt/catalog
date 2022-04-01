@@ -79,7 +79,7 @@ basicHttpRequests ef manager managerTls =
                            else manager
                          )
       case r of
-        Left  e -> throw @ exc (ef e)
+        Left  e -> throw @exc (ef e)
         Right a -> pure a
 
       -- shorter in polysemy >= 1.3
@@ -103,8 +103,8 @@ simpleHttpRequests :: forall r
                      )
                   => InterpreterFor HttpRequest r
 simpleHttpRequests cmd = do
-  manHTTP  <- embed @ IO $ newBasicManager
-  manHTTPS <- embed @ IO $ newBasicTlsManager
+  manHTTP  <- embed @IO $ newBasicManager
+  manHTTPS <- embed @IO $ newBasicTlsManager
   basicHttpRequests httpExcToText manHTTP manHTTPS cmd
 
 ------------------------------------------------------------------------------
