@@ -210,10 +210,18 @@ function resizeToScreenWidth(g) {
     return resizeToWidth(g, screenGeo());
 }
 
+var theScreenGeo = { w : 0, h : 0 };
+
 function screenGeo() {
-    return { w : window.innerWidth, // screen.availWidth  / 2,  // just for testing
-             h : window.innerHeight // screen.availHeight / 2
-           };
+    const w1 = window.innerWidth;
+    const h1 = window.innerHeight;
+
+    if ( w1 != theScreenGeo.w || h1 != theScreenGeo.h ) { // screenGeo has changed
+        theScreenGeo.w = w1;
+        theScreenGeo.h = h1;
+        setCSS(imgTab, {width : w1 + "px", height : h1 + "px"});
+    }
+    return theScreenGeo;
 }
 
 function fitToScreenGeo(geo, blowUp) {
