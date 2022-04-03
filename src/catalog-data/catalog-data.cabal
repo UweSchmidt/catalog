@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name:          catalog-data
-version:       0.5.8.4
+version:       0.5.8.5
 synopsis:      basic data types of catalog system
 description:   Please see README.md
 homepage:      http://github.com/UweSchmidt/apps/catalog#readme
