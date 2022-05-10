@@ -1182,11 +1182,11 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
         return r;
     }
 
-    const c = newElem("div", "collection",
+    const c = newElem("div",
                       { padding:      padding + "px",
                         "min-height": scrGeo.h + "px"
                       },
-                      "col"
+                      "collection"
                      );
     c.appendChild(buildColHeaderFooter(true));
     c.appendChild(ruler());

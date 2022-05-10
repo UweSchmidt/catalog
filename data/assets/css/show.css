@@ -20,7 +20,8 @@ body {
   top:      0px;
   left:     0px;
 }
-#image1 {
+
+#image1, #image2 {
   width:  100px;
   height: 100px;
   margin:  0px;
@@ -28,23 +29,10 @@ body {
   padding: 0px;
 
   position: absolute;
-  top:  100px;   /* dummys */
-  left: 100px;
+  /* top:  100px;   /* dummys */
+  /* left: 100px;             */
 
   /* display : block; /* set by class */
-}
-#image2 {
-  width:  100px;
-  height: 100px;
-  margin:  0px;
-  /* border:  1px solid green; /* test */
-  padding: 0px;
-
-  position: absolute;
-  top:  100px;   /* dummys */
-  left: 100px;
-
-  /* display : none; /* set by class */
 }
 
 /* ---------------------------------------- */
@@ -88,7 +76,7 @@ body {
 /* -------------------- */
 /* collection page */
 
-#collection {
+.collection {
   /* width: 100%; */
   /* border: 1px solid red; */
   /* background-color: #555; */
