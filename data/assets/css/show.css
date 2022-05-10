@@ -85,40 +85,43 @@ body {
   display: block;
 }
 
-#collection-header {
+.collection-header {
   width: 100%;
   /* border: 1px solid green;  /* test */
 }
 
-#collection-footer {
+.collection-header-icon {}
+.collection-header-title {}
+
+.collection-footer {
   width: 100%;
   /* border: 1px solid green; /* test */
 }
 
-#collection-contents {
+.collection-contents {
   width: 100%;
   /* border: 1px solid blue; /* test */
   margin-bottom: 0.5em;
   margin-top: 0.5em;
 }
 
-#collection-blog {
+.collection-blog {
   max-width: 50em;
 }
 
-#collection-blog h1 {
+.collection-blog h1 {
   font-size:   1.6em;
   font-weight: bold;
   margin-block: 0.6em;
 }
 
-#collection-blog h2 {
+.collection-blog h2 {
   font-size:   1.3em;
   font-weight: bold;
   margin-block: 0.4em;
 }
 
-#collection-blog p {
+.collection-blog p {
   margin-block: 0.4em;
 }
 

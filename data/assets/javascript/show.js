@@ -1003,11 +1003,12 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
         function buildHeadIcon() {
             if ( isHeader ) {
-                const r = newElem("div", "collection-header-icon",
+                const r = newElem("div",
                                   { width:  iG.w,
                                     heigth: iG.h,
                                     border: cssBorder
-                                  });
+                                  },
+                                  "collection-header-icon");
 
                 const a = newElem("a");
                 a.href  = "javascript:openEdit()";
@@ -1027,14 +1028,11 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
         }
 
         function buildHeadLine() {
-            const r = newElem("div");
-
             if ( isHeader ) {
+                const r  = newElem("div", {}, "collection-header-title");
                 const t1 = colMeta["Descr:Title"];
                 const t2 = colMeta["Descr:Subtitle"];
                 const t3 = colMeta["Descr:Comment"];
-
-                r.id = "collection-header-title";
 
                 if (t1) {
                     r.appendChild(buildLine("title", t1));
@@ -1045,8 +1043,10 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                 if (t3) {
                     r.appendChild(buildLine("comment", t3));
                 }
+                return r;
+            } else {
+                return newElem("div");
             }
-            return r;
         }
 
         function buildNav() {
@@ -1112,11 +1112,11 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
         }
 
         const h = newElem("div",
-                          isHeader ? "collection-header" : "collection-footer",
                           { display: "grid",
                             "grid-template-columns": iGB.w + " auto " + navGeo.w + "px",
                             "grid-column-gap": "1em"
-                          });
+                          },
+                          isHeader ? "collection-header" : "collection-footer");
         h.appendChild(buildHeadIcon());
         h.appendChild(buildHeadLine());
         h.appendChild(buildNav());
@@ -1124,12 +1124,13 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
     }
 
     function buildColContents() {
-        const r = newElem("div", "collection-contents",
+        const r = newElem("div",
                           { display: "grid",
                             "grid-template-columns": replicate(numCols, " " + iGB.w),
                             "grid-auto-rows": iGB.h,
                             "grid-gap":       gap + "px",
-                          });
+                          },
+                          "collection-contents");
 
 
         for (let i = 0; i < colIcons.length; i++) {
@@ -1163,7 +1164,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
     }
 
     function buildColBlog(){
-        const r = newElem("div", "collection-blog", {});
+        const r = newElem("div", {}, "collection-blog");
         r.innerHTML = colBlog;
         return r;
     }
