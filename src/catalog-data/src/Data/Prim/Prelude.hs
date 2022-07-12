@@ -79,6 +79,7 @@ module Data.Prim.Prelude
        , isoMapList
        , isoSetList
        , isoSeqList
+       , isoUpperLower
        , isA
 
          -- * utilities
@@ -139,7 +140,7 @@ import Data.Map.Strict
 
 import Data.Maybe
 
-import Data.Semigroup hiding (option)
+import Data.Semigroup
 
 import Data.Set
        ( Set )
@@ -380,6 +381,11 @@ isoSeqList = iso toList Seq.fromList
 isA :: (a -> Bool) -> Prism' a a
 isA p = prism id (\ o -> (if p o then Right else Left) o)
 {-# INLINE isA #-}
+
+isoUpperLower :: Iso' String String
+isoUpperLower = iso (& _head %~ toUpper) (& _head %~ toLower)
+{-# INLINE isoUpperLower #-}
+
 
 {-
 -- my first traversal, but Edward already made this, it's named each

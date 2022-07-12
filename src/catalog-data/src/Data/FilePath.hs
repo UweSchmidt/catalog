@@ -39,7 +39,6 @@ import Text.SimpleParser
        , lowerChar
        , upperChar
        , string
-       , option
        , count
        , try
        , eof
@@ -106,7 +105,7 @@ camName = (<>) <$> (try cn1 <|> cn2) <*> cno
 
 camSuffix :: SP String
 camSuffix =
-  option mempty $
+  SP.option mempty $
   (:) <$> c1 <*> some cc
   <|>
   (:) <$> single '.' <*> some cc

@@ -49,7 +49,7 @@ show'ReqType = drop 1 . map toLower . show
 
 read'ReqType :: String -> Maybe ReqType
 read'ReqType =
-  readMaybe . (\ (x : xs) -> 'R' : toUpper x : xs) . (++ " ")
+  readMaybe . ('R' :) . (_head %~ toUpper)   --    (\ (x : xs) -> 'R' : toUpper x : xs) . (++ " ")
 
 imgReqTypes :: [ReqType]
 imgReqTypes = [RIcon .. RImgfx]

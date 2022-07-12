@@ -1,5 +1,6 @@
--- ----------------------------------------
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
+-- ----------------------------------------
 
 module Data.Access
   ( AccessRestr(..)
@@ -77,6 +78,7 @@ all'restr
   , no'write
   , no'user :: Access
 
+-- no warning:  -Wno-incomplete-uni-patterns
 [no'write, no'delete, no'sort, no'user] = map toA [minBound .. maxBound]
   where
     toA :: AccessRestr -> Access

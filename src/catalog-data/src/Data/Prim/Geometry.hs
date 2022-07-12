@@ -4,25 +4,7 @@ module Data.Prim.Geometry
 where
 
 import Data.Prim.Prelude
-       ( Alternative((<|>), many, some)
-       , fromMaybe
-       , isDigit
-       , toLower
-       , toUpper
-       , readMaybe
-       , (^.)
-       , iso
-       , (#)
-       , Field1(_1)
-       , Field2(_2)
-       , Iso'
-       , Lens'
-       , IsEmpty(..)
-       , IsoString(..)
-       , IsoText(..)
-       , FromJSON(parseJSON)
-       , ToJSON(toJSON)
-       )
+
 import Text.SimpleParser
        ( SP
        , parseMaybe
@@ -123,8 +105,8 @@ data AspectRatio = Fix | Pad | Crop | Flex
 instance IsoString AspectRatio where
   isoString = iso toS frS
     where
-      toS = (\ (x : xs) -> toLower x : xs) . show
-      frS = fromMaybe Pad . readMaybe . (\ (x : xs) -> toUpper x : xs)
+      toS = (_head %~ toLower) . show
+      frS = fromMaybe Pad . readMaybe . (& _head %~ toUpper)
 
 instance IsoText AspectRatio
 
@@ -149,9 +131,9 @@ instance IsoString GeoAR where
       toS x = (x ^. geoar2pair . _2 . isoString) ++ "-" ++
               (x ^. geoar2pair . _1 . isoString)
 
-      frS s =  geoar2pair # (isoString # g, isoString # ar)
-        where
-          (ar, '-' : g) = break (== '-') s
+      frS s
+        | (ar, '-' : g) <- break (== '-') s = geoar2pair # (isoString # g, isoString # ar)
+        | otherwise                         = GeoAR 1 1 Pad
 
 instance IsoText GeoAR
 

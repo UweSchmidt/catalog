@@ -1,3 +1,7 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
+-- ----------------------------------------
+
 module Data.MetaData
   ( MetaKey
   , MetaValue

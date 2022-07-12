@@ -44,7 +44,6 @@ import Text.SimpleParser
        , char
        , digitChar
        , string
-       , option
        , try
     )
 import Text.Printf
@@ -52,6 +51,7 @@ import Text.Printf
 
 import qualified Data.Aeson          as J
 import qualified Data.Map            as M
+import qualified Text.SimpleParser   as SP
 
 -- ----------------------------------------
 
@@ -266,10 +266,10 @@ floatParser :: SP String
 floatParser =
   ( some digitChar
     <++>
-    option ".0"
+    SP.option ".0"
     ( string "."
       <++>
-      option "0" (some digitChar)
+      SP.option "0" (some digitChar)
     )
   )
   <|>
