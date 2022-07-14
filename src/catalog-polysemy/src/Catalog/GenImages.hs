@@ -1,4 +1,6 @@
-------------------------------------------------------------------------------
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
+-- ----------------------------------------
 
 module Catalog.GenImages
   ( Eff'Img
@@ -655,7 +657,7 @@ buildIconScript dst fopt t =
     rs0         = randomHashes $ t ^. isoString
     (rgb1, rs1) = splitAt 3 rs0
     (rgb2, rs2) = splitAt 3 rs1
-    (sw1 : rs3) = rs2
+    (sw1 : rs3) = rs2               -- warning: -Wno-incomplete-uni-patterns
     (see :_rs4) = rs3
 
     formatRGB [r, g, b] = concat ["rgb(" ,show r, ",", show g, ",", show b, ")"] ^. isoText

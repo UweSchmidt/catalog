@@ -1,3 +1,7 @@
+{-# OPTIONS_GHC -Wno-incomplete-record-updates #-}
+
+-- ----------------------------------------
+
 module Catalog.GenPages
   ( Req'
   , Req0

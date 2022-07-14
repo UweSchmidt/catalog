@@ -80,7 +80,6 @@ module Data.Prim.Prelude
        , isoSetList
        , isoSeqList
        , isoUpperLower
-       , isA
 
          -- * utilities
        , (.||.)
@@ -377,10 +376,6 @@ isoSetList = iso S.toList S.fromList
 isoSeqList :: Iso' (Seq a) [a]
 isoSeqList = iso toList Seq.fromList
 {-# INLINE isoSeqList #-}
-
-isA :: (a -> Bool) -> Prism' a a
-isA p = prism id (\ o -> (if p o then Right else Left) o)
-{-# INLINE isA #-}
 
 isoUpperLower :: Iso' String String
 isoUpperLower = iso (& _head %~ toUpper) (& _head %~ toLower)

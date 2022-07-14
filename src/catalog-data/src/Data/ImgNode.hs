@@ -72,7 +72,9 @@ where
 
 import           Control.Monad.Except
 
-import           Data.MetaData ( MetaData
+import           Data.MetaData
+{-
+                               ( MetaData
                                , metaDataAt
 
                                , fileMimeType
@@ -90,42 +92,43 @@ import           Data.MetaData ( MetaData
                                , isRemovable
                                , isAUserCol
                                )
+-}
+
 import Data.Prim
-    ( Alternative((<|>))
-    , Text
-    , Map
-    , Seq
-    , Set
-    , Ixed(ix)
-    , Field1(_1)
-    , Field2(_2)
-    , Field3(_3)
-    , Field4(_4)
-    , Iso'
-    , Lens'
-    , Prism'
-    , Traversal'
-    , IsEmpty(..)
-    , FromJSON(parseJSON)
-    , ToJSON(toJSON)
-    , CheckSum
-    , Name
-    , TimeStamp
-    , MimeType
-    , ObjId
-    , (&)
-    , (^.)
-    , to
-    , iso
-    , prism
-    , (#)
-    , (.~)
-    , isA
-    , isoMapElems
-    , isShowablePartMT
-    , t'archive
-    , t'collections
-    )
+    ( Traversal',
+      Lens',
+      Field4(_4),
+      Field3(_3),
+      Field2(_2),
+      Field1(_1),
+      Ixed(ix),
+      Alternative((<|>)),
+      (.~),
+      (#),
+      filteredBy,
+      filtered,
+      (&),
+      prism,
+      (^.),
+      iso,
+      isoMapElems,
+      FromJSON(parseJSON),
+      ToJSON(toJSON),
+      Iso',
+      Prism',
+      Map,
+      Seq,
+      Set,
+      Text,
+      IsEmpty(..),
+      ObjId,
+      TimeStamp,
+      CheckSum,
+      Name,
+      MimeType,
+      isShowablePartMT,
+      t'archive,
+      t'collections )
 
 import qualified Data.Aeson      as J
 import qualified Data.Aeson.Key  as J
@@ -401,7 +404,7 @@ traverseParts = isoImgParts . traverse
 
 thePartNames' :: (MimeType -> Bool) -> Traversal' ImgParts Name
 thePartNames' typTest =
-  traverseParts . isA (^. theMimeType . to typTest) . theImgName
+  traverseParts . filteredBy (theMimeType . filtered typTest) . theImgName
 {-# INLINE thePartNames' #-}
 
 -- images with 1 of the given types can be rendered

@@ -32,27 +32,7 @@ where
 
 -- catalog-data
 import Data.Prim.Prelude
-       ( IsString(..)
-       , Foldable(foldl')
-       , Alternative(many, some)
-       , Text
-       , Field1(_1)
-       , Field2(_2)
-       , Iso'
-       , IsEmpty(..)
-       , IsoString(..)
-       , IsoText(..)
-       , FromJSON(parseJSON)
-       , ToJSON(toJSON)
-       , (&)
-       , fromMaybe
-       , (^.)
-       , iso
-       , (#)
-       , (%~)
-       , (.~)
-       , isA
-       )
+
 import Data.Prim.Name
        ( Name )
 
@@ -221,7 +201,7 @@ remCommonPathPrefix p1 p2
 
 editName :: (Text -> Bool) -> (Text -> Text) -> Path -> Path
 editName pr ed p =
-  p & viewBase . _2 . isoText . isA pr %~ ed
+  p & viewBase . _2 . isoText . filtered pr %~ ed
 
 checkAndRemExt :: String -> Path -> Maybe Path
 checkAndRemExt ext p

@@ -112,53 +112,6 @@ import Data.MetaData
        ( MetaData )
 
 import Data.Prim
-       ( Field1(_1)
-       , Field2(_2)
-       , IsEmpty(isempty)
-       , IsoText(isoText)
-       , Lens'
-       , Map
-       , MimeType
-       , Name
-       , ObjId
-       , Path
-       , Set
-       , Text
-       , TimeStamp
-       , (#)
-       , (%~)
-       , (&)
-       , (.~)
-       , (^.)
-       , (^..)
-       , foldM
-       , has
-       , isA
-       , isAnImgPartMT
-       , isNothing
-       , isOtherMT
-       , isShowablePartMT
-       , isoSeqList
-       , mkObjId
-       , msgPath
-       , on
-       , p'arch'photos
-       , partition
-       , partitionM
-       , second
-       , snocPath
-       , sortBy
-       , to
-       , toText
-       , traverse_
-       , unfoldr
-       , unless
-       , unlessM
-       , viewBase
-       , void
-       , when
-       , whenM
-       )
 import Data.TextPath
        ( ClassifiedName
        , ClassifiedNames
@@ -631,7 +584,7 @@ syncImg ip pp xs = do
   -- or a movie,
   -- then update entry, else (e.g. raw only) ignore it
 
-  if has (traverse . _2 . _2 . isA isShowablePartMT {- OrRaw -}) xs
+  if has (traverse . _2 . _2 . filtered isShowablePartMT {- OrRaw -}) xs
     then do
       adjustImg (<> mkImgParts ps) i
       syncParts i pp
