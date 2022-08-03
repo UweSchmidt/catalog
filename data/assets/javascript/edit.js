@@ -1729,6 +1729,18 @@ function copyAllFromClipboard(cid) {
     copyMarkedFromClipboard(cid);
 }
 
+function moveAllToClipboard(cid) {
+    console.log('moveAllToClipboard' + cid);
+    markAll(cid);
+    moveMarkedToClipboard(cid);
+}
+
+function copyAllToClipboard(cid) {
+    console.log('copyAllToClipboard' + cid);
+    markAll(cid);
+    copyMarkedToClipboard(cid);
+}
+
 function moveMarkedFromClipboard(cid) {
     statusClear();
     var ixs = getMarkedEntries(idClipboard());
@@ -3084,6 +3096,16 @@ $(document).ready(function () {
     $("#CopyAllFromClipboardButton")
         .on('click', function (e) {
             copyAllFromClipboard(activeCollectionId());
+        });
+
+    $("#MoveAllToClipboardButton")
+        .on('click', function (e) {
+            moveAllToClipboard(activeCollectionId());
+        });
+
+    $("#CopyAllToClipboardButton")
+        .on('click', function (e) {
+            copyAllToClipboard(activeCollectionId());
         });
 
     $("#MoveFromClipboardButton")
