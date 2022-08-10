@@ -25,6 +25,9 @@ module Data.Prim.Path
   , listToPath
   , listFromPath
   , isoPathList
+  , nameListFromPath
+  , nameListToPath
+  , isoNameList
   , checkExtPath
   , editName
   )
@@ -89,15 +92,23 @@ emptyPath :: Path' n
 emptyPath = PNil
 {-# INLINE emptyPath #-}
 
+nameListToPath :: [Name] -> Path
+nameListToPath = foldl' (\ p' n' -> p' `concPath` mkPath n') emptyPath
+{-# INLINE nameListToPath #-}
+
+nameListFromPath :: Path -> [Name]
+nameListFromPath = lfp []
+  where
+    lfp acc PNil = acc
+    lfp acc (PSnoc p n) = lfp (n : acc) p
+{-# INLINE nameListFromPath #-}
+
 listToPath :: [Text] -> Path
-listToPath = foldl' (\ p' t' -> p' `concPath` mkPath (isoText # t')) emptyPath
+listToPath = nameListToPath . map (isoText #)
 {-# INLINE listToPath #-}
 
 listFromPath :: Path -> [Text]
-listFromPath = lfp []
-  where
-    lfp acc PNil = acc
-    lfp acc (PSnoc p n) = lfp ((n ^. isoText) : acc) p
+listFromPath = map (^. isoText) . nameListFromPath
 {-# INLINE listFromPath #-}
 
 textFromPath :: Path -> Text
@@ -279,6 +290,9 @@ instance IsoString Path where
 
 instance IsoText Path where
   isoText = iso textFromPath textToPath
+
+isoNameList :: Iso' Path [Name]
+isoNameList = iso nameListFromPath nameListToPath
 
 instance Show Path where
   show = showPath

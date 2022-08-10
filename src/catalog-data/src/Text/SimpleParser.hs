@@ -167,6 +167,12 @@ eqNoCase = (==) `on` map toLower
 -- input is a glob style pattern
 -- output is a parser for pattern matching against the pattern
 
+matchGlobPattern :: String -> String -> Bool
+matchGlobPattern pat inp =
+  case parseMaybe parseGlob pat of
+    Nothing  -> False
+    Just prs -> isJust $ parseMaybe prs inp
+
 type GlobParser = SP String
 
 parseGlob :: SP GlobParser

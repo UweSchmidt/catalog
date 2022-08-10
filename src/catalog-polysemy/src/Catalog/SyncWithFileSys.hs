@@ -94,6 +94,7 @@ import Data.ImgTree
        , isDIR
        , isIMG
        , isROOT
+       , isemptyDIR
        , isoImgParts
        , mkColColRef
        , mkColImgRef'
@@ -112,6 +113,7 @@ import Data.MetaData
        ( MetaData )
 
 import Data.Prim
+
 import Data.TextPath
        ( ClassifiedName
        , ClassifiedNames
@@ -623,7 +625,7 @@ syncParts i pp = do
 
 checkEmptyDir :: Eff'ISEJL r => ObjId -> Sem r ()
 checkEmptyDir i =
-  whenM (isempty <$> getImgVal i) $ do
+  whenM (isemptyDIR <$> getImgVal i) $ do
     p <- objid2path i
     log'trc $ msgPath p "sync: empty DIR ignored: "
     rmImgNode i

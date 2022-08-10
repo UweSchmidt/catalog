@@ -18,10 +18,14 @@ module Data.ImgNode
        , emptyImgRef
        , emptyImgRoot
        , emptyImgCol
+       , imgname
+       , imgref
+       , imgNodeRefs
        , isDIR
        , isIMG
        , isROOT
        , isCOL
+       , isemptyDIR
        , isColColRef
        , isColImgRef
        , colEntry
@@ -73,62 +77,7 @@ where
 import           Control.Monad.Except
 
 import           Data.MetaData
-{-
-                               ( MetaData
-                               , metaDataAt
-
-                               , fileMimeType
-                               , fileName
-                               , fileTimeStamp
-                               , fileCheckSum
-                               , metaCheckSum
-
-                               , metaMimeType
-                               , metaName
-                               , metaTimeStamp
-
-                               , isWriteable
-                               , isSortable
-                               , isRemovable
-                               , isAUserCol
-                               )
--}
-
-import Data.Prim
-    ( Traversal',
-      Lens',
-      Field4(_4),
-      Field3(_3),
-      Field2(_2),
-      Field1(_1),
-      Ixed(ix),
-      Alternative((<|>)),
-      (.~),
-      (#),
-      filteredBy,
-      filtered,
-      (&),
-      prism,
-      (^.),
-      iso,
-      isoMapElems,
-      FromJSON(parseJSON),
-      ToJSON(toJSON),
-      Iso',
-      Prism',
-      Map,
-      Seq,
-      Set,
-      Text,
-      IsEmpty(..),
-      ObjId,
-      TimeStamp,
-      CheckSum,
-      Name,
-      MimeType,
-      isShowablePartMT,
-      t'archive,
-      t'collections )
+import           Data.Prim
 
 import qualified Data.Aeson      as J
 import qualified Data.Aeson.Key  as J
@@ -157,12 +106,17 @@ data ImgNode' ref = IMG  !ImgParts
 deriving instance (Show ref) => Show (ImgNode' ref)
 
 deriving instance Functor ImgNode'
-
+{-
 instance IsEmpty (ImgNode' ref) where
   isempty (IMG _pts _md)       = True
   isempty (DIR es _ts)         = isempty es
   isempty (COL _md _im _be cs) = isempty cs
   isempty (ROOT _d _c)         = False
+-}
+
+isemptyDIR :: ImgNode' ref -> Bool
+isemptyDIR (DIR es _ts) = isempty es
+isemptyDIR _            = False
 
 instance ToJSON ref => ToJSON (ImgNode' ref) where
   toJSON (IMG pm md) = J.object
@@ -212,6 +166,18 @@ instance (FromJSON ref) => FromJSON (ImgNode' ref) where
                 <*> o J..: "entries"
          _ -> mzero
 
+instance IsEmpty (ImgNode' ref) where
+  isempty (IMG pm md) = isempty pm && isempty md
+  isempty _           = False
+
+instance Semigroup (ImgNode' ref) where
+  n1 <> n2
+    | isempty n1 = n2
+    | otherwise  = n1
+
+instance Monoid (ImgNode' ref) where
+  mempty = emptyImg         -- TODO: remove this hack by a NULL node
+
 emptyImgDir :: ImgNode' ref
 emptyImgDir = DIR mempty mempty
 {-# INLINE emptyImgDir #-}
@@ -228,7 +194,20 @@ emptyImgCol :: ImgNode' ref
 emptyImgCol = COL mempty Nothing Nothing mempty
 {-# INLINE emptyImgCol #-}
 
+-- --------------------
 -- image node optics
+
+imgNodeRefs :: Fold (ImgNode' ref) ref
+imgNodeRefs = folding go
+  where
+    go (IMG _ _)         = []
+    go (DIR de _)        = de ^.. traverse
+    go (ROOT cr dr)      = [cr, dr]
+    go (COL _  ir br cs) = ir ^.. traverse . imgref
+                           <>
+                           br ^.. traverse . imgref
+                           <>
+                           cs ^.. traverse . theColObjId
 
 thePartsMd :: Prism' (ImgNode' ref) (ImgParts, MetaData)
 thePartsMd
@@ -462,7 +441,7 @@ theImgCheckSum = theImgMeta . metaDataAt fileCheckSum . metaCheckSum
 
 -- ----------------------------------------
 
-data ImgRef' ref = ImgRef {_iref :: !ref, _iname ::  !Name}
+data ImgRef' ref = ImgRef {_iref :: !ref, _iname :: !Name}
 type ImgRef      = ImgRef' ObjId
 
 deriving instance (Eq   ref) => Eq   (ImgRef' ref)
@@ -482,6 +461,12 @@ instance IsEmpty (ImgRef' ref) where
 
 emptyImgRef :: ImgRef
 emptyImgRef = ImgRef mempty mempty
+
+imgref :: Lens' (ImgRef' ref) ref
+imgref k (ImgRef i n) = fmap (\ new -> ImgRef new n) (k i)
+
+imgname :: Lens' (ImgRef' ref) Name
+imgname k (ImgRef i n) = ImgRef i <$> k n
 
 -- --------------------
 

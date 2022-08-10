@@ -8,35 +8,26 @@ module Data.ImgTree
 import Control.Monad.Except
        ( Except )
 
-import Data.ImgNode
-
 import Data.Prim
-       ( IsEmpty(isempty)
-       , Name
-       , ObjId
-       , Path
-       , mkObjId
-       , (&)
-       , (^.)
-       , to
-       , (%~)
-       , (.~)
-       )
+import Data.ImgNode
 import Data.RefTree
 
-import Data.Map as M
+import qualified Data.Map.Strict as M
 
 -- ----------------------------------------
 
-type ImgTree    = DirTree ImgNode' ObjId
-type UplNode    = UpLink  ImgNode' ObjId
+type ImgTree' r = DirTree ImgNode' r
+type UplNode' r = UpLink  ImgNode' r
+
+type ImgTree    = ImgTree'    ObjId     -- DirTree ImgNode' ObjId
+type UplNode    = UplNode'    ObjId     -- UpLink  ImgNode' ObjId
 type ImgNode    = ImgNode'    ObjId
 type ColEntry   = ColEntry'   ObjId
 type ColEntries = ColEntries' ObjId
 type DirEntries = DirEntries' ObjId
 
-type ImgNodeP   = ImgNode' Path
-type ImgTreeP   = DirTree ImgNode' Path
+type ImgNodeP   = ImgNode'    Path
+type ImgTreeP   = ImgTree'    Path      -- DirTree ImgNode' Path
 
 -- ----------------------------------------
 
@@ -83,7 +74,7 @@ removeImgNode :: ObjId
               -> ImgTree
               -> Except String ImgTree
 removeImgNode =
-  remDirNode isempty removeChildRef
+  remDirNode isemptyDIR removeChildRef
 {-# INLINE removeImgNode #-}
 
 addChildRef :: ObjId -> ImgNode -> ImgNode
@@ -102,5 +93,8 @@ removeChildRef r n =
 
 keysImgTree :: ImgTree -> [ObjId]
 keysImgTree t = t ^. entries . to M.keys
+
+keysImgTree' :: Fold (ImgTree' ref) ref
+keysImgTree' = entries . to M.keys . folded
 
 -- ----------------------------------------

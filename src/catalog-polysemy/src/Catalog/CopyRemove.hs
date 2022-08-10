@@ -74,6 +74,7 @@ import Data.ImgTree
        , isColColRef
        , isIMG
        , isROOT
+       , isemptyDIR
        , isoDirEntries
        , mkColColRef
        , theColBlog
@@ -97,31 +98,6 @@ import Data.MetaData
        ( isRemovable )
 
 import Data.Prim
-       ( join
-       , foldM
-       , unless
-       , traverse_
-       , void
-       , when
-       , mkObjId
-       , isPathPrefix
-       , msgPath
-       , snocPath
-       , substPathPrefix
-       , filterSeqM
-       , isoSeqList
-       , toText
-       , unlessM
-       , (^..)
-       , (^?)
-       , (^.)
-       , Any(Any, getAny)
-       , IsEmpty(isempty)
-       , Name
-       , ObjId
-       , Path
-       , Text
-       )
 
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
@@ -477,7 +453,7 @@ filterDirs imgs =
     dirA go i es ts = do
       void $ foldDir go i es ts             -- remove all images in sudirs
 
-      e <- isempty <$> getImgVal i          -- dir now empty?
+      e <- isemptyDIR <$> getImgVal i       -- dir now empty?
       when e $ do
         r <- isROOT                         -- and
              <$>

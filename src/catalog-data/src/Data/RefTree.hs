@@ -1,15 +1,17 @@
 {-# LANGUAGE TupleSections #-}
 module Data.RefTree
        ( RefTree
-       , UpLink
+       , UpLink(..)
        , DirTree
        , rootRef
+       , emptyUplNode
        , entries
        , entryAt
        , theNode'
        , parentRef
        , nodeName
        , nodeVal
+       , nodeNameVal
        , refPath
        , refObjIdPath
        , refInTree
@@ -27,30 +29,6 @@ import Control.Monad.Except
        , throwError
        )
 import Data.Prim
-       ( Map
-       , At(at)
-       , Lens'
-       , Traversal'
-       , FromJSON(parseJSON)
-       , ToJSON(toJSON)
-       , Name
-       , Path
-       , when
-       , unless
-       , fromMaybe
-       , filtered
-       , has
-       , to
-       , _Just
-       , (&)
-       , (^.)
-       , (^?)
-       , (%~)
-       , (.~)
-       , (?~)
-       , mkPath
-       , snocPath
-       )
 
 import qualified Data.Aeson      as J
 import qualified Data.Map.Strict as M
@@ -58,6 +36,9 @@ import qualified Data.Map.Strict as M
 -- ----------------------------------------
 
 -- A RefTree has a root reference and a map of refs to nodes
+--
+-- kind signature
+-- type RefTree :: (* -> *) -> * -> *
 
 data RefTree node ref = RT !ref !(Map ref (node ref))
 
@@ -117,6 +98,9 @@ mapRefTree f (RT r t) =
 -- .2 second a name.
 --
 -- The root node has the root itself as parent ref
+--
+-- kind signature
+-- type UpLink :: (* -> *) -> * -> *
 
 data UpLink node ref = UL !ref !Name !(node ref)
 
@@ -124,6 +108,7 @@ deriving instance (Show ref, Show (node ref)) => Show (UpLink  node ref)
 
 instance Functor node => Functor (UpLink node) where
   fmap f (UL x n t) = UL (f x) n (fmap f t)
+  {-# INLINE fmap #-}
 
 instance (ToJSON (node ref), ToJSON ref) => ToJSON (UpLink node ref)
   where
@@ -141,6 +126,16 @@ instance (FromJSON (node ref), FromJSON ref) => FromJSON (UpLink node ref)
       <*> o J..: "nodeName"
       <*> o J..: "nodeVal"
 
+instance IsEmpty (node ref) => IsEmpty (UpLink node ref) where
+  isempty (UL _r _n v) = isempty v
+  {-# INLINE isempty #-}
+
+emptyUplNode :: (Monoid (node ref)) => ref -> UpLink node ref
+emptyUplNode ref = UL ref mempty mempty
+{-# INLINE emptyUplNode #-}
+
+-- lenses
+
 parentRef :: Lens' (UpLink node ref) ref
 parentRef k (UL r n v) = fmap (\ new -> UL new n v) (k r)
 {-# INLINE parentRef #-}
@@ -153,16 +148,21 @@ nodeVal :: Lens' (UpLink node ref) (node ref)
 nodeVal k (UL r n v) = UL r n <$> k v
 {-# INLINE nodeVal #-}
 
+nodeNameVal :: Lens' (UpLink node ref) (Name, node ref)
+nodeNameVal k (UL r n v) = fmap (\ (newn, newv) -> UL r newn newv) (k (n, v))
+{-# INLINE nodeNameVal #-}
+
 -- ----------------------------------------
 --
 -- a dir tree is a ref tree with a ref to
 -- the parent node,
 -- this enables navigation towards root (unix: ..)
 -- and each node gets a name, not only a value
+--
+-- kind signature
+-- type DirTree :: (* -> *) -> * -> *
 
 type DirTree node ref = RefTree (UpLink node) ref
-
--- lenses
 
 -- ----------------------------------------
 --
