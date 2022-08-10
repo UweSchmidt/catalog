@@ -30,6 +30,7 @@ module Data.ImgNode
        , isColImgRef
        , colEntry
        , colEntry'
+       , colNodeImgRefs
        , isoImgParts
        , isoImgPartsMap
        , isoDirEntries
@@ -200,14 +201,24 @@ emptyImgCol = COL mempty Nothing Nothing mempty
 imgNodeRefs :: Fold (ImgNode' ref) ref
 imgNodeRefs = folding go
   where
-    go (IMG _ _)         = []
-    go (DIR de _)        = de ^.. traverse
-    go (ROOT cr dr)      = [cr, dr]
-    go (COL _  ir br cs) = ir ^.. traverse . imgref
-                           <>
-                           br ^.. traverse . imgref
-                           <>
-                           cs ^.. traverse . theColObjId
+    go (IMG _ _)        = []
+    go (DIR de _)       = de ^.. traverse
+    go (ROOT cr dr)     = [cr, dr]
+    go (COL _ ir br cs) = ir ^.. traverse . imgref
+                          <>
+                          br ^.. traverse . imgref
+                          <>
+                          cs ^.. traverse . theColObjId
+
+colNodeImgRefs :: Fold (ImgNode' ref) (ImgRef' ref)
+colNodeImgRefs = folding go
+  where
+    go (COL _ ir br cs) = ir ^.. traverse
+                          <>
+                          br ^.. traverse
+                          <>
+                          cs ^.. traverse . theColImgRef
+    go _                = []
 
 thePartsMd :: Prism' (ImgNode' ref) (ImgParts, MetaData)
 thePartsMd

@@ -5,7 +5,7 @@
 module Data.NavTree
 where
 
--- import Control.Monad.Except
+import Control.Monad.Except
 
 import Data.Prim
 import Data.ImgNode
@@ -15,6 +15,7 @@ import Data.ImgTree
 import Text.SimpleParser (matchGlobPattern)
 
 import qualified Data.Map.Strict as M
+import qualified Data.Set        as S
 
 -- ----------------------------------------
 --
@@ -42,19 +43,13 @@ mkNavTree t = (t, t ^. rootRef)
 isoNavTree :: Iso' ImgTree NavTree
 isoNavTree = iso mkNavTree fst
 
+setCur :: NavTree -> Getter ObjId NavTree
+setCur (t, _) = to $ \ r -> (t, r)
+
 -- --------------------
 -- basic optics
 
 -- get uplink node of current ObjId
-{-
-curEntry :: Getter NavTree UplNode
-curEntry = to (uncurry f)
-  where
-    f :: ImgTree -> ObjId -> UplNode
-    f t ref = t ^. entries . to lookup'
-      where
-        lookup' em = M.findWithDefault (emptyUplNode ref) ref em
--}
 
 curEntry :: Lens' NavTree UplNode
 curEntry =
@@ -104,6 +99,20 @@ objId2Path = folding f
 
 -- --------------------
 -- basic Fold(s)
+
+
+-- navigate from a ROOT to the COL or DIR child
+
+aRootRef ::  Traversal' ImgNode ObjId ->  Fold NavTree NavTree
+aRootRef rf = foldingTree visit
+  where
+    visit t ref = t ^.. entries . emAt ref . nodeVal . rf
+
+theRootCol :: Fold NavTree NavTree
+theRootCol = aRootRef theRootImgCol
+
+theRootDir :: Fold NavTree NavTree
+theRootDir = aRootRef theRootImgDir
 
 -- select all entries of current ObjId and sub-ObjIds
 
@@ -271,5 +280,122 @@ lensNavTree lf = lens to' fr'
 
 {-# INLINE foldingTree #-}
 {-# INLINE lensNavTree #-}
+
+-- ----------------------------------------
+--
+-- compute sets of ObjId(s)
+
+allObjIds          :: NavTree -> ObjIds
+allObjIds          = foldToObjIds (curTrees . _2)
+
+allDefinedObjIds   :: NavTree -> ObjIds
+allDefinedObjIds   = foldToObjIds (_1 . entries . to M.keys . folded)
+
+allUndefinedObjIds :: NavTree -> ObjIds
+allUndefinedObjIds = allObjIdsBy isempty
+
+allImgObjIds       :: NavTree -> ObjIds
+allImgObjIds       = allObjIdsBy isIMG
+
+allColObjIds       :: NavTree -> ObjIds
+allColObjIds       = allObjIdsBy isCOL
+
+allDirObjIds       :: NavTree -> ObjIds
+allDirObjIds       = allObjIdsBy isDIR
+
+-- fold helpers
+
+foldToObjIds :: Fold NavTree ObjId -> NavTree -> ObjIds
+foldToObjIds fd = foldMapOf fd singleObjId
+
+allObjIdsBy :: (ImgNode -> Bool) -> NavTree -> ObjIds
+allObjIdsBy p = foldToObjIds (curTrees . filteredBy (curNode . filtered p) . _2)
+
+{-# INLINE allObjIds #-}
+{-# INLINE allDefinedObjIds #-}
+{-# INLINE allUndefinedObjIds #-}
+{-# INLINE allImgObjIds #-}
+{-# INLINE allColObjIds #-}
+{-# INLINE allDirObjIds #-}
+{-# INLINE foldToObjIds #-}
+{-# INLINE allObjIdsBy #-}
+
+-- ----------------------------------------
+
+invariantImgTree :: ImgTree -> Except [Text] ()
+invariantImgTree it = do
+
+  -- root node o.k.
+  when
+    (hasn't (curNode . filtered isROOT) rt) $
+    err "root node is not a ROOT value"
+
+  when
+    (hasn't (theRootCol . curNode . filtered isCOL) rt)
+    (err "root node does not have COL node for the collections")
+
+  when
+    (hasn't (theRootDir . curNode . filtered isDIR) rt)
+    (err "root node does not have a DIR node for the image dirs")
+
+  -- dangling references
+  let danglingObjIds
+        = allUndefinedObjIds rt `S.difference` allDefinedObjIds rt
+  when
+    (not $ S.null danglingObjIds)
+    (errs $
+      ["undefined ObjIds found: "]
+      <>
+      (foldOf (folded . isoText . to (:[])) danglingObjIds)
+    )
+
+  -- no junk nodes in DIR hierachy
+  when
+    (has ( theRootDir
+         . curTrees
+         . filteredBy ( curNode
+                      . filtered (not . ((||) <$> isDIR <*> isIMG))
+                      )
+         ) rt)
+    (err "dir hierachy contains other nodes than DIR and IMG")
+
+  -- no junk references in COL hierachy
+  when
+    (has ( theRootCol
+         . curTrees
+         . filteredBy ( curNode
+                      . theColEntries
+                      . traverse
+                      . theColColRef
+                      . setCur rt        -- attach ObjId to tree
+                      . curNode
+                      . filtered (not . isCOL)
+                      )
+         ) rt)
+    (err "colection hierachy contains ColEnt refs, which do not reference COL nodes")
+
+  -- check image part names in ImgRef's
+
+  -- check UpLink references
+
+  when
+    (has ( theRootCol
+         . curTrees
+         . filteredBy ( curNode
+                      . colNodeImgRefs
+                      . imgref
+                      . setCur rt
+                      . curNode
+                      . filtered (not . isIMG)
+                      )
+         ) rt)
+    (err "colection hierachy contains image refs, which do not reference IMG nodes")
+
+
+  where
+    rt = mkNavTree it    -- the root NavTree
+
+    err t = errs [t]
+    errs  = throwError
 
 -- ----------------------------------------
