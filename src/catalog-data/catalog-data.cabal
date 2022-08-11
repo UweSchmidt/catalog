@@ -26,6 +26,7 @@ library
     Data.ImgTree
     Data.Journal
     Data.MetaData
+    Data.NavTree
     Data.Prim
     Data.Prim.CheckSum
     Data.Prim.CheckSumRes

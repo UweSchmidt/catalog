@@ -16,6 +16,8 @@ import Data.Prim
        , makeLenses
        )
 
+import Data.Prim.Prelude
+
 ------------------------------------------------------------------------------
 
 data AppEnv = AppEnv
@@ -49,5 +51,7 @@ defaultCatEnv = CatEnv
 
 defaultAppEnv :: AppEnv
 defaultAppEnv = AppEnv LogErr Nothing 3001 defaultCatEnv
+
+deriving instance Show CatEnv
 
 ------------------------------------------------------------------------------

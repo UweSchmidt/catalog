@@ -255,7 +255,7 @@ loadImgStore f = do
 
     fromBS
       | isPathIdArchive f = fmap mapImgStore2ObjId . J.decode'
-      | otherwise         = J.decode'
+      | otherwise         =                          J.decode'
 
 ----------------------------------------
 

@@ -91,11 +91,11 @@ import Catalog.Journal
        )
 
 -- catalog
+
 import Data.Prim
-       ( Text
-       , (^.)
-       , when
-       )
+import Data.ImgTree  -- for testing
+import Data.NavTree  -- for testing
+
 import Data.Journal
        ( JournalP )
 

@@ -278,8 +278,12 @@ lensNavTree lf = lens to' fr'
     to' (t, r)   = t ^. lf r
     fr' (t, r) v = (t & lf r .~ v, r)
 
-{-# INLINE foldingTree #-}
-{-# INLINE lensNavTree #-}
+filteredByNode :: (ImgNode -> Bool) -> Fold NavTree NavTree
+filteredByNode p = filteredBy (curNode . filtered p)
+
+{-# INLINE foldingTree    #-}
+{-# INLINE lensNavTree    #-}
+{-# INLINE filteredByNode #-}
 
 -- ----------------------------------------
 --
@@ -309,7 +313,7 @@ foldToObjIds :: Fold NavTree ObjId -> NavTree -> ObjIds
 foldToObjIds fd = foldMapOf fd singleObjId
 
 allObjIdsBy :: (ImgNode -> Bool) -> NavTree -> ObjIds
-allObjIdsBy p = foldToObjIds (curTrees . filteredBy (curNode . filtered p) . _2)
+allObjIdsBy p = foldToObjIds (curTrees . filteredByNode p . _2)
 
 {-# INLINE allObjIds #-}
 {-# INLINE allDefinedObjIds #-}
@@ -338,15 +342,14 @@ invariantImgTree it = do
     (hasn't (theRootDir . curNode . filtered isDIR) rt)
     (err "root node does not have a DIR node for the image dirs")
 
-  -- dangling references
-  let danglingObjIds
-        = allUndefinedObjIds rt `S.difference` allDefinedObjIds rt
+  -- undefined ObjIds (dangling references)
+  let undefinedObjIds = allUndefinedObjIds rt
   when
-    (not $ S.null danglingObjIds)
+    (not $ S.null undefinedObjIds)
     (errs $
       ["undefined ObjIds found: "]
       <>
-      (foldOf (folded . isoText . to (:[])) danglingObjIds)
+      (foldOf (folded . isoText . to (:[])) undefinedObjIds)
     )
 
   -- no junk nodes in DIR hierachy
