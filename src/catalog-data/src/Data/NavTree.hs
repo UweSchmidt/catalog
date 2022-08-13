@@ -402,3 +402,73 @@ invariantImgTree it = do
     errs  = throwError
 
 -- ----------------------------------------
+--
+-- remove undefined ObjIds
+-- from a COL od IMG node
+
+cleanupUndefRefs :: (ObjId -> DirEntries -> m ())
+                 -> (ObjId -> ColEntries -> m ())
+                 -> (ObjId               -> m ())
+                 -> (ObjId               -> m ())
+                 -> ObjIds
+                 -> NavTree
+                 -> [m ()]
+cleanupUndefRefs setDirEntries
+           setColEntries
+           clearColImg
+           clearColBlog
+           undefs
+           t =
+  dirEdits
+  <>
+  colEdits
+  where
+    n  :: ImgNode
+    n  = t ^. curNode
+
+    r  :: ObjId
+    r  = t ^. _2
+
+    dirEdits
+      | anyOf (theDirEntries . traverse)
+              (`S.member` undefs)
+              n =
+          -- undefined references found
+          [setDirEntries r (isoDirEntries . isoSeqList # es)]
+
+      | otherwise = []
+      where
+        es :: [ObjId]
+        es = n ^.. theDirEntries
+                 . traverse
+                 . filtered (not . (`S.member` undefs))
+
+    colEdits = colImgEdits <> colBlogEdits <> colEntryEdits
+
+    colEntryEdits
+      | anyOf (theColEntries . traverse . theColObjId)
+              (`S.member` undefs)
+              n =
+        -- undefined references found
+        [setColEntries r (isoSeqList # cs)]
+
+      | otherwise = []
+      where
+        cs :: [ColEntry]
+        cs = n ^.. theColEntries
+                 . traverse
+                 . filteredBy ( theColObjId
+                              . filtered (not . (`S.member` undefs))
+                              )
+
+    colImgEdits  = colRefEdit theColImg  clearColImg
+    colBlogEdits = colRefEdit theColBlog clearColBlog
+
+    colRefEdit theColRef cmd
+      | anyOf (theColRef . traverse . imgref)
+              (`S.member` undefs)
+              n =
+          [cmd r]
+      | otherwise = []
+
+-- -----------------------------------------

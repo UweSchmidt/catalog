@@ -8,9 +8,14 @@ import Data.ImgTree
 import Data.NavTree
 import Data.ImageStore
 
+import Catalog.Effects
 import Catalog.Run
 import Catalog.CatEnv
 import Catalog.CatalogIO
+import Catalog.ImgTree.Modify
+import Catalog.Logging
+import Catalog.ImgTree.Access
+import Catalog.ImgTree.Modify
 
 -- simple tests
 
@@ -33,5 +38,21 @@ loadCatalog = do
    (is ^. theImgTree . to mkNavTree)
     where
       load = loadImgStore (testCatEnv ^. catJsonArchive)
+
+cleanupAllRefs :: Eff'ISEJL r => Sem r ()
+cleanupAllRefs = do
+  t <- mkNavTree <$> dt
+  sequenceA_ $
+    cleanupUndefRefs setDirEntries
+                     setColEntries
+                     clearColImg
+                     clearColBlog
+                     (allUndefinedObjIds t)
+                     t
+  where
+    setDirEntries ref des = adjustDirEntries (const des)     ref
+    setColEntries ref ces = adjustColEntries (const ces)     ref
+    clearColBlog  ref     = adjustColBlog    (const Nothing) ref
+    clearColImg   ref     = adjustColImg     (const Nothing) ref
 
 ------------------------------------------------------------------------------
