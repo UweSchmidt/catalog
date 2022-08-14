@@ -346,10 +346,12 @@ class IsoMaybe a where
       fromM (Just xs) = xs
   {-# INLINE isoMaybe #-}
 
-instance IsoMaybe String
+-- instance IsoMaybe String
 instance IsoMaybe Text
 instance IsoMaybe ByteString
 instance IsoMaybe LazyByteString
+instance IsoMaybe [a]
+instance Ord a => IsoMaybe (Set a)
 
 take1st :: (IsEmpty a, Monoid a) => [a] -> a
 take1st = fromMaybe mempty . listToMaybe . take 1 . filter (not . isempty)

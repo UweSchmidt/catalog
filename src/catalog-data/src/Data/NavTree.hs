@@ -326,6 +326,115 @@ allObjIdsBy p = foldToObjIds (curTrees . filteredByNode p . _2)
 
 -- ----------------------------------------
 
+type Assertion r = NavTree -> Maybe r
+                   -- Nothing : o.k.
+                   -- Just r  : not o.k. with error value
+
+hasRootNode      :: Assertion ImgNode
+hasRootNode t    = t ^? curNode . filtered (not . isROOT)
+
+hasRootColNode   :: Assertion ImgNode
+hasRootColNode t = t ^? theRootCol . curNode . filtered (not . isCOL)
+
+hasRootDirNode   :: Assertion ImgNode
+hasRootDirNode t = t ^? theRootCol . curNode . filtered (not . isDIR)
+
+noUndefinedIds   :: Assertion ObjIds
+noUndefinedIds t = (allUndefinedObjIds t) ^. isoMaybe
+
+noJunkInDirs     :: Assertion [NavTree]
+noJunkInDirs t   = rs ^. isoMaybe
+  where
+    rs = t ^.. theRootDir
+             . curTrees
+             . filteredBy ( curNode
+                          . filtered (not . ((||) <$> isDIR <*> isIMG))
+                          )
+
+-- col refs point to COL nodes
+-- img refs point to IMG nodes and part is there
+
+noJunkInCols     :: Assertion [(ObjId, ColEntry)]
+noJunkInCols t   = rs ^. isoMaybe
+  where
+    rs =
+      t ^.. theRootCol
+          . curTrees
+          . folding
+            (\ t'@(_, r') ->
+               t' ^.. curNode
+                    . theColEntries
+                    . traverse
+                    . filteredBy
+                      ( ( theColImgRef   -- IMG refs
+                        . folding
+                          (\ ir ->       -- get acces to part name
+                             ir ^.. imgref
+                                  . setCur t
+                                  . curNode
+                                  . filtered
+                                    ( (||)
+                                      <$> not . isIMG
+                                      <*> not . elemOf (theParts . thePartNames)
+                                                       (ir ^. imgname)
+                                    )
+                          )
+                        )
+                        <>
+                        ( theColColRef   -- sub col refs
+                        . setCur t
+                        . curNode
+                        . filtered (not . isCOL)
+                        )
+                      )
+                    . to (r',)
+            )
+
+uplinkCheck :: Assertion [NavTree]
+uplinkCheck t = rs ^. isoMaybe
+  where
+    rs = t ^.. curTrees
+             . filteredBy
+               ( curEntry
+               . parentRef
+               . to ( \ pr ->
+                        not . elemOf ( setCur t
+                                     . curNode
+                                     . imgNodeRefs
+                                     ) pr
+                    )
+               )
+
+type InvCmd m a = Maybe a -> m ()
+
+invImgTree :: Monad m
+           => InvCmd m ImgNode
+           -> InvCmd m ImgNode
+           -> InvCmd m ImgNode
+           -> InvCmd m ObjIds
+           -> InvCmd m [NavTree]
+           -> InvCmd m [(ObjId, ColEntry)]
+           -> InvCmd m [NavTree]
+           -> NavTree
+           -> m ()
+invImgTree asRootNode
+           asRootColNode
+           asRootDirNode
+           asUndefinedIds
+           asJunkInDir
+           asJunkInCol
+           asUplink
+           t =
+  do
+    asRootNode      $ hasRootNode t
+    asRootColNode   $ hasRootColNode t
+    asRootDirNode   $ hasRootDirNode t
+    asUndefinedIds  $ noUndefinedIds  t
+    asJunkInDir     $ noJunkInDirs t
+    asJunkInCol     $ noJunkInCols t
+    asUplink        $ uplinkCheck  t
+
+
 invariantImgTree :: ImgTree -> Except [Text] ()
 invariantImgTree it = do
 
