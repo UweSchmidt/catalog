@@ -31,6 +31,7 @@ module Data.ImgNode
        , colEntry
        , colEntry'
        , colNodeImgRefs
+       , colNodeColRefs
        , isoImgParts
        , isoImgPartsMap
        , isoDirEntries
@@ -219,6 +220,13 @@ colNodeImgRefs = folding go
                           <>
                           cs ^.. traverse . theColImgRef
     go _                = []
+
+colNodeColRefs :: Fold (ImgNode' ref) ref
+colNodeColRefs = folding go
+  where
+    go (COL _ _ _ cs) = cs ^.. traverse . theColColRef
+    go _                = []
+
 
 thePartsMd :: Prism' (ImgNode' ref) (ImgParts, MetaData)
 thePartsMd

@@ -115,6 +115,7 @@ import Catalog.Run
        , runMody
        , runBG
        , runLogQ
+       , openJournal
        )
 
 -- catalog-data
@@ -577,17 +578,5 @@ ioeither2Handler cmd = do
     raise500 :: Text -> Handler a
     raise500 msg =
       throwError $ err500 { errBody = msg ^. isoString . from isoString }
-
-openJournal :: Maybe TextPath -> IO JournalHandle
-openJournal tp = case tp of
-  Nothing
-    -> return Nothing
-  Just p
-    | p == "1"
-      -> return $ Just (Left stdout)
-    | p == "2"
-      -> return $ Just (Left stderr)
-    | otherwise
-      -> Just . Right <$> openFile (p ^. isoString) WriteMode
 
 ------------------------------------------------------------------------------

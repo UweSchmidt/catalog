@@ -9,6 +9,7 @@ module Catalog.Run
   , runBG
   , runLogQ
   , r
+  , openJournal
   )
 where
 
@@ -48,6 +49,8 @@ import Polysemy.Logging
        , logToBGQueue
        , log'info
        )
+import Polysemy.FileSystem
+       ( TextPath )
 
 -- catalog-polysemy
 import Catalog.CatEnv
@@ -55,6 +58,7 @@ import Catalog.CatEnv
        , AppEnv
        , appEnvCat
        , appEnvLogLevel
+       , appEnvJournal
        , defaultAppEnv
        )
 import Catalog.Effects
@@ -122,9 +126,13 @@ import Data.IORef
 
 import System.IO
        ( Handle
-       , stderr
        , hFlush
+       , stdout
+       , stderr
+       , IOMode(WriteMode)
+       , openFile
        )
+
 
 import qualified Control.Exception as Ex
 import qualified Data.Text         as T ()
@@ -152,12 +160,13 @@ type CatApp a = Sem '[ CatCmd
 runApp :: ImgStore -> AppEnv -> CatApp a -> IO (ImgStore, Either Text a)
 runApp ims env cmd = do
   logQ <- createJobQueue
+  jh   <- openJournal (env ^. appEnvJournal)
   runM
     . runState ims
     . runError @Text
     . logToStdErr
     . logWithLevel (env ^. appEnvLogLevel)
-    . runLogEnvFS (Just $ Left stderr) logQ (env ^. appEnvCat)
+    . runLogEnvFS jh logQ (env ^. appEnvCat)
     . undoListNoop
     . evalCatCmd
     $ cmd
@@ -333,5 +342,17 @@ runOS =
 
 
 {-# INLINE runOS #-}
+
+openJournal :: Maybe TextPath -> IO JournalHandle
+openJournal tp = case tp of
+  Nothing
+    -> return Nothing
+  Just p
+    | p == "1"
+      -> return $ Just (Left stdout)
+    | p == "2"
+      -> return $ Just (Left stderr)
+    | otherwise
+      -> Just . Right <$> openFile (p ^. isoString) WriteMode
 
 ------------------------------------------------------------------------------
