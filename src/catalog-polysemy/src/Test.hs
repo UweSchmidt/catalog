@@ -50,39 +50,98 @@ loadCatalog = do
 
 -- --------------------
 
-cleanupAllRefs :: Eff'ISEJL r => ObjIds -> Sem r ()
-cleanupAllRefs rs = do
+cleanupAllRefs :: Eff'ISEJL r => Fold NavTree ObjId -> Sem r ()
+cleanupAllRefs check = do
   log'warn "cleanupAllRefs: remove undefined refs from COL and DIR nodes"
   t <- mkNavTree <$> dt
 
-  let cmds = cleanupUndefRefs setDirEntries
+  let cmds = t ^.. cleanupUndefRefs
+                     setDirEntries
                      setColEntries
                      clearColImg
                      clearColBlog
-                     rs
-                     t
+                     check
+
   log'trc $ "cleanupAllRefs: # of edit cmds: " <> length cmds ^. isoText
   sequenceA_ cmds
 
-  where
-    setDirEntries ref des = do
-      log'ref "set new DIR entries" ref
-      adjustDirEntries (const des) ref
+-- --------------------
 
-    setColEntries ref ces = do
-      log'ref "set new COL entries" ref
-      adjustColEntries (const ces) ref
+cleanupAllImgrefJunk :: Eff'ISEJL r => Fold NavTree (NavTree, Set ImgRef)
+                     -> Sem r ()
+cleanupAllImgrefJunk check = do
+  log'warn "cleanupAllImgrefJunk: remove undefined img refs from COL nodes"
+  t <- mkNavTree <$> dt
 
-    clearColBlog ref = do
-      log'ref "clear COL blog ref" ref
-      adjustColBlog (const Nothing) ref
+  let cmds = t ^.. check
+                 . cleanupImgrefJunk
+                     setColEntries
+                     clearColImg
+                     clearColBlog
 
-    clearColImg ref = do
-      log'ref "clear COL img ref" ref
-      adjustColImg (const Nothing) ref
+  log'trc $ "cleanupAllImgrefJunk: # of edit cmds: " <> length cmds ^. isoText
+  sequenceA_ cmds
 
-    log'ref txt ref =
-      log'trc $ "    ref: " <> fmtR ref <> " " <> txt
+-- --------------------
+
+cleanupAllColrefJunk :: Eff'ISEJL r => Fold NavTree (NavTree, ObjIds)
+                     -> Sem r ()
+cleanupAllColrefJunk check = do
+  log'warn "cleanupAllColrefJunk: remove undefined col refs from COL nodes"
+  t <- mkNavTree <$> dt
+
+  let cmds = t ^.. check
+                 . cleanupColrefJunk
+                     setColEntries
+
+  log'trc $ "cleanupAllColrefJunk: # of edit cmds: " <> length cmds ^. isoText
+  sequenceA_ cmds
+
+-- --------------------
+
+repairAllUplinks :: Eff'ISEJL r => Fold NavTree (ObjId, ObjId)
+                 -> Sem r ()
+repairAllUplinks check = do
+  log'warn "repairAllUplinks: set parent ref(s) to correct value"
+  t <- mkNavTree <$> dt
+
+  let cmds = t ^.. check
+                 . cleanupUplinks repairUplink
+
+  log'trc $ "repairAllUplinks: # of corrected refs: " <> length cmds ^. isoText
+  sequenceA_ cmds
+
+-- --------------------
+-- cleanup helper
+
+setDirEntries :: Eff'ISEJL r => ObjId -> DirEntries -> Sem r ()
+setDirEntries ref des = do
+  log'ref "set new DIR entries" ref
+  adjustDirEntries (const des) ref
+
+setColEntries :: Eff'ISEJL r => ObjId -> ColEntries -> Sem r ()
+setColEntries ref ces = do
+  log'ref "set new COL entries" ref
+  adjustColEntries (const ces) ref
+
+clearColBlog :: Eff'ISEJL r => ObjId -> Sem r ()
+clearColBlog ref = do
+  log'ref "clear COL blog ref" ref
+  adjustColBlog (const Nothing) ref
+
+clearColImg :: Eff'ISEJL r => ObjId -> Sem r ()
+clearColImg ref = do
+  log'ref "clear COL img ref" ref
+  adjustColImg (const Nothing) ref
+
+repairUplink :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
+repairUplink ref pref = do
+  log'ref ("repair parent ref to " <> fmtR pref) ref
+  modify' (\ s -> s & theImgTree . entries . emAt ref . parentRef .~ pref)
+
+log'ref :: Eff'ISEL r => Text -> ObjId -> Sem r ()
+log'ref txt ref =
+  log'trc $ "    ref: " <> fmtR ref <> " " <> txt
 
 -- --------------------
 
@@ -90,106 +149,140 @@ checkInvImgTree :: Eff'ISEJL r => Sem r ()
 checkInvImgTree = do
   log'info "ImgTree invariant check"
 
-  t <- mkNavTree <$> dt
+  -- root node
+  asRootNode
+  asRootColNode
+  asRootDirNode
 
-  asRootNode    $ hasRootNode    t
-  asRootColNode $ hasRootColNode t
-  asRootDirNode $ hasRootDirNode t
+  -- undefined refs in whole tree
+  asUndefinedIds
 
-  let undefs    = noUndefinedIds t
-  asUndefinedIds undefs
+  -- refs point to entries of the correct type
+  -- all img names in img refs exist
+  asNoJunkInDir
+  asNoJunkInColImg
+  asNoJunkInColCol
 
-  -- remove undefs from tree
-  t1 <- case undefs of
-          Just rs -> do
-            cleanupAllRefs rs
-            mkNavTree <$> dt
-          Nothing -> return t
+  -- all parent links point to the parent entry
+  asUplink
 
-  asJunkInDir   $ noJunkInDirs t1
-  asJunkInCol   $ noJunkInCols t1
-
-  asUplink      $ uplinkCheck  t1
-
-  log'info "ImgTree invariant check done"
-
+  log'info "ImgTree invariant check and cleanup done"
   return ()
+
   where
-    asRootNode    = check
+    asRootNode    = check'
                     "check root ref"
                     "root ref doesn't point to a ROOT node"
-                    fmtNode
+                    fmtNode'
+                    (const $ abortWith "archive corrupted")
+                    (curNode . filtered (not . isROOT))
 
-    asRootColNode = check
+    asRootColNode = check'
                     "check root collection ref"
                     "root collection ref doesn't point to a COL node"
-                    fmtNode
+                    fmtNode'
+                    (const $ abortWith "archive corrupted")
+                    (theRootCol . curNode . filtered (not . isCOL))
 
-    asRootDirNode = check
+    asRootDirNode = check'
                     "check root directory ref"
                     "root dir ref doesn't point to a DIR node"
-                    fmtNode
+                    fmtNode'
+                    (const $ abortWith "archive corrupted")
+                    (theRootDir . curNode . filtered (not . isDIR))
 
-    asUndefinedIds = check
+    asUndefinedIds = check'
                      "check undefined refs"
                      "undefined ref(s) found "
-                     fmtObjIds
+                     fmtObjId
+                     cleanupAllRefs
+                     (setTo allUndefinedObjIds)
 
-    asJunkInDir    = check
-                     "check referencee in DIR nodes"
+    asNoJunkInDir  = check'
+                     "check references in DIR nodes"
                      "none IMG or none DIR node(s) found in dir hierachy"
-                     fmtTrees
+                     (^. curNode . to fmtNode')
+                     (const $ log'warn "cleanup DIRs not yet implemented")
+                     noJunkInDirs
 
-    asJunkInCol    = check
-                     "check references and image names in COL entries"
-                     "col entry with illegal ref or undefined part name"
-                     fmtIdColEntries
+    asNoJunkInColImg = check'
+                     "check image refs and names in COL entries"
+                     "none IMG ref or missing names found"
+                     fmtImgRefs
+                     cleanupAllImgrefJunk
+                     allImgrefJunk
 
-    asUplink       = check
+    asNoJunkInColCol = check'
+                     "check col refs in COL entries"
+                     "col ref doesn't reference a col entry"
+                     fmtColRef
+                     (const $ log'warn "cleanup not yet implemented")
+                     allColrefJunk
+
+    asUplink       = check'
                      "check parent refs"
                      "parent ref(s) don't point to parent entries"
-                     fmtRefPairs
+                     fmtRef2
+                     repairAllUplinks
+                     uplinkCheck
 
-    check :: Eff'ISEL r
-          => Text -> Text -> (a -> [Text])
-          -> Maybe a
-          -> Sem r ()
-    check tt msg f res = do
-      case res of
-        Nothing ->           log'trc  (l1 <> ": O.K.")
-        Just v  -> traverse_ log'warn (l1 : l2 : f v)
-        where
-          l1 = "checkInvImgTree: " <> tt
-          l2 = "checkInvImgTree: " <> msg
+    -- exec a single check and cleanup
 
-    fmtNode :: ImgNode -> [Text]
-    fmtNode _n = mempty
+    check' :: Eff'ISEJL r
+           => Text                         -- title of check
+           -> Text                         -- error message
+           -> (a -> Text)                  -- format result data
+           -> (Fold NavTree a -> Sem r ()) -- repair action
+           -> Fold NavTree a               -- check result
+           -> Sem r ()
 
-    fmtObjIds :: ObjIds -> [Text]
-    fmtObjIds = map (indent . ("ref: " <>) . fmtR) . S.toList
-
-    fmtTrees :: [NavTree] -> [Text]
-    fmtTrees = map (indent . fmtT)
+    check' tt msg fmt cleanup query = do
+      t <- mkNavTree <$> dt
+      if has query t
+        then do
+          log'warn l1
+          log'warn l2
+          traverseOf_ query (log'warn . fmt) t
+          cleanup query
+        else do
+          log'trc  (l1 <> ": O.K.")
       where
-        fmtT t =
-          "ref: " <> t ^. _2 . to fmtR
-          <>
-          ", node: " <>  t ^. curNode . to (take 36 . show) . isoText
+        l1 = "checkInvImgTree: " <> tt
+        l2 = "checkInvImgTree: " <> msg
 
-    fmtRefPairs :: [(ObjId, ObjId)] -> [Text]
-    fmtRefPairs = map (indent . fmtP)
-      where
-        fmtP (r, pr) =
-          "ref: " <> fmtR r <> ", wrong parent ref: " <> fmtR pr
+    fmtNode' :: ImgNode -> Text
+    fmtNode' n = n ^. to show . isoText . to (indent . ("node: " <>))
 
-    fmtIdColEntries :: [(ObjId, ColEntry)] -> [Text]
-    fmtIdColEntries = map (indent . fmtIdColEntry)
+    fmtObjId :: ObjId -> Text
+    fmtObjId = indent . ("ref: " <>) . fmtR
 
-    fmtIdColEntry :: (ObjId, ColEntry) -> Text
-    fmtIdColEntry (r', e') =
-      "ref: " <> fmtR r'
+    fmtImgRefs :: (NavTree, Set ImgRef) -> Text
+    fmtImgRefs (t, irs) =
+      t ^. _2 . to show . isoText . to (indent . ("ref: " <>))
       <>
-      ", entry: " <> e' ^. to show . isoText
+      "imgrefs: "
+      <>
+      irs ^. folded . to ((" " <>) . fmtImgRef)
+
+    fmtImgRef :: ImgRef -> Text
+    fmtImgRef ir =
+         "("
+      <> ir ^. imgref . to fmtR
+      <> ","
+      <> ir ^. imgname . isoText
+      <> ")"
+
+    fmtColRef :: (NavTree, ObjIds) -> Text
+    fmtColRef (t, crs) =
+      t ^. _2 . to show . isoText . to (indent . ("ref: " <>))
+      <>
+      "colrefs: "
+      <>
+      crs ^. folded . to ((" " <>) . show) . isoText
+
+    fmtRef2 :: (ObjId, ObjId) -> Text
+    fmtRef2 (r, pr) =
+          "ref: " <> fmtR r <> ", wrong parent ref: " <> fmtR pr
 
 fmtR :: ObjId -> Text
 fmtR r = show r ^. isoText

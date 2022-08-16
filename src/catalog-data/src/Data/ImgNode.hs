@@ -64,6 +64,8 @@ module Data.ImgNode
        , addDirEntry
        , delDirEntry
        , delColEntry
+       , filterDirEntries
+       , filterColEntries
        , ObjIds
        , singleObjId
        , isWriteableCol
@@ -629,16 +631,22 @@ addDirEntry r (DE rs) = DE rs'
 {-# INLINE addDirEntry #-}
 
 delDirEntry :: (Eq ref) => ref -> DirEntries' ref -> DirEntries' ref
-delDirEntry r (DE rs) =
-  DE rs'
-  where
-    !rs' = Seq.filter (/= r) rs
+delDirEntry r = filterDirEntries (/= r)
 {-# INLINE delDirEntry #-}
 
 delColEntry :: (Eq ref) => ref -> ColEntries' ref -> ColEntries' ref
-delColEntry r =
-    Seq.filter (\ ce -> ce ^. theColObjId /= r)
+delColEntry r = filterColEntries (\ ce -> ce ^. theColObjId /= r)
 {-# INLINE delColEntry #-}
+
+filterDirEntries :: (ref -> Bool)
+                 -> DirEntries' ref -> DirEntries' ref
+filterDirEntries p des = des & isoDirEntries %~ Seq.filter p
+{-# INLINE filterDirEntries #-}
+
+filterColEntries :: (ColEntry' ref -> Bool)
+                 -> ColEntries' ref -> ColEntries' ref
+filterColEntries = Seq.filter
+{-# INLINE filterColEntries #-}
 
 -- ----------------------------------------
 

@@ -8,7 +8,7 @@ module Catalog.Run
   , runMody
   , runBG
   , runLogQ
-  , r
+  --  , r
   , openJournal
   )
 where
@@ -174,9 +174,10 @@ runApp ims env cmd = do
 -- --------------------
 --
 -- for simple testing in ghci
+-- outdated, see module Test
 
-r :: CatApp a -> IO (ImgStore, Either Text a)
-r = runApp emptyImgStore defaultAppEnv
+-- r :: CatApp a -> IO (ImgStore, Either Text a)
+-- r = runApp emptyImgStore defaultAppEnv
 
 ----------------------------------------
 --

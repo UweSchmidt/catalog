@@ -5,8 +5,6 @@
 module Data.NavTree
 where
 
-import Control.Monad.Except
-
 import Data.Prim
 import Data.ImgNode
 import Data.RefTree
@@ -314,6 +312,9 @@ allColObjIds       = allObjIdsBy isCOL
 allDirObjIds       :: NavTree -> ObjIds
 allDirObjIds       = allObjIdsBy isDIR
 
+setTo :: (a -> Set b) -> Fold a b
+setTo f = folding (S.toAscList . f)
+
 -- fold helpers
 
 foldToObjIds :: Fold NavTree ObjId -> NavTree -> ObjIds
@@ -349,176 +350,232 @@ hasRootDirNode t = t ^? theRootDir . curNode . filtered (not . isDIR)
 noUndefinedIds   :: Assertion ObjIds
 noUndefinedIds t = (allUndefinedObjIds t) ^. isoMaybe
 
-noJunkInDirs     :: Assertion [NavTree]
-noJunkInDirs t   = rs ^. isoMaybe
+noJunkInDirs :: Fold NavTree NavTree
+noJunkInDirs = folding f
   where
-    rs = t ^.. allEntries
-             . filteredBy ( curNode
-                            . filtered isDIR   -- all DIR nodes
-                          )
-             . filteredBy ( curChildren
-                            . curNode
-                            . filtered (not . ((||) <$> isDIR <*> isIMG))
-                          )
+    f t = t ^.. allEntries
+              . filteredBy ( curNode
+                           . filtered isDIR   -- all DIR nodes
+                           )
+              . filteredBy ( curChildren
+                           . curNode
+                           . filtered (not . ((||) <$> isDIR <*> isIMG))
+                           )
 
--- col refs point to COL nodes
--- img refs point to IMG nodes and part is there
+allColrefJunk :: Fold NavTree (NavTree, ObjIds)
+allColrefJunk =
+  allEntries
+  . filteredBy (curNode . filtered isCOL)
+  . colrefJunk
 
-noJunkInCols     :: Assertion [(ObjId, ColEntry)]
-noJunkInCols t   = rs ^. isoMaybe
+colrefJunk :: Fold NavTree (NavTree, ObjIds)
+colrefJunk = folding f
   where
-    rs =
-      t ^.. theRootCol
-          . curTrees
-          . folding
-            (\ t'@(_, r') ->
-               t' ^.. curNode
-                    . theColEntries
-                    . traverse
-                    . filteredBy
-                      ( ( theColImgRef   -- IMG refs
-                        . folding
-                          (\ ir ->       -- get acces to part name
-                             ir ^.. imgref
-                                  . setCur t
-                                  . curNode
-                                  . filtered
-                                    ( (||)
-                                      <$> not . isIMG
-                                      <*> not . elemOf (theParts . thePartNames)
-                                                       (ir ^. imgname)
-                                    )
-                          )
-                        )
-                        <>
-                        ( theColColRef   -- sub col refs
-                        . setCur t
-                        . curNode
-                        . filtered (not . isCOL)
-                        )
-                      )
-                    . to (r',)
+    f t
+      | has undefColNodeColRefs t = [(t, irs)]
+      | otherwise                 = []
+      where
+        irs = foldMapOf undefColNodeColRefs S.singleton t
+
+undefColNodeColRefs :: Fold NavTree ObjId
+undefColNodeColRefs = folding f
+  where
+    f t =
+      t ^.. curNode
+          . colNodeColRefs
+          . filtered
+            ( has ( setCur t
+                  . curNode
+                  . filtered (not . isCOL)
+                  )
             )
 
-uplinkCheck :: Assertion [(ObjId, ObjId)]
-uplinkCheck t = rs ^. isoMaybe
+allImgrefJunk :: Fold NavTree (NavTree, Set ImgRef)
+allImgrefJunk =
+  allEntries
+  . filteredBy (curNode . filtered isCOL)
+  . imgrefJunk
+
+imgrefJunk :: Fold NavTree (NavTree, Set ImgRef)
+imgrefJunk = folding f
   where
-    rs = t ^.. curTrees
-             . folding
-               (\ t'@(_, r) ->
-                  t' ^.. curEntry
-                       . filteredBy (nodeVal . filtered (not . isROOT))
-                       . parentRef
-                       . filtered
-                         ( not . elemOf ( setCur t
-                                        . curNode
-                                        . imgNodeRefs
-                                        ) r
-                         )
-                       . to (r,)
-               )
+    f :: NavTree -> [(NavTree, Set ImgRef)]
+    f t
+      | has undefColNodeImgRefs t = [(t, irs)]
+      | otherwise                 = []
+      where
+        irs = foldMapOf undefColNodeImgRefs S.singleton t
 
--- --------------------
-{-
-type InvCmd m a = Maybe a -> m ()
+-- select all imgrefs in the COL node of a tree
+undefColNodeImgRefs :: Fold NavTree ImgRef
+undefColNodeImgRefs = folding f
+  where
+    f t =
+      t ^.. curNode
+          . colNodeImgRefs
+          . filtered
+            (\ ir ->
+               has ( imgref
+                   . setCur t
+                   . curNode
+                   . filtered ( not
+                              . ( (&&)
+                                  <$> isIMG
+                                  <*> has (theImgPart (ir ^. imgname))
+                                )
+                              )
+                   ) ir
+            )
 
-invImgTree :: Monad m
-           => InvCmd m ImgNode
-           -> InvCmd m ImgNode
-           -> InvCmd m ImgNode
-           -> InvCmd m ObjIds
-           -> InvCmd m [NavTree]
-           -> InvCmd m [(ObjId, ColEntry)]
-           -> InvCmd m [(ObjId, ObjId)]
-           -> NavTree
-           -> m ()
-invImgTree asRootNode
-           asRootColNode
-           asRootDirNode
-           asUndefinedIds
-           asJunkInDir
-           asJunkInCol
-           asUplink
-           t =
-  do
-    asRootNode      $ hasRootNode t
-    asRootColNode   $ hasRootColNode t
-    asRootDirNode   $ hasRootDirNode t
-    asUndefinedIds  $ noUndefinedIds  t
-    asJunkInDir     $ noJunkInDirs t
-    asJunkInCol     $ noJunkInCols t
-    asUplink        $ uplinkCheck  t
+uplinkCheck :: Fold NavTree (ObjId, ObjId)
+uplinkCheck = folding f
+  where
+    f t =
+      t ^.. curTrees
+          . folding
+            (\ t'@(_, r) ->
+               t' ^.. curEntry
+                    . filteredBy (nodeVal . filtered (not . isROOT))
+                    . parentRef
+                    . filtered
+                      ( not . elemOf ( setCur t
+                                     . curNode
+                                     . imgNodeRefs
+                                     ) r
+                      )
+                    . to (r,)
+            )
 
--- -}
 -- ----------------------------------------
 --
 -- remove undefined ObjIds
 -- from a COL od IMG node
 
-cleanupUndefRefs :: (ObjId -> DirEntries -> m ())
-                 -> (ObjId -> ColEntries -> m ())
-                 -> (ObjId               -> m ())
-                 -> (ObjId               -> m ())
-                 -> ObjIds
-                 -> NavTree
-                 -> [m ()]
+cleanupUndefRefs :: (ObjId -> DirEntries -> r)
+                 -> (ObjId -> ColEntries -> r)
+                 -> (ObjId               -> r)
+                 -> (ObjId               -> r)
+                 -> Fold NavTree ObjId
+                 -> Fold NavTree r
 cleanupUndefRefs
   setDirEntries
   setColEntries
   clearColImg
   clearColBlog
-  undefs
-  t0
-  = t0 ^.. curTrees
-         . folding editNode
+  undefsF
+  = folding f
   where
-    editNode t@(_, r) =
-      dirEdit <> colEdit
+    f t0 = t0 ^.. curTrees . folding editNode
       where
-        n  :: ImgNode
-        n  = t ^. curNode
+        undefs = foldMapOf undefsF S.singleton t0
 
-        dirEdit
-          | anyOf (theDirEntries . traverse)
-                  (`S.member` undefs)
-                  n =
-          -- undefined references found
-            [setDirEntries r (isoDirEntries . isoSeqList # es)]
-
-          | otherwise = []
+        editNode t@(_, r) =
+          dirEdit <> colEdit
           where
-            es :: [ObjId]
-            es = n ^.. theDirEntries
-                     . traverse
-                     . filtered (not . (`S.member` undefs))
+            n  :: ImgNode
+            n  = t ^. curNode
 
-        colEdit = colImgEdit <> colBlogEdit <> colEntryEdit
+            dirEdit
+              | anyOf (theDirEntries . traverse)
+                      (`S.member` undefs)
+                      n =
+              -- undefined references found
+                [setDirEntries r $ filterDirEntries noJunk des]
 
-        colEntryEdit
-          | anyOf (theColEntries . traverse . theColObjId)
-                  (`S.member` undefs)
-                  n =
-            -- undefined references found
-            [setColEntries r (isoSeqList # cs)]
+              | otherwise = []
+              where
+                des    = n ^. theDirEntries
+                noJunk = not . (`S.member` undefs)
 
+            colEdit = colImgEdit <> colBlogEdit <> colEntryEdit
+
+            colEntryEdit
+              | anyOf (theColEntries . traverse . theColObjId)
+                      (`S.member` undefs)
+                      n =
+                -- undefined references found
+                [setColEntries r $ filterColEntries noJunk ces]
+
+              | otherwise = []
+              where
+                ces = n ^. theColEntries
+                noJunk = has ( theColObjId
+                             . filtered (not . (`S.member` undefs))
+                             )
+
+            colImgEdit  = colRefEdit theColImg  clearColImg
+            colBlogEdit = colRefEdit theColBlog clearColBlog
+
+            colRefEdit theColRef cmd
+              | anyOf (theColRef . traverse . imgref)
+                      (`S.member` undefs)
+                      n =
+                [cmd r]
+              | otherwise = []
+
+-- -----------------------------------------
+
+cleanupImgrefJunk :: (ObjId -> ColEntries -> r)
+                  -> (ObjId               -> r)
+                  -> (ObjId               -> r)
+                  -> Fold (NavTree, Set ImgRef) r
+cleanupImgrefJunk
+  setColEntries
+  clearColImg
+  clearColBlog = folding f
+  where
+    f (t, irs) =
+      t ^. curNode . to (editImg <> editBlog <> editEntries)
+      where
+        r = t ^. _2
+
+        editRef theRef cmd n
+          | has ( theRef
+                . traverse
+                . filtered (`S.member` irs)
+                ) n   = [cmd r]
           | otherwise = []
+
+        editBlog    = editRef theColBlog clearColBlog
+        editImg     = editRef theColImg  clearColImg
+
+        editEntries n =
+          [setColEntries r $ filterColEntries noJunk ces]
           where
-            cs :: [ColEntry]
-            cs = n ^.. theColEntries
-                     . traverse
-                     . filteredBy ( theColObjId
-                                  . filtered (not . (`S.member` undefs))
-                                  )
+            ces    = n ^. theColEntries
 
-        colImgEdit  = colRefEdit theColImg  clearColImg
-        colBlogEdit = colRefEdit theColBlog clearColBlog
+            noJunk = colEntry'
+                     (not . (`S.member` irs))
+                     (const True)
 
-        colRefEdit theColRef cmd
-          | anyOf (theColRef . traverse . imgref)
-                  (`S.member` undefs)
-                  n =
-            [cmd r]
-          | otherwise = []
+-- -----------------------------------------
+
+cleanupColrefJunk :: (ObjId -> ColEntries -> r)
+                  -> Fold (NavTree, ObjIds) r
+cleanupColrefJunk
+  setColEntries = folding f
+  where
+    f (t, crs) =
+      t ^. curNode . to editEntries
+      where
+        r = t ^. _2
+
+        editEntries n =
+          [setColEntries r $ filterColEntries noJunk ces]
+          where
+            ces    = n ^. theColEntries
+
+            noJunk = colEntry'
+                     (const True)
+                     (not . (`S.member` crs))
+
+-- -----------------------------------------
+
+cleanupUplinks :: (ObjId -> ObjId -> r)
+               -> Fold (ObjId, ObjId) r
+cleanupUplinks repairUplink = folding f
+  where
+    f (ref, pref) = [repairUplink ref pref]
 
 -- -----------------------------------------
 {-
