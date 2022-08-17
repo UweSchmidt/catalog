@@ -99,13 +99,14 @@ cleanupAllColrefJunk check = do
 
 -- --------------------
 
-repairAllUplinks :: Eff'ISEJL r => Fold NavTree (ObjId, ObjId)
+repairAllUplinks :: Eff'ISEJL r => Fold NavTree ((ObjId, ObjId), ObjId)
                  -> Sem r ()
 repairAllUplinks check = do
   log'warn "repairAllUplinks: set parent ref(s) to correct value"
   t <- mkNavTree <$> dt
 
   let cmds = t ^.. check
+                 . _1
                  . cleanupUplinks repairUplink
 
   log'trc $ "repairAllUplinks: # of corrected refs: " <> length cmds ^. isoText
@@ -141,7 +142,7 @@ repairUplink ref pref = do
 
 log'ref :: Eff'ISEL r => Text -> ObjId -> Sem r ()
 log'ref txt ref =
-  log'trc $ "    ref: " <> fmtR ref <> " " <> txt
+  log'trc $ "    ref: " <> fmtR ref <> ": " <> txt
 
 -- --------------------
 
@@ -222,7 +223,7 @@ checkInvImgTree = do
     asUplink       = check'
                      "check parent refs"
                      "parent ref(s) don't point to parent entries"
-                     fmtRef2
+                     fmtRef3
                      repairAllUplinks
                      uplinkCheck
 
@@ -260,7 +261,7 @@ checkInvImgTree = do
     fmtImgRefs (t, irs) =
       t ^. _2 . to show . isoText . to (indent . ("ref: " <>))
       <>
-      "imgrefs: "
+      ", imgrefs: "
       <>
       irs ^. folded . to ((" " <>) . fmtImgRef)
 
@@ -280,9 +281,13 @@ checkInvImgTree = do
       <>
       crs ^. folded . to ((" " <>) . show) . isoText
 
-    fmtRef2 :: (ObjId, ObjId) -> Text
-    fmtRef2 (r, pr) =
-          "ref: " <> fmtR r <> ", wrong parent ref: " <> fmtR pr
+    fmtRef3 :: ((ObjId, ObjId), ObjId) -> Text
+    fmtRef3 ((r, pr), wpr) =
+          indent "ref: " <> fmtR r
+          <>
+          ": wrong parent ref: " <> fmtR wpr
+          <>
+          ", should be ref: " <> fmtR pr
 
 fmtR :: ObjId -> Text
 fmtR r = show r ^. isoText

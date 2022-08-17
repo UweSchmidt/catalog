@@ -427,24 +427,28 @@ undefColNodeImgRefs = folding f
                    ) ir
             )
 
-uplinkCheck :: Fold NavTree (ObjId, ObjId)
-uplinkCheck = folding f
+-- result: ((ref, correct parentref), current wrong parentref)
+
+uplinkCheck :: Fold NavTree ((ObjId, ObjId), ObjId)
+uplinkCheck = curTrees                 -- iterate over all trees
+            . folding f
   where
-    f t =
-      t ^.. curTrees
-          . folding
-            (\ t'@(_, r) ->
-               t' ^.. curEntry
-                    . filteredBy (nodeVal . filtered (not . isROOT))
-                    . parentRef
-                    . filtered
-                      ( not . elemOf ( setCur t
-                                     . curNode
-                                     . imgNodeRefs
-                                     ) r
+    f :: NavTree -> [((ObjId, ObjId), ObjId)]
+    f tp@(_, p) =                       -- the parent tree
+      tp ^.. curChildren
+           . folding
+             (\ t@(_, r) ->             -- the child tree
+                t ^.. filteredBy
+                      ( curNode
+                      . filtered (\ n -> not (isIMG n && parentIsCol))
                       )
-                    . to (r,)
+                    . curEntry
+                    . parentRef
+                    . filtered (/= p)
+                    . to ((r, p),)
             )
+      where
+        parentIsCol = has (curNode . filtered isCOL) tp
 
 -- ----------------------------------------
 --
