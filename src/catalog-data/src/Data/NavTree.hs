@@ -450,6 +450,20 @@ uplinkCheck = curTrees                 -- iterate over all trees
       where
         parentIsCol = has (curNode . filtered isCOL) tp
 
+-- refs in map not occuring in tree
+
+allOrphanObjIds    :: Fold NavTree ObjId
+allOrphanObjIds    = folding f
+  where
+    f t =
+      t ^.. _1
+          . entries
+          . to M.keys
+          . folded
+          . filtered (not . (`S.member` ids))
+      where
+        ids = allObjIds t
+
 -- ----------------------------------------
 --
 -- remove undefined ObjIds
@@ -572,58 +586,5 @@ cleanupColrefJunk
             noJunk = colEntry'
                      (const True)
                      (not . (`S.member` crs))
-
--- -----------------------------------------
-
-cleanupUplinks :: (ObjId -> ObjId -> r)
-               -> Fold (ObjId, ObjId) r
-cleanupUplinks repairUplink = folding f
-  where
-    f (ref, pref) = [repairUplink ref pref]
-
--- -----------------------------------------
-{-
-cleanupColEntries :: (ObjId -> ColEntries -> m ())
-                  -> (ObjId               -> m ())
-                  -> (ObjId               -> m ())
-                  -> [(ObjId, ColEntry)]
-                  -> NavTree
-                  -> [m ()]
-cleanupColEntries
-  setColEntries
-  clearColImg
-  clearColBlog
-  undefs
-  t0@(t', r')
-  = t0 ^.. to allColObjIds
-         . folded
-         . filtered (`S.member` oids)
-         . folding editCol
-  where
-    oids :: ObjIds
-    oids = undefs ^. traverse . _1 . to singleObjId
-
-    ces :: Set ColEntry
-    ces = undefs ^. traverse . _2 . to S.singleton
-
-    editCol :: ObjId -> [m()]
-    editCol r = r ^.. to (t',)
-                    . curNode
-                    . folding (colImgEdit <> colBlogEdit <> colEntEdit)
-      where
-        colImgEdit :: ImgNode -> [m ()]
-        colImgEdit  = colRefEdit theColImg  clearColImg
-        colBlogEdit = colRefEdit theColBlog clearColBlog
-
-        colRefEdit theColRef cmd n
-          | anyOf (theColRef . traverse)
-                  (`S.member` ces)
-                  n =
-            [cmd r]
-          | otherwise = []
-
-        colEntEdit :: ImgNode -> [m()]
-        colEntEdit r = undefined
--- -}
 
 -- -----------------------------------------

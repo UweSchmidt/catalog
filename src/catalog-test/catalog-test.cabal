@@ -1,0 +1,73 @@
+cabal-version: 2.0
+name:          catalog-test
+version:       0.5.8.6
+synopsis:      test for catalog-polysemy
+homepage:      https://github.com/UweSchmidt/apps/catalog
+license:       BSD3
+license-file:  LICENSE
+author:        Uwe Schmidt
+copyright:     2022 Uwe Schmidt
+category:      images
+build-type:    Simple
+
+executable catalog-test
+  hs-source-dirs:     app
+  main-is:            Main.hs
+
+  build-depends:
+      aeson                 >=2.0
+    , aeson-pretty
+    , base                  >=4.7
+    , blaze-html
+    , bytestring
+    , catalog-data
+    , catalog-polysemy
+    , containers            >=0.4
+    , directory
+    , exceptions
+    , filepath
+    , http-client
+    , http-types
+    , lens                  >=4.12
+    , murmur-hash
+    , optparse-applicative
+    , polysemy              >=1.2.3
+    , polysemy-plugin
+    , polysemy-tools
+    , process
+    , scientific
+    , stm
+    , text
+    , transformers
+    , unix
+    , unordered-containers  >=0.2
+    , utf8-string           >=1
+    , vector                >=0.10
+
+  -- local libs
+  default-language:   Haskell2010
+  default-extensions:
+    ConstraintKinds
+    DataKinds
+    ExplicitNamespaces
+    FlexibleContexts
+    FlexibleInstances
+    GADTs
+    LambdaCase
+    MultiParamTypeClasses
+    OverloadedStrings
+    PolyKinds
+    RankNTypes
+    ScopedTypeVariables
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+
+  ghc-options:
+    -Wall -fwarn-tabs -O2 -funbox-strict-fields -flate-specialise
+    -fspecialise-aggressively -fplugin=Polysemy.Plugin -threaded
+
+source-repository head
+  type:     git
+  location: https://github.com/UweSchmidt/apps/catalog

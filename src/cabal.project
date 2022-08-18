@@ -1,4 +1,4 @@
-packages: catalog-data polysemy-tools catalog-polysemy client-polysemy servant-polysemy
+packages: catalog-data polysemy-tools catalog-polysemy client-polysemy servant-polysemy catalog-test
 
 -- "cabal configure" output:                       
 -- Build profile: -w ghc-8.10.7 -O1

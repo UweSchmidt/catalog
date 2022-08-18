@@ -1,4 +1,4 @@
-module Test
+module Main
 where
 
 import Data.Prim
@@ -102,14 +102,33 @@ cleanupAllColrefJunk check = do
 repairAllUplinks :: Eff'ISEJL r => Fold NavTree ((ObjId, ObjId), ObjId)
                  -> Sem r ()
 repairAllUplinks check = do
-  log'warn "repairAllUplinks: set parent ref(s) to correct value"
+  log'warn "repairAllUplinks: remove ref in parent entry"
+  t <- mkNavTree <$> dt
+
+  let edit ((r, pr), wpr)
+        | wpr'contains'r  = repairUplink r pr
+        | otherwise       = removeRef    r pr
+        where
+         wpr'contains'r =
+           has (setCur t . curNode . imgNodeRefs . filtered (== r)) wpr
+
+  let cmds = t ^.. check . to edit
+
+  log'trc $ "repairAllUplinks: # of corrected refs: " <> length cmds ^. isoText
+  sequenceA_ cmds
+
+-- --------------------
+
+removeAllOrphans :: Eff'ISEJL r => Fold NavTree ObjId
+                 -> Sem r ()
+removeAllOrphans check = do
+  log'warn "removeAllOrphans: remove refs from map"
   t <- mkNavTree <$> dt
 
   let cmds = t ^.. check
-                 . _1
-                 . cleanupUplinks repairUplink
+                 . to removeOrphan
 
-  log'trc $ "repairAllUplinks: # of corrected refs: " <> length cmds ^. isoText
+  log'trc $ "removeAllOrphans # of orphan refs: " <> length cmds ^. isoText
   sequenceA_ cmds
 
 -- --------------------
@@ -130,19 +149,62 @@ clearColBlog ref = do
   log'ref "clear COL blog ref" ref
   adjustColBlog (const Nothing) ref
 
-clearColImg :: Eff'ISEJL r => ObjId -> Sem r ()
-clearColImg ref = do
-  log'ref "clear COL img ref" ref
-  adjustColImg (const Nothing) ref
-
 repairUplink :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
 repairUplink ref pref = do
   log'ref ("repair parent ref to " <> fmtR pref) ref
   modify' (\ s -> s & theImgTree . entries . emAt ref . parentRef .~ pref)
 
+clearColImg :: Eff'ISEJL r => ObjId -> Sem r ()
+clearColImg ref = do
+  log'ref "clear COL img ref" ref
+  adjustColImg (const Nothing) ref
+
+removeOrphan :: Eff'ISEJL r => ObjId -> Sem r ()
+removeOrphan ref = do
+  log'ref ("remove orphan ref") ref
+  modify' (\ s -> s & theImgTree . entries . emAt ref .~ emptyUplNode ref)
+
 log'ref :: Eff'ISEL r => Text -> ObjId -> Sem r ()
 log'ref txt ref =
   log'trc $ "    ref: " <> fmtR ref <> ": " <> txt
+
+removeRef :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
+removeRef refrem ref = do
+  ((, ref) <$> dt) >>= edit
+  where
+    edit t
+      | isDIR  n = adjustDirEntries
+                   ( const $
+                     filterDirEntries  (/= refrem)
+                                       (n ^. theDirEntries)
+                   )
+                   ref
+      | isCOL  n = sequenceA_ [adjImg, adjBlog, adjEntries]
+
+      | isIMG  n = return ()
+      | isROOT n = return ()           -- root col or dir can't be removed
+      where
+        n = t ^. curNode
+
+        adjImg
+          | has (theColImg . traverse . imgref . filtered (== refrem)) n =
+              clearColImg ref
+          | otherwise =
+              return ()
+
+        adjBlog
+          | has (theColBlog . traverse . imgref . filtered (== refrem)) n =
+              clearColBlog ref
+          | otherwise =
+              return ()
+
+        adjEntries =
+          adjustColEntries
+          ( const $
+            filterColEntries (\ce -> ce ^. theColObjId /= refrem)
+                             ( n ^. theColEntries)
+          )
+          ref
 
 -- --------------------
 
@@ -154,6 +216,7 @@ checkInvImgTree = do
   asRootNode
   asRootColNode
   asRootDirNode
+  asRootChildRef
 
   -- undefined refs in whole tree
   asUndefinedIds
@@ -164,8 +227,11 @@ checkInvImgTree = do
   asNoJunkInColImg
   asNoJunkInColCol
 
-  -- all parent links point to the parent entry
+  -- check all parent links point to the parent entry
   asUplink
+
+  -- no junk in map of entries
+  asNoOrphans
 
   log'info "ImgTree invariant check and cleanup done"
   return ()
@@ -192,6 +258,21 @@ checkInvImgTree = do
                     (const $ abortWith "archive corrupted")
                     (theRootDir . curNode . filtered (not . isDIR))
 
+    asRootChildRef = check'
+                     "check parent ref of root children"
+                     "parent ref in col or dir entry wrong"
+                     fmtRef2
+                     (const $ abortWith "archive corrupted")
+                     ( folding
+                       (\ t@(_, rr) ->
+                          t ^.. curChildren
+                              . curEntry
+                              . parentRef
+                              . filtered (/= rr)
+                              . to (,rr)
+                       )
+                     )
+
     asUndefinedIds = check'
                      "check undefined refs"
                      "undefined ref(s) found "
@@ -217,7 +298,7 @@ checkInvImgTree = do
                      "check col refs in COL entries"
                      "col ref doesn't reference a col entry"
                      fmtColRef
-                     (const $ log'warn "cleanup not yet implemented")
+                     cleanupAllColrefJunk
                      allColrefJunk
 
     asUplink       = check'
@@ -226,6 +307,13 @@ checkInvImgTree = do
                      fmtRef3
                      repairAllUplinks
                      uplinkCheck
+
+    asNoOrphans    = check'
+                     "check orphan refs"
+                     "orphans ref(s) found"
+                     fmtObjId
+                     removeAllOrphans
+                     allOrphanObjIds
 
     -- exec a single check and cleanup
 
@@ -281,13 +369,19 @@ checkInvImgTree = do
       <>
       crs ^. folded . to ((" " <>) . show) . isoText
 
+    fmtRef2 :: (ObjId, ObjId) -> Text
+    fmtRef2 (wrr, rr) =
+      indent "expected: " <> fmtR rr
+      <>
+      indent ", found: " <> fmtR wrr
+
     fmtRef3 :: ((ObjId, ObjId), ObjId) -> Text
     fmtRef3 ((r, pr), wpr) =
-          indent "ref: " <> fmtR r
-          <>
-          ": wrong parent ref: " <> fmtR wpr
-          <>
-          ", should be ref: " <> fmtR pr
+      indent "ref: " <> fmtR r
+      <>
+      ": wrong parent ref: " <> fmtR wpr
+      <>
+      ", should be ref: " <> fmtR pr
 
 fmtR :: ObjId -> Text
 fmtR r = show r ^. isoText
@@ -328,5 +422,12 @@ statsImgTree = do
       log'info $ "# of " <> t <> " node refs: " <> n ^. isoText
 
 
+
+-- -----------------------------------------
+
+main :: IO ()
+main = do
+  _t <- loadCatalog
+  return ()
 
 -- -----------------------------------------

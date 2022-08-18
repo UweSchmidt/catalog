@@ -37,6 +37,7 @@ bump src/polysemy-tools/polysemy-tools.cabal
 bump src/catalog-polysemy/catalog-polysemy.cabal
 bump src/client-polysemy/client-polysemy.cabal
 bump src/servant-polysemy/servant-polysemy.cabal
+bump src/catalog-test/catalog-test.cabal
 
 # common libs and sources
 bump src/catalog-data/catalog-data.cabal

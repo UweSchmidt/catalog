@@ -1,5 +1,7 @@
+TARGET	= all
+
 build:
-	cabal build all \
+	cabal build $(TARGET) \
 	--disable-documentation  --disable-profiling
 
 install:
