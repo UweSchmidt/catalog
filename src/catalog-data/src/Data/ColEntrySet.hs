@@ -20,7 +20,7 @@ import Data.Prim
        , IsoString(isoString)
        , ObjId
        )
-import Data.ImgNode
+import Data.ImgTree.ImgNode
        ( colEntry
        , ColEntries'
        , ColEntry'

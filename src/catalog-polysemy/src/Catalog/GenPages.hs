@@ -21,23 +21,7 @@ where
 import Data.Prim
 
 import Data.MetaData
-
-import Data.ImgNode
-       ( ImgRef'(ImgRef)
-       , ImgRef
-       , theColEntries
-       , theParts
-       , theColObjId
-       , colEntry'
-       , theColBlog
-       , theColImg
-       , theMetaData
-       , thePartNames
-       , thePartNames'
-       )
-
 import Data.ImgTree
-       ( ImgNode )
 
 import Data.TextPath
        ( baseNameMb

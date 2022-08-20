@@ -36,32 +36,13 @@ import Catalog.ImgTree.Access
 import Catalog.MetaData.Exif
        ( setMD )
 
-import Data.ImgNode
-       ( ImgParts
-       , ImgRef'(ImgRef, _iref)
-       , theImgTimeStamp
-       , theParts
-       , colEntry'
-       , theMetaData
-       , traverseParts
-       )
+
 import Catalog.Logging
        ( trc'Obj )
 
+import Data.ImgTree
 import Data.MetaData
-       ( MetaData
-       , theImgEXIFUpdate
-       )
 import Data.Prim
-       ( ObjId
-       , IsEmpty(isempty)
-       , (^.)
-       , (.~)
-       , toText
-       , when
-       , unless
-       , traverse_
-       )
 
 -- ----------------------------------------
 

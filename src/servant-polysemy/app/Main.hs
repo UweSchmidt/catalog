@@ -8,35 +8,10 @@ where
 
 import Prelude ()
 import Prelude.Compat
-       ( (++)
-       , ($)
-       , (<$>)
-       , (.)
-       , Eq((==))
-       , Monad(return)
-       , Num((*))
-       , Show(show)
-       , Applicative((*>), (<*))
-       , Monoid(mempty)
-       , Bool
-       , Int
-       , Maybe(..)
-       , IO
-       , Either(..)
-       , FilePath
-       , String
-       , const
-       , either
-       , otherwise
-       , uncurry
-       )
 
 -- polysemy and polysemy-tools
 import Polysemy.State.RunTMVar
        ( createJobQueue )
-
-import Polysemy.FileSystem
-       ( TextPath )
 
 -- catalog-polysemy
 import Catalog.CatalogIO
@@ -110,7 +85,6 @@ import Catalog.History
 
 import Catalog.Run
        ( CatApp
-       , JournalHandle
        , runRead
        , runMody
        , runBG
@@ -120,33 +94,7 @@ import Catalog.Run
 
 -- catalog-data
 import Data.Prim
-       ( Path
-       , ReqType(..)
-       , Text
-       , (^.)
-       , (#)
-       , (.~)
-       , Alternative(some, many)
-       , LazyByteString
-       , IsoString(isoString)
-       , IsoText(isoText)
-       , optional
-       , (&)
-       , fromMaybe
-       , p'arch'photos
-       , p'html
-       , p'icons
-       , p'javascript
-       , ps'bootstrap
-       , ps'css
-       , ps'icons
-       , ps'javascript
-       , initPath
-       , listToPath
-       , snocPath
-       , tailPath
-       , from
-       )
+
 import Data.ImageStore
        ( emptyImgStore )
 
@@ -172,12 +120,6 @@ import Data.IORef
 
 import System.Exit
        ( die )
-import System.IO
-       ( stdout
-       , stderr
-       , IOMode(WriteMode)
-       , openFile
-       )
 
 -- servant libs
 import Servant

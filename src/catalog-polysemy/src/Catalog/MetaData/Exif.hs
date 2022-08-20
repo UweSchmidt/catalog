@@ -31,33 +31,10 @@ import Catalog.MetaData.ExifTool
 import Catalog.TimeStamp
        ( whatTimeIsIt )
 
-import Data.ImgNode
-       ( ImgParts
-       , ImgPart
-       , ImgRef'(ImgRef)
-       , theImgName
-       , theMimeType
-       , theImgMeta
-       , traverseParts
-       )
+import Data.ImgTree
 import Data.MetaData
-       ( MetaData
-       , theImgEXIFUpdate
-       , normMetaData
-       , splitMetaData
-       )
 import Data.Prim
-       ( ObjId
-       , Path
-       , MimeType
-       , (^.)
-       , (.~)
-       , (&)
-       , substPathName
-       , msgPath
-       , tailPath
-       , foldlMOf
-       )
+
 
 -- ----------------------------------------
 

@@ -1,12 +1,17 @@
-module Data.ImgNode
+module Data.ImgTree.ImgNode
        ( ImgNode'(..)
+       , ImgNode
+       , ImgNodeP
        , ImgParts
        , ImgPart
        , ImgRef'(..)
        , ImgRef
        , ColEntry'(..)
+       , ColEntry
        , ColEntries'
+       , ColEntries
        , DirEntries'
+       , DirEntries
        , mkImgParts
        , mkImgPart
        , mkColImgRef
@@ -104,6 +109,9 @@ data ImgNode' ref = IMG  !ImgParts
                          !(Maybe (ImgRef' ref))  -- optional blog entry
                          !(ColEntries'    ref)   -- the list of images
                                                  -- and subcollections
+
+type ImgNode    = ImgNode'    ObjId
+type ImgNodeP   = ImgNode'    Path
 
 -- ----------------------------------------
 
@@ -494,7 +502,10 @@ imgname k (ImgRef i n) = ImgRef i <$> k n
 data ColEntry'   ref  = ImgEnt !(ImgRef' ref)
                       | ColEnt !ref
 
-type ColEntries' ref = Seq (ColEntry' ref)
+type ColEntries' ref  = Seq (ColEntry' ref)
+
+type ColEntry         = ColEntry'   ObjId
+type ColEntries       = ColEntries' ObjId
 
 deriving instance (Eq   ref) => Eq   (ColEntry' ref)
 deriving instance (Ord  ref) => Ord  (ColEntry' ref)
@@ -588,6 +599,8 @@ isColImgRef = not . isColColRef
 -- ----------------------------------------
 
 newtype DirEntries' ref = DE (Seq ref)
+
+type    DirEntries      = DirEntries' ObjId
 
 deriving instance (Eq   ref) => Eq   (DirEntries' ref)
 deriving instance (Ord  ref) => Ord  (DirEntries' ref)

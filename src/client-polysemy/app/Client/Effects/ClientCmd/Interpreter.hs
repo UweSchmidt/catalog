@@ -112,27 +112,8 @@ import Data.Prim {- - }
        )
 -- -}
 
-import Data.ImgTree
-       ( ImgNodeP )
+import Data.ImgTree.ImgNode
 
-import Data.ImgNode
-       ( colEntry
-       , isCOL
-       , isDIR
-       , isIMG
-       , isROOT
-       , isoImgParts
-       , theColColRef
-       , theColEntries
-       , theDirEntries
-       , theImgMeta
-       , theImgName
-       , theMetaData
-       , theParts
-       , theRootImgCol
-       , theRootImgDir
-       , traverseParts
-       )
 import Data.MetaData
        ( MetaKey
        , MetaData

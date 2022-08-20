@@ -1,5 +1,5 @@
 {-# LANGUAGE TupleSections #-}
-module Data.RefTree
+module Data.ImgTree.RefTree
        ( RefTree
        , UpLink(..)
        , DirTree
