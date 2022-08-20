@@ -45,17 +45,6 @@ noJunkInDirs = allEntries
           . _2
           . to (, r)
 
-noJunkInColRefs' :: Fold NavTree (ObjId, ObjId)
-noJunkInColRefs' = allEntries
-                . filteredBy (theNode . filtered isCOL)
-                . folding f
-  where
-    f t@(_, r) =
-      t ^.. theChildren
-          . filteredBy (theNode . filtered (not . ((||) <$> isCOL <*> isIMG)))
-          . _2
-          . to (, r)
-
 noJunkInColRefs :: Fold NavTree (ObjId, ObjId)
 noJunkInColRefs = allEntries
                 . filteredBy (theNode . filtered isCOL)
@@ -63,27 +52,28 @@ noJunkInColRefs = allEntries
   where
     f t@(_, r) =
       t ^.. theNode
-          . ( theColEntries
-              . traverse
-              . filtered noRef
-              . theColObjId
-              . to (, r)
+          . ( theColEntries . tr'ces
               <>
-              theColImg  . traverse . filtered noImgRef . imgref
-              . to (,r)
+              theColImg     . tr'ib
               <>
-              theColBlog . traverse . filtered noImgRef . imgref
-              . to (,r)
+              theColBlog    . tr'ib
             )
+          . to (, r)
       where
+        tr'ces   = traverse . filtered noRef    . theColObjId
+        tr'ib    = traverse . filtered noImgRef . imgref
+
+        isR      :: (ImgNode -> Bool) -> Fold ObjId ImgNode
+        isR   p  = setCur t . theNode . filtered p
+
         noRef    :: ColEntry -> Bool
         noRef    = colEntry' noImgRef noColRef
 
         noImgRef :: ImgRef -> Bool
-        noImgRef = has (imgref . setCur t . theNode . filtered (not . isIMG))
+        noImgRef = hasn't (imgref . isR isIMG)
 
         noColRef :: ObjId -> Bool
-        noColRef = has (         setCur t . theNode . filtered (not . isCOL))
+        noColRef = hasn't (         isR isCOL)
 
 
 

@@ -249,7 +249,7 @@ loadImgStore f = do
       -- make a "FS check" and throw away undefined refs
 
       log'info "loadImgStore: check catalog integrity"
-      checkImgStore
+      -- checkImgStore
       log'info "loadImgStore: catalog loading complete"
   where
 

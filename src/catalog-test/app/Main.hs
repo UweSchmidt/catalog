@@ -210,6 +210,7 @@ removeRef :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
 removeRef refrem ref = do
   log'trc $ indent "ref: " <> fmtR refrem
     <> " removed from entry with ref: " <> fmtR ref
+
   ((, ref) <$> dt) >>= edit
   where
     edit t
@@ -250,6 +251,9 @@ removeRef refrem ref = do
 
 removeImgRef :: Eff'ISEJL r => ImgRef -> ObjId -> Sem r ()
 removeImgRef ir ref = do
+  log'trc $ indent "img ref: " <> fmtIR ir
+    <> " removed from entry with ref: " <> fmtR ref
+
   ((, ref) <$> dt) >>= edit
   where
     edit t
@@ -473,9 +477,8 @@ checkInvImgTree = do
     fmtRef2c (wir, rr) =
       indent "col ref: " <> fmtR rr
       <>
-      ", illegal img part name in img ref: ("
-      <>
-      fmtR (wir ^. imgref) <> ", " <> (wir ^. imgname ^. isoText)
+      ", illegal img part name in img ref: "
+      <> fmtIR wir
 
     fmtRef2d :: (ObjId, ObjId) -> Text
     fmtRef2d (wrr, rr) =
@@ -490,6 +493,12 @@ checkInvImgTree = do
       ": wrong parent ref: " <> fmtR wpr
       <>
       ", should be ref: " <> fmtR pr
+
+fmtIR :: ImgRef -> Text
+fmtIR ir =
+  "("  <> fmtR (ir ^. imgref) <>
+  ", " <> (ir ^. imgname ^. isoText) <>
+  ")"
 
 fmtR :: ObjId -> Text
 fmtR r = show r ^. isoText
