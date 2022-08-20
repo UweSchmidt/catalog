@@ -48,6 +48,18 @@ loadCatalog = do
         checkInvImgTree
         statsImgTree
 
+runCatalog cmd = do
+  (is, res) <- runApp emptyImgStore testAppEnv load
+  print res
+  return
+   (is ^. theImgTree . to mkNavTree)
+    where
+      load = do
+        loadImgStore (testCatEnv ^. catJsonArchive)
+        -- checkInvImgTree
+        statsImgTree
+        cmd
+
 -- --------------------
 {-
 cleanupAllRefs :: Eff'ISEJL r => Fold NavTree ObjId -> Sem r ()
@@ -295,10 +307,8 @@ checkInvImgTree = do
   asRootDirNode
   asRootChildRef
 
-{-
-  -- undefined refs in whole tree
-  asUndefinedIds
--- -}
+  -- check all parent refs point to the parent entry
+  asUplink
 
   -- refs point to entries of the correct type
   -- all img names in img refs exist
@@ -306,13 +316,9 @@ checkInvImgTree = do
   asNoJunkInColRefs
   asNoJunkInPartNames
 
---  asNoJunkInColImg
---  asNoJunkInColCol
-
-  -- check all parent links point to the parent entry
-  asUplink
-
   -- no junk in map of entries
+  -- cleanup in previous steps
+  -- my lead to orphan entries
   asNoOrphans
 
   log'info "ImgTree invariant check and cleanup done"
@@ -546,5 +552,45 @@ main :: IO ()
 main = do
   _t <- loadCatalog
   return ()
+
+-- -----------------------------------------
+--
+{- experimenting with noJunk
+
+isNUL' :: ImgNode' ref -> Bool
+isNUL' (IMG md pts) = isempty md && isempty pts
+isNUL' _            = False
+
+
+noJunkInColRefs' :: Fold NavTree (ObjId, ObjId)
+noJunkInColRefs' = allEntries
+                . filteredBy (theNode . filtered isCOL)
+                . folding f
+  where
+    f t@(_, r) =
+      t ^.. theNode
+          . ( theColEntries . tr'ces
+              <>
+              theColImg     . tr'ib
+              <>
+              theColBlog    . tr'ib
+            )
+          . to (, r)
+      where
+        tr'ces   = traverse . filtered noRef    . theColObjId
+        tr'ib    = traverse . filtered noImgRef . imgref
+
+        isR      :: (ImgNode -> Bool) -> Fold ObjId ImgNode
+        isR   p  = setCur t . theNode . filtered p
+
+        noRef    :: ColEntry -> Bool
+        noRef    = colEntry' noImgRef noColRef
+
+        noImgRef :: ImgRef -> Bool
+        noImgRef = hasn't (imgref . isR ((&&) <$> isIMG <*> (not . isNUL')))
+
+        noColRef :: ObjId -> Bool
+        noColRef = hasn't (         isR isCOL)
+-- -}
 
 -- -----------------------------------------

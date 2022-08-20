@@ -70,12 +70,10 @@ noJunkInColRefs = allEntries
         noRef    = colEntry' noImgRef noColRef
 
         noImgRef :: ImgRef -> Bool
-        noImgRef = hasn't (imgref . isR isIMG)
-
+        noImgRef = hasn't (imgref . isR ((&&) <$> isIMG <*> (not . isNUL)))
+                                          -- TODO: hack
         noColRef :: ObjId -> Bool
         noColRef = hasn't (         isR isCOL)
-
-
 
 noJunkInPartNames :: Fold NavTree (ImgRef, ObjId)
 noJunkInPartNames = allEntries

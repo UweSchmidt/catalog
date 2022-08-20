@@ -30,6 +30,7 @@ module Data.ImgTree.ImgNode
        , isIMG
        , isROOT
        , isCOL
+       , isNUL
        , isemptyDIR
        , isColColRef
        , isColImgRef
@@ -352,6 +353,12 @@ isCOL :: ImgNode' ref -> Bool
 isCOL COL{} = True
 isCOL _     = False
 {-# INLINE isCOL #-}
+
+isNUL :: ImgNode' ref -> Bool
+isNUL (IMG md pts) = isempty md && isempty pts
+isNUL _            = False
+
+-- TODO hack: add a NUL variant to ImgNode
 
 -- ----------------------------------------
 
