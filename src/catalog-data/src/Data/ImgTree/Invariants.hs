@@ -63,11 +63,18 @@ noJunkInColRefs = allEntries
   where
     f t@(_, r) =
       t ^.. theNode
-          . theColEntries
-          . traverse
-          . filtered noRef
-          . theColObjId
-          . to (, r)
+          . ( theColEntries
+              . traverse
+              . filtered noRef
+              . theColObjId
+              . to (, r)
+              <>
+              theColImg  . traverse . filtered noImgRef . imgref
+              . to (,r)
+              <>
+              theColBlog . traverse . filtered noImgRef . imgref
+              . to (,r)
+            )
       where
         noRef    :: ColEntry -> Bool
         noRef    = colEntry' noImgRef noColRef
@@ -77,6 +84,8 @@ noJunkInColRefs = allEntries
 
         noColRef :: ObjId -> Bool
         noColRef = has (         setCur t . theNode . filtered (not . isCOL))
+
+
 
 noJunkInPartNames :: Fold NavTree (ImgRef, ObjId)
 noJunkInPartNames = allEntries
