@@ -28,6 +28,7 @@ library
     Catalog.History
     Catalog.Html
     Catalog.ImgTree.Access
+    Catalog.ImgTree.Check
     Catalog.ImgTree.Fold
     Catalog.ImgTree.Modify
     Catalog.Invariant

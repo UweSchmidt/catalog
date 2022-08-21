@@ -15,25 +15,6 @@ import qualified Data.Set        as S
 
 -- ----------------------------------------
 
-{-
-
-type Assertion r = NavTree -> Maybe r
-                   -- Nothing : o.k.
-                   -- Just r  : not o.k. with error value
-
-hasRootNode      :: Assertion ImgNode
-hasRootNode t    = t ^? theNode . filtered (not . isROOT)
-
-hasRootColNode   :: Assertion ImgNode
-hasRootColNode t = t ^? theRootCol . theNode . filtered (not . isCOL)
-
-hasRootDirNode   :: Assertion ImgNode
-hasRootDirNode t = t ^? theRootDir . theNode . filtered (not . isDIR)
-
-noUndefinedIds   :: Assertion ObjIds
-noUndefinedIds t = (allUndefinedObjIds t) ^. isoMaybe
--- -}
-
 noJunkInDirs :: Fold NavTree (ObjId, ObjId)
 noJunkInDirs = allEntries
              . filteredBy (theNode . filtered isDIR)

@@ -1,7 +1,6 @@
-module Main
-  ( main
---  , checkInvImgTree
---  , statsImgTree
+module Catalog.ImgTree.Check
+  ( checkInvImgTree
+  , statsImgTree
   )
 where
 
@@ -10,73 +9,10 @@ import Data.ImgTree
 import Data.ImageStore
 
 import Catalog.Effects
-import Catalog.Run
-import Catalog.CatEnv
-import Catalog.CatalogIO
-import Catalog.Logging
-import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
-import Catalog.ImgTree.Check
-
-import Catalog.Invariant ( checkImgStore )   -- old inv check with Fold
-
-import qualified Data.Map.Strict as M
-import qualified Data.Set        as S
-import qualified Data.Text       as T
+import Catalog.ImgTree.Access
 
 -- -----------------------------------------
---
--- simple tests
-
-main :: IO ()
-main = do
-  _t <- loadCatalog
-  return ()
-
--- --------------------
-
-testCatEnv :: CatEnv
-testCatEnv =
-  defaultCatEnv
-  & catMountPath   .~ "../../data"
-  & catJsonArchive .~ "catalog/photos-0.5.hashid.json"
-
-testAppEnv :: AppEnv
-testAppEnv =
-  defaultAppEnv
-  & appEnvCat      .~ testCatEnv
-  & appEnvLogLevel .~ LogTrc
-  & appEnvJournal  .~ Nothing
-
-loadCatalog :: IO NavTree
-loadCatalog = do
-  (is, res) <- runApp emptyImgStore testAppEnv load
-  print res
-  return
-   (is ^. theImgTree . to mkNavTree)
-    where
-      load = do
-        loadImgStore (testCatEnv ^. catJsonArchive)
-        checkInvImgTree   -- new check
-        statsImgTree
-        checkImgStore     -- old check
-
-runCatalog cmd = do
-  (is, res) <- runApp emptyImgStore testAppEnv load
-  print res
-  return
-   (is ^. theImgTree . to mkNavTree)
-    where
-      load = do
-        loadImgStore (testCatEnv ^. catJsonArchive)
-        -- checkInvImgTree
-        statsImgTree
-        cmd
-
--- --------------------
-
-{-
--- code for new inv checker
 
 cleanupAllDirJunk :: Eff'ISEJL r => Fold NavTree (ObjId, ObjId)
                      -> Sem r ()
@@ -254,7 +190,7 @@ log'ref txt ref =
 
 checkInvImgTree :: Eff'ISEJL r => Sem r ()
 checkInvImgTree = do
-  log'info "ImgTree invariant check"
+  log'verb "ImgTree invariant check"
 
   -- root node
   asRootNode
@@ -276,7 +212,7 @@ checkInvImgTree = do
   -- my lead to orphan entries
   asNoOrphans
 
-  log'info "ImgTree invariant check and cleanup done"
+  log'verb "ImgTree invariant check and cleanup done"
   return ()
 
   where
@@ -430,8 +366,10 @@ nodeStats = to f
     f ROOT{} = (Sum 1, mempty, mempty, mempty, mempty)
     f COL{}  = (mempty, Sum 1, mempty, mempty, mempty)
     f DIR{}  = (mempty, mempty, Sum 1, mempty, mempty)
+    f n | isNUL n
+             = (mempty, mempty, mempty, mempty, Sum 1)
     f IMG{}  = (mempty, mempty, mempty, Sum 1, mempty)
-    f _      = (mempty, mempty, mempty, mempty, Sum 1)
+
 
 imgTreeStats :: Fold NavTree NodeStats
 imgTreeStats = allEntries . theNode . nodeStats
@@ -451,45 +389,5 @@ statsImgTree = do
   where
     logStat t (Sum n) =
       log'info $ "# of " <> t <> " node refs: " <> n ^. isoText
--- -}
--- -----------------------------------------
---
-{- experimenting with noJunk
 
-isNUL' :: ImgNode' ref -> Bool
-isNUL' (IMG md pts) = isempty md && isempty pts
-isNUL' _            = False
-
-
-noJunkInColRefs' :: Fold NavTree (ObjId, ObjId)
-noJunkInColRefs' = allEntries
-                . filteredBy (theNode . filtered isCOL)
-                . folding f
-  where
-    f t@(_, r) =
-      t ^.. theNode
-          . ( theColEntries . tr'ces
-              <>
-              theColImg     . tr'ib
-              <>
-              theColBlog    . tr'ib
-            )
-          . to (, r)
-      where
-        tr'ces   = traverse . filtered noRef    . theColObjId
-        tr'ib    = traverse . filtered noImgRef . imgref
-
-        isR      :: (ImgNode -> Bool) -> Fold ObjId ImgNode
-        isR   p  = setCur t . theNode . filtered p
-
-        noRef    :: ColEntry -> Bool
-        noRef    = colEntry' noImgRef noColRef
-
-        noImgRef :: ImgRef -> Bool
-        noImgRef = hasn't (imgref . isR ((&&) <$> isIMG <*> (not . isNUL')))
-
-        noColRef :: ObjId -> Bool
-        noColRef = hasn't (         isR isCOL)
--- -}
-
--- -----------------------------------------
+------------------------------------------------------------------------------

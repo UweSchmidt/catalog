@@ -5,8 +5,8 @@ build:
 	--disable-documentation  --disable-profiling
 
 install:
-	cabal install client-polysemy servant-polysemy \
-	--overwrite-policy=always  --disable-documentation
+	cabal install client-polysemy servant-polysemy catalog-test \
+	--overwrite-policy=always  --disable-documentation   --disable-profiling
 
 ghcVersion     :=$(shell ghc --version | sed -e 's/^.*version //')
 

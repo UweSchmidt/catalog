@@ -44,8 +44,12 @@ import Catalog.ImgTree.Access
        ( mapImgStore2Path
        , mapImgStore2ObjId
        )
+import Catalog.ImgTree.Check
+       ( checkInvImgTree   -- new inv check with NavTree
+       , statsImgTree
+       )
 import Catalog.Invariant
-       ( checkImgStore )
+       ( checkImgStore )   -- old inv check with Fold
 import Catalog.Journal
        ( journal )
 import Catalog.TextPath
@@ -62,6 +66,7 @@ import Catalog.Version
        ( version
        , date
        )
+
 
 import Data.ImageStore
        ( ImgStore
@@ -80,24 +85,7 @@ import Data.MetaData
        , descrCatalogVersion
        )
 import Data.Prim
-       ( Text
-       , Name
-       , IsoString(isoString)
-       , IsoText(isoText)
-       , LazyByteString
-       , ToJSON
-       , (&)
-       , (^.)
-       , (#)
-       , (%~)
-       , (.~)
-       , void
-       , whenM
-       , n'archive
-       , n'collections
-       , n'photos
-       , toText
-       )
+
 import Data.TextPath
        ( takeDir
        , splitExtension
@@ -249,7 +237,9 @@ loadImgStore f = do
       -- make a "FS check" and throw away undefined refs
 
       log'info "loadImgStore: check catalog integrity"
-      -- checkImgStore
+      checkInvImgTree   -- new check
+      statsImgTree
+      checkImgStore     -- old check
       log'info "loadImgStore: catalog loading complete"
   where
 

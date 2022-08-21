@@ -16,8 +16,6 @@ import Data.Prim
        , makeLenses
        )
 
-import Data.Prim.Prelude
-
 ------------------------------------------------------------------------------
 
 data AppEnv = AppEnv
