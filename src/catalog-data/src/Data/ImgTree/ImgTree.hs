@@ -64,7 +64,7 @@ removeImgNode :: ObjId
               -> ImgTree
               -> Except String ImgTree
 removeImgNode =
-  remDirNode isemptyDIR removeChildRef
+  remDirNode ((||) <$> isemptyDIR <*> isIMG) removeChildRef
 {-# INLINE removeImgNode #-}
 
 addChildRef :: ObjId -> ImgNode -> ImgNode
