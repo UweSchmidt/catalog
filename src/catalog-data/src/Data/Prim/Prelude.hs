@@ -75,6 +75,7 @@ module Data.Prim.Prelude
        , PrismString(..)
        , PrismText(..)
        , take1st
+       , toMaybe
        , isoMapElems
        , isoMapList
        , isoSetList
@@ -191,8 +192,11 @@ type LazyText       = LT.Text
 -- ----------------------------------------
 
 class IsEmpty a where
-  isempty :: a -> Bool
+  isempty    :: a -> Bool
 
+  isn'tempty :: a -> Bool
+  isn'tempty = not . isempty
+  {-# inline isn'tempty #-}
 
 instance IsEmpty [a] where
   isempty = null
@@ -355,6 +359,9 @@ instance Ord a => IsoMaybe (Set a)
 
 take1st :: (IsEmpty a, Monoid a) => [a] -> a
 take1st = fromMaybe mempty . listToMaybe . take 1 . filter (not . isempty)
+
+toMaybe :: Fold a b -> Getting w a (Maybe b)
+toMaybe f = to (^? f)
 
 -- ----------------------------------------
 

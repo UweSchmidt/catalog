@@ -42,7 +42,6 @@ cleanupImgNameJunk check = do
   log'warn "cleanupImgNameJunk: remove img ref with illegal names in COL entries"
   t <- mkNavTree <$> dt
 
-  -- TODO: too much removed
   let cmds = t ^.. check . to (uncurry removeImgRef)
 
   log'trc $ "cleanupImgNameJunk: # of corrected refs: " <> length cmds ^. isoText
@@ -103,7 +102,7 @@ repairUplink ref pref = do
 removeOrphan :: Eff'ISEJL r => ObjId -> Sem r ()
 removeOrphan ref = do
   log'ref ("remove orphan ref") ref
-  modify' (\ s -> s & theImgTree . entries . emAt ref .~ emptyUplNode ref)
+  modify' (\ s -> s & theImgTree . entries . emAt ref .~ mempty)
 
 removeRef :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
 removeRef refrem ref = do
@@ -366,9 +365,8 @@ nodeStats = to f
     f ROOT{} = (Sum 1, mempty, mempty, mempty, mempty)
     f COL{}  = (mempty, Sum 1, mempty, mempty, mempty)
     f DIR{}  = (mempty, mempty, Sum 1, mempty, mempty)
-    f n | isNUL n
-             = (mempty, mempty, mempty, mempty, Sum 1)
     f IMG{}  = (mempty, mempty, mempty, Sum 1, mempty)
+    f NONO   = (mempty, mempty, mempty, mempty, Sum 1)
 
 
 imgTreeStats :: Fold NavTree NodeStats

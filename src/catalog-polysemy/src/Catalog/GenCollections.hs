@@ -282,7 +282,7 @@ mkDateCol (y, m, d) pc = do
 --
 -- The collections are sorted by subcollections first and then by name
 --
--- The collections are updatet only if the corresponding archive
+-- The collections are updated only if the corresponding archive
 -- dir is newer than the collection. This makes an update pretty fast
 
 img2colPath :: Eff'ISE r => Sem r (Path -> Path)

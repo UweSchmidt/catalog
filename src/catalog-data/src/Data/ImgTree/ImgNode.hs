@@ -26,11 +26,11 @@ module Data.ImgTree.ImgNode
        , imgname
        , imgref
        , imgNodeRefs
+       , imgNodeType
        , isDIR
        , isIMG
        , isROOT
        , isCOL
-       , isNUL
        , isemptyDIR
        , isColColRef
        , isColImgRef
@@ -110,6 +110,8 @@ data ImgNode' ref = IMG  !ImgParts
                          !(Maybe (ImgRef' ref))  -- optional blog entry
                          !(ColEntries'    ref)   -- the list of images
                                                  -- and subcollections
+                  | NONO                         -- illegal node
+                                                 -- used to make map indexing total
 
 type ImgNode    = ImgNode'    ObjId
 type ImgNodeP   = ImgNode'    Path
@@ -119,13 +121,11 @@ type ImgNodeP   = ImgNode'    Path
 deriving instance (Show ref) => Show (ImgNode' ref)
 
 deriving instance Functor ImgNode'
-{-
+
 instance IsEmpty (ImgNode' ref) where
-  isempty (IMG _pts _md)       = True
-  isempty (DIR es _ts)         = isempty es
-  isempty (COL _md _im _be cs) = isempty cs
-  isempty (ROOT _d _c)         = False
--}
+  isempty NONO = True
+  isempty _    = False
+
 
 isemptyDIR :: ImgNode' ref -> Bool
 isemptyDIR (DIR es _ts) = isempty es
@@ -158,6 +158,10 @@ instance ToJSON ref => ToJSON (ImgNode' ref) where
     ++ case be of
          Nothing -> []
          Just (ImgRef i n)  -> ["blog"  J..= (i, n)]
+  toJSON NONO = J.object $
+    [ "ImgNode"    J..= ("NONO" :: Text)
+    ]
+
 
 instance (FromJSON ref) => FromJSON (ImgNode' ref) where
   parseJSON = J.withObject "ImgNode" $ \ o ->
@@ -177,11 +181,9 @@ instance (FromJSON ref) => FromJSON (ImgNode' ref) where
                 <*> ((uncurry ImgRef <$>) <$> o J..:? "image" J..!= Nothing)
                 <*> ((uncurry ImgRef <$>) <$> o J..:? "blog"  J..!= Nothing)
                 <*> o J..: "entries"
+         "NONO" ->
+                pure NONO
          _ -> mzero
-
-instance IsEmpty (ImgNode' ref) where
-  isempty (IMG pm md) = isempty pm && isempty md
-  isempty _           = False
 
 instance Semigroup (ImgNode' ref) where
   n1 <> n2
@@ -189,7 +191,7 @@ instance Semigroup (ImgNode' ref) where
     | otherwise  = n1
 
 instance Monoid (ImgNode' ref) where
-  mempty = emptyImg         -- TODO: remove this hack by a NULL node
+  mempty = NONO
 
 emptyImgDir :: ImgNode' ref
 emptyImgDir = DIR mempty mempty
@@ -221,6 +223,7 @@ imgNodeRefs = folding go
                           br ^.. traverse . imgref
                           <>
                           cs ^.. traverse . theColObjId
+    go NONO             = []
 
 colNodeImgRefs :: Fold (ImgNode' ref) (ImgRef' ref)
 colNodeImgRefs = folding go
@@ -354,11 +357,12 @@ isCOL COL{} = True
 isCOL _     = False
 {-# INLINE isCOL #-}
 
-isNUL :: ImgNode' ref -> Bool
-isNUL (IMG md pts) = isempty md && isempty pts
-isNUL _            = False
-
--- TODO hack: add a NUL variant to ImgNode
+imgNodeType :: ImgNode -> Text
+imgNodeType IMG{}  = "IMG"
+imgNodeType DIR{}  = "DIR"
+imgNodeType COL{}  = "COL"
+imgNodeType ROOT{} = "ROOT"
+imgNodeType NONO{} = "NONO"
 
 -- ----------------------------------------
 

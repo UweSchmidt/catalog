@@ -51,8 +51,8 @@ noJunkInColRefs = allEntries
         noRef    = colEntry' noImgRef noColRef
 
         noImgRef :: ImgRef -> Bool
-        noImgRef = hasn't (imgref . isR ((&&) <$> isIMG <*> (not . isNUL)))
-                                          -- TODO: hack
+        noImgRef = hasn't (imgref . isR isIMG)
+
         noColRef :: ObjId -> Bool
         noColRef = hasn't (         isR isCOL)
 
@@ -166,7 +166,7 @@ uplinkCheck = allTrees                 -- iterate over all trees
                       )
                     . theEntry
                     . parentRef
-                    . filtered (/= p)
+                    . filtered (not . isRootRef p)
                     . to ((r, p),)
             )
       where

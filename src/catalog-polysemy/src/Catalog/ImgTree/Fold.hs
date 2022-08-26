@@ -15,7 +15,7 @@ import Catalog.ImgTree.Access
 import Data.ImgTree
        ( ColEntries
        , DirEntries
-       , ImgNode'(COL, IMG, DIR, ROOT)
+       , ImgNode'(..)
        , ImgParts
        , ImgRef
        , ImgRef'(_iref)
@@ -68,18 +68,14 @@ foldMT' undefId imgA dirA' rootA' colA' i0 = do
     colA  = colA'  go
     go i  = do
       -- trcObj i $ "foldMT"
-      mn <- getTreeAt i
+      n <- getTreeAt i
       -- log'trc $ "foldMT: " <> toText mn
-      case mn of
-        Nothing ->
-          undefId i
-        Just n ->
-          case n ^. nodeVal of
-            IMG  pts md       -> imgA  i pts md
-            DIR  es  ts       -> dirA  i es  ts
-            ROOT dir col      -> rootA i dir col
-            COL  md  im be es -> colA  i md  im be es
-
+      case n ^. nodeVal of
+        IMG  pts md       -> imgA  i pts md
+        DIR  es  ts       -> dirA  i es  ts
+        ROOT dir col      -> rootA i dir col
+        COL  md  im be es -> colA  i md  im be es
+        NONO              -> undefId i
 {-# INLINE foldMT' #-}
 
 -- same as foldMT', but with defaut error handling

@@ -45,18 +45,7 @@ import Catalog.GenCollections
        , updateImportsDir
        )
 import Catalog.ImgTree.Access
-       ( getImgVals
-       , objid2path
-       , getRootImgColId
-       , lookupByPath
-       , getImgName
-       , getImgVal
-       , existsEntry
-       , getImgParent
-       , getTreeAt
-       , objid2contNames
-       , getIdNode'
-       )
+
 import Catalog.ImgTree.Fold
        ( foldMT )
 
@@ -510,12 +499,12 @@ syncDirCont recursive i = do
     traverse_ (syncSubDir p) subdirs
 
   -- sync the images
-  mapM_ (syncImg i p) imgfiles
+  traverse_ (syncImg i p) imgfiles
   where
 
     syncSubDir p n = do
       -- log'trc $ "syncSubDir: " <> toText p <//> toText n
-      whenM (isNothing <$> getTreeAt new'i) $
+      whenM (isempty <$> getTreeAt new'i) $
         void $ mkImgDir i n
 
       idSyncFS recursive new'i

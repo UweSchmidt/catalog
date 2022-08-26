@@ -40,7 +40,7 @@ import Catalog.ImgTree.Access
        , bitsUsedInImgTreeMap
        , getRootImgColId
        , getRootImgDirId
-       , getTreeAt
+       , getTreeAtMaybe
        , getRootId
        )
 import Catalog.ImgTree.Modify
@@ -169,7 +169,7 @@ cleanupImgRefs i0 = do
     checkRef :: (EffIStore r, EffError r, Member NonDet r)
              => ObjId -> Sem r ImgNode
     checkRef i = do
-      (^. nodeVal) <$> liftMaybe (getTreeAt i)
+      (^. nodeVal) <$> liftMaybe (getTreeAtMaybe i)
 
     checkDirRef :: (EffIStore r, EffError r, Member NonDet r)
                 => ObjId -> Sem r ImgNode
@@ -407,7 +407,7 @@ checkUpLinkObjIds =
           foldObjIds showObj os
             where
               showObj i =
-                getTreeAt i >>= maybe (return ()) msg
+                getTreeAtMaybe i >>= maybe (return ()) msg
                 where
                   msg n = do
                     warn'Obj i $

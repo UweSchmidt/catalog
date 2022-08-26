@@ -44,6 +44,9 @@ isoNavTree = iso mkNavTree fst
 setCur :: NavTree -> Getter ObjId NavTree
 setCur (t, _) = to $ (t,)
 
+setId :: ObjId -> Getter NavTree NavTree
+setId i = to (\ (t, _) -> (t, i))
+
 -- --------------------
 -- basic optics
 
@@ -52,37 +55,25 @@ setCur (t, _) = to $ (t,)
 theEntry :: Lens' NavTree UplNode
 theEntry =
   lensNavTree (\ ref -> entries . emAt ref)
+{-# INLINE theEntry #-}
 
--- get/insert/remove entry in tree map
---
--- indexing is a total function
+-- get the name of an entry
 
-emAt :: ObjId -> Lens' (M.Map ObjId UplNode) UplNode
-emAt ref = lens g s
-  where
-    g em = M.findWithDefault (emptyUplNode ref) ref em
-    s em v
-      | isempty v = M.delete ref   em
-      | otherwise = M.insert ref v em
+theEntryName :: Lens' NavTree Name
+theEntryName = theEntry . nodeName
+{-# INLINE theEntryName #-}
 
 -- get ImgNode of current ObjId
 
 theNode :: Getter NavTree ImgNode
 theNode = theEntry . nodeVal
+{-# INLINE theNode #-}
 
 -- get path for current ObjId
 
 thePath :: Getter NavTree Path
-thePath = to f
-  where
-    f :: NavTree -> Path
-    f nt@(t, ref)
-      | ref == p  = mkPath n
-      | otherwise = f (t, p) `snocPath` n
-      where
-        p = e  ^. parentRef
-        n = e  ^. nodeName
-        e = nt ^. theEntry
+thePath = to (\ (t, ref) -> refPath ref t)
+{-# INLINE thePath #-}
 
 -- get Path for current ObjId
 
@@ -146,11 +137,11 @@ theChildren = foldingTree (curry visit)
 -- select ancestors of current ObjId including the current entry
 
 theAncestors :: Fold NavTree NavTree
-theAncestors = foldingTree visit
+theAncestors = foldingTree visit -- (flip refObjIdPath)
   where
     visit t ref
-      | ref == pref = [ref]
-      | otherwise   = ref : visit t pref
+      | isRootRef pref ref = ref : []
+      | otherwise          = ref : visit t pref
       where
         pref = (t, ref) ^. theEntry . parentRef
 
@@ -331,5 +322,8 @@ allObjIdsBy p = foldToObjIds (allTrees . filteredByNode p . _2)
 {-# INLINE allDirObjIds #-}
 {-# INLINE foldToObjIds #-}
 {-# INLINE allObjIdsBy #-}
+
+-- ----------------------------------------
+
 
 -- ----------------------------------------

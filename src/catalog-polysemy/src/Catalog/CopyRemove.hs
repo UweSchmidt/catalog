@@ -72,7 +72,6 @@ import Data.ImgTree
        ( colEntry'
        , isCOL
        , isColColRef
-       , isIMG
        , isROOT
        , isemptyDIR
        , isoDirEntries
@@ -325,14 +324,11 @@ cleanupCollections i0 = do
 
         exImg :: Eff'ISEJL r => ImgRef -> Sem r Bool
         exImg (ImgRef i' n') = do
-          me <- getTreeAt i'
-          let ex = case me of
-                Just e
-                  | isIMG (e ^. nodeVal) ->
-                    let ns = e ^.. nodeVal . theParts . thePartNamesI in
-                    n' `elem` ns
-                _ ->
-                  False
+          e <- getTreeAt i'
+          let ex = elemOf ( nodeVal
+                          . theParts
+                          . thePartNamesI
+                          ) n' e
           unless ex $
             log'warn $
             "exImg: image ref found in a collection for a deleted image: "

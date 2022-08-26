@@ -4,10 +4,11 @@ module Data.ImgTree.RefTree
        , UpLink(..)
        , DirTree
        , rootRef
-       , emptyUplNode
+--       , emptyUplNode
        , entries
        , entryAt
-       , theNode'
+       , emAt
+--       , theNode'
        , parentRef
        , nodeName
        , nodeVal
@@ -16,6 +17,8 @@ module Data.ImgTree.RefTree
        , refObjIdPath
        , refInTree
        , mkDirRoot
+       , isRootRef
+       , upTree
        , isDirRoot
        , mkDirNode
        , remDirNode
@@ -42,16 +45,20 @@ import qualified Data.Map.Strict as M
 
 data RefTree node ref = RT !ref !(Map ref (node ref))
 
-deriving instance (Show ref, Show (n ref)) => Show (RefTree n ref)
+deriving
+  instance (Show ref, Show (node ref)) =>
+           Show (RefTree node ref)
 
-instance (ToJSON (node ref), ToJSON ref) => ToJSON (RefTree node ref)
+instance (ToJSON (node ref), ToJSON ref) =>
+         ToJSON (RefTree node ref)
   where
     toJSON (RT r m) = J.object
       [ "rootRef"   J..= r
       , "entries"   J..= M.toList m  -- entries are ordered in .json doc
       ]                              -- better readability with pathid's
 
-instance (Ord ref, FromJSON (node ref), FromJSON ref) => FromJSON (RefTree node ref)
+instance (Ord ref, FromJSON (node ref), FromJSON ref) =>
+         FromJSON (RefTree node ref)
   where
     parseJSON = J.withObject "RefTree" $ \ o ->
       RT
@@ -66,13 +73,32 @@ entries :: Lens' (RefTree node ref) (Map ref (node ref))
 entries k (RT r m) = RT r <$> k m
 {-# INLINE entries #-}
 
-entryAt :: (Ord ref) => ref -> Lens' (RefTree node ref) (Maybe (node ref))
-entryAt r = entries . at r
+-- get/insert/remove entry in tree map
+--
+-- indexing is a total function
+
+emAt :: ( Monoid (node ref), IsEmpty (node ref)
+        , Ord ref
+        )
+     => ref -> Lens' (Map ref (node ref)) (node ref)
+emAt ref = lens g s
+  where
+    g em = M.findWithDefault mempty ref em
+    s em v
+      | isempty v = M.delete ref   em
+      | otherwise = M.insert ref v em
+{-# INLINE emAt #-}
+
+entryAt :: ( Monoid (node ref), IsEmpty (node ref)
+           , Ord ref
+           )
+        => ref -> Lens' (RefTree node ref) (node ref)
+entryAt r = entries . emAt r
 {-# INLINE entryAt #-}
 
-theNode' :: (Ord ref) => ref -> Traversal' (RefTree node ref) (node ref)
-theNode' r = entryAt r . traverse
-{-# INLINE theNode' #-}
+-- theNode' :: (Ord ref) => ref -> Traversal' (RefTree node ref) (node ref)
+-- theNode' r = entryAt r . traverse
+-- {-# INLINE theNode' #-}
 
 -- ----------------------------------------
 
@@ -106,11 +132,14 @@ data UpLink node ref = UL !ref !Name !(node ref)
 
 deriving instance (Show ref, Show (node ref)) => Show (UpLink  node ref)
 
-instance Functor node => Functor (UpLink node) where
-  fmap f (UL x n t) = UL (f x) n (fmap f t)
-  {-# INLINE fmap #-}
+instance Functor node =>
+         Functor (UpLink node)
+  where
+    fmap f (UL x n t) = UL (f x) n (fmap f t)
+    {-# INLINE fmap #-}
 
-instance (ToJSON (node ref), ToJSON ref) => ToJSON (UpLink node ref)
+instance (ToJSON (node ref), ToJSON ref) =>
+         ToJSON (UpLink node ref)
   where
     toJSON (UL r n v) = J.object
       [ "parentRef" J..= r
@@ -118,7 +147,8 @@ instance (ToJSON (node ref), ToJSON ref) => ToJSON (UpLink node ref)
       , "nodeVal"   J..= v
       ]
 
-instance (FromJSON (node ref), FromJSON ref) => FromJSON (UpLink node ref)
+instance (FromJSON (node ref), FromJSON ref) =>
+         FromJSON (UpLink node ref)
   where
     parseJSON = J.withObject "UpLink" $ \ o ->
       UL
@@ -126,13 +156,27 @@ instance (FromJSON (node ref), FromJSON ref) => FromJSON (UpLink node ref)
       <*> o J..: "nodeName"
       <*> o J..: "nodeVal"
 
-instance IsEmpty (node ref) => IsEmpty (UpLink node ref) where
-  isempty (UL _r _n v) = isempty v
-  {-# INLINE isempty #-}
+instance IsEmpty (node ref) =>
+         IsEmpty (UpLink node ref)
+  where
+    isempty (UL _r _n v) = isempty v
+    {-# INLINE isempty #-}
 
-emptyUplNode :: (Monoid (node ref)) => ref -> UpLink node ref
-emptyUplNode ref = UL ref mempty mempty
-{-# INLINE emptyUplNode #-}
+instance IsEmpty (node ref) =>
+         Semigroup (UpLink node ref)
+  where
+    un1 <> un2
+      | isempty un1 = un2
+      | otherwise   = un1
+    {-# INLINE (<>) #-}
+
+instance ( Monoid ref
+         , Monoid (node ref), IsEmpty (node ref)
+         ) =>
+         Monoid (UpLink node ref)
+  where
+    mempty = UL mempty mempty mempty
+    {-# INLINE mempty #-}
 
 -- lenses
 
@@ -162,7 +206,7 @@ nodeNameVal k (UL r n v) = fmap (\ (newn, newv) -> UL r newn newv) (k (n, v))
 -- kind signature
 -- type DirTree :: (* -> *) -> * -> *
 
-type DirTree node ref = RefTree (UpLink node) ref
+type DirTree  node ref = RefTree (UpLink node) ref
 
 -- ----------------------------------------
 --
@@ -170,15 +214,20 @@ type DirTree node ref = RefTree (UpLink node) ref
 
 -- transform a ref into the path from root to node
 
-refPath :: forall ref node . (Ord ref) => ref -> DirTree node ref -> Path
+{- old version
+refPath :: forall ref node
+           . ( Ord ref, Monoid ref
+             , Monoid (node ref), IsEmpty (node ref)
+             )
+        => ref -> DirTree node ref -> Path
 refPath r00 t =
   -- in case of an error (a ref was not found)
   -- the empty path is returned
   fromMaybe mempty $ refPath' r00
   where
-    refPath' :: ref -> Maybe Path
+    refPath' ::  (Monoid ref, Monoid (node ref)) => ref -> Maybe Path
     refPath' r0 = do
-      n0 <- t ^. entryAt r0
+      n0 <- t ^? entryAt r0
       path r0 n0
       where
 
@@ -186,26 +235,44 @@ refPath r00 t =
         -- conversion to Path is more efficient
         -- by using snocPath instead of consPath (old version)
 
-        path :: ref -> UpLink node ref -> Maybe Path
+        path :: Monoid ref => ref -> UpLink node ref -> Maybe Path
         path r n
           | par == r   = return (n ^. nodeName . to mkPath)
 
           | otherwise  = do
-              n'     <- t ^. entryAt par
+              n'     <- t ^? entryAt par
               res'   <- path par n'
               return (res' `snocPath` n ^. nodeName)
 
           where
             par = n ^. parentRef
-
 {-# INLINE refPath #-}
-
+-- -}
+-- {- new version
+refPath :: ( Eq ref, Ord ref, IsEmpty ref, Monoid ref
+           , Monoid (node ref), IsEmpty (node ref)
+           )
+        => ref -> DirTree node ref -> Path
+refPath r0 t
+  = go r0
+  where
+    go ref =
+      case upTree t ref of
+        Nothing -> mkPath n
+        Just p  -> go p `snocPath` n
+      where
+        n = t ^. entryAt ref . nodeName
+{-# INLINE refPath #-}
+-- -}
 
 -- compute all ancestors of a ref
 -- list is never empty,
 -- head is the ref itself, last is the root
-
-refObjIdPath :: (Ord ref, Show ref) => ref -> DirTree node ref -> [ref]
+{- old
+refObjIdPath :: ( Ord ref, Show ref, Monoid ref
+                , Monoid (node ref), IsEmpty (node ref)
+                )
+             => ref -> DirTree node ref -> [ref]
 refObjIdPath r0 t =
   parentIds $ Just r0
   where
@@ -214,44 +281,94 @@ refObjIdPath r0 t =
       | isRoot mp = [r]
       | otherwise = r : parentIds mp
       where
-        mp     = t ^? entryAt r . traverse . parentRef
+        mp     = t ^? entryAt r . parentRef
 
         isRoot Nothing  = True
         isRoot (Just p) = p == r
+-- -}
+
+refObjIdPath :: ( Ord ref, Show ref, IsEmpty ref, Monoid ref
+                , Monoid (node ref), IsEmpty (node ref)
+                )
+             => ref -> DirTree node ref -> [ref]
+refObjIdPath r0 t =
+  go r0
+  where
+    go ref
+      = case upTree t ref of
+          Nothing -> ref : []
+          Just p  -> ref : go p
+
+{-# INLINE refObjIdPath #-}
 
 -- test whether a ref @r@ is a part of the tree given by ref @p@
-refInTree :: (Ord ref, Show ref) => ref -> ref -> DirTree node ref -> Bool
+refInTree :: ( Ord ref, Show ref, IsEmpty ref, Monoid ref
+             , Monoid (node ref), IsEmpty (node ref)
+             )
+          => ref -> ref -> DirTree node ref -> Bool
 refInTree r p t =
   r `elem` tail (refObjIdPath p t)
 
+-- --------------------
+--
 -- | create the root of a DirTree.
 --
--- It's the only node where the parent ref equals the ref.
+-- It's the only node where the parent ref is mempty (old: equals the ref).
 -- The generation of the reference is supplied by a conversion from path to ref
 
-mkDirRoot :: (Path -> ref) -> Name -> node ref -> DirTree node ref
-mkDirRoot genRef n v
-  = RT r (M.singleton r (UL r n v))
+mkDirRoot :: Monoid ref
+          => (Path -> ref) -> Name -> node ref -> DirTree node ref
+mkDirRoot genRef n v =
+--  RT r (M.singleton r (UL mempty n v))   -- null value
+    RT r (M.singleton r (UL r n v))        -- cyclic reference
   where
     r = genRef $ mkPath n
+{-# INLINE mkDirRoot #-}
 
-isDirRoot :: (Ord ref, Show ref) => ref -> DirTree node ref -> Bool
-isDirRoot r t =
-  t ^? entryAt r . traverse . parentRef == Just r
+-- --------------------
+
+upTree :: ( Ord ref, IsEmpty ref, Monoid ref
+          , Monoid (node ref), IsEmpty (node ref)
+          )
+       => DirTree node ref -> ref -> Maybe ref
+upTree t r
+  | isRootRef p r = Nothing
+  | otherwise     = Just p
+  where
+    p = t ^. entryAt r . parentRef
+
+-- the only function, which knows how
+-- the root is represented
+
+isRootRef :: (Eq ref, IsEmpty ref) => ref -> ref -> Bool
+isRootRef parent ref =
+  isempty parent  -- new
+  ||
+  parent == ref          -- old
+
+isDirRoot :: ( Ord ref, Show ref, IsEmpty ref, Monoid ref
+             , Monoid (node ref), IsEmpty (node ref)
+             )
+          => ref -> DirTree node ref -> Bool
+isDirRoot r t = isNothing $ upTree t r
 {-# INLINE isDirRoot #-}
 
+-- --------------------
+--
 -- lookup a (ref, nodeval) by a path
 --
 -- check whether a corresponding node is there
 -- and return ref and node value
 
-lookupDirPath :: (Ord ref)
+lookupDirPath :: ( Ord ref, Show ref, Monoid ref
+                 , Monoid (node ref), IsEmpty (node ref)
+                 )
               => (Path -> ref)         -- ^ conversion path to ref
               -> Path                  -- ^ the path
               -> DirTree node ref      -- ^ the tree
               -> Maybe (ref, node ref) -- ^ the ref and the node value
 lookupDirPath genRef p t =
-  (i',) <$> t ^? entryAt i' . _Just . nodeVal
+  (i',) <$> t ^? entryAt i' . filtered isn'tempty . nodeVal
   where
     i' = genRef p
 {-# INLINE lookupDirPath #-}
@@ -261,7 +378,9 @@ lookupDirPath genRef p t =
 -- | create a new entry with a new ref and modify the parent node
 -- to store the new ref in its node value
 
-mkDirNode :: (Ord ref, Show ref)
+mkDirNode :: ( Ord ref, Show ref, IsEmpty ref, Monoid ref
+             , Monoid (node ref), IsEmpty (node ref)
+             )
           => (Path -> ref)                   -- ^ ref generator
           -> (node ref -> Bool)              -- ^ parent node editable?
           -> (ref -> node ref -> node ref)   -- ^ edit value of parent node
@@ -274,27 +393,29 @@ mkDirNode :: (Ord ref, Show ref)
 
 mkDirNode genRef isParentDir updateParent n p v t = do
   -- check entry already there
-  when (has (entryAt r . _Just) t) $
+  when (has (entryAt r . filtered isn'tempty) t) $
     throwError $ "mkDirNode: entry already exists: " ++ show rp
 
   -- check parent, must be a dir
   -- unless (t ^. theNodeVal p . to isParentDir) $
-  unless (has (entryAt p . traverse . nodeVal . filtered isParentDir) t) $
+  unless (has (entryAt p . nodeVal . filtered isParentDir) t) $
     throwError $ "mkDirNode: parent node not a dir: " ++ show pp
 
   return
     -- insert new node with name and uplink
     -- and add ref into parent
     ( r
-    , t & entryAt r                      ?~ UL p n v
-        & entryAt p . traverse . nodeVal %~ updateParent r
+    , t & entryAt r           .~ UL p n v
+        & entryAt p . nodeVal %~ updateParent r
     )
     where
       pp = refPath p t        -- get path of parent,
       rp = pp `snocPath` n    -- append name and
       r  = genRef rp          -- make reference
 
-remDirNode :: (Ord ref, Show ref)
+remDirNode :: ( Ord ref, Show ref, Show ref, IsEmpty ref, Monoid ref
+              , Monoid (node ref), IsEmpty (node ref)
+              )
            => (node ref -> Bool)             -- ^ node removable?
            -> (ref -> node ref -> node ref)  -- ^ update the parent node
            -> ref                            -- ^ node to be removed
@@ -304,7 +425,7 @@ remDirNode :: (Ord ref, Show ref)
 
 remDirNode removable updateParent r t = do
   -- check whether node exists?
-  unless (has (entryAt r) t) $
+  unless (has (entryAt r . filtered isn'tempty) t) $
     throwError $ "remDirNode: ref doesn't exist: " <> show r
 
   -- root can't be removed
@@ -312,19 +433,20 @@ remDirNode removable updateParent r t = do
     throwError "remDirNode: root ref can't be removed"
 
   -- node allowed to be removed (application specific check)?
-  unless (has (entryAt r . traverse . nodeVal . filtered removable) t) $
+  unless (has (entryAt r . nodeVal . filtered removable) t) $
     throwError $ "remDirNode: node value not removable, entry: "
                  <> show (refPath r t)
 
-  case t ^? entryAt r . traverse . parentRef of
-    Just p ->
-      return
-        --  ^ remove ref from parent
-        --  ^ remove node from map
-        (t & entryAt p . traverse . nodeVal %~ updateParent r
-           & entryAt r                      .~ Nothing
-        )
-    Nothing ->
-      throwError $ "remDirNode: parent node doesn't exist " <> show r
+  case t ^. entryAt r of
+    n | isn'tempty n ->
+          return
+          --  ^ remove ref from parent
+          --  ^ remove node from map
+          (t & entryAt (n ^. parentRef) . nodeVal %~ updateParent r
+             & entryAt r                          .~ mempty
+          )
+
+      | otherwise ->
+          throwError $ "remDirNode: parent node doesn't exist " <> show r
 
 -- ----------------------------------------

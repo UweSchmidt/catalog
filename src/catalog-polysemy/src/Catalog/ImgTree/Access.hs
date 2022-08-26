@@ -2,8 +2,16 @@
 
 module Catalog.ImgTree.Access
   ( -- * basic image tree access
-    dt
+    liftTF
+  , withTF
+  , toTF
+  , toTF'
+  , itoTF
+  , itoTF'
+
+  , dt
   , getTreeAt
+  , getTreeAtMaybe
   , getImgName
   , getImgParent
   , getImgVal
@@ -44,12 +52,6 @@ module Catalog.ImgTree.Access
 where
 
 import Catalog.Effects
-       ( Sem
-       , EffIStore
-       , Eff'ISE
-       , get
-       , throw
-       )
 
 import Data.ImageStore
        ( ImgStore
@@ -58,72 +60,10 @@ import Data.ImageStore
        , theImgTree
        )
 import Data.ImgTree
-       ( ColEntries
-       , ColEntry
-       , DirEntries
-       , ImgNode
-       , ImgRef
-       , ImgRef'(ImgRef)
-       , ImgTree
-       , ObjIds
-       , UplNode
-       , colEntry'
-       , entryAt
-       , isDIR
-       , isIMG
-       , isROOT
-       , isoDirEntries
-       , isoImgParts
-       , keysImgTree
-       , lookupImgPath
-       , nodeName
-       , nodeVal
-       , parentRef
-       , refInTree
-       , refObjIdPath
-       , refPath
-       , rootRef
-       , theColEntries
-       , theDirEntries
-       , theImgCol
-       , theImgMeta
-       , theImgName
-       , theImgPart
-       , theImgRoot
-       , theMetaData
-       , theParts
-       , theRootImgCol
-       , theRootImgDir
-       )
 import Data.MetaData
        ( MetaData )
 
 import Data.Prim
-       ( Foldable(toList)
-       , Ixed(ix)
-       , Seq
-       , IsoText(isoText)
-       , Getting
-       , Path
-       , Name
-       , ObjId
-       , Text
-       , (^.)
-       , (^..)
-       , (^?)
-       , filterM
-       , filterSeqM
-       , isJust
-       , isoSeqList
-       , listToMaybe
-       , mkObjId
-       , msgPath
-       , noOfBitsUsedInKeys
-       , on
-       , snocPath
-       , to
-       , whenM
-       )
 
 import qualified Data.Set      as S
 import qualified Data.Sequence as Seq
@@ -136,86 +76,126 @@ import qualified Data.Sequence as Seq
 -- and error effect used
 -- no logging, no journaling
 
-dt :: EffIStore r => Sem r ImgTree
-dt = do
-  s <- get
-  return (s ^. theImgTree)
-{-# INLINE dt #-}
+-- the only action used for state access
 
-getTreeAt :: EffIStore r => ObjId -> Sem r (Maybe UplNode)
-getTreeAt i = do
-  s <- get
-  return (s ^. theImgTree . entryAt i)
+withTF :: EffIStore r => (ImgTree -> Sem r a) -> Sem r a
+withTF cmd = liftTF id >>= cmd
+
+liftTF :: EffIStore r => (ImgTree -> a) -> Sem r a
+liftTF f = view (theImgTree . to f) <$> get
+{-# INLINE liftTF #-}
+
+toTF :: Getting a ImgTree a -> (ImgTree -> a)
+toTF = view
+{-# INLINE toTF #-}
+
+toTF' :: Getting a ImgTree a -> (ImgTree -> a -> b) -> (ImgTree -> b)
+toTF' gt f = \ t -> f t (t ^. gt)
+{-# INLINE toTF' #-}
+
+itoTF :: Getting a UplNode a -> ObjId -> (ImgTree -> a)
+itoTF gt i = toTF (entryAt i . gt)
+{-# INLINE itoTF #-}
+
+itoTF' :: Getting a UplNode a -> (ImgTree -> a -> b) -> ObjId -> (ImgTree -> b)
+itoTF' gt f i = toTF' (entryAt i . gt) f
+{-# INLINE itoTF' #-}
+
+{-
+liftTF :: EffIStore r
+      => Getting a ImgTree a -> (ImgTree -> a -> b) -> Sem r b
+liftTF gt f = liftTF (toTF' gt f)
+
+
+getItAt :: EffIStore r => (ImgTree -> UplNode -> a) -> ObjId -> Sem r a
+getItAt tf i = liftTF $ toTF' (entryAt i) tf
+-}
+{-
+getAt :: EffIStore r
+      => (ImgTree -> a -> b) -> Getting a UplNode a -> ObjId -> Sem r b
+getAt tf gt i = liftTF $ itoTF' gt tf i
+
+getAt0 :: EffIStore r => Getting a UplNode a -> ObjId -> Sem r a
+getAt0 gt i = liftTF $ itoTF gt i
+
+-- --------------------
+
+getOptAt' :: EffIStore r => Fold UplNode a -> ObjId -> Sem r (Maybe a)
+getOptAt' theA i = liftTF $ itoTF (toMaybe (filtered isn'tempty .  theA)) i
+{-# INLINE getOptAt' #-}
+-}
+
+-- ----------
+
+getTreeAt :: EffIStore r => ObjId -> Sem r UplNode
+getTreeAt i = liftTF $ itoTF id i
 {-# INLINE getTreeAt #-}
 
-getTree' :: Eff'ISE r => Getting a UplNode a -> ObjId -> Sem r a
-getTree' l i = do
-  mn <- getTreeAt i
-  case mn of
-    Just n  -> return (n ^. l)
-    Nothing -> throw $ "getTree': illegal ObjId: " <> i ^. isoText
-{-# INLINE getTree' #-}
+getTreeAtMaybe :: EffIStore r => ObjId -> Sem r (Maybe UplNode)
+getTreeAtMaybe i = liftTF $ itoTF (toMaybe (filtered isn'tempty)) i
+{-# INLINE getTreeAtMaybe #-}
+
+-- --------------------
+
+dt :: EffIStore r => Sem r ImgTree
+dt = liftTF id
+{-# INLINE dt #-}
 
 getImgName :: Eff'ISE r => ObjId -> Sem r Name
-getImgName = getTree' nodeName
+getImgName i = liftTF $ itoTF nodeName i
 {-# INLINE getImgName #-}
 
 getImgParent :: Eff'ISE r => ObjId -> Sem r ObjId
-getImgParent = getTree' parentRef
+getImgParent i = liftTF $ itoTF parentRef i
 {-# INLINE getImgParent #-}
 
 getImgVal :: Eff'ISE r => ObjId -> Sem r ImgNode
-getImgVal = getTree' nodeVal
+getImgVal i = liftTF $ itoTF nodeVal i
 {-# INLINE getImgVal #-}
 
 getImgVals :: Eff'ISE r => ObjId -> Getting a ImgNode a -> Sem r a
-getImgVals i l = getTree' (nodeVal . l) i
+getImgVals i l = liftTF $ itoTF (nodeVal . l) i
 {-# INLINE getImgVals #-}
 
 getImgSubDirs :: Eff'ISE r => DirEntries -> Sem r (Seq ObjId)
-getImgSubDirs es =
-  filterSeqM (\ i' -> getImgVals i' (to isDIR)) (es ^. isoDirEntries)
+getImgSubDirs es = liftTF f
+  where
+    f :: ImgTree -> Seq ObjId
+    f t = filterDirEntries p es ^. isoDirEntries
+      where
+        p i = (t, i) ^. theNode . to isDIR
 
 -- ----------------------------------------
 
 getRootId :: EffIStore r => Sem r ObjId
-getRootId = do
-  s <- get
-  return (s ^. theImgTree . rootRef)
+getRootId = liftTF $ toTF rootRef
 {-# INLINE getRootId #-}
 
 getRootImgDirId :: Eff'ISE r => Sem r ObjId
-getRootImgDirId = do
-  ri <- getRootId
-  getImgVals ri theRootImgDir
+getRootImgDirId = liftTF $ toTF (isoNavTree . theNode . theRootImgDir)
 {-# INLINE getRootImgDirId #-}
 
 getRootImgColId :: Eff'ISE r => Sem r ObjId
-getRootImgColId = do
-  ri <- getRootId
-  getImgVals ri theRootImgCol
+getRootImgColId = liftTF $ toTF (isoNavTree . theNode . theRootImgCol)
 {-# INLINE getRootImgColId #-}
 
 existsEntry :: EffIStore r => ObjId -> Sem r Bool
-existsEntry i = do
-  s <- get
-  return $ isJust (s ^. theImgTree . entryAt i)
-{-# INLINE existsEntry #-}
+existsEntry i = liftTF $ itoTF' (toMaybe (filtered isn'tempty)) (const isJust) i
 
 lookupByName :: EffIStore r => Name -> ObjId -> Sem r (Maybe (ObjId, ImgNode))
-lookupByName n i = do
-  p <- (`snocPath` n) <$> objid2path i
-  lookupByPath p
+lookupByName n i = liftTF go
+  where
+    go t = lookupImgPath (refPath i t `snocPath` n) t
 
 lookupByPath :: EffIStore r => Path -> Sem r (Maybe (ObjId, ImgNode))
-lookupByPath p = lookupImgPath p <$> dt
+lookupByPath p = liftTF $ lookupImgPath p
 {-# INLINE lookupByPath #-}
 
 -- save lookup by path
 
 getIdNode :: Eff'ISE r => Text -> Path -> Sem r (ObjId, ImgNode)
 getIdNode msg p = do
-  mv <- lookupImgPath p <$> dt
+  mv <- liftTF $ lookupImgPath p
   case mv of
     Nothing ->
       throw $ msgPath p msg
@@ -240,28 +220,32 @@ alreadyTherePath msg p = do
 -- | ref to path
 
 objid2path :: EffIStore r => ObjId -> Sem r Path
-objid2path i = refPath i <$> dt
+objid2path i = liftTF $ refPath i
 
 objid2list :: EffIStore r => ObjId -> Sem r [ObjId]
-objid2list i = refObjIdPath i <$> dt
+objid2list i = liftTF $ refObjIdPath i
 
 isPartOfTree :: EffIStore r => ObjId -> ObjId -> Sem r Bool
-isPartOfTree r p = refInTree r p <$> dt
+isPartOfTree r p = liftTF $ refInTree r p
 
 
 -- | ref to type
 objid2type :: Eff'ISE r => ObjId -> Sem r Text
-objid2type i = getImgVal i >>= go
-  where
-    go e = return $ mconcat $
-      e ^.. ( theParts      . to (const "IMG")  <>
-              theDirEntries . to (const "DIR")  <>
-              theImgRoot    . to (const "Root") <>
-              theImgCol     . to (const "COL")
-            )
+objid2type i = liftTF $ itoTF (nodeVal . to imgNodeType) i
 
 objid2contNames :: Eff'ISE r => ObjId -> Sem r [Name]
-objid2contNames i =
+objid2contNames i = liftTF $ itoTF' nodeVal names i
+  where
+    names :: ImgTree -> ImgNode -> [Name]
+    names t n
+      | isIMG  n  = n ^.. theParts . isoImgParts . traverse . theImgName
+      | isDIR  n
+        ||
+        isROOT n  = n ^.. imgNodeRefs . to (t,)  . theEntry . nodeName
+      | otherwise = []
+
+
+{-
   getImgVal i >>= go
   where
     go e
@@ -278,14 +262,19 @@ objid2contNames i =
 
       | otherwise =
           return []
+-}
 
 getMetaData :: Eff'ISE r => ObjId -> Sem r MetaData
-getMetaData i = getImgVals i theMetaData
+getMetaData i = liftTF $ itoTF (nodeVal . theMetaData) i
 
 getImgMetaData :: Eff'ISE r => ImgRef -> Sem r MetaData
-getImgMetaData (ImgRef i nm) =
-  (<>) <$> getImgVals i (theImgPart nm . theImgMeta)
-       <*> getMetaData i
+getImgMetaData (ImgRef i nm) = liftTF $ itoTF (nodeVal . to f) i
+  where
+    f :: ImgNode -> MetaData
+    f n =
+      n ^. theImgPart nm . theImgMeta
+      <>
+      n ^. theMetaData
 
 -- ----------------------------------------
 
@@ -309,7 +298,7 @@ mapImgStore2Path = do
 
 -- get the mapping from internal keys, ObjId, to paths as keys
 objid2pathMap :: EffIStore r => Sem r (ObjId -> Path)
-objid2pathMap = flip refPath <$> dt
+objid2pathMap = liftTF $ flip refPath
 
 mapPath2ObjId :: Functor f => f Path -> f ObjId
 mapPath2ObjId = fmap mkObjId
@@ -336,7 +325,6 @@ findFstColEntry  :: Eff'ISE r
                  -> Sem r (Maybe (Int, ColEntry))
 findFstColEntry p i = listToMaybe <$> findAllColEntries p i
 {-# INLINE findFstColEntry #-}
-
 
 sortColEntries :: Eff'ISE r
                => (ColEntry -> Sem r a)
@@ -418,8 +406,6 @@ filterObjIds p =
 -- ----------------------------------------
 
 bitsUsedInImgTreeMap :: EffIStore r => Sem r Int
-bitsUsedInImgTreeMap = do
-  t <- dt
-  return (noOfBitsUsedInKeys . keysImgTree $ t)
+bitsUsedInImgTreeMap = liftTF $ noOfBitsUsedInKeys . keysImgTree
 
 -- ----------------------------------------

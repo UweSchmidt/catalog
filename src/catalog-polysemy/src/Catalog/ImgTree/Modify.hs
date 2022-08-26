@@ -27,17 +27,14 @@ import Catalog.Effects
        , Eff'ISJ
        , Eff'ISEJ
        , Eff'ISEJL
+       , EffIStore
        , liftExcept
        , log'warn
        , modify'
        , throw
        )
 import Catalog.ImgTree.Access
-       ( dt
-       , existsEntry
-       , getIdNode
-       , alreadyTherePath
-       )
+
 import Catalog.Journal
        ( journal )
 
@@ -45,57 +42,20 @@ import Data.ImageStore
        ( theImgTree )
 
 import Data.ImgTree
-       ( ColEntries
-       , ColEntry
-       , DirEntries
-       , ImgNode
-       , ImgParts
-       , ImgRef
-       , ImgRef'(ImgRef)
-       , emptyImg
-       , emptyImgCol
-       , emptyImgDir
-       , entryAt
-       , isCOL
-       , isDIR
-       , mkColColRef
-       , mkNode
-       , nodeVal
-       , removeImgNode
-       , theColBlog
-       , theColEntries
-       , theColImg
-       , theDirEntries
-       , theImgMeta
-       , theImgPart
-       , theMetaData
-       , theParts
-       , theSyncTime
-       )
+
 import Data.Journal
        ( Journal'(..)
        , Journal
        )
 import Data.MetaData
-       ( MetaData )
+       ( MetaData
+       , lookupCreate
+       , parseDate
+       , parseTime
+       , isoDateInt
+       )
 
 import Data.Prim
-       ( IsoText(isoText)
-       , Name
-       , ObjId
-       , Path
-       , TimeStamp
-       , Traversal'
-       , (%~)
-       , (&)
-       , (.~)
-       , (^.)
-       , (^..)
-       , msgPath
-       , toText
-       , unless
-       , viewBase
-       )
 
 import qualified Data.Sequence as Seq
 
@@ -112,8 +72,7 @@ mkCatEntry :: Eff'ISEJ r
            -> ObjId                         -- ^ parent node
            -> Name                          -- ^ the name of the node
            -> Sem r ObjId                   -- ^ the new ref
-mkCatEntry journal' isN v i n =
-  dt >>= go
+mkCatEntry journal' isN v i n = withTF go
   where
     go t = do
       (d, t') <- liftExcept $ mkNode isN n i v t
@@ -150,7 +109,7 @@ rmImgNode :: Eff'ISEJL r => ObjId -> Sem r ()
 rmImgNode i = do
   ex <- existsEntry i
   if ex
-    then dt >>= go
+    then withTF go
     else log'warn $ "rmImgNode: ObjId doesn't exist: " <> i ^. isoText
   where
     go t = do
@@ -198,73 +157,146 @@ mkCollection' merge target'path = do
     (parent'path, target'name) = target'path ^. viewBase
 
 -- ----------------------------------------
+--
+-- the only state modifying function
 
-adjustNodeVal :: (Eff'ISEJL r, Show a)
+modifyNT' :: EffIStore r
+          => Traversal' ImgTree a -> (ImgTree -> a -> a) -> Sem r ()
+modifyNT' tr f =
+  modify'(\ s ->
+            s & theImgTree %~ (\ t ->
+                                 t & tr %~ f t
+                              )
+         )
+{-# INLINE modifyNT' #-}
+
+-- state modification and journal output
+
+adjustNodeVal' :: (Eff'ISEJL r, Show a)
               => (ObjId -> a -> Journal)
               -> Traversal' ImgNode a
-              -> (a -> a)
+              -> (ImgTree -> a -> a)
               -> ObjId
               -> Sem r ()
-adjustNodeVal mkj theComp f i = do
+adjustNodeVal' mkj theComp f i = do
   -- modify the image node
-  modify' $ \ s ->
-    s & theImgTree . entryAt i . traverse . nodeVal . theComp %~ f
+  modifyNT' (entryAt i . nodeVal . theComp) f
 
   -- journal the changed result
-  dt >>= journalAdjust
-    where
-      journalAdjust t =
-        case t ^.. entryAt i . traverse . nodeVal . theComp of
-          -- the expected case
-          [new'v] ->
-            journal $ mkj i new'v
+  withTF $ traverseOf_
+           (entryAt i . nodeVal . theComp)
+           (journal . mkj i)
 
-          -- the error cases
-          [] ->
-            log'warn $ "adjustNodeVal: nothing changed, "
-                       <> "component to be modified does not exist in "
-                       <> i ^. isoText
+adjustColEntries' :: Eff'ISEJL r
+                 => (ImgTree -> ColEntries -> ColEntries) -> ObjId -> Sem r ()
+adjustColEntries' = adjustNodeVal' AdjColEntries theColEntries
+{-# INLINE adjustColEntries' #-}
 
-          -- the critical case
-          vs ->
-            log'warn $ "adjustNodeVal: multiple components have been changed in "
-                       <> i ^. isoText
-                       <> ": "
-                       <> toText vs
+-- --------------------
+
+adjustColBy' :: Eff'ISEJL r
+             => (ImgTree -> ColEntries -> ColEntries)
+             -> ColEntries
+             -> ObjId
+             -> Sem r ()
+adjustColBy' sortCol cs parent'i =
+  adjustColEntries' (sortMerge' cs sortCol) parent'i
+
+adjustColByName' :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
+adjustColByName' = adjustColBy' sortByName'
+
+adjustColByDate' :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
+adjustColByDate' = adjustColBy' sortByDate'
+
+insertColByName :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
+insertColByName cref = adjustColByName' (Seq.singleton (mkColColRef cref))
+
+insertColByAppend' :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
+insertColByAppend' i = adjustColEntries' $
+                       const (<> Seq.singleton (mkColColRef i))
+
+insertColByCons' :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
+insertColByCons' i = adjustColEntries' $
+                       const (Seq.singleton (mkColColRef i) <>)
+
+-- --------------------
+--
+-- pure functions
+
+sortColEntries' :: forall a .
+                   (ImgTree -> ColEntry -> a)
+                -> (a -> a -> Ordering)
+                -> ImgTree -> ColEntries -> ColEntries
+sortColEntries' getVal cmpVal t = go
+  where
+    go = fmap fst . Seq.sortBy (cmpVal `on` snd) . fmap mkC
+      where
+        mkC :: ColEntry -> (ColEntry, a)
+        mkC ce =  (ce, ) $ getVal t ce
+
+sortByName' :: ImgTree -> ColEntries -> ColEntries
+sortByName' = sortColEntries' getVal compare
+  where
+    getVal t =
+      colEntry
+      (\ j n1 -> (t, j) ^. theEntryName . to (\ n -> Right (n, n1)))
+      (\ j    -> (t, j) ^. theEntryName . to         Left          )
+
+sortByDate' :: ImgTree -> ColEntries -> ColEntries
+sortByDate' = sortColEntries' getVal compare
+  where
+    getVal t =
+      colEntry
+      (\ j n1 -> (t, j) ^. theNode
+                         . to (\ n -> n ^. theMetaData)
+                         . to (Right . (,n1) . lookupCreate parseTime)
+      )
+      (\ j    -> (t, j) ^. theEntryName
+                         . to  Left
+      )
+
+sortMerge' :: ColEntries
+           -> (ImgTree -> ColEntries -> ColEntries)
+           -> ImgTree -> ColEntries -> ColEntries
+sortMerge' cs'new sortCol t cs =
+  sortCol t $ mergeColEntries cs cs'new
+
+-- --------------------
 
 adjustImg :: Eff'ISEJL r
           => (ImgParts -> ImgParts) -> ObjId -> Sem r ()
-adjustImg = adjustNodeVal AdjImgParts theParts
+adjustImg f = adjustNodeVal' AdjImgParts theParts (const f)
 {-# INLINE adjustImg #-}
 
 adjustDirEntries :: Eff'ISEJL r
                  => (DirEntries -> DirEntries) -> ObjId -> Sem r ()
-adjustDirEntries = adjustNodeVal AdjDirEntries theDirEntries
+adjustDirEntries f = adjustNodeVal' AdjDirEntries theDirEntries (const f)
 {-# INLINE adjustDirEntries #-}
 
 adjustMetaData :: Eff'ISEJL r
                => (MetaData -> MetaData) -> ObjId -> Sem r ()
-adjustMetaData = adjustNodeVal AdjMetaData theMetaData
+adjustMetaData f = adjustNodeVal' AdjMetaData theMetaData (const f)
 {-# INLINE adjustMetaData #-}
 
 adjustPartMetaData :: Eff'ISEJL r
                    => (MetaData -> MetaData) -> ImgRef -> Sem r ()
 adjustPartMetaData mf (ImgRef i nm) =
-  adjustNodeVal (AdjPartMetaData nm) (theImgPart nm . theImgMeta) mf i
+  adjustNodeVal' (AdjPartMetaData nm) (theImgPart nm . theImgMeta) (const mf) i
 
 adjustColImg :: Eff'ISEJL r
              => (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> Sem r ()
-adjustColImg = adjustNodeVal AdjColImg theColImg
+adjustColImg f = adjustNodeVal' AdjColImg theColImg (const f)
 {-# INLINE adjustColImg #-}
 
 adjustColBlog :: Eff'ISEJL r
               => (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> Sem r ()
-adjustColBlog = adjustNodeVal AdjColBlog theColBlog
+adjustColBlog f = adjustNodeVal' AdjColBlog theColBlog (const f)
 {-# INLINE adjustColBlog #-}
 
 adjustColEntries :: Eff'ISEJL r
                  => (ColEntries -> ColEntries) -> ObjId -> Sem r ()
-adjustColEntries = adjustNodeVal AdjColEntries theColEntries
+-- adjustColEntries = adjustNodeVal AdjColEntries theColEntries
+adjustColEntries f = adjustColEntries' (const f)
 {-# INLINE adjustColEntries #-}
 
 adjustColEntry :: Eff'ISEJL r
@@ -281,7 +313,7 @@ remColEntry pos = adjustColEntries (Seq.deleteAt pos)
 
 setSyncTime :: Eff'ISEJL r => TimeStamp -> ObjId -> Sem r ()
 setSyncTime t i = do
-  adjustNodeVal SetSyncTime theSyncTime (const t) i
+  adjustNodeVal' SetSyncTime theSyncTime (const $ const t) i
 {-# INLINE setSyncTime #-}
 
 

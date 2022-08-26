@@ -76,6 +76,7 @@ emptyImgStore :: ImgStore
 emptyImgStore =
   IS r mempty
   where
+    -- change parent ref of root to mempty
     r = mkDirRoot mkObjId "" emptyImgRoot
 {-# INLINE emptyImgStore #-}
 
