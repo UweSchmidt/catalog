@@ -7,6 +7,10 @@ module Catalog.ImgTree.Modify
   , rmImgNode
   , mkCollection
   , mkCollectionC
+
+  , adjustNodeVal
+  , adjustNodeVal'
+
   , adjustImg
   , adjustDirEntries
   , adjustMetaData
@@ -14,6 +18,7 @@ module Catalog.ImgTree.Modify
   , adjustColImg
   , adjustColBlog
   , adjustColEntries
+  , adjustColEntries'
   , adjustColEntry
   , remColEntry
   , setSyncTime
@@ -48,12 +53,6 @@ import Data.Journal
        , Journal
        )
 import Data.MetaData
-       ( MetaData
-       , lookupCreate
-       , parseDate
-       , parseTime
-       , isoDateInt
-       )
 
 import Data.Prim
 
@@ -187,13 +186,23 @@ adjustNodeVal' mkj theComp f i = do
            (entryAt i . nodeVal . theComp)
            (journal . mkj i)
 
+adjustNodeVal :: (Eff'ISEJL r, Show a)
+              => (ObjId -> a -> Journal)
+              -> Traversal' ImgNode a
+              -> (a -> a)
+              -> ObjId
+              -> Sem r ()
+adjustNodeVal mkj theComp f = adjustNodeVal' mkj theComp (const f)
+
+-- --------------------
+
 adjustColEntries' :: Eff'ISEJL r
                  => (ImgTree -> ColEntries -> ColEntries) -> ObjId -> Sem r ()
 adjustColEntries' = adjustNodeVal' AdjColEntries theColEntries
 {-# INLINE adjustColEntries' #-}
 
 -- --------------------
-
+{-
 adjustColBy' :: Eff'ISEJL r
              => (ImgTree -> ColEntries -> ColEntries)
              -> ColEntries
@@ -208,8 +217,8 @@ adjustColByName' = adjustColBy' sortByName'
 adjustColByDate' :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
 adjustColByDate' = adjustColBy' sortByDate'
 
-insertColByName :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
-insertColByName cref = adjustColByName' (Seq.singleton (mkColColRef cref))
+insertColByName' :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
+insertColByName' cref = adjustColByName' (Seq.singleton (mkColColRef cref))
 
 insertColByAppend' :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
 insertColByAppend' i = adjustColEntries' $
@@ -260,51 +269,47 @@ sortMerge' :: ColEntries
            -> ImgTree -> ColEntries -> ColEntries
 sortMerge' cs'new sortCol t cs =
   sortCol t $ mergeColEntries cs cs'new
-
+-}
 -- --------------------
 
 adjustImg :: Eff'ISEJL r
           => (ImgParts -> ImgParts) -> ObjId -> Sem r ()
-adjustImg f = adjustNodeVal' AdjImgParts theParts (const f)
+adjustImg = adjustNodeVal AdjImgParts theParts
 {-# INLINE adjustImg #-}
 
 adjustDirEntries :: Eff'ISEJL r
                  => (DirEntries -> DirEntries) -> ObjId -> Sem r ()
-adjustDirEntries f = adjustNodeVal' AdjDirEntries theDirEntries (const f)
+adjustDirEntries = adjustNodeVal AdjDirEntries theDirEntries
 {-# INLINE adjustDirEntries #-}
 
 adjustMetaData :: Eff'ISEJL r
                => (MetaData -> MetaData) -> ObjId -> Sem r ()
-adjustMetaData f = adjustNodeVal' AdjMetaData theMetaData (const f)
+adjustMetaData = adjustNodeVal AdjMetaData theMetaData
 {-# INLINE adjustMetaData #-}
 
 adjustPartMetaData :: Eff'ISEJL r
                    => (MetaData -> MetaData) -> ImgRef -> Sem r ()
 adjustPartMetaData mf (ImgRef i nm) =
-  adjustNodeVal' (AdjPartMetaData nm) (theImgPart nm . theImgMeta) (const mf) i
+  adjustNodeVal (AdjPartMetaData nm) (theImgPart nm . theImgMeta) mf i
 
 adjustColImg :: Eff'ISEJL r
              => (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> Sem r ()
-adjustColImg f = adjustNodeVal' AdjColImg theColImg (const f)
+adjustColImg = adjustNodeVal AdjColImg theColImg
 {-# INLINE adjustColImg #-}
 
 adjustColBlog :: Eff'ISEJL r
               => (Maybe ImgRef -> Maybe ImgRef) -> ObjId -> Sem r ()
-adjustColBlog f = adjustNodeVal' AdjColBlog theColBlog (const f)
+adjustColBlog = adjustNodeVal AdjColBlog theColBlog
 {-# INLINE adjustColBlog #-}
 
 adjustColEntries :: Eff'ISEJL r
                  => (ColEntries -> ColEntries) -> ObjId -> Sem r ()
--- adjustColEntries = adjustNodeVal AdjColEntries theColEntries
 adjustColEntries f = adjustColEntries' (const f)
 {-# INLINE adjustColEntries #-}
 
 adjustColEntry :: Eff'ISEJL r
                => (ColEntry -> ColEntry) -> Int -> ObjId -> Sem r ()
-adjustColEntry f i = adjustColEntries f'
-  where
-    f' :: ColEntries -> ColEntries
-    f' = Seq.adjust f i
+adjustColEntry f i = adjustColEntries (Seq.adjust f i)
 {-# INLINE adjustColEntry #-}
 
 remColEntry :: Eff'ISEJL r => Int -> ObjId -> Sem r ()
@@ -313,7 +318,7 @@ remColEntry pos = adjustColEntries (Seq.deleteAt pos)
 
 setSyncTime :: Eff'ISEJL r => TimeStamp -> ObjId -> Sem r ()
 setSyncTime t i = do
-  adjustNodeVal' SetSyncTime theSyncTime (const $ const t) i
+  adjustNodeVal SetSyncTime theSyncTime (const t) i
 {-# INLINE setSyncTime #-}
 
 

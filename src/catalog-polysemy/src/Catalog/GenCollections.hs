@@ -29,25 +29,8 @@ import Catalog.ImgTree.Fold
        , foldImgDirs
        )
 import Catalog.ImgTree.Access
-       ( getImgVal
-       , findFstColEntry
-       , mergeColEntries
-       , getImgVals
-       , getMetaData
-       , getImgName
-       , sortColEntries
-       , getRootImgDirId
-       , lookupByPath
-       , objid2path
-       , getRootImgColId
-       )
 import Catalog.ImgTree.Modify
-       ( mkImgCol
-       , remColEntry
-       , adjustColBlog
-       , adjustColEntries
-       , adjustMetaData
-       )
+
 import Catalog.Logging
        ( trc'Obj )
 
@@ -58,108 +41,8 @@ import Catalog.TimeStamp
        ( whatTimeIsIt )
 
 import Data.ImgTree
-       ( theColObjId
-       , isCOL
-       , theMimeType
-       , isoImgPartsMap
-       , theParts
-       , theColEntries
-       , colEntry
-       , mkColColRef
-       , thePartNamesI
-       , mkColImgRef
-       , ColEntry
-       , ColEntry'(ImgEnt)
-       , DirEntries
-       , ImgParts
-       , ColEntries
-       )
 import Data.MetaData
-       ( MetaData
-       , Access
-
-       , metaDataAt
-       , metaTextAt
-       , metaAcc
-
-       , lookupCreate
-       , parseDate
-       , parseTime
-       , isoDateInt
-
-       , all'restr
-       , no'restr
-       , no'delete
-       , no'write
-       , no'sort
-       , no'user
-       , (.|.)
-
-       , descrAccess     -- meta keys
-       , descrComment
-       , descrCreateDate
-       , descrOrderedBy
-       , descrSubtitle
-       , descrTitle
-       )
 import Data.Prim
-       ( Foldable(fold)
-       , Ixed(ix)
-       , TimeStamp
-       , IsoText(isoText)
-       , IsEmpty(isempty)
-       , Path
-       , Name
-       , ObjId
-       , Text
-       , (.~)
-       , (&)
-       , (^?)
-       , (^..)
-       , (^.)
-       , (#)
-       , iso8601TimeStamp
-       , formatTimeStamp
-       , p'imports
-       , traverse_
-       , foldlM
-       , p'bycreatedate
-       , unless
-       , msgPath
-       , timeStampToText
-       , when
-       , isTxtMT
-       , sort
-       , isoSeqList
-       , listFromPath
-       , viewBase
-       , to'colandname
-       , tailPath
-       , toText
-       , substPathPrefix
-       , consPath
-       , mkPath
-       , mkName
-       , viewTop
-       , to'dateandtime
-       , tt'day
-       , tt'month
-       , to'name
-       , tt'year
-       , void
-       , snocPath
-       , tt'bydate
-       , n'bycreatedate
-       , tt'imports
-       , n'imports
-       , tt'photos
-       , n'photos
-       , tt'albums
-       , n'albums
-       , tt'clipboard
-       , n'clipboard
-       , tt'collections
-       )
 
 import qualified Data.IntMap     as IM
 import qualified Data.Sequence   as Seq
@@ -348,8 +231,8 @@ genCollectionsByDir di = do
     path2Subtitle = T.intercalate " \8594 " . listFromPath
     -- path names separated by right arrow
 
-    genCol :: Eff'ISEJLT r => (Path -> Path) -> ObjId -> Sem r ColEntries
-    genCol fp =
+    genCol' :: Eff'ISEJLT r => (Path -> Path) -> ObjId -> Sem r ColEntries
+    genCol' fp =
       foldImgDirs imgA dirA
       where
         -- collect all processed jpg images for a single img
@@ -390,9 +273,60 @@ genCollectionsByDir di = do
 
           return $ Seq.singleton $ mkColColRef ic
 
+    genCol :: Eff'ISEJLT r => (Path -> Path) -> ObjId -> Sem r ColEntries
+    genCol fp = go
+      where
+        go i = withTF $ \ t ->
+          case (t, i) ^. theNode of
+            n | isIMG n -> do
+                  trc'Obj i $ "genCol img: " <> toText ires
+                  return ires
+
+              | isDIR n -> do
+                  trc'Obj i $ "genCol dir: " <> toText cp
+
+                  -- check or create collection
+                  -- with action for meta data
+                  ic <- mkColByPath insertColByName setupDirCol cp
+
+                  -- get collection entries, and insert them into collection
+                  cs  <- fold <$> traverse go (n ^. theDirEntries)
+
+                  trc'Obj ic "genCol dir: set dir contents"
+                  adjustColByName cs ic
+                  trc'Obj ic "genCol dir: dir contents is set"
+
+                  -- set the blog entry, if there's a txt entry in cs
+                  setColBlogToFstTxtEntry False ic
+                  trc'Obj ic "genCol dir: col blog set"
+
+                  return $ cres ic
+
+              | otherwise ->
+                  return mempty
+
+              where
+                cp :: Path
+                cp = fp $ refPath i t
+
+                ires :: ColEntries
+                ires = isoSeqList #
+                  (n ^.. theParts
+                       . to (\pts -> pts ^.. thePartNamesI)
+                       . to sort
+                       . traverse
+                       . to (mkColImgRef i)
+                  )
+
+                cres :: ObjId -> ColEntries
+                cres ic' = isoSeqList # [mkColColRef ic']
+
+
 -- ----------------------------------------
 --
 -- collection sort
+
+-- {- impure edit ops
 
 sortByName :: Eff'ISE r => ColEntries -> Sem r ColEntries
 sortByName =
@@ -426,12 +360,12 @@ sortByDate =
           return $ Right (t, n1)
       )
       (fmap Left . getImgName )
-
+-- -}
 -- ----------------------------------------
 --
 -- set/modify collection entries
 
-
+-- {- old
 -- add a collection in front of a col entry list
 
 insertColByCons :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
@@ -464,6 +398,79 @@ adjustColBy sortCol cs parent'i = do
   -- log'trc $ "adjustColBy" <> show cs'new
   adjustColEntries (const cs'new) parent'i
   -- log'trc $ "adjustColBy end"
+-- -}
+-- ----------------------------------------
+--
+-- new adjust functions using pure ops to edit entries
+
+adjustColBy' :: Eff'ISEJL r
+             => (ImgTree -> ColEntries -> ColEntries)
+             -> ColEntries
+             -> ObjId
+             -> Sem r ()
+adjustColBy' sortCol cs parent'i =
+  adjustColEntries' (sortMerge' cs sortCol) parent'i
+
+-- --------------------
+{- new pure
+adjustColByName :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
+adjustColByName = adjustColBy' sortByName'
+
+adjustColByDate :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
+adjustColByDate = adjustColBy' sortByDate'
+
+insertColByName :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
+insertColByName cref = adjustColByName (Seq.singleton (mkColColRef cref))
+
+insertColByAppend :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
+insertColByAppend i = adjustColEntries' $
+                      const (<> Seq.singleton (mkColColRef i))
+
+insertColByCons :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
+insertColByCons i = adjustColEntries' $
+                    const (Seq.singleton (mkColColRef i) <>)
+-- -}
+-- --------------------
+--
+-- pure edit functions
+
+sortColEntries' :: forall a .
+                   (ImgTree -> ColEntry -> a)
+                -> (a -> a -> Ordering)
+                -> ImgTree -> ColEntries -> ColEntries
+sortColEntries' getVal cmpVal t = go
+  where
+    go = fmap fst . Seq.sortBy (cmpVal `on` snd) . fmap mkC
+      where
+        mkC :: ColEntry -> (ColEntry, a)
+        mkC ce =  (ce, ) $ getVal t ce
+
+sortByName' :: ImgTree -> ColEntries -> ColEntries
+sortByName' = sortColEntries' getVal compare
+  where
+    getVal t =
+      colEntry
+      (\ j n1 -> (t, j) ^. theEntryName . to (\ n -> Right (n, n1)))
+      (\ j    -> (t, j) ^. theEntryName . to         Left          )
+
+sortByDate' :: ImgTree -> ColEntries -> ColEntries
+sortByDate' = sortColEntries' getVal compare
+  where
+    getVal t =
+      colEntry
+      (\ j n1 -> (t, j) ^. theNode
+                         . to (\ n -> n ^. theMetaData)
+                         . to (Right . (,n1) . lookupCreate parseTime)
+      )
+      (\ j    -> (t, j) ^. theEntryName
+                         . to  Left
+      )
+
+sortMerge' :: ColEntries
+           -> (ImgTree -> ColEntries -> ColEntries)
+           -> ImgTree -> ColEntries -> ColEntries
+sortMerge' cs'new sortCol t cs =
+  sortCol t $ mergeColEntries cs cs'new
 
 -- ----------------------------------------
 
