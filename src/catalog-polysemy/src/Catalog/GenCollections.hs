@@ -66,22 +66,23 @@ genSysCollections = do
   genImportsCollection       -- import history
 
 genCollectionRootMeta :: Eff'ISEJL r => Sem r ()
-genCollectionRootMeta = do
-  ic <- getRootImgColId
-  adjustMetaData (defaultColMeta t s c o a <>) ic
+genCollectionRootMeta = withTF go
   where
-    t = tt'collections
-    s = ""
-    c = ""
-    o = ""
-    a = no'delete .|. no'user
+    go t = adjustMetaData (defaultColMeta x s c o a <>) ic
+      where
+        ic = t ^. isoNavTree . theNode . theRootImgCol
+
+        x = tt'collections
+        s = ""
+        c = ""
+        o = ""
+        a = no'delete .|. no'user
 
 -- create the special collections for clipboard and trash
 
 genClipboardCollection :: Eff'ISEJLT r => Sem r ()
 genClipboardCollection =
-  genSysCollection (no'delete .|. no'user)
-  n'clipboard tt'clipboard
+  genSysCollection (no'delete .|. no'user) n'clipboard tt'clipboard
 
 -- collection tree created by user
 genAlbumsCollection :: Eff'ISEJLT r => Sem r ()
@@ -97,31 +98,33 @@ genPhotoCollection =
 genImportsCollection :: Eff'ISEJLT r => Sem r ()
 genImportsCollection =
   genSysCollection (no'delete .|. no'sort .|. no'user)
-  n'imports tt'imports
+                   n'imports tt'imports
 
 genByDateCollection :: Eff'ISEJLT r => Sem r ()
 genByDateCollection =
   genSysCollection all'restr n'bycreatedate tt'bydate
 
 genSysCollection :: Eff'ISEJLT r => Access -> Name -> Text -> Sem r ()
-genSysCollection a n'sys tt'sys = do
-  ic <- getRootImgColId
-  pc <- objid2path ic
-  let sys'path = pc `snocPath` n'sys
-  ex <- lookupByPath sys'path
-
-  case ex of
-    Nothing ->
-      void $ mkColByPath insertColByAppend (const $ mkColMeta' md) sys'path
-    Just (i, _n) ->
-      adjustMetaData (setAcc a) i
+genSysCollection a n'sys tt'sys = withTF go
   where
-    md = defaultColMeta t s c o a
-      where
-        t = tt'sys
-        s = ""
-        c = ""
-        o = ""
+    go t =
+      case ex of
+        Nothing ->
+          void $ mkColByPath insertColByAppend (const $ mkColMeta' md) sp
+        Just (i, _n) ->
+          adjustMetaData (setAcc a) i
+        where
+          ic = t ^. isoNavTree . theNode . theRootImgCol
+          pc = refPath ic t
+          sp = pc `snocPath` n'sys
+          ex = lookupImgPath sp t
+
+          md = defaultColMeta x s c o a
+            where
+              x = tt'sys
+              s = ""
+              c = ""
+              o = ""
 
 -- create directory hierachy for Y/M/D
 mkDateCol :: Eff'ISEJLT r
@@ -168,16 +171,19 @@ mkDateCol (y, m, d) pc = do
 -- dir is newer than the collection. This makes an update pretty fast
 
 img2colPath :: Eff'ISE r => Sem r (Path -> Path)
-img2colPath = do
-  pc <- getRootImgColId >>= objid2path -- the collection root path
+img2colPath = liftTF go
+  where
+    go :: ImgTree -> (Path -> Path)
+    go t = substPathPrefix old'px new'px
+      where
+        cr = t ^. isoNavTree . theNode . theRootImgCol
+        pc = refPath cr t
 
-  -- create root collection for archive dir hierachy
-  let (rootName, pc1) = pc  ^. viewTop
-  let (colName, _pc2) = pc1 ^. viewTop
-  let old'px  = mkPath rootName
-  let new'px  = rootName `consPath` mkPath colName
-
-  return $ substPathPrefix old'px new'px
+        -- create root collection for archive dir hierachy
+        (rootName, pc1) = pc  ^. viewTop
+        (colName, _pc2) = pc1 ^. viewTop
+        old'px          = mkPath rootName
+        new'px          = rootName `consPath` mkPath colName
 
 genAllCollectionsByDir :: Eff'ISEJLT r => Sem r ()
 genAllCollectionsByDir =
