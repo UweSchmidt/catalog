@@ -34,12 +34,14 @@ import qualified Data.Text as T
 log'Obj :: EffIStore r => (Text -> Sem r ()) -> ObjId -> Text -> Sem r ()
 log'Obj logCmd i msg = do
   p <- objid2path i
-  logCmd $ T.unwords [msg, "(" <> i ^.isoText, ", " <> p ^. isoText <> ")"]
+  logCmd $ T.unwords
+           [ msg
+           , "(" <> show i ^. isoText <> ", " <> p ^. isoText <> ")"
+           ]
 
 trc'Obj
   , warn'Obj
-  , verb'Obj :: (EffIStore r, EffLogging r)
-             => ObjId -> Text -> Sem r ()
+  , verb'Obj :: (EffIStore r, EffLogging r) => ObjId -> Text -> Sem r ()
 trc'Obj  = log'Obj log'trc
 warn'Obj = log'Obj log'warn
 verb'Obj = log'Obj log'verb

@@ -23,10 +23,7 @@ import Catalog.Effects
        , log'verb
        , log'trc
        )
-import Catalog.ImgTree.Fold
-       ( foldColColEntries
-       , foldCollections
-       )
+
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
 
@@ -236,57 +233,13 @@ genCollectionsByDir di = do
     path2Subtitle = T.intercalate " \8594 " . listFromPath
     -- path names separated by right arrow
 
-{- old
-    genCol' :: Eff'ISEJLT r => (Path -> Path) -> ObjId -> Sem r ColEntries
-    genCol' fp =
-      foldImgDirs imgA dirA
-      where
-        -- collect all processed jpg images for a single img
-
-        imgA :: Eff'ISEJLT r
-             => ObjId -> ImgParts -> MetaData -> Sem r ColEntries
-        imgA i pts _md = do
-          trc'Obj i $ "genCol img: " <> toText res
-          return $ isoSeqList # res
-            where
-              res = map (mkColImgRef i) $ sort (pts ^.. thePartNamesI)
-
-        -- generate a coresponding collection with all entries
-        -- entries are sorted by name
-
-        dirA :: Eff'ISEJLT r
-             => (ObjId -> Sem r ColEntries)
-             -> ObjId -> DirEntries -> TimeStamp -> Sem r ColEntries
-        dirA go i es _ts = do
-          p  <- objid2path i
-          let cp = fp p
-          trc'Obj i $ "genCol dir " <> toText cp
-
-          -- check or create collection
-          -- with action for meta data
-          ic <- mkColByPath insertColByName setupDirCol cp
-
-          -- get collection entries, and insert them into collection
-          cs  <- fold <$> traverse go es
-
-          trc'Obj ic "genCol dir: set dir contents"
-          adjustColByName cs ic
-          trc'Obj ic "genCol dir: dir contents is set"
-
-          -- set the blog entry, if there's a txt entry in cs
-          setColBlogToFstTxtEntry False ic
-          trc'Obj ic "genCol dir: col blog set"
-
-          return $ Seq.singleton $ mkColColRef ic
--- -}
-
     genCol :: Eff'ISEJLT r => (Path -> Path) -> ObjId -> Sem r ColEntries
     genCol fp = go
       where
         go i = withTF $ \ t ->
           case (t, i) ^. theNode of
             n | isIMG n -> do
-                  trc'Obj i $ "genCol img: " <> toText ires
+                  trc'Obj i $ "genCol img: " <> toText (ires ^. isoSeqList)
                   return ires
 
               | isDIR n -> do
@@ -329,83 +282,6 @@ genCollectionsByDir di = do
                 cres ic' = isoSeqList # [mkColColRef ic']
 
 
--- ----------------------------------------
---
--- collection sort
-
-{- impure edit ops
-
-sortByName :: Eff'ISE r => ColEntries -> Sem r ColEntries
-sortByName =
-  sortColEntries getVal compare
-  where
-
-    -- collections come first and are sorted by name
-    -- images are sorted by name and part name
-    getVal :: Eff'ISE r => ColEntry -> Sem r (Either Name (Name, Name))
-    getVal =
-      colEntry
-      (\ j n1 -> (\ n -> Right (n, n1))  <$> getImgName j)
-      (fmap Left . getImgName)
-
-
-sortByDate :: Eff'ISE r => ColEntries -> Sem r ColEntries
-sortByDate =
-  sortColEntries getVal compare
-  where
-    -- collections come first, should be redundant,
-    -- there should be only images in the collection of a day
-    --
-    -- the images are sorted by creation time and
-    -- if that fails, by name
-
-    getVal =
-      colEntry
-      (\ j n1 -> do
-          md  <- getMetaData j
-          let t = lookupCreate parseTime md
-          return $ Right (t, n1)
-      )
-      (fmap Left . getImgName )
--- -}
--- ----------------------------------------
---
--- set/modify collection entries
-
-{- old
--- add a collection in front of a col entry list
-
-insertColByCons :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
-insertColByCons i = adjustColEntries (Seq.singleton (mkColColRef i) <>)
-
--- add a collection at the end of a col entry list
-
-insertColByAppend :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
-insertColByAppend i = adjustColEntries (<> Seq.singleton (mkColColRef i))
-
--- insert a collection and sort entries by name
-
-insertColByName :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
-insertColByName i = adjustColByName $ Seq.singleton $ mkColColRef i
-
-adjustColByName :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
-adjustColByName = adjustColBy sortByName
-
-adjustColByDate :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
-adjustColByDate = adjustColBy sortByDate
-
-adjustColBy :: Eff'ISEJL r => (ColEntries -> Sem r ColEntries) ->
-               ColEntries ->
-               ObjId -> Sem r ()
-adjustColBy sortCol cs parent'i = do
-  -- log'trc $ "adjustColBy begin"
-  cs'old <- getImgVals parent'i theColEntries
-  -- log'trc $ "adjustColBy" <> show cs'old
-  cs'new <- sortCol $ cs'old `mergeColEntries` cs
-  -- log'trc $ "adjustColBy" <> show cs'new
-  adjustColEntries (const cs'new) parent'i
-  -- log'trc $ "adjustColBy end"
--- -}
 -- ----------------------------------------
 --
 -- new adjust functions using pure ops to edit entries
@@ -481,22 +357,6 @@ sortMerge' cs'new sortCol t cs =
   sortCol t $ mergeColEntries cs cs'new
 
 -- ----------------------------------------
-{- old
-findFstTxtEntry :: Eff'ISEJL r => ObjId -> Sem r (Maybe (Int, ColEntry))
-findFstTxtEntry = findFstColEntry isTxtEntry
-  where
-    isTxtEntry =
-      colEntry
-      (\ i n -> do
-          nd <- getImgVal i
-          let ty = nd ^? theParts . isoImgPartsMap . ix n . theMimeType
-          return $ maybe False isTxtMT ty
-      )
-      (const $ return False)
--- -}
--- take the 1. text entry in a collection
--- and set the collection blog entry to this value
--- rm indicates, whether the entry is removed from the collection
 
 setColBlogToFstTxtEntry :: Eff'ISEJL r => Bool -> ObjId -> Sem r ()
 setColBlogToFstTxtEntry rm i = do
@@ -613,25 +473,6 @@ updateCollectionsByDate es =
 
 -- group col entries by create date
 
-{- old impure add1
-
-colEntries2dateMap :: Eff'ISEL r => ColEntries -> Sem r DateMap
-colEntries2dateMap es = do
-  log'trc "colEntries2dateMap: build DateMap"
-
-  foldlM add1 IM.empty es
-  where
-
-    add1 :: Eff'ISE r => DateMap -> ColEntry -> Sem r DateMap
-    add1 acc ce = do
-      meta <- getMetaData (ce ^. theColObjId)
-      let mdate = (^. isoDateInt) <$> lookupCreate parseDate meta
-      return $
-        maybe acc
-        (\ i' -> IM.insertWith (<>) i' (Seq.singleton ce) acc)
-        mdate
--- -}
-
 colEntries2dateMap :: Eff'ISEL r => ColEntries -> Sem r DateMap
 colEntries2dateMap es = do
   log'trc "colEntries2dateMap: build DateMap"
@@ -705,11 +546,14 @@ mkImportCol ts pc = do
 -- ----------------------------------------
 
 modifyMetaDataRec :: Eff'ISEJL r => (MetaData -> MetaData) -> ObjId -> Sem r ()
-modifyMetaDataRec mf =
-  foldCollections colA
+modifyMetaDataRec mf = go
   where
-    colA go i md im be cs = do
-      adjustMetaData mf i
-      foldColColEntries go i md im be cs
+    go i = withTF $ \ t ->
+      case (t, i) ^. theNode of
+        n | isCOL n -> do
+              adjustMetaData mf i
+              traverseOf_  (theColEntries . traverse . theColColRef) go n
+          | otherwise ->
+              return ()
 
 -- ----------------------------------------
