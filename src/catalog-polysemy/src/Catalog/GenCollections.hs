@@ -475,7 +475,7 @@ sortMerge' cs'new sortCol t cs =
   sortCol t $ mergeColEntries cs cs'new
 
 -- ----------------------------------------
-
+{- old
 findFstTxtEntry :: Eff'ISEJL r => ObjId -> Sem r (Maybe (Int, ColEntry))
 findFstTxtEntry = findFstColEntry isTxtEntry
   where
@@ -487,14 +487,14 @@ findFstTxtEntry = findFstColEntry isTxtEntry
           return $ maybe False isTxtMT ty
       )
       (const $ return False)
-
+-- -}
 -- take the 1. text entry in a collection
 -- and set the collection blog entry to this value
 -- rm indicates, whether the entry is removed from the collection
 
 setColBlogToFstTxtEntry :: Eff'ISEJL r => Bool -> ObjId -> Sem r ()
 setColBlogToFstTxtEntry rm i = do
-  fte <- findFstTxtEntry i
+  fte <- findFstTxtEntry' i
   maybe (return ()) setEntry fte
   where
     setEntry (pos, ImgEnt ir) = do

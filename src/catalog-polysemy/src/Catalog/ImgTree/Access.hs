@@ -48,6 +48,11 @@ module Catalog.ImgTree.Access
   , foldObjIds
   , filterObjIds
   , bitsUsedInImgTreeMap
+
+  , findAllColEntries'
+  , findFstColEntry'
+  , findFstTxtEntry'
+  , findFstPosEntry'
   )
 where
 
@@ -305,6 +310,50 @@ mapPath2ObjId = fmap mkObjId
 
 mapImgStore2ObjId :: ImgStore' Path -> ImgStore
 mapImgStore2ObjId = mapImgStore mkObjId
+
+-- ----------------------------------------
+
+findAllColEntries' :: Eff'ISE r
+                  => (ImgTree -> ColEntry -> Bool)    -- ^ the filter predicate
+                  -> ObjId                            -- ^ the collection
+                  -> Sem r [(Int, ColEntry)]          -- ^ the list of entries with pos
+findAllColEntries' p i = liftTF $ itoTF' (nodeVal . theColEntries) go i
+  where
+    go :: ImgTree -> ColEntries -> [(Int, ColEntry)]
+    go t cs = filter (p t . snd) $ zip [0..] (cs ^. isoSeqList)
+
+findFstColEntry'  :: Eff'ISE r
+                  => (ImgTree -> ColEntry -> Bool)
+                  -> ObjId
+                  -> Sem r (Maybe (Int, ColEntry))
+findFstColEntry' p i = listToMaybe <$> findAllColEntries' p i
+
+
+findFstTxtEntry' :: Eff'ISEJL r => ObjId -> Sem r (Maybe (Int, ColEntry))
+findFstTxtEntry' = findFstColEntry' isTxtEntry
+  where
+    isTxtEntry :: ImgTree -> ColEntry -> Bool
+    isTxtEntry t =
+      colEntry ist (const False)
+      where
+        ist :: ObjId -> Name -> Bool
+        ist i n = maybe False isTxtMT ty
+          where
+          ty = (t, i) ^? theNode
+                       . theParts
+                       . isoImgPartsMap
+                       . ix n
+                       . theMimeType
+
+findFstPosEntry' :: Eff'ISEJL r
+                 => ObjId
+                 -> ObjId -> Sem r Int
+findFstPosEntry' i2 i =
+  maybe (-1) fst <$> findFstColEntry' (const isPosEntry) i
+  where
+    isPosEntry :: ColEntry -> Bool
+    isPosEntry ce = i2 == ce ^. theColObjId
+
 
 -- ----------------------------------------
 --
