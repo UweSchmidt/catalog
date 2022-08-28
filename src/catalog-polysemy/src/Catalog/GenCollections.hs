@@ -26,7 +26,6 @@ import Catalog.Effects
 import Catalog.ImgTree.Fold
        ( foldColColEntries
        , foldCollections
-       , foldImgDirs
        )
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
@@ -608,6 +607,8 @@ updateCollectionsByDate es =
 
 -- group col entries by create date
 
+{- old impure add1
+
 colEntries2dateMap :: Eff'ISEL r => ColEntries -> Sem r DateMap
 colEntries2dateMap es = do
   log'trc "colEntries2dateMap: build DateMap"
@@ -623,6 +624,31 @@ colEntries2dateMap es = do
         maybe acc
         (\ i' -> IM.insertWith (<>) i' (Seq.singleton ce) acc)
         mdate
+-- -}
+
+colEntries2dateMap :: Eff'ISEL r => ColEntries -> Sem r DateMap
+colEntries2dateMap es = do
+  log'trc "colEntries2dateMap: build DateMap"
+  liftTF go
+  where
+    go :: ImgTree -> DateMap
+    go t =
+      foldl add1 IM.empty es
+      where
+        add1 :: DateMap -> ColEntry -> DateMap
+        add1 acc ce =
+          (maybe id ins mdate) acc
+          where
+            meta  = ce ^. theColObjId
+                        . to (t,)
+                        . theNode
+                        . theMetaData
+
+            mdate = meta ^? to (lookupCreate parseDate)
+                        . traverse
+                        . isoDateInt
+
+            ins d = IM.insertWith (<>) d (Seq.singleton ce)
 
 -- create/update day collection with a col entry sets
 -- pc is the path to the y/m/d collection hierachy
