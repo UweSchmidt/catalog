@@ -32,7 +32,6 @@ module Data.ImgTree.ImgNode
        , isROOT
        , isCOL
        , isemptyDIR
-       , isemptyCOL
        , isColColRef
        , isColImgRef
        , colEntry
@@ -131,10 +130,6 @@ instance IsEmpty (ImgNode' ref) where
 isemptyDIR :: ImgNode' ref -> Bool
 isemptyDIR (DIR es _ts)         = isempty es
 isemptyDIR _                    = False
-
-isemptyCOL :: ImgNode' ref -> Bool
-isemptyCOL (COL _md _im _be es) = isempty es
-isemptyCOL _                    = False
 
 instance ToJSON ref => ToJSON (ImgNode' ref) where
   toJSON (IMG pm md) = J.object

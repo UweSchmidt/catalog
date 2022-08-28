@@ -59,14 +59,12 @@ lookupImgPath =
   lookupDirPath mkObjId
 {-# INLINE lookupImgPath #-}
 
--- | remove an image node or a dir node without entries
+-- | remove an image node or a col/dir node without entries
 removeImgNode :: ObjId
               -> ImgTree
               -> Except String ImgTree
 removeImgNode =
-  remDirNode isRemovable removeChildRef
-  where
-    isRemovable n = isIMG n || isemptyDIR n || isemptyCOL n
+  remDirNode (hasn't imgNodeRefs) removeChildRef
 {-# INLINE removeImgNode #-}
 
 addChildRef :: ObjId -> ImgNode -> ImgNode

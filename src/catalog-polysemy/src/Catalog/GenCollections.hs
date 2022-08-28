@@ -231,6 +231,7 @@ genCollectionsByDir di = do
     path2Subtitle = T.intercalate " \8594 " . listFromPath
     -- path names separated by right arrow
 
+{- old
     genCol' :: Eff'ISEJLT r => (Path -> Path) -> ObjId -> Sem r ColEntries
     genCol' fp =
       foldImgDirs imgA dirA
@@ -272,6 +273,7 @@ genCollectionsByDir di = do
           trc'Obj ic "genCol dir: col blog set"
 
           return $ Seq.singleton $ mkColColRef ic
+-- -}
 
     genCol :: Eff'ISEJLT r => (Path -> Path) -> ObjId -> Sem r ColEntries
     genCol fp = go
@@ -326,7 +328,7 @@ genCollectionsByDir di = do
 --
 -- collection sort
 
--- {- impure edit ops
+{- impure edit ops
 
 sortByName :: Eff'ISE r => ColEntries -> Sem r ColEntries
 sortByName =
@@ -365,7 +367,7 @@ sortByDate =
 --
 -- set/modify collection entries
 
--- {- old
+{- old
 -- add a collection in front of a col entry list
 
 insertColByCons :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
@@ -412,7 +414,8 @@ adjustColBy' sortCol cs parent'i =
   adjustColEntries' (sortMerge' cs sortCol) parent'i
 
 -- --------------------
-{- new pure
+-- {- new pure
+
 adjustColByName :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
 adjustColByName = adjustColBy' sortByName'
 

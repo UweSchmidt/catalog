@@ -20,6 +20,7 @@ module Catalog.ImgTree.Modify
   , adjustColEntries
   , adjustColEntries'
   , adjustColEntry
+
   , remColEntry
   , setSyncTime
   )

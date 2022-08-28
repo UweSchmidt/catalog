@@ -57,13 +57,6 @@ import Catalog.ImgTree.Access
        , objid2path
        )
 import Catalog.ImgTree.Modify
-       ( adjustColBlog
-       , adjustColEntries
-       , adjustColImg
-       , adjustMetaData
-       , mkCollection
-       , rmImgNode
-       )
 
 -- import Data.ColEntrySet ( ColEntrySet
 --                         , memberColEntrySet
@@ -210,8 +203,11 @@ rmRec = foldMT imgA dirA foldRoot colA
         rmImgNode i
 
     colA go i _md _im _be cs = do
+      adjustColBlog (const Nothing) i
+      adjustColImg  (const Nothing) i
+
       log'trc $ "colA: " <> toText cs
-      let cs' = Seq.filter isColColRef cs      -- remove all images
+      let cs' = Seq.filter isColColRef cs  -- remove all images
       adjustColEntries (const cs') i       -- store remaining collections
 
       log'trc $ "colA: " <> toText cs'

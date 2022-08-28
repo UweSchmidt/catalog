@@ -366,7 +366,7 @@ nodeStats = to f
     f COL{}  = (mempty, Sum 1, mempty, mempty, mempty)
     f DIR{}  = (mempty, mempty, Sum 1, mempty, mempty)
     f IMG{}  = (mempty, mempty, mempty, Sum 1, mempty)
-    f NONO   = (mempty, mempty, mempty, mempty, Sum 1)
+    f NONO{} = (mempty, mempty, mempty, mempty, Sum 1)
 
 
 imgTreeStats :: Fold NavTree NodeStats
