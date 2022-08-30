@@ -26,13 +26,8 @@ import Catalog.Effects
        , local
        , ask
        )
-import Catalog.ImgTree.Fold
-       ( foldMT )
 
 import Catalog.ImgTree.Access
-       ( objid2path
-       , getImgVals
-       )
 import Catalog.MetaData.Exif
        ( setMD )
 
@@ -56,50 +51,58 @@ type Eff'MDSync r = ( EffIStore   r
                     , EffFileSys  r
                     )
 
-syncTheMetaData :: Eff'MDSync r
-                => Bool -> Bool -> ObjId -> Sem r ()
+syncTheMetaData :: Eff'MDSync r => Bool -> Bool -> ObjId -> Sem r ()
 syncTheMetaData recursive force i
   | force     = local @CatEnv (catForceMDU .~ True) $
                 syncAllMetaData recursive i
   | otherwise = syncAllMetaData recursive i
 
-syncAllMetaData :: Eff'MDSync r
-                => Bool -> ObjId -> Sem r ()
-syncAllMetaData recursive i0 = do
-  p <- objid2path i0
-  log'trc $ "syncAllMetaData for: " <> toText (i0, p)
 
-  foldMT imgA dirA rootA colA i0
+syncAllMetaData :: Eff'MDSync r => Bool -> ObjId -> Sem r ()
+syncAllMetaData recursive = go
   where
-    imgA = syncMetaData'
+    go i = withTF $ \ t -> do
+      log'trc $ "syncAllMetaData for: " <> toText (i, refPath i t)
 
-    -- traverse the DIR
-    dirA go _i es _ts
-      | recursive = traverse_ go           es
-      | otherwise = traverse_ syncMetaData es
+      case (t, i) ^. theNode of
+        n | isIMG n ->
+              syncMetaData' i (n ^. theParts) (n ^. theMetaData)
 
-    -- we only need to traverse the DIR hierachy
-    rootA go _i dir _col = go dir
+          | isDIR n ->
+              traverseOf_ (theDirEntries . traverse)
+                          ( if recursive
+                            then go
+                            else syncMetaData
+                          ) n
 
-    -- for a COL the col img and the entries must be traversed
-    colA go _i _md im _be es = do
-      traverse_ (go . (\(ImgRef i' _name) -> i')) im
-      traverse_ go' es
-        where
-          go' = colEntry'
-                (go . _iref)
-                ( when recursive . go)
+          | isROOT n ->
+              go (n ^. theRootImgDir)
+
+          | isCOL n -> do
+              traverseOf_ (theColImg     . traverse . imgref) go  n
+              traverseOf_ (theColBlog    . traverse . imgref) go  n
+              traverseOf_ (theColEntries . traverse         ) go' n
+
+          | otherwise ->
+              return ()
+
+          where
+            go' = colEntry'
+                  (go . (^. imgref))
+                  (when recursive . go)
 
 -- i must be an objid pointing to am ImgNode
 -- else this becomes a noop
 
 syncMetaData :: Eff'MDSync r => ObjId -> Sem r ()
-syncMetaData i = do
-  ps <- getImgVals i theParts
-  md <- getImgVals i theMetaData
-  unless (isempty ps) $
-    syncMetaData' i ps md
-
+syncMetaData i = withTF go
+  where
+    go t = unless (isempty ps) $
+           syncMetaData' i ps md
+      where
+        n  = (t, i) ^. theNode
+        ps = n ^. theParts
+        md = n ^. theMetaData
 
 syncMetaData' :: Eff'MDSync r => ObjId -> ImgParts -> MetaData -> Sem r ()
 syncMetaData' i ps md'old = do
