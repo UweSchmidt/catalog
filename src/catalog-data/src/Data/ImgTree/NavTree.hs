@@ -297,8 +297,8 @@ allUndefinedObjIds = allObjIdsBy isempty
 allImgObjIds       :: NavTree -> ObjIds
 allImgObjIds       = allObjIdsBy isIMG
 
-allColObjIds       :: NavTree -> ObjIds
-allColObjIds       = allObjIdsBy isCOL
+allColObjIds'       :: NavTree -> ObjIds
+allColObjIds'       = allObjIdsBy isCOL
 
 allDirObjIds       :: NavTree -> ObjIds
 allDirObjIds       = allObjIdsBy isDIR
@@ -318,7 +318,7 @@ allObjIdsBy p = foldToObjIds (allTrees . filteredByNode p . _2)
 {-# INLINE allDefinedObjIds #-}
 {-# INLINE allUndefinedObjIds #-}
 {-# INLINE allImgObjIds #-}
-{-# INLINE allColObjIds #-}
+-- {-# INLINE allColObjIds #-}
 {-# INLINE allDirObjIds #-}
 {-# INLINE foldToObjIds #-}
 {-# INLINE allObjIdsBy #-}

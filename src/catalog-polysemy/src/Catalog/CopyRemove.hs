@@ -9,9 +9,6 @@ module Catalog.CopyRemove
   , cleanupColByPath
   , cleanupAllCollections
   , cleanupCollections
-  , selectCollections
-  , filterCols
-  , filterDirs
   , AdjustImgRef
   , AdjustColEnt
   , cleanupRefs'
@@ -27,71 +24,28 @@ import Catalog.Effects
        , Eff'ISEJL
        )
 import Catalog.ImgTree.Fold
-       ( allColObjIds
-       , allImgObjIds
-       , foldColEntries
+       ( foldColEntries
        , foldCollections
        , foldDir
        , foldMT
-       , foldMTU
        , foldRoot
-       , foldRootCol
-       , foldRootDir
-       , ignoreCol
        , ignoreDir
        , ignoreImg
        , ignoreRoot
        )
 import Catalog.ImgTree.Access
-       ( foldObjIds
-       , getIdNode
-       , getImgName
-       , getImgParent
-       , getImgVal
-       , getImgVals
-       , getRootId
-       , getRootImgColId
-       , getTreeAt
-       , isPartOfTree
-       , lookupByPath
-       , objid2path
-       )
 import Catalog.ImgTree.Modify
 
 -- import Data.ColEntrySet ( ColEntrySet
 --                         , memberColEntrySet
 --                         )
-import Data.ImgTree
-       ( colEntry'
-       , isCOL
-       , isColColRef
-       , isROOT
-       , isemptyDIR
-       , isoDirEntries
-       , mkColColRef
-       , theColBlog
-       , theColColRef
-       , theColEntries
-       , theColImg
-       , theColMetaData
-       , theMetaData
-       , thePartNamesI
-       , theParts
-       , nodeVal
-       , ColEntry'(ColEnt, ImgEnt)
-       , ImgNode'(COL)
-       , ImgRef
-       , ImgRef'(ImgRef)
-       , ObjIds
-       , ColEntries
-       , ColEntry
-       )
+import Data.ImgTree hiding (allImgObjIds)
 import Data.MetaData
        ( isRemovable )
 
 import Data.Prim
 
-import qualified Data.Set        as S
+-- import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
 
 -- ----------------------------------------
@@ -228,6 +182,7 @@ removeEmptyColls p = do
   i <- fst <$> getIdNode "removeEntry: entry not found " p
   rmEmptyRec i
 
+{- old
 rmEmptyRec :: Eff'ISEJL r => ObjId -> Sem r ()
 rmEmptyRec i0 = foldCollections colA i0
   where
@@ -239,6 +194,29 @@ rmEmptyRec i0 = foldCollections colA i0
       when (null cs' && i /= i0) $ do
         p <- objid2path i
         log'trc $ msgPath p "rmEmptyRec: remove empty collection "
+        rmImgNode i
+-}
+
+rmEmptyRec :: Eff'ISEJL r => ObjId -> Sem r ()
+rmEmptyRec i0 = go i0
+  where
+    go i = withTF $ \ t ->
+      case (t, i) ^. theNode of
+        n | isCOL n -> do
+              -- rem empty subcollections
+              traverseOf_ (theColEntries . traverse . theColColRef) go n
+              -- rem entry, when afterwards the coll itself is empty
+              remEmpty i
+          | otherwise ->
+              return ()
+
+    remEmpty i = withTF $ \ t ->
+      when ( hasn't (theNode . imgNodeRefs) (t, i)
+             &&
+             i /= i0
+           ) $
+      do
+        log'trc $ msgPath (refPath i t) "rmEmptyRec: remove empty collection "
         rmImgNode i
 
 -- ----------------------------------------
@@ -417,60 +395,5 @@ cleanupRefs' adjIR adjCE =
                             then ci : res
                             else      res
               )
-
--- ----------------------------------------
-
-selectCollections :: Eff'ISEJL r => ObjIds -> Sem r ()
-selectCollections cols = do
-  subcols <- foldObjIds allColObjIds cols
-  filterCols subcols                   -- remove all but these collections
-
-  imgs <- getRootImgColId
-          >>=
-          allImgObjIds                 -- collect all image refs in remaining cols
-  filterDirs imgs                      -- remove all images except these from dir
-
-  return ()                            -- everything not selected is removed
-
-filterDirs :: Eff'ISEJL r => ObjIds -> Sem r ()
-filterDirs imgs =
-  getRootId >>= foldMTU imgA dirA foldRootDir ignoreCol
-  where
-    imgA i _pts _md
-      | i `S.member` imgs =                 -- image referenced
-          return ()                         -- don't touch
-      | otherwise =                         -- else
-          rmImgNode i                       -- remove it
-
-    dirA go i es ts = do
-      void $ foldDir go i es ts             -- remove all images in sudirs
-
-      e <- isemptyDIR <$> getImgVal i       -- dir now empty?
-      when e $ do
-        r <- isROOT                         -- and
-             <$>
-             (getImgParent i >>= getImgVal) -- dir not top level (child of root)?
-        unless r $
-          rmRec i                           -- remove dir
-
-filterCols :: Eff'ISEJL r => ObjIds -> Sem r ()
-filterCols cols =
-  getRootId >>= foldMTU ignoreImg ignoreDir foldRootCol colA
-  where
-    colA go i md im be es
-      | i `S.member` cols =                 -- collection selected?
-          return ()                         -- don't touch it
-      | otherwise = do
-          a <- isAncestorCol i              -- ancestor of a selected col?
-          if a
-            then                            -- traverse subcollections
-              foldColEntries go i md im be es
-            else
-              rmRec i                       -- not selected, remove
-
-    isAncestorCol i =
-      getAny <$> foldObjIds isAnc cols
-      where
-        isAnc c = Any <$> isPartOfTree c i
 
 -- ----------------------------------------
