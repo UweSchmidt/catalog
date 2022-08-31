@@ -6,9 +6,6 @@ module Catalog.CopyRemove
   , rmRec
   , dupColRec
   , removeEmptyColls
-  , cleanupColByPath
-  , cleanupAllCollections
-  , cleanupCollections
   , AdjustImgRef
   , AdjustColEnt
   , cleanupRefs'
@@ -17,21 +14,16 @@ where
 
 import Catalog.Effects
        ( log'trc
-       , log'verb
-       , log'warn
+--       , log'verb
+--       , log'warn
        , throw
        , Sem
        , Eff'ISEJL
        )
 import Catalog.ImgTree.Fold
-       (-- foldColEntries
-       -- ,
-         foldDir
+       ( foldDir
        , foldMT
        , foldRoot
- --      , ignoreDir
- --      , ignoreImg
---       , ignoreRoot
        )
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
@@ -110,33 +102,6 @@ createColCopy target'path src'id = do
 
 -- create a copy of all collection entries at path
 -- computed by path edit function pf and source path
-
-{- old with foldMT
-copyColEntries :: Eff'ISEJL r => (Path -> Path) -> ObjId -> Sem r ()
-copyColEntries pf =
-      foldMT ignoreImg ignoreDir ignoreRoot colA
-      where
-        colA go i md im be cs = do
-          dst'i  <- mkObjId . pf <$> objid2path i
-          dst'cs <- mapM copy cs
-          adjustColEntries (const dst'cs) dst'i
-          adjustColImg     (const im    ) dst'i
-          adjustColBlog    (const be    ) dst'i
-
-          -- recurse into subcollections
-          foldColEntries go i md im be cs
-          where
-
-            copy :: Eff'ISEJL r => ColEntry -> Sem r ColEntry
-            copy ce =
-              colEntry'
-              (\ _ir -> return ce)
-              (\ i'  -> do
-                  copy'path <- pf <$> objid2path i'
-                  mkColColRef <$> createColCopy copy'path i'
-              )
-              ce
- -}
 
 copyColEntries :: Eff'ISEJL r => (Path -> Path) -> ObjId -> Sem r ()
 copyColEntries pf = go
@@ -238,97 +203,6 @@ rmEmptyRec i0 = go i0
       do
         log'trc $ msgPath (refPath i t) "rmEmptyRec: remove empty collection "
         rmImgNode i
-
--- ----------------------------------------
-
--- traverse all collections and
--- remove entries of images not longer there
--- this is neccessary for consistent collections,
--- when a sync has been done
--- and some images have been deleted
---
--- after a sync run and before the byDate collections are
--- updated, removed images must also be removed in the collections
--- especially in the byDate collections
-
-cleanupColByPath :: Eff'ISEJL r => Path -> Sem r ()
-cleanupColByPath p = do
-  log'verb $ msgPath p "cleanupColByPath: cleanup col: "
-  lookupByPath p >>= maybe (return ()) (cleanupCollections . fst)
-
-cleanupAllCollections :: Eff'ISEJL r => Sem r ()
-cleanupAllCollections =
-  getRootImgColId >>= cleanupCollections
-
-cleanupCollections :: Eff'ISEJL r => ObjId -> Sem r ()
-cleanupCollections i0 = do
-  p <- objid2path i0
-  log'trc $
-    msgPath p "cleanupcollections: existence check of images referenced in "
-
-  cleanup i0
-
-  log'trc $
-    msgPath p "cleanupcollections: cleanup finished in "
-  where
-
-    cleanup :: Eff'ISEJL r => ObjId -> Sem r ()
-    cleanup i = do
-      n <- getImgVal i
-      case n of
-        COL _md im be es -> do
-          cleanupIm i im
-          cleanupBe i be
-          cleanupEs i es
-        _ ->
-          return ()
-      where
-
-        cleanupIm :: Eff'ISEJL r => ObjId -> Maybe ImgRef -> Sem r ()
-        cleanupIm i' (Just ir) =
-          unlessM (exImg ir) $
-            adjustColImg (const Nothing) i'
-        cleanupIm _ Nothing =
-          return ()
-
-        cleanupBe :: Eff'ISEJL r => ObjId -> Maybe ImgRef -> Sem r ()
-        cleanupBe i' (Just ir) =
-          unlessM (exImg ir) $
-            adjustColBlog (const Nothing) i'
-        cleanupBe _ Nothing =
-          return ()
-
-        cleanupEs :: Eff'ISEJL r => ObjId -> ColEntries -> Sem r ()
-        cleanupEs i' es = do
-          es' <- filterSeqM cleanupE es
-          unless (length es' == length es) $
-            adjustColEntries (const es') i'
-          where
-            cleanupE :: Eff'ISEJL r => ColEntry -> Sem r Bool
-            cleanupE (ImgEnt ir) =
-              exImg ir
-            cleanupE (ColEnt j) = do
-              -- recurse into subcollection and cleanup
-              cleanup j
-              j'not'empty <- not . null <$> getImgVals j theColEntries
-              -- if collection is empty, remove it
-              unless j'not'empty $
-                rmRec j
-              return j'not'empty
-
-        exImg :: Eff'ISEJL r => ImgRef -> Sem r Bool
-        exImg (ImgRef i' n') = do
-          e <- getTreeAt i'
-          let ex = elemOf ( nodeVal
-                          . theParts
-                          . thePartNamesI
-                          ) n' e
-          unless ex $
-            log'warn $
-            "exImg: image ref found in a collection for a deleted image: "
-            <> toText (i', n')
-
-          return ex
 
 -- ----------------------------------------
 --
