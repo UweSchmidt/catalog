@@ -24,14 +24,14 @@ import Catalog.Effects
        , Eff'ISEJL
        )
 import Catalog.ImgTree.Fold
-       ( foldColEntries
-       , foldCollections
-       , foldDir
+       (-- foldColEntries
+       -- ,
+         foldDir
        , foldMT
        , foldRoot
-       , ignoreDir
-       , ignoreImg
-       , ignoreRoot
+ --      , ignoreDir
+ --      , ignoreImg
+--       , ignoreRoot
        )
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
@@ -102,7 +102,7 @@ createColCopy target'path src'id = do
 
   -- copy collection attributes
   n <- getImgVal src'id
-  adjustMetaData (const $ n ^. theColMetaData) col'id
+  adjustMetaData (const $ n ^. theColMetaData)        col'id
   adjustColImg   (const $ join $ n ^? theColImg)      col'id
   adjustColBlog  (const $ join $ n ^? theColBlog)     col'id
   return col'id
@@ -111,6 +111,7 @@ createColCopy target'path src'id = do
 -- create a copy of all collection entries at path
 -- computed by path edit function pf and source path
 
+{- old with foldMT
 copyColEntries :: Eff'ISEJL r => (Path -> Path) -> ObjId -> Sem r ()
 copyColEntries pf =
       foldMT ignoreImg ignoreDir ignoreRoot colA
@@ -134,6 +135,40 @@ copyColEntries pf =
                   copy'path <- pf <$> objid2path i'
                   mkColColRef <$> createColCopy copy'path i'
               )
+              ce
+ -}
+
+copyColEntries :: Eff'ISEJL r => (Path -> Path) -> ObjId -> Sem r ()
+copyColEntries pf = go
+  where
+    go i = withTF $ \ t ->
+      case (t, i) ^. theNode of
+        n | isCOL n -> do
+              -- copy col img
+              traverseOf_ theColImg  (\ im -> adjustColImg  (const im) dst'i) n
+
+              -- copy col blog
+              traverseOf_ theColBlog (\ be -> adjustColBlog (const be) dst'i) n
+
+              -- copy col entries
+              -- create entries: copy ImgRefs, create empty cols for ColRefs
+              dst'cs <- traverse copy (n ^. theColEntries)
+              -- set col entries
+              adjustColEntries (const dst'cs) dst'i
+              -- recurse into subcollections
+              traverseOf_ (theColEntries . traverse . theColColRef) go n
+
+          | otherwise ->
+              return ()
+          where
+            pf' i1 = pf (refPath i1 t)
+            dst'i  = mkObjId (pf' i)
+
+            copy :: Eff'ISEJL r => ColEntry -> Sem r ColEntry
+            copy ce =
+              colEntry'
+              (\ _ir -> return ce)
+              (\ i'  -> mkColColRef <$> createColCopy (pf' i') i')
               ce
 
 -- ----------------------------------------
@@ -181,21 +216,6 @@ removeEmptyColls :: Eff'ISEJL r => Path -> Sem r ()
 removeEmptyColls p = do
   i <- fst <$> getIdNode "removeEntry: entry not found " p
   rmEmptyRec i
-
-{- old
-rmEmptyRec :: Eff'ISEJL r => ObjId -> Sem r ()
-rmEmptyRec i0 = foldCollections colA i0
-  where
-    colA go i md im be cs = do
-      -- log'trc $ "rmEmptyRec: recurse into subdirs"
-      void $ foldColEntries go i md im be cs
-
-      cs' <- getImgVals i theColEntries
-      when (null cs' && i /= i0) $ do
-        p <- objid2path i
-        log'trc $ msgPath p "rmEmptyRec: remove empty collection "
-        rmImgNode i
--}
 
 rmEmptyRec :: Eff'ISEJL r => ObjId -> Sem r ()
 rmEmptyRec i0 = go i0
@@ -324,76 +344,78 @@ type AdjustColEnt = ColEntries   -> Maybe  ColEntries
 
 cleanupRefs' :: forall r. Eff'ISEJL r
              =>  AdjustImgRef -> AdjustColEnt -> ObjId -> Sem r ()
-cleanupRefs' adjIR adjCE =
-  foldCollections colA
+cleanupRefs' adjIR adjCE = go
   where
-    colA go i _md im be es = do
-      p <- objid2path i
-      cleanupIm p
-      cleanupBe p
-      cleanupEs p
-      cleanupSubCols
-      removeEmptySubCols
-      return ()
-      where
+    go i = withTF $ \ t ->
+      case (t, i) ^. theNode of
+        n | isCOL n -> do
+              traverseOf_ theColImg     cleanupIm n
+              traverseOf_ theColBlog    cleanupBe n
+              traverseOf_ theColEntries cleanupEs n
+              traverseOf_ (theColEntries . traverse)
+                          (colEntry' (const $ return ()) go)
+                          n
+              removeEmptySubCols i
+              return ()
 
-        cleanupIm :: Eff'ISEJL r => Path -> Sem r ()
-        cleanupIm p = case adjIR im of
-          Nothing -> return ()
-          Just new'im -> do
-            log'trc $ msgPath p "cleanupRefs: col img changed: "
-            log'trc $ "old: " <> toText im
-            log'trc $ "new: " <> toText new'im
-            adjustColImg (const new'im) i
+          | otherwise ->
+              return ()
 
-        cleanupBe :: Eff'ISEJL r => Path -> Sem r ()
-        cleanupBe p = case adjIR be of
-          Nothing -> return ()
-          Just new'be -> do
-            log'trc $ msgPath p "cleanupRefs: col blog changed: "
-            log'trc $ "old: " <> toText be
-            log'trc $ "new: " <> toText new'be
-            adjustColBlog (const new'be) i
-
-        cleanupEs :: Eff'ISEJL r => Path -> Sem r ()
-        cleanupEs p = case adjCE es of
-          Nothing -> return ()
-          Just new'es -> do
-            log'trc $ msgPath p "cleanupRefs: col entries changed: "
-            log'trc $ "old: " <> toText (es     ^. isoSeqList)
-            log'trc $ "new: " <> toText (new'es ^. isoSeqList)
-            adjustColEntries (const new'es) i
-
-        cleanupSubCols :: Eff'ISEJL r => Sem r ()
-        cleanupSubCols =
-          traverse_ cleanupSubCol es
           where
-            cleanupSubCol =
-              colEntry' (const $ return ()) go
+            p  = refPath i t
 
-        removeEmptySubCols :: Eff'ISEJL r => Sem r ()
-        removeEmptySubCols = do
-          -- recompute colentries, maybe modified by calls of cleanupSubCol
-          es1 <- getImgVals i theColEntries
-          es2 <- emptySubCols es1
-          mapM_ rmRec es2
+            cleanupIm :: Eff'ISEJL r => Maybe ImgRef -> Sem r ()
+            cleanupIm im = case adjIR im of
+              Nothing -> return ()
+              Just new'im -> do
+                log'trc $ msgPath p "cleanupRefs: col img changed: "
+                log'trc $ "old: " <> toText im
+                log'trc $ "new: " <> toText new'im
+                adjustColImg (const new'im) i
 
-        emptySubCols :: Eff'ISEJL r => ColEntries -> Sem r [ObjId]
-        emptySubCols = foldM checkESC []
-          where
-            checkESC :: Eff'ISEJL r => [ObjId] -> ColEntry -> Sem r [ObjId]
-            checkESC res =
-              colEntry'
-              (\ _i -> return res)
-              (\ ci -> do cn <- getImgVal ci
-                          return $
-                            if isCOL cn
-                               &&
-                               null (cn ^. theColEntries)
-                               &&
-                               isRemovable (cn ^. theMetaData)
-                            then ci : res
-                            else      res
-              )
+            cleanupBe :: Eff'ISEJL r => Maybe ImgRef -> Sem r ()
+            cleanupBe be = case adjIR be of
+              Nothing -> return ()
+              Just new'be -> do
+                log'trc $ msgPath p "cleanupRefs: col blog changed: "
+                log'trc $ "old: " <> toText be
+                log'trc $ "new: " <> toText new'be
+                adjustColBlog (const new'be) i
+
+            cleanupEs :: Eff'ISEJL r => ColEntries -> Sem r ()
+            cleanupEs es = case adjCE es of
+              Nothing -> return ()
+              Just new'es -> do
+                log'trc $ msgPath p "cleanupRefs: col entries changed: "
+                log'trc $ "old: " <> toText (es     ^. isoSeqList)
+                log'trc $ "new: " <> toText (new'es ^. isoSeqList)
+                adjustColEntries (const new'es) i
+
+
+removeEmptySubCols :: Eff'ISEJL r => ObjId -> Sem r ()
+removeEmptySubCols i = withTF go
+  where
+    go t =
+      traverseOf_
+        (theNode . theColEntries . traverse . emptySubCol' t)
+        rmRec
+        (t, i)
+
+emptySubCol' :: ImgTree -> Fold ColEntry ObjId
+emptySubCol' t = folding go
+  where
+    go ce =
+      ce ^.. theColColRef
+           . filteredBy
+             ( to (t,)
+             . theNode
+             . filtered
+               ( \ n -> isCOL n
+                        &&
+                        hasn't (theColEntries . traverse) n
+                        &&
+                        isRemovable (n ^. theMetaData)
+               )
+             )
 
 -- ----------------------------------------
