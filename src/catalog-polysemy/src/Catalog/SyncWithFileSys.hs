@@ -68,8 +68,6 @@ import Catalog.TimeStamp
        )
 
 import Data.ImgTree
--- import Data.MetaData
---       ( MetaData )
 
 import Data.Prim
 
@@ -200,66 +198,6 @@ collectImgRefs i0 = liftTF $ flip col i0
         | otherwise ->
             mempty
 
-{- old
-collectImgRefs :: Eff'ISEL r
-               => ObjId -> Sem r ImgRefMap
-collectImgRefs =
-  foldMT imgA dirA rootA colA
-  where
-    -- collect all used ImgRef's by traversing the collection hierachy
-    colA :: (EffIStore r, EffLogging r)
-         => (ObjId -> Sem r ImgRefMap)
-         -> ObjId
-         -> MetaData
-         -> Maybe ImgRef
-         -> Maybe ImgRef
-         -> ColEntries
-         -> Sem r ImgRefMap
-    colA go  i _md im be cs = do
-      p              <- objid2path i
-      log'trc        $  msgPath p "collectImgRefs: used refs in coll "
-      let imref      =  im ^.. traverse
-      let beref      =  be ^.. traverse
-      let (crs, irs) =  partition isColColRef (cs ^. isoSeqList)
-      let irs1       =  irs ^.. traverse . theColImgRef
-      let irs2       =  S.fromList $ imref <> beref <> irs1
-      subs           <- traverse go (crs ^.. traverse . theColColRef)
-      return         $  M.insert i irs2 $ M.unions subs
-
-    -- collect all defined ImgRef's by traversing the dir hierachy
-    -- the refs to an IMG are processed in place
-    -- the sub DIR's are processed by the recursive call go i'
-    dirA go i es  _ts = do
-      p <- objid2path i
-      log'trc $ msgPath p "collectImgRefs: defined refs in dir "
-
-      foldM (\ acc' i' -> do
-                m1 <- coll i'
-                return $ M.unionWith S.union m1 acc'
-            ) mempty es
-      where
-        coll i' = do
-          n' <- getImgVal i'
-          case n' of
-            IMG pts _md -> do
-              let irs =
-                    foldr (S.insert . ImgRef i') mempty $
-                    pts ^.. thePartNamesI
-              return $ M.singleton i irs
-
-            _dir ->
-              go i'
-
-    -- traverse the collection hierarchy
-    -- all defined and used image refs
-    rootA go _i dir col =
-      M.unionWith S.union <$> go dir <*> go col
-
-    -- do nothing for img nodes, just to get a complete definition
-    -- the IMG entries are processed in dirA
-    imgA _ _pts _md =
-      return mempty
--}
 -- --------------------
 
 updateAllImgRefs :: Eff'ISEJL r => ImgRefUpdateMap -> Sem r ()
@@ -537,14 +475,23 @@ syncDirCont recursive i = do
         new'i = mkObjId (p `snocPath` n)
 
 
-collectImgCont :: (EffError r, EffLogging r, EffCatEnv r, EffIStore r, EffFileSys r)
+collectImgCont :: ( EffError  r, EffLogging r, EffCatEnv r
+                  , EffIStore r, EffFileSys r)
                => ObjId -> Sem r ClassifiedNames
-collectImgCont i = do
-  nm <- getImgName   i
-  ip <- getImgParent i
-  cs <- snd <$> collectDirCont ip
-  return $ concat . take 1 . filter (^. to head . _2 . _1 . to (== nm)) $ cs
+collectImgCont i = withTF go
+  where
+    go t = rs <$> collectDirCont ip
+      where
+        e  = (t, i) ^. theEntry
+        nm =      e ^. nodeName
+        ip =      e ^. parentRef
 
+        rs :: ([Name], [ClassifiedNames]) -> ClassifiedNames
+        rs r =
+          r ^.. _2
+              . traverse
+              . filteredBy (_head . _2 . _1 . filtered (== nm))
+              . _head
 
 collectDirCont :: (EffLogging r, EffCatEnv r, EffIStore r, EffFileSys r)
                => ObjId -> Sem r ([Name], [ClassifiedNames])
