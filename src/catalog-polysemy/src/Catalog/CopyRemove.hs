@@ -14,31 +14,19 @@ where
 
 import Catalog.Effects
        ( log'trc
---       , log'verb
---       , log'warn
        , throw
        , Sem
        , Eff'ISEJL
        )
-import Catalog.ImgTree.Fold
-       ( foldDir
-       , foldMT
-       , foldRoot
-       )
+
 import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
 
--- import Data.ColEntrySet ( ColEntrySet
---                         , memberColEntrySet
---                         )
-import Data.ImgTree hiding (allImgObjIds)
+import Data.ImgTree
 import Data.MetaData
        ( isRemovable )
 
 import Data.Prim
-
--- import qualified Data.Set        as S
-import qualified Data.Sequence   as Seq
 
 -- ----------------------------------------
 
@@ -143,34 +131,51 @@ removeEntry p = do
   i <- fst <$> getIdNode "removeEntry: entry not found " p
   rmRec i
 
+-- remove a subtree of entries (COL, DIR, IMG)
+
 rmRec :: Eff'ISEJL r => ObjId -> Sem r ()
-rmRec = foldMT imgA dirA foldRoot colA
+rmRec = go
   where
-    imgA i _p _md = rmImgNode i
+    go i = withTF $ \ t ->
+      let en = (t, i) ^. theEntry
+          n  = en ^. nodeVal
+          pr = en ^. parentRef
+          rm = unless (isROOT $ (t, pr) ^. theNode)
+                 (rmImgNode i)
+      in
+        do
+          log'trc $ "rmRec: " <> toText (i, n)
 
-    dirA go i es ts = do
-      log'trc $ "dirA: " <> toText (i, es ^. isoDirEntries)
-      void $ foldDir go i es ts            -- process subdirs first
+          case n of
+            _ | isIMG n ->      -- this case is only reached from DIR entries
+                  rm
 
-      pe <- getImgParent i >>= getImgVal   -- remove dir node
-      unless (isROOT pe) $                 -- if it's not the top dir
-        rmImgNode i
+              | isDIR n -> do
+                  -- remove subdirs
+                  traverseOf_ imgNodeRefs go n
+                  rm
 
-    colA go i _md _im _be cs = do
-      adjustColBlog (const Nothing) i
-      adjustColImg  (const Nothing) i
+              | isCOL n -> do
+                  -- clear col img ref
+                  adjustColImg  (const Nothing) i
+                  -- clear col block ref
+                  adjustColBlog (const Nothing) i
+                  -- remove all subcollection
+                  traverseOf_ (theColEntries . traverse)
+                              (colEntry' (const $ return ())
+                                          go
+                              ) n
+                  -- clear all entries
+                  adjustColEntries (const mempty) i
+                  rm
 
-      log'trc $ "colA: " <> toText cs
-      let cs' = Seq.filter isColColRef cs  -- remove all images
-      adjustColEntries (const cs') i       -- store remaining collections
+              | isROOT n ->
+                  traverseOf_ imgNodeRefs go n
 
-      log'trc $ "colA: " <> toText cs'
-      traverse_ go $
-        cs' ^.. traverse . theColColRef    -- remove the remaining collections
+              | otherwise ->
+                  return ()
 
-      unlessM (isROOT <$> (getImgParent i >>= getImgVal)) $
-        rmImgNode i                        -- remove node unless it's
-                                           -- the top collection
+
 
 -- ----------------------------------------
 --
@@ -275,21 +280,21 @@ removeEmptySubCols i = withTF go
         rmRec
         (t, i)
 
-emptySubCol' :: ImgTree -> Fold ColEntry ObjId
-emptySubCol' t = folding go
-  where
-    go ce =
-      ce ^.. theColColRef
-           . filteredBy
-             ( to (t,)
-             . theNode
-             . filtered
-               ( \ n -> isCOL n
-                        &&
-                        hasn't (theColEntries . traverse) n
-                        &&
-                        isRemovable (n ^. theMetaData)
-               )
-             )
+    emptySubCol' :: ImgTree -> Fold ColEntry ObjId
+    emptySubCol' t = folding gogo
+      where
+        gogo ce =
+          ce ^.. theColColRef
+               . filteredBy
+                 ( to (t,)
+                 . theNode
+                 . filtered
+                   ( \ n -> isCOL n
+                            &&
+                            hasn't (theColEntries . traverse) n
+                            &&
+                            isRemovable (n ^. theMetaData)
+                   )
+                 )
 
 -- ----------------------------------------
