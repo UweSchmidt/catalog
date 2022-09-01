@@ -46,16 +46,11 @@ import Catalog.GenCollections
        )
 import Catalog.ImgTree.Access
 
-import Catalog.ImgTree.Fold
-       ( foldMT )
+-- import Catalog.ImgTree.Fold
+--       ( foldMT )
 
 import Catalog.ImgTree.Modify
-       ( rmImgNode
-       , adjustImg
-       , mkImg
-       , setSyncTime
-       , mkImgDir
-       )
+
 import Catalog.Logging
        ( trc'Obj )
 
@@ -73,33 +68,8 @@ import Catalog.TimeStamp
        )
 
 import Data.ImgTree
-       ( ColEntries
-       , ColEntry
-       , ImgNode'(IMG)
-       , ImgRef
-       , ImgRef'(ImgRef, _iname)
-       , colEntry'
-       , isColColRef
-       , isDIR
-       , isIMG
-       , isROOT
-       , isemptyDIR
-       , isoImgParts
-       , mkColColRef
-       , mkColImgRef'
-       , mkImgPart
-       , mkImgParts
-       , theColColRef
-       , theColImgRef
-       , theImgCheckSum
-       , theImgName
-       , theImgTimeStamp
-       , thePartNamesI
-       , theParts
-       , theRootImgDir
-       )
-import Data.MetaData
-       ( MetaData )
+-- import Data.MetaData
+--       ( MetaData )
 
 import Data.Prim
 
@@ -184,6 +154,55 @@ collectImgRefs' p = do
 
 collectImgRefs :: Eff'ISEL r
                => ObjId -> Sem r ImgRefMap
+collectImgRefs i0 = liftTF $ flip col i0
+  where
+    -- here the Monoid instance of Map is used
+    -- this is o.k. here, the maps are always disjoint
+
+    col :: ImgTree -> ObjId -> ImgRefMap
+    col t i = case (t, i) ^. theNode of
+      n | isCOL n ->
+            let irs  = foldOf (colNodeImgRefs . to S.singleton) n
+                subs = foldOf (colNodeColRefs . to (col t)) n
+            in
+              M.insert i irs subs
+
+        | isDIR n ->
+            let irs = foldOf
+                      ( theDirEntries
+                      . traverse
+                      . folding
+                        (\ i' ->
+                           (t, i') ^.. theNode
+                                     . filtered isIMG
+                                     . theParts
+                                     . thePartNamesI
+                                     . to (ImgRef i')
+                                     . to S.singleton
+                        )
+                      ) n
+                subs = foldOf
+                       ( theDirEntries
+                       . traverse
+                       . filteredBy
+                         ( to (t,)
+                         . theNode
+                         . filtered isDIR
+                         )
+                       . to (col t)
+                       ) n
+            in
+              M.insert i irs subs
+
+        | isROOT n ->
+            foldOf (imgNodeRefs . to (col t)) n
+
+        | otherwise ->
+            mempty
+
+{- old
+collectImgRefs :: Eff'ISEL r
+               => ObjId -> Sem r ImgRefMap
 collectImgRefs =
   foldMT imgA dirA rootA colA
   where
@@ -240,7 +259,7 @@ collectImgRefs =
     -- the IMG entries are processed in dirA
     imgA _ _pts _md =
       return mempty
-
+-}
 -- --------------------
 
 updateAllImgRefs :: Eff'ISEJL r => ImgRefUpdateMap -> Sem r ()
