@@ -480,18 +480,20 @@ collectImgCont :: ( EffError  r, EffLogging r, EffCatEnv r
                => ObjId -> Sem r ClassifiedNames
 collectImgCont i = withTF go
   where
-    go t = rs <$> collectDirCont ip
+    go t = filterImgCont <$> collectDirCont ip
       where
         e  = (t, i) ^. theEntry
         nm =      e ^. nodeName
         ip =      e ^. parentRef
 
-        rs :: ([Name], [ClassifiedNames]) -> ClassifiedNames
-        rs r =
-          r ^.. _2
-              . traverse
-              . filteredBy (_head . _2 . _1 . filtered (== nm))
-              . _head
+        filterImgCont :: ([Name], [ClassifiedNames]) -> ClassifiedNames
+        filterImgCont r =
+          r ^. _2
+             . taking 1
+               ( traverse
+               . filteredBy (_head . _2 . _1 . filtered (== nm))
+               )
+
 
 collectDirCont :: (EffLogging r, EffCatEnv r, EffIStore r, EffFileSys r)
                => ObjId -> Sem r ([Name], [ClassifiedNames])

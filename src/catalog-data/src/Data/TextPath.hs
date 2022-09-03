@@ -70,7 +70,7 @@ type ClassifiedNames = [ClassifiedName]
 
 -- classify paths: compute base name and type
 -- and remove boring names
-classifyPaths :: [TextPath] -> [ClassifiedName]
+classifyPaths :: [TextPath] -> ClassifiedNames
 classifyPaths = filter (not . isBoringMT . snd . snd) . map classifyPath
 
 classifyPath :: TextPath -> ClassifiedName
