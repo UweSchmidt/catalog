@@ -249,26 +249,6 @@ objid2contNames i = liftTF $ itoTF' nodeVal names i
         isROOT n  = n ^.. imgNodeRefs . to (t,)  . theEntry . nodeName
       | otherwise = []
 
-
-{-
-  getImgVal i >>= go
-  where
-    go e
-      | isIMG e =
-          return (e ^. theParts . isoImgParts . traverse . theImgName . to (:[]))
-
-      | isDIR e =
-          traverse getImgName (e ^. theDirEntries . isoDirEntries . isoSeqList)
-
-      | isROOT e = let (i1, i2) = e ^. theImgRoot in do
-          n1 <- getImgName i1
-          n2 <- getImgName i2
-          return [n1, n2]
-
-      | otherwise =
-          return []
--}
-
 getMetaData :: Eff'ISE r => ObjId -> Sem r MetaData
 getMetaData i = liftTF $ itoTF (nodeVal . theMetaData) i
 

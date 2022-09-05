@@ -46,9 +46,6 @@ import Catalog.GenCollections
        )
 import Catalog.ImgTree.Access
 
--- import Catalog.ImgTree.Fold
---       ( foldMT )
-
 import Catalog.ImgTree.Modify
 
 import Catalog.Logging
@@ -435,7 +432,6 @@ idSyncFS recursive i = getImgVal i >>= go
       | otherwise = do
           trc'Obj i "idSyncFS: nothing done for collection"
           return ()
-
 
 syncDirCont :: Eff'Sync r => Bool -> ObjId -> Sem r ()
 syncDirCont recursive i = do
