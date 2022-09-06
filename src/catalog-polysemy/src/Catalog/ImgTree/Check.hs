@@ -211,6 +211,10 @@ checkInvImgTree = do
   -- my lead to orphan entries
   asNoOrphans
 
+  bits <- bitsUsedInImgTreeMap
+  log'trc $
+    "checkUsedImgObjids: # bits used in ImgTree ObjIds: " <> toText bits
+
   log'verb "ImgTree invariant check and cleanup done"
   return ()
 

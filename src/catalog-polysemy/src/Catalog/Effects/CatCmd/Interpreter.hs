@@ -51,7 +51,7 @@ import Catalog.ImgTree.Access
        , getImgParent
        , getMetaData
        , getImgMetaData
-       , findFstPosEntry'
+       , findFstPosEntry
        , lookupByPath
        , mapObjId2Path
        , objid2path
@@ -667,12 +667,7 @@ modify'renamecol newName i = do
   CR.dupColRec i iParent newName
 
   -- find position of objid i in parent collection
-{-
-  ps <- flip findFstColEntry iParent $
-        \ ce -> return (i == ce ^. theColObjId)
-  let pos = maybe (-1) fst ps
--- -}
-  pos <- findFstPosEntry' i iParent
+  pos <- findFstPosEntry i iParent
 
   -- remove i in parent collection
   CR.rmRec i

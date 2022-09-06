@@ -38,10 +38,6 @@ module Catalog.ImgTree.Access
   , mapImgStore2Path
   , mapPath2ObjId
   , mapImgStore2ObjId
-  , findAllColEntries
-  , findFstColEntry
-  , sortColEntries
-  , mergeColEntries
   , colEntryAt
   , processColEntryAt
   , processColImgEntryAt
@@ -49,10 +45,10 @@ module Catalog.ImgTree.Access
   , filterObjIds
   , bitsUsedInImgTreeMap
 
-  , findAllColEntries'
-  , findFstColEntry'
-  , findFstTxtEntry'
-  , findFstPosEntry'
+  , findAllColEntries
+  , findFstColEntry
+  , findFstTxtEntry
+  , findFstPosEntry
   )
 where
 
@@ -71,7 +67,6 @@ import Data.MetaData
 import Data.Prim
 
 import qualified Data.Set      as S
-import qualified Data.Sequence as Seq
 
 ------------------------------------------------------------------------------
 --
@@ -105,30 +100,6 @@ itoTF gt i = toTF (entryAt i . gt)
 itoTF' :: Getting a UplNode a -> (ImgTree -> a -> b) -> ObjId -> (ImgTree -> b)
 itoTF' gt f i = toTF' (entryAt i . gt) f
 {-# INLINE itoTF' #-}
-
-{-
-liftTF :: EffIStore r
-      => Getting a ImgTree a -> (ImgTree -> a -> b) -> Sem r b
-liftTF gt f = liftTF (toTF' gt f)
-
-
-getItAt :: EffIStore r => (ImgTree -> UplNode -> a) -> ObjId -> Sem r a
-getItAt tf i = liftTF $ toTF' (entryAt i) tf
--}
-{-
-getAt :: EffIStore r
-      => (ImgTree -> a -> b) -> Getting a UplNode a -> ObjId -> Sem r b
-getAt tf gt i = liftTF $ itoTF' gt tf i
-
-getAt0 :: EffIStore r => Getting a UplNode a -> ObjId -> Sem r a
-getAt0 gt i = liftTF $ itoTF gt i
-
--- --------------------
-
-getOptAt' :: EffIStore r => Fold UplNode a -> ObjId -> Sem r (Maybe a)
-getOptAt' theA i = liftTF $ itoTF (toMaybe (filtered isn'tempty .  theA)) i
-{-# INLINE getOptAt' #-}
--}
 
 -- ----------
 
@@ -293,24 +264,24 @@ mapImgStore2ObjId = mapImgStore mkObjId
 
 -- ----------------------------------------
 
-findAllColEntries' :: Eff'ISE r
+findAllColEntries :: Eff'ISE r
                   => (ImgTree -> ColEntry -> Bool)    -- ^ the filter predicate
                   -> ObjId                            -- ^ the collection
                   -> Sem r [(Int, ColEntry)]          -- ^ the list of entries with pos
-findAllColEntries' p i = liftTF $ itoTF' (nodeVal . theColEntries) go i
+findAllColEntries p i = liftTF $ itoTF' (nodeVal . theColEntries) go i
   where
     go :: ImgTree -> ColEntries -> [(Int, ColEntry)]
     go t cs = filter (p t . snd) $ zip [0..] (cs ^. isoSeqList)
 
-findFstColEntry'  :: Eff'ISE r
-                  => (ImgTree -> ColEntry -> Bool)
-                  -> ObjId
-                  -> Sem r (Maybe (Int, ColEntry))
-findFstColEntry' p i = listToMaybe <$> findAllColEntries' p i
+findFstColEntry  :: Eff'ISE r
+                 => (ImgTree -> ColEntry -> Bool)
+                 -> ObjId
+                 -> Sem r (Maybe (Int, ColEntry))
+findFstColEntry p i = listToMaybe <$> findAllColEntries p i
 
 
-findFstTxtEntry' :: Eff'ISEJL r => ObjId -> Sem r (Maybe (Int, ColEntry))
-findFstTxtEntry' = findFstColEntry' isTxtEntry
+findFstTxtEntry :: Eff'ISEJL r => ObjId -> Sem r (Maybe (Int, ColEntry))
+findFstTxtEntry = findFstColEntry isTxtEntry
   where
     isTxtEntry :: ImgTree -> ColEntry -> Bool
     isTxtEntry t =
@@ -325,57 +296,17 @@ findFstTxtEntry' = findFstColEntry' isTxtEntry
                        . ix n
                        . theMimeType
 
-findFstPosEntry' :: Eff'ISEJL r
-                 => ObjId
-                 -> ObjId -> Sem r Int
-findFstPosEntry' i2 i =
-  maybe (-1) fst <$> findFstColEntry' (const isPosEntry) i
+findFstPosEntry :: Eff'ISEJL r
+                => ObjId
+                -> ObjId -> Sem r Int
+findFstPosEntry i2 i =
+  maybe (-1) fst <$> findFstColEntry (const isPosEntry) i
   where
     isPosEntry :: ColEntry -> Bool
     isPosEntry ce = i2 == ce ^. theColObjId
 
 
 -- ----------------------------------------
---
--- search, sort and merge ops for collections
-
-findAllColEntries :: Eff'ISE r
-                  => (ColEntry -> Sem r Bool)    -- ^ the filter predicate
-                  -> ObjId                       -- ^ the collection
-                  -> Sem r [(Int, ColEntry)]     -- ^ the list of entries with pos
-findAllColEntries p i = do
-  es <- getImgVals i theColEntries
-  filterM (p . snd) $ zip [0..] (es ^. isoSeqList)
-{-# INLINE findAllColEntries #-}
-
-findFstColEntry  :: Eff'ISE r
-                 => (ColEntry -> Sem r Bool)
-                 -> ObjId
-                 -> Sem r (Maybe (Int, ColEntry))
-findFstColEntry p i = listToMaybe <$> findAllColEntries p i
-{-# INLINE findFstColEntry #-}
-
-sortColEntries :: Eff'ISE r
-               => (ColEntry -> Sem r a)
-               -> (a -> a -> Ordering)
-               -> ColEntries
-               -> Sem r ColEntries
-sortColEntries getVal cmpVal es =
-  fmap fst . Seq.sortBy (cmpVal `on` snd) <$> traverse mkC es
-  where
-    -- mkC :: ColEntry -> Cmd (ColEntry, a)
-    mkC ce = do
-      v <- getVal ce
-      return (ce, v)
-
--- merge old and new entries
--- old entries are removed from list of new entries
--- the remaining new entries are appended
-
-mergeColEntries :: ColEntries -> ColEntries -> ColEntries
-mergeColEntries es1 es2 =
-  es1 <> Seq.filter (`notElem` es1) es2
-
 
 -- get the collection entry at an index pos
 -- if it's not there an error is thrown

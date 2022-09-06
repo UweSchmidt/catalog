@@ -298,10 +298,10 @@ adjustColBy' sortCol cs parent'i =
 -- {- new pure
 
 adjustColByName :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
-adjustColByName = adjustColBy' sortByName'
+adjustColByName = adjustColBy' sortByName
 
 adjustColByDate :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
-adjustColByDate = adjustColBy' sortByDate'
+adjustColByDate = adjustColBy' sortByDate
 
 insertColByName :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
 insertColByName cref = adjustColByName (Seq.singleton (mkColColRef cref))
@@ -318,27 +318,27 @@ insertColByCons i = adjustColEntries' $
 --
 -- pure edit functions
 
-sortColEntries' :: forall a .
-                   (ImgTree -> ColEntry -> a)
-                -> (a -> a -> Ordering)
-                -> ImgTree -> ColEntries -> ColEntries
-sortColEntries' getVal cmpVal t = go
+sortColEntries :: forall a .
+                  (ImgTree -> ColEntry -> a)
+               -> (a -> a -> Ordering)
+               -> ImgTree -> ColEntries -> ColEntries
+sortColEntries getVal cmpVal t = go
   where
     go = fmap fst . Seq.sortBy (cmpVal `on` snd) . fmap mkC
       where
         mkC :: ColEntry -> (ColEntry, a)
         mkC ce =  (ce, ) $ getVal t ce
 
-sortByName' :: ImgTree -> ColEntries -> ColEntries
-sortByName' = sortColEntries' getVal compare
+sortByName :: ImgTree -> ColEntries -> ColEntries
+sortByName = sortColEntries getVal compare
   where
     getVal t =
       colEntry
       (\ j n1 -> (t, j) ^. theEntryName . to (\ n -> Right (n, n1)))
       (\ j    -> (t, j) ^. theEntryName . to         Left          )
 
-sortByDate' :: ImgTree -> ColEntries -> ColEntries
-sortByDate' = sortColEntries' getVal compare
+sortByDate :: ImgTree -> ColEntries -> ColEntries
+sortByDate = sortColEntries getVal compare
   where
     getVal t =
       colEntry
@@ -355,12 +355,16 @@ sortMerge' :: ColEntries
            -> ImgTree -> ColEntries -> ColEntries
 sortMerge' cs'new sortCol t cs =
   sortCol t $ mergeColEntries cs cs'new
+  where
+    mergeColEntries :: ColEntries -> ColEntries -> ColEntries
+    mergeColEntries es1 es2 =
+      es1 <> Seq.filter (`notElem` es1) es2
 
 -- ----------------------------------------
 
 setColBlogToFstTxtEntry :: Eff'ISEJL r => Bool -> ObjId -> Sem r ()
 setColBlogToFstTxtEntry rm i = do
-  fte <- findFstTxtEntry' i
+  fte <- findFstTxtEntry i
   maybe (return ()) setEntry fte
   where
     setEntry (pos, ImgEnt ir) = do

@@ -65,7 +65,7 @@ executable catalog-test
     TypeOperators
 
   ghc-options:
-    -Wall -fwarn-tabs -O2 -funbox-strict-fields -flate-specialise
+    -fwarn-tabs -O2 -funbox-strict-fields -flate-specialise
     -fspecialise-aggressively -fplugin=Polysemy.Plugin -threaded
 
 source-repository head
