@@ -67,12 +67,9 @@ import Catalog.ImgTree.Modify
        , mkCollection
        )
 import Catalog.ImgTree.Check
-       ( checkInvImgTree   -- new inv check with NavTree
+       ( checkInvImgTree
        , statsImgTree
        )
-import Catalog.Invariant
-       ( checkImgStore )
-
 import Catalog.Journal
        ( journal )
 
@@ -781,9 +778,8 @@ syncColDir sync i = do
 
   let path'dir = substPathPrefix p'photos p'arch'photos path
   sync path'dir
-  checkInvImgTree   -- new check
+  checkInvImgTree
   statsImgTree
-  checkImgStore
 
 -- sync a subcollection of /archive/photo with filesystem
 

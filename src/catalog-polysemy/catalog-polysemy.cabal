@@ -29,9 +29,7 @@ library
     Catalog.Html
     Catalog.ImgTree.Access
     Catalog.ImgTree.Check
-    Catalog.ImgTree.Fold
     Catalog.ImgTree.Modify
-    Catalog.Invariant
     Catalog.Journal
     Catalog.Logging
     Catalog.MetaData.Exif

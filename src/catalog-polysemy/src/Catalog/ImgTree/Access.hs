@@ -41,8 +41,6 @@ module Catalog.ImgTree.Access
   , colEntryAt
   , processColEntryAt
   , processColImgEntryAt
-  , foldObjIds
-  , filterObjIds
   , bitsUsedInImgTreeMap
 
   , findAllColEntries
@@ -65,8 +63,6 @@ import Data.MetaData
        ( MetaData )
 
 import Data.Prim
-
-import qualified Data.Set      as S
 
 ------------------------------------------------------------------------------
 --
@@ -346,24 +342,6 @@ processColImgEntryAt imgRef =
 
 
 -- --------------------
-
-foldObjIds :: (Monoid m) => (ObjId -> Sem r m) -> ObjIds -> Sem r m
-foldObjIds cmd os = mconcat <$> traverse cmd (toList os)
-{-# INLINE foldObjIds #-}
-
-filterObjIds :: Eff'ISE r => (ImgNode -> Bool) -> ObjIds -> Sem r ObjIds
-filterObjIds p =
-  foldObjIds sel
-  where
-    sel :: Eff'ISE r => ObjId -> Sem r ObjIds
-    sel i = do
-      v <- getImgVal i
-      return $
-        if p v
-        then S.singleton i
-        else S.empty
-
--- ----------------------------------------
 
 bitsUsedInImgTreeMap :: EffIStore r => Sem r Int
 bitsUsedInImgTreeMap = liftTF $ noOfBitsUsedInKeys . keysImgTree

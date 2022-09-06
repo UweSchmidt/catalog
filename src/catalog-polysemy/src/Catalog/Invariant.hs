@@ -35,8 +35,7 @@ import Catalog.ImgTree.Fold
        , foldMTU
        )
 import Catalog.ImgTree.Access
-       ( foldObjIds
-       , getImgParent
+       ( getImgParent
        , bitsUsedInImgTreeMap
        , getRootImgColId
        , getRootImgDirId
@@ -416,3 +415,9 @@ checkUpLinkObjIds =
                       <> " contains element not pointing back to "
 
 ------------------------------------------------------------------------
+
+foldObjIds :: (Monoid m) => (ObjId -> Sem r m) -> ObjIds -> Sem r m
+foldObjIds cmd os = mconcat <$> traverse cmd (toList os)
+{-# INLINE foldObjIds #-}
+
+-- ----------------------------------------

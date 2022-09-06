@@ -48,8 +48,6 @@ import Catalog.ImgTree.Check
        ( checkInvImgTree   -- new inv check with NavTree
        , statsImgTree
        )
-import Catalog.Invariant
-       ( checkImgStore )   -- old inv check with Fold
 import Catalog.Journal
        ( journal )
 import Catalog.TextPath
@@ -237,9 +235,8 @@ loadImgStore f = do
       -- make a "FS check" and throw away undefined refs
 
       log'info "loadImgStore: check catalog integrity"
-      checkInvImgTree   -- new check
+      checkInvImgTree
       statsImgTree
-      checkImgStore     -- old check
       log'info "loadImgStore: catalog loading complete"
   where
 

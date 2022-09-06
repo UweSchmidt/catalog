@@ -18,8 +18,6 @@ import Catalog.ImgTree.Access
 import Catalog.ImgTree.Modify
 import Catalog.ImgTree.Check
 
-import Catalog.Invariant ( checkImgStore )   -- old inv check with Fold
-
 import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
 import qualified Data.Text       as T
@@ -59,7 +57,6 @@ loadCatalog = do
         loadImgStore (testCatEnv ^. catJsonArchive)
         checkInvImgTree   -- new check
         statsImgTree
-        checkImgStore     -- old check
 
 runCatalog cmd = do
   (is, res) <- runApp emptyImgStore testAppEnv load
