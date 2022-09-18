@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name:          catalog-test
-version:       0.5.9.0
+version:       0.5.9.1
 synopsis:      test for catalog-polysemy
 homepage:      https://github.com/UweSchmidt/apps/catalog
 license:       BSD3
