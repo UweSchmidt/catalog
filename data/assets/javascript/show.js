@@ -15,6 +15,10 @@ const img1    = "image1";
 const img2    = "image2";
 const nextimg = {image1: img2, image2: img1};
 
+// dynamically generated animation css
+const panoCss = "panorama-css";
+const scaleCss= "image-scale-css";
+
 const info    = "info";
 const infoTab = "info-table";
 const help    = "help";
@@ -26,6 +30,15 @@ const videoAttrs = { controls: "",
                      autoplay: null,
                      muted:    null
                    };
+/* some test data */
+
+const g1 = {w:1920,h:1200};
+const g2 = {w:6000,h:4000};
+const g3 = {w:600, h:800};
+const g4 = {w:2000,h:3000};
+const g5 = {w:10000,h:1000};
+const g6 = {w:10000,h:2000};
+/* end test data */
 
 /* ---------------------------------------- */
 /* basic operations */
@@ -108,6 +121,19 @@ function mulGeo(g1, g2) {
     }
 }
 
+function divGeo(g1, g2) {
+    if (typeof g2 === "number") {
+        return { w : g1.w / g2,   // geo + scalar
+                 h : g1.h / g2
+               };
+
+    } else {
+        return { w : g1.w / g2.w,
+                 h : g1.h / g2.h
+               };
+    }
+}
+
 function subGeo(g1, g2) {
     if (typeof g2 === "number") {
         return { w : g1.w - g2,   // geo - scalar
@@ -119,6 +145,20 @@ function subGeo(g1, g2) {
                  h : g1.h - g2.h
                };
     }
+}
+
+function roundGeo(g) {
+    return { w : Math.round(g.w),
+             h : Math.round(g.h)
+           };
+}
+
+function maxXY(g) {
+    return Math.max(g.w, g.h);
+}
+
+function minXY(g) {
+    return Math.min(g.w, g.h);
 }
 
 function scaleGeo(g, s) {
@@ -137,8 +177,10 @@ function lessThan(g1, g2) {
 
 function isPano(g) {
     const ar = aspectRatio(g);
-    return fitsInto(screenGeo(), g)
-        && ( ar >= 2 || ar <= 0.5 );
+    return ( // fitsInto(screenGeo(), g)
+             // &&
+             ( ar >= 2 || ar <= 0.5 )
+           );
 }
 
 function isHorizontal(g) {
@@ -165,50 +207,68 @@ function showGeo(geo) {
     return "" + geo.w + "x" + geo.h;
 }
 
+// convert geometry to pixels
 function toPx(obj) {
     const res = {};
     for (k in obj) {
-        res[k] = obj[k] + "px";
+        res[k] = Math.round(obj[k]) + "px";  // fields are now strings
     }
     return res;
 }
 
-function shrinkGeo(s, d) {
-    if (fitsInto(s,d))
-        return s;
-    else
-        return resizeGeo(s, d);
+// scale s such that it is
+// the larges geo with same aspect ratio as s
+// that fits into g
+
+function fitIntoGeo(s, g) {
+    const ar = minXY(divGeo(g, s));
+    return mulGeo(s, ar);
 }
 
-// computes the maximum geo with aspect ratio of s
-// that fits into d
+// scale s such that is is
+// the smallest geo with same aspect ratio as s
+// in which g fits into
 
-function resizeGeo(s, d) {
-    if (s.w * d.h >= d.w * s.h)
-        return { w : d.w,
-                 h : div(d.w * s.h, s.w)
-               };
-    else
-        return { w : div(d.h * s.w, s.h),
-                 h : d.h
-               };
+function fillGeo(s, g) {
+    const ar = maxXY(divGeo(g, s));
+    return mulGeo(s, ar);
 }
 
-function resizeToHeight(s, d) {
-    return resizeGeo(s, {w: infiniteWidth, h: d.h});
+// scale s such that it has the same height as g
+// and aspect ratio remain
+
+function sameHeigthGeo(s, g) {
+    const ar = divGeo(g, s).h;
+    return mulGeo(s, ar);
 }
 
-function resizeToWidth(s, d) {
-    return resizeGeo(s, {w: d.w, h: infiniteWidth});
+// scale s such that it has the same width as g
+// and aspect ratio remains
+
+function sameWidthGeo(s, g) {
+    const ar = divGeo(g, s).w;
+    return mulGeo(s, ar);
 }
+
+// --------------------
 
 function resizeToScreenHeight(g) {
-    return resizeToHeight(g, screenGeo());
+    return sameHeigthGeo(g, screenGeo());
 }
 
 function resizeToScreenWidth(g) {
-    return resizeToWidth(g, screenGeo());
+    return sameWidthGeo(g, screenGeo());
 }
+
+function resizeToFillScreen(g) {
+    return fillGeo(g, screenGeo());
+}
+
+function resizeToFitIntoScreen(g) {
+    return fitIntoGeo(g, screenGeo());
+}
+
+// --------------------
 
 var theScreenGeo = { w : 0, h : 0 };
 
@@ -224,15 +284,20 @@ function screenGeo() {
     return theScreenGeo;
 }
 
-function fitToScreenGeo(geo, blowUp) {
-    return (blowUp === "magnify" ? resizeGeo : shrinkGeo)(geo, screenGeo());
+// if geometry g fits into the screen and
+// the resize algorithm isn't "magnify"
+// do not expand geometry (img stays as small as it is)
+
+function fitToScreenGeo(g, blowUp) {
+    const d = screenGeo();
+    if ( fitsInto(g, d)
+         && (blowUp /= "magnify")
+       ) return fitIntoGeo(g, d);
+    return g;
 }
 
 function placeOnScreen(geo) {
-    const sg = screenGeo();
-    return { x : div(sg.w - geo.w, 2),
-             y : div(sg.h - geo.h, 2)
-           };
+    return divGeo(subGeo(screenGeo(), geo), 2);
 }
 
 const geoOrg = readGeo("org");
@@ -251,7 +316,7 @@ const serverSupportedGeos =
 function bestFitToGeo (s) {
     for (let v of serverSupportedGeos) {
         const g = readGeo(v);
-        if (g.w >= s.w && g.h >= s.h)
+        if (fitsInto(s, g))
             return g;
     }
     return geoOrg;
@@ -293,10 +358,7 @@ function imgReqToUrl(imgReq, imgGeo) {
     return "/docs/"
         + imgReq.rType
         + "/"
-        + ( imgGeo
-            ? showGeo(imgGeo)
-            : showGeo(bestFitToScreenGeo())
-          )
+        + showGeo(imgGeo)
         + pp
         + ".jpg";
 }
@@ -463,6 +525,15 @@ function newElem(tag, x2, x3, x4) {
     return e;
 }
 
+function clearImg(id) {
+    const e      = clearCont(id);
+    const dstyle = { width    : "100%",
+                     height   : "100%"
+                   };
+    setCSS(e, dstyle);
+    return e;
+}
+
 // --------------------
 
 function setContents(id, cont) {
@@ -495,7 +566,19 @@ function mkImgId(id) {
 }
 
 function newImgElem(id, css, cls) {
-    return newElem("img", mkImgId(id), css, cls);
+    return newElem4("img", id, css, cls);
+}
+
+function newMovElem(id, css, cls) {
+    return newElem4("video", id, css, cls);
+}
+
+function newBlogElem(id, css, cls) {
+    return newElem4("div", id, css, cls);
+}
+
+function newElem4(elem, id, css, cls) {
+    return newElem(elem, mkImgId(id), css, cls);
 }
 
 function getCurrImgElem() {
@@ -524,15 +607,15 @@ function getTransition(cp, lp) {
     if ( defaultTransDur === 0) {
         return cut;
     }
-    if (isImgPage(currPage)
-        && lastPage != null
-        && isImgPage(lastPage)
+    if ( isImgPage(currPage)
+         && lastPage != null
+         && isImgPage(lastPage)
        ) {
         return crossFade;
     }
-    if (isColPage(currPage)
-        && lastPage != null
-        && isColPage(lastPage)
+    if ( isColPage(currPage)
+         && lastPage != null
+         && isColPage(lastPage)
        ) {
         return crossFade;
     }
@@ -653,47 +736,108 @@ function initShow() {
 
 function loadImg(id, url, geo, resizeAlg) {
     const imgGeo = fitToScreenGeo(geo, resizeAlg);
-    const offset = placeOnScreen(imgGeo);
-    const off    = toPx(offset);
+    const off    = toPx(placeOnScreen(imgGeo));
     const g      = toPx(imgGeo);
-    const style  = { width    : g.w,
+
+    const istyle = { width    : g.w,
                      height   : g.h,
-                     left     : off.x,
-                     top      : off.y,
+                     left     : off.w,
+                     top      : off.h,
+                     position : "absolute",
                      overflow : "hidden"
                    };
     // get element, clear contents and set style attributes
-    const e = clearCont(id);
-    setCSS(e, style);
-
-    const i = newImgElem(id,
-                         { width:  g.w,
-                           height: g.h
-                         },
-                         "img " + resizeAlg
-                        );
+    const e = clearImg(id);
+    const i = newImgElem(id, istyle, "img " + resizeAlg);
     i.src   = url;
     e.appendChild(i);
 }
 
+// --------------------
+
+var zoomState = {};
+
+function loadZoomableImg(id, url, geo) {
+    zoomState = { orgGeo : readGeo(currPage.oirGeo[0]),  // original geo of image
+                  curGeo : geo,
+                  curOff : placeOnScreen(geo)
+                };
+    zoomState.scale = zoomState.curGeo.w / zoomState.orgGeo.w;
+
+    trc(1, "loadZoomableImg: zoomState=" + JSON.stringify(zoomState));
+
+    // get element, clear contents and set style attributes
+    const e = clearImg(id);
+    const s = zoomCSS();
+    const i = newImgElem(id, s, "img zoom");
+    i.src   = url;
+    e.appendChild(i);
+}
+
+function zoomTo(scale) {
+    var g1 = mulGeo(zoomState.orgGeo, scale);
+    var o1 = placeOnScreen(g1);
+    zoomState.curGeo = g1;
+    zoomState.curOff = o1;
+    zoomState.scale  = scale;
+}
+
+function zoomCSS() {
+    const off    = toPx(zoomState.curOff);
+    const g      = toPx(zoomState.curGeo);
+    return { width    : g.w,
+             height   : g.h,
+             left     : off.w,
+             top      : off.h,
+             position : "absolute",
+             overflow : "auto"
+           };
+}
+
+function setImgZoomCSS() {
+    const id = mkImgId(currImgId());
+    setStyles(id, zoomCSS());
+}
+
+function zoomImg(scale) {
+    zoomTo(scale);
+    setImgZoomCSS();
+}
+
+function zoomImg1()     { zoomImg(1); }
+
+function zoomImgPlus()  { zoomImg(zoomState.scale * 1.2); }
+
+function zoomImgMinus() { zoomImg(zoomState.scale / 1.2); }
+
+function zoomImgFit() {
+    var g0 = zoomState.orgGeo;
+    var g1 = resizeToFitIntoScreen(g0);
+    zoomImg(g1.w / g0.w);
+}
+
+function zoomImgFill() {
+    var g0 = zoomState.orgGeo;
+    var g1 = resizeToFillScreen(g0);
+    zoomImg(g1.w / g0.w);
+}
+
+// --------------------
+
 function loadFullImg(id, url, imgGeo) {
-    const scrGeo = screenGeo();
-    const style  = { width    : scrGeo.w + "px",
-                     height   : scrGeo.h + "px",
-                     left     : "0px",
-                     top      : "0px",
+    const off    = toPx({x:0, y:0});
+    const g      = toPx(imgGeo);
+
+    const istyle = { width    : g.w,
+                     height   : g.h,
+                     left     : off.x,
+                     top      : off.y,
+                     position : "absolute",
                      overflow : "auto"     // !!! image becomes scrollable
                    };
     // get element, clear contents and set style attributes
-    const e = clearCont(id);
-    setCSS(e, style);
-
-    const i = newImgElem(id,
-                         { width:  imgGeo.w + "px",  // original geo
-                           height: imgGeo.h + "px"   // often larger than screen geo
-                         },
-                         "img fullsize"
-                        );
+    const e = clearImg(id);
+    const i = newImgElem(id, istyle, "img fullsize");
     i.src   = url;
     e.appendChild(i);
 }
@@ -706,11 +850,13 @@ function loadPanoramaImg(id, url, imgGeo) {
     const d = 2.5 * 7.0 * Math.max(ar, 1/ar);
 
     // add keyframe style
-    const s = clearCont("panorama-css");
+    const s = clearCont(panoCss);
 
     const kf  = "pano-move";
     const dr  = isH ? "left" : "bottom";
     const dr1 = isH ? "top"  : "left";
+
+    // css for animated panoramas
     const cssKeyFrames = `
           @keyframes ${kf} {
                 0% {${dr}: 0px}
@@ -729,7 +875,6 @@ function loadPanoramaImg(id, url, imgGeo) {
               animation-duration:        ${d}s;
               animation-delay:           2s;
               animation-iteration-count: 1;
-              animation-direction:       alternate;    /* redundant due to animation-iteration-count: 1 */
               animation-timing-function: ease-in-out;
               animation-play-state:      paused;
           }
@@ -737,19 +882,11 @@ function loadPanoramaImg(id, url, imgGeo) {
 
     s.appendChild(newText(cssKeyFrames + cssPanoClass));
 
-    const style = { width    : scrGeo.w + "px",
-                    height   : scrGeo.h + "px",
-                    left     : "0px",
-                    top      : "0px",
-                    overflow : "hidden"
-                  };
-    const e = clearCont(id);
-    setCSS(e, style);
-
     function animationEndFunction() {
         trc(1, "animation of panorama has finished");
     }
 
+    const e = clearImg(id);
     const i = newImgElem(id, {}, "img panorama");
     i.addEventListener("load", togglePanoAnimation);
     i.addEventListener("animationend", animationEndFunction);
@@ -764,6 +901,9 @@ function loadImg1(id, req, geo, resizeAlg) {
     else if (resizeAlg === "panorama") {
         loadPanoramaImg(id, req, geo);
     }
+    else if (resizeAlg === "zoom") {
+        loadZoomableImg(id, req, geo);
+    }
     else {
         loadImg(id, req, geo, resizeAlg);
     }
@@ -772,52 +912,74 @@ function loadImg1(id, req, geo, resizeAlg) {
 function showImg1(page, resizeAlg) {
     const imgReq = page.imgReq;
     const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
-    const imgGeo = resizeToScreenHeight(orgGeo);
 
-    const imgUrl = (resizeAlg === "fullsize" && fitsInto(screenGeo(), orgGeo))
-          ? imgReqToUrl(imgReq, readGeo("org"))
-          : ( resizeAlg === "panorama" && isPano(imgGeo)
-              ? imgReqToUrl(imgReq, resizeToScreenHeight(imgGeo))
-              : imgReqToUrl(imgReq)
-            );
+    var ig = null;
+    if ( resizeAlg === "fullsize" ) {
+        // scrollable fullsize image in 1:1 resolution
+        ig = { ref : readGeo("org"),
+               img : orgGeo
+             };
+    }
+    else if ( resizeAlg == "panorama" && isPano(orgGeo) ) {
+        // animated panorama
+        g1 = resizeToFillScreen(orgGeo);
+        ig = { ref : g1,
+               img : g1
+             };
+    }
+    else if ( resizeAlg === "zoom" ) {
+        // zoomable image
+        ig = { ref : readGeo("org"),
+               img : resizeToFitIntoScreen(orgGeo)
+             };
+    }
+    else {
+        ig = { ref : bestFitToScreenGeo(orgGeo),
+               img : resizeToFitIntoScreen(orgGeo)
+             };
+    };
 
-    trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
+    const imgUrl = imgReqToUrl(imgReq, ig.ref);
 
+    trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(ig.img));
+
+    // picCache: global image cache
     picCache.onload = () => {
         const id = nextImgId();
-        loadImg1(id, imgUrl,
-                 resizeAlg === "fullsize" ? orgGeo : imgGeo,
-                 resizeAlg);
+        loadImg1(id, imgUrl, ig.img, resizeAlg);
         toggleImg12(id);
     };
     picCache.src = imgUrl; // the .onload handler is triggered here
 }
 
-function showImg(page)          { showImg1(page, "no-magnify"); }
+function showImg(page)          { // showImg1(page, "no-magnify");
+                                  showZoomImg(page);
+                                }
 function showMagnifiedImg(page) { showImg1(page, "magnify");    }
 function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
 function showPanoramaImg(page)  { showImg1(page, "panorama");   }
+function showZoomImg(page)      { showImg1(page, "zoom");       }
 
 // ----------------------------------------
 
 function loadMovie(id, url, geo, rType, resizeAlg) {
-    const movGeo = fitToScreenGeo(geo, resizeAlg);
-    const offset = toPx(placeOnScreen(movGeo));
-    const g      = toPx(movGeo);
-    const style  = { width  : g.w,
-                     height : g.h,
-                     left   : offset.x,
-                     top    : offset.y
+    const movGeo  = fitToScreenGeo(geo, resizeAlg);
+    const off     = toPx(placeOnScreen(movGeo));
+    const g       = toPx(movGeo);
+    const istyle  = { width    : g.w,
+                      height   : g.h,
+                      left     : off.w,
+                      top      : off.h,
+                      position : "absolute",
+                      overflow : "hidden"
                    };
 
-    // get element, clear contents and set style attributes
-    const e = clearCont(id);
-    setCSS(e, style);
+    const e = clearImg(id);
 
     // build video/img element
 
     if (rType === "movie") {
-        const v    = newElem("video", mkImgId(id), {}, "movie video " + resizeAlg);
+        const v    = newMovElem(id, istyle, "movie video " + resizeAlg);
         v.width    = movGeo.w;
         v.heigth   = movGeo.h;
         if (videoAttrs.autoplay != null) {
@@ -882,21 +1044,15 @@ function showBlog(page) {
     trc(1, "showBlog: " + txt);
 
     // get element, clear contents and set style attributes
-    const e  = clearCont(id);
-    setCSS(e, { width:  geo.w,
-                height: geo.h,
-                top:    "0px",
-                left:   "0px"
-              });
+    const e  = clearImg(id);
 
     // build blog contents div
-    const b  = newElem("div", id + "-blog",
-                       { width:    geo.w,
-                         height:   geo.h,
-                         overflow: "auto"
-                       },
-                       "blog"
-                      );
+    const b  = newBlogElem(id,
+                           { height:   "100%",
+                             overflow: "auto"
+                           },
+                           "blog"
+                          );
     b.innerHTML = txt;
     e.appendChild(b);
     toggleImg12(id);
