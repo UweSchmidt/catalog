@@ -95,6 +95,9 @@ function intercalate(s, xs) {
 
 const infiniteWidth = 1000000;
 
+const p00 = {w : 0, h : 0};
+const p11 = {w : 1, h : 1};
+
 function addGeo(g1, g2) {
     if (typeof g2 === "number") {
         return { w : g1.w + g2,   // geo + scalar
@@ -296,8 +299,10 @@ function fitToScreenGeo(g, blowUp) {
     return g;
 }
 
-function placeOnScreen(geo) {
-    return divGeo(subGeo(screenGeo(), geo), 2);
+function placeOnScreen(geo, shift0) {
+    const shift   = shift0 || p00;
+    const leftTop = divGeo(subGeo(screenGeo(), geo), 2);
+    return addGeo(leftTop, shift);
 }
 
 const geoOrg = readGeo("org");
@@ -755,16 +760,20 @@ function loadImg(id, url, geo, resizeAlg) {
 
 // --------------------
 
-var zoomState = {};
-
-function loadZoomableImg(id, url, geo) {
-    zoomState = { orgGeo : readGeo(currPage.oirGeo[0]),  // original geo of image
-                  curGeo : geo,
-                  curOff : placeOnScreen(geo)
+var zoomState = { orgGeo : p00,  // original geometry of image
+                  curGeo : p00,  // geometry of image displayed on screen
+                  curOff : p00,  // left and top coords of displayed image
+                  scale  : 1,    // resize factor of image
+                  shift  : p00,  // shift org image from center
+                                 // {w : 0.2, h : 0.1}:
+                                 // center moves 20% of width to the right
+                                 // and 10% of height to the bottom
                 };
-    zoomState.scale = zoomState.curGeo.w / zoomState.orgGeo.w;
 
-    trc(1, "loadZoomableImg: zoomState=" + JSON.stringify(zoomState));
+function loadZoomableImg(id, url, geo, scale, shift) {
+    initZoomState();
+    initZoomGeo(geo);
+    zoomTo(scale, shift);
 
     // get element, clear contents and set style attributes
     const e = clearImg(id);
@@ -774,12 +783,38 @@ function loadZoomableImg(id, url, geo) {
     e.appendChild(i);
 }
 
-function zoomTo(scale) {
-    var g1 = mulGeo(zoomState.orgGeo, scale);
-    var o1 = placeOnScreen(g1);
+function initZoomState() {
+    const g0 = readGeo(currPage.oirGeo[0]);
+    zoomState = { orgGeo : g0,
+                  curGeo : g0,
+                  curOff : placeOnScreen(g0, p00),
+                  shift  : p00,
+                  scale  : 1,
+                };
+}
+
+function initZoomGeo(geo) {
+    zoomState.curGeo = geo;
+    zoomState.curOff = placeOnScreen(geo, zoomState.shift);
+    zoomState.scale = geo.w / zoomState.orgGeo.w;
+}
+
+function zoomTo(scale, shift) {
+    const sc = scale || zoomState.scale;
+    const sh = shift || zoomState.shift;
+
+    const g0 = zoomState.orgGeo;
+    const g1 = mulGeo(g0, sc);
+
+    const s1 = mulGeo(mulGeo(sh, g0), sc);
+    const o1 = placeOnScreen(g1, s1);
+
     zoomState.curGeo = g1;
     zoomState.curOff = o1;
-    zoomState.scale  = scale;
+    zoomState.shift  = sh;
+    zoomState.scale  = sc;
+
+    trc(1, "zoomTo: new zoomState=" + JSON.stringify(zoomState));
 }
 
 function zoomCSS() {
@@ -799,8 +834,8 @@ function setImgZoomCSS() {
     setStyles(id, zoomCSS());
 }
 
-function zoomImg(scale) {
-    zoomTo(scale);
+function zoomImg(scale, shift) {
+    zoomTo(scale, shift);
     setImgZoomCSS();
 }
 
