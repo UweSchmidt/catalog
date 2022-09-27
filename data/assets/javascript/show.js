@@ -17,7 +17,7 @@ const nextimg = {image1: img2, image2: img1};
 
 // dynamically generated animation css
 const panoCss = "panorama-css";
-const scaleCss= "image-scale-css";
+const zoomCss = "image-zoom-css";
 
 const info    = "info";
 const infoTab = "info-table";
@@ -675,7 +675,6 @@ function fadeOutIn(id1, id2, dur0) {
     // setCSS(e1, {opacity: 0});
     setAnimDur(e1, dur, dur);
     nextAnimClass(e1, "hiddenImage", "fadeinImage");
-
 }
 
 // ----------------------------------------
@@ -741,13 +740,13 @@ function initShow() {
 
 function loadImg(id, url, geo, resizeAlg) {
     const imgGeo = fitToScreenGeo(geo, resizeAlg);
-    const off    = toPx(placeOnScreen(imgGeo));
+    const o      = toPx(placeOnScreen(imgGeo));
     const g      = toPx(imgGeo);
 
     const istyle = { width    : g.w,
                      height   : g.h,
-                     left     : off.w,
-                     top      : off.h,
+                     left     : o.w,
+                     top      : o.h,
                      position : "absolute",
                      overflow : "hidden"
                    };
@@ -818,14 +817,14 @@ function zoomTo(scale, shift) {
 }
 
 function zoomCSS() {
-    const off    = toPx(zoomState.curOff);
-    const g      = toPx(zoomState.curGeo);
+    const g = toPx(zoomState.curGeo);
+    const o = toPx(zoomState.curOff);
     return { width    : g.w,
              height   : g.h,
-             left     : off.w,
-             top      : off.h,
+             left     : o.w,
+             top      : o.h,
              position : "absolute",
-             overflow : "auto"
+             overflow : "hidden"
            };
 }
 
@@ -834,15 +833,84 @@ function setImgZoomCSS() {
     setStyles(id, zoomCSS());
 }
 
+function animImgZoom(scale, shift, duration) {
+
+    function zoomCSSa() {
+        const g = toPx(zoomState.curGeo);
+        const o = toPx(zoomState.curOff);
+        return `width: ${g.w}; height: ${g.h}; left: ${o.w}; top: ${o.h}`;
+    }
+
+    const s0 = zoomCSSa();
+    zoomTo(scale, shift);
+    const s1 = zoomCSSa();
+
+    const cn = "zoom-anim";
+    const kf = "zoom-move";
+    const d  = duration || 1.5;
+
+    const cssKeyFrames = `
+          @keyframes ${kf} {
+                0% {${s0}}
+              100% {${s1}}
+          }
+          `;
+    const cssZoomClass = `
+          img.${cn} {
+              animation-name:            ${kf};
+              animation-duration:        ${d}s;
+              animation-delay:           0s;
+              animation-direction:       normal;
+              animation-iteration-count: 1;
+              animation-timing-function: ease-in-out;
+              animation-fill-mode:       both;
+          }
+          `;
+
+    const css = clearCont(zoomCss);
+    css.appendChild(newText(cssKeyFrames + cssZoomClass));
+
+    function animationEndFunction(ev) {
+        trc(1, `${ev.animationName} animation has finished`);
+
+        ev.stopPropagation();
+        const i = getCurrImgElem();
+        i.classList.remove(cn);
+        i.removeEventListener("animationend", animationEndFunction);
+
+        setImgZoomCSS();
+    }
+
+    trc(1, `animZoomImg: animation started: ${cn}`);
+
+    const i = getCurrImgElem();
+    i.addEventListener("animationend", animationEndFunction);
+    i.classList.add(cn);    // start anim
+}
+
+function animImgZoom1() { animImgZoom(1, p00); }
+function animImgPlus()  { animImgZoom(zoomState.scale * 1.2); }
+function animImgMinus() { animImgZoom(zoomState.scale / 1.2); }
+function animImgZoomFit() {
+    var g0 = zoomState.orgGeo;
+    var g1 = resizeToFitIntoScreen(g0);
+    animImgZoom(g1.w / g0.w, p00);
+}
+function animImgZoomFill() {
+    var g0 = zoomState.orgGeo;
+    var g1 = resizeToFillScreen(g0);
+    animImgZoom(g1.w / g0.w, p00);
+}
+
+// --------------------
+
 function zoomImg(scale, shift) {
     zoomTo(scale, shift);
     setImgZoomCSS();
 }
 
 function zoomImg1()     { zoomImg(1); }
-
 function zoomImgPlus()  { zoomImg(zoomState.scale * 1.2); }
-
 function zoomImgMinus() { zoomImg(zoomState.scale / 1.2); }
 
 function zoomImgFit() {
@@ -2315,8 +2383,8 @@ function initHandlers() {
     for (let id of [img1, img2]) {
         const e = getElem(id);
         e.addEventListener("animationend",
-                           function () {
-                               handleImageAnim(id);
+                           function (ev) {
+                               handleImageAnim(id, ev);
                             });
     }
 }
@@ -2324,12 +2392,15 @@ function initHandlers() {
 // ----------------------------------------
 // image1 / image2 overlay animation
 
-function handleImageAnim(id) {
-    trc(1, `handleImageAnim: ${id}`);
-    const e = getElem(id);
-    nextAnimClass(e, "fadeinImage", "visibleImage");
-    nextAnimClass(e, "fadeoutImage", "hiddenImage")
-        && clearImageElem(e);
+function handleImageAnim(id, ev) {
+    const n = ev.animationName;
+    trc(1, `handleImageAnim: ${id} ${n}`);
+    if ( n === "fadein" || n === "fadeout" ) {
+        ev.stopPropagation();
+        const e = getElem(id);
+        nextAnimClass(e, "fadeinImage", "visibleImage");
+        nextAnimClass(e, "fadeoutImage", "hiddenImage") && clearImageElem(e);
+    }
 }
 
 function hideImageElem(id) {
@@ -2347,7 +2418,7 @@ function showImageElem(id) {
 }
 
 function isHiddenImage(id) {
-    trc(1, 'isHiddenImage: id=' + id);
+    // trc(1, 'isHiddenImage: id=' + id);
     const cs = getElem(id).classList;
     return cs.contains("hiddenImage") || cs.contains("fadeoutImage");
 }
