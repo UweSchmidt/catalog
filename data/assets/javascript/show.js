@@ -24,6 +24,9 @@ const infoTab = "info-table";
 const help    = "help";
 const status  = "status";
 
+var defaultTransitionDur = 1.0;
+var defaultZoomDur       = 1.5;
+
 // default video attributes
 
 const videoAttrs = { controls: "",
@@ -609,7 +612,7 @@ function toggleImg12(id)  {
 // simplest transition: exchange images without animation
 
 function getTransition(cp, lp) {
-    if ( defaultTransDur === 0) {
+    if ( defaultTransitionDur === 0) {
         return cut;
     }
     if ( isImgPage(currPage)
@@ -643,12 +646,10 @@ function cut(id1, id2) {
 // ----------------------------------------
 // crossfade images
 
-let defaultTransDur = 1.0;
-
 function crossFade(id1, id2, dur0) {
     const e1 = getElem(id1);
     const e2 = getElem(id2);
-    const dur = dur0 || defaultTransDur;
+    const dur = dur0 || defaultTransitionDur;
     trc(1, `crossFade: ${id1}, ${dur}sec`);
 
     setAnimDur(e2, dur);
@@ -665,7 +666,7 @@ function crossFade(id1, id2, dur0) {
 function fadeOutIn(id1, id2, dur0) {
     const e1 = getElem(id1);
     const e2 = getElem(id2);
-    const dur = (dur0 || defaultTransDur) / 1;
+    const dur = (dur0 || defaultTransitionDur) / 1;
     trc(1, `fadeOutIn: ${id1}, ${dur}sec`);
 
     setAnimDur(e2, dur);
@@ -696,20 +697,20 @@ function clearImageElem(e) {
 // ----------------------------------------
 
 function slowDownTransAnim() {
-    defaultTransDur += 0.25;
+    defaultTransitionDur += 0.25;
     showAnimDur();
 }
 
 function speedUpTransAnim() {
-    defaultTransDur = Math.max(0, defaultTransDur - 0.25);
+    defaultTransitionDur = Math.max(0, defaultTransitionDur - 0.25);
     showAnimDur();
 }
 
 function showAnimDur() {
     const msg = "Animation bei Bildwechsel "
-          + (defaultTransDur === 0
+          + (defaultTransitionDur === 0
              ? "aus"
-             : defaultTransDur + " sec."
+             : defaultTransitionDur + " sec."
             );
     showStatus(msg);
 }
@@ -759,7 +760,9 @@ function loadImg(id, url, geo, resizeAlg) {
 
 // --------------------
 
-var zoomState = { orgGeo : p00,  // original geometry of image
+var zoomState = { id     : "",
+                  idImg  : "",
+                  orgGeo : p00,  // original geometry of image
                   curGeo : p00,  // geometry of image displayed on screen
                   curOff : p00,  // left and top coords of displayed image
                   scale  : 1,    // resize factor of image
@@ -770,7 +773,7 @@ var zoomState = { orgGeo : p00,  // original geometry of image
                 };
 
 function loadZoomableImg(id, url, geo, scale, shift) {
-    initZoomState();
+    initZoomState(id);
     initZoomGeo(geo);
     zoomTo(scale, shift);
 
@@ -780,11 +783,35 @@ function loadZoomableImg(id, url, geo, scale, shift) {
     const i = newImgElem(id, s, "img zoom");
     i.src   = url;
     e.appendChild(i);
+    i.addEventListener("dblclick", setImgCenter);
 }
 
-function initZoomState() {
+function setImgCenter(e) {
+    trc(1, `setImgCenter: shift image
+            offsetX: ${e.offsetX}
+            offsetY: ${e.offsetY}
+           `);
+
+    const p0 = {w : e.offsetX, h : e.offsetY}; // pos in scaled pic
+    const p1 = divGeo(p0, zoomState.scale);    // pos in original pic
+    const p2 = subGeo(p1, mulGeo(zoomState.orgGeo, 0.5)); // offset from center
+    const sh = divGeo(p2, zoomState.orgGeo); // offset rel to geometry
+    /*
+    trc(1, `points:
+             p0: ${p0.w},${p0.h}
+             p1: ${p1.w},${p1.h}
+             p2: ${p2.w},${p2.h}
+             sh: ${sh.w},${sh.h}
+           `);
+    */
+    animImgZoom(null, mulGeo(sh, -1));
+}
+
+function initZoomState(id) {
     const g0 = readGeo(currPage.oirGeo[0]);
-    zoomState = { orgGeo : g0,
+    zoomState = { id     : id,
+                  idImg  : mkImgId(id),
+                  orgGeo : g0,
                   curGeo : g0,
                   curOff : placeOnScreen(g0, p00),
                   shift  : p00,
@@ -828,10 +855,7 @@ function zoomCSS() {
            };
 }
 
-function setImgZoomCSS() {
-    const id = mkImgId(currImgId());
-    setStyles(id, zoomCSS());
-}
+function setImgZoomCSS() { setStyles(zoomState.idImg, zoomCSS()); }
 
 function animImgZoom(scale, shift, duration) {
 
@@ -847,7 +871,7 @@ function animImgZoom(scale, shift, duration) {
 
     const cn = "zoom-anim";
     const kf = "zoom-move";
-    const d  = duration || 1.5;
+    const d  = duration || defaultZoomDur;  // default zoom duration
 
     const cssKeyFrames = `
           @keyframes ${kf} {
