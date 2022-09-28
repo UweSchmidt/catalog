@@ -27,6 +27,8 @@ const status  = "status";
 var defaultTransitionDur = 1.0;
 var defaultZoomDur       = 1.5;
 
+var editMode  = true;
+
 // default video attributes
 
 const videoAttrs = { controls: "",
@@ -151,6 +153,10 @@ function subGeo(g1, g2) {
                  h : g1.h - g2.h
                };
     }
+}
+
+function eqGeo(g1, g2) {
+    return g1.w === g2.w && g1.h === g2.h;
 }
 
 function roundGeo(g) {
@@ -786,25 +792,27 @@ function loadZoomableImg(id, url, geo, scale, shift) {
     i.addEventListener("dblclick", setImgCenter);
 }
 
+function isZoomImg() {
+    const i = getCurrImgElem();
+    return i.classList.contains("zoom");
+}
+
 function setImgCenter(e) {
     trc(1, `setImgCenter: shift image
             offsetX: ${e.offsetX}
             offsetY: ${e.offsetY}
            `);
 
-    const p0 = {w : e.offsetX, h : e.offsetY}; // pos in scaled pic
-    const p1 = divGeo(p0, zoomState.scale);    // pos in original pic
+    const sh = xy2shift({w : e.offsetX, h : e.offsetY});
+    zoomImg(null, sh);
+    // animImgZoom(null, mulGeo(sh, -1));
+}
+
+function xy2shift(xy) {
+    const p1 = divGeo(xy, zoomState.scale);               // pos in original pic
     const p2 = subGeo(p1, mulGeo(zoomState.orgGeo, 0.5)); // offset from center
-    const sh = divGeo(p2, zoomState.orgGeo); // offset rel to geometry
-    /*
-    trc(1, `points:
-             p0: ${p0.w},${p0.h}
-             p1: ${p1.w},${p1.h}
-             p2: ${p2.w},${p2.h}
-             sh: ${sh.w},${sh.h}
-           `);
-    */
-    animImgZoom(null, mulGeo(sh, -1));
+    const sh = divGeo(p2, zoomState.orgGeo);              // offset rel to size
+    return mulGeo(sh, -1);
 }
 
 function initZoomState(id) {
@@ -940,13 +948,125 @@ function zoomImgMinus() { zoomImg(zoomState.scale / 1.2); }
 function zoomImgFit() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFitIntoScreen(g0);
-    zoomImg(g1.w / g0.w);
+    zoomImg(g1.w / g0.w, p00);
 }
 
 function zoomImgFill() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFillScreen(g0);
-    zoomImg(g1.w / g0.w);
+    zoomImg(g1.w / g0.w, p00);
+}
+
+// --------------------
+
+function editModeOn() {
+    if ( ! editMode ) {
+        editMode = true;
+        trc(1, "editModeOn");
+    }
+}
+
+function editModeOff() {
+    if ( editMode ) {
+        editMode = false;
+        trc(1, "editModeOff");
+    }
+}
+
+function editKeyPressed(e) {
+    const handled = handleKeyPressed(e);
+    if ( handled ) {
+        e.stopPropagation();
+    }
+    else {
+        keyPressed(e);
+    }
+}
+
+function handleKeyPressed(e) {
+    if ( ! editMode ) {
+        return false;
+    }
+    if ( ! isZoomImg() ) {
+        return false;
+    }
+    const k = e.key;
+    trc(1,`handleKeyPressed: ${k}`);
+
+    // img resize
+
+    if ( k === "+" || k === "*" ) {
+        blowupImg(k === "*");
+        return true;
+    }
+    if ( k === "-" || k === "_") {
+        shrinkImg(k === "_");
+        return true;
+    }
+
+    if ( k === "0") {
+        zoomImgFit();
+        return true;
+    }
+
+    if ( k === "1") {
+        zoomImgFill();
+        return true;
+    }
+    if ( k === "2") {
+        zoomImg1();
+        return true;
+    }
+
+    // img move
+    if ( k === "l" || k === "L") {
+        backwardImg(k == "L");
+        return true;
+    }
+    if ( k === "r" || k === "R") {
+        forwardImg(k == "R");
+        return true;
+    }
+    if ( k === "u" || k === "U") {
+        upwardImg(k == "U");
+        return true;
+    }
+    if ( k === "d" || k === "D") {
+        downwardImg(k == "D");
+        return true;
+    }
+
+    return false;
+}
+
+function zmstep(smallStep) { return smallStep ? 1.01 : 1.1; }
+
+function blowupImg(smallStep) {
+    const s = zmstep(smallStep);
+    zoomImg(zoomState.scale * s);
+}
+function shrinkImg(smallStep) {
+    const s = zmstep(smallStep);
+    zoomImg(zoomState.scale / s);
+}
+
+function mvstep(smallStep) { return smallStep ? 0.005 : 0.05; }
+
+function forwardImg(smallStep) {
+    const s = mvstep(smallStep);
+    zoomImg(null, addGeo(zoomState.shift, {w : s, h : 0}));
+}
+function backwardImg(smallStep) {
+    const s = mvstep(smallStep);
+    zoomImg(null, addGeo(zoomState.shift, {w : 0 - s, h : 0}));
+}
+function upwardImg(smallStep) {
+    const s = mvstep(smallStep);
+    zoomImg(null, addGeo(zoomState.shift, {w : 0, h : 0 - s}));
+}
+function downwardImg(smallStep) {
+    const s = mvstep(smallStep);
+    zoomImg(null, addGeo(zoomState.shift, {w : 0, h : s}));
 }
 
 // --------------------
@@ -2111,8 +2231,11 @@ function keyPressed (e) {
 
 // install keyboard event handlers
 
-document.onkeypress = keyPressed;
-document.onkeyup    = keyUp;
+// document.onkeypress = keyPressed;
+// document.onkeyup    = keyUp;
+
+document.addEventListener("keypress", editKeyPressed);
+document.addEventListener("keyup",    keyUp);
 
 // ----------------------------------------
 // build metadata table
@@ -2373,7 +2496,7 @@ function showDur() {
 
 var statusEnabled = true;
 var statusTimer   = undefined;
-const statusDur   = 2.0 * 1000;      // default: status messages are shown for 2 seconds
+const statusDur   = 2.0 * 1000;  // default: status messages are shown for 2 seconds
 
 function showStatus(msg, dur) {
     if (statusEnabled) {
