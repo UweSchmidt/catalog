@@ -189,7 +189,7 @@ function lessThan(g1, g2) {
 
 function isPano(g) {
     const ar = aspectRatio(g);
-    return ( // fitsInto(screenGeo(), g)
+    return ( // fitsInto(imgTabGeo(), g)
              // &&
              ( ar >= 2 || ar <= 0.5 )
            );
@@ -265,35 +265,70 @@ function sameWidthGeo(s, g) {
 // --------------------
 
 function resizeToScreenHeight(g) {
-    return sameHeigthGeo(g, screenGeo());
+    return sameHeigthGeo(g, imgTabGeo());
 }
 
 function resizeToScreenWidth(g) {
-    return sameWidthGeo(g, screenGeo());
+    return sameWidthGeo(g, imgTabGeo());
 }
 
 function resizeToFillScreen(g) {
-    return fillGeo(g, screenGeo());
+    return fillGeo(g, imgTabGeo());
 }
 
 function resizeToFitIntoScreen(g) {
-    return fitIntoGeo(g, screenGeo());
+    return fitIntoGeo(g, imgTabGeo());
 }
 
 // --------------------
 
-var theScreenGeo = { w : 0, h : 0 };
+const layout = {
+    theScreenGeo         : p00,
+    theImgTabGeo         : p00,
+    theImgTabOff         : p00,
+    theImgTabIsCentered  : false,
+    theImgTabAspectRatio : null,  // e.g. {w: 16, h: 10}, null: no constraint
+};
 
-function screenGeo() {
-    const w1 = window.innerWidth;
-    const h1 = window.innerHeight;
+function resizedScreen() {
+    const g = { w : window.innerWidth,
+                h : window.innerHeight
+              };
+    trc(1, `resizedScreen: w=${g.w}, h=${g.h} `);
 
-    if ( w1 != theScreenGeo.w || h1 != theScreenGeo.h ) { // screenGeo has changed
-        theScreenGeo.w = w1;
-        theScreenGeo.h = h1;
-        setCSS(imgTab, {width : w1 + "px", height : h1 + "px"});
+    layout.theScreenGeo = g;
+    setSizeImgTab();
+}
+
+function setAspectRatio(p, c) {
+    trc(1, "setAspectRatio " + c);
+    layout.theImgTabAspectRatio = p;
+    if ( c != undefined ) {
+        layout.theImgTabIsCentered = c;
     }
-    return theScreenGeo;
+    setSizeImgTab();
+}
+
+function setSizeImgTab() {
+    const g0 = layout.theScreenGeo;
+    layout.theImgTabGeo = g0;
+    layout.theImgTabOff = p00;
+
+    if ( layout.theImgTabAspectRatio != null ) {
+        const g1 = roundGeo(fitIntoGeo(layout.theImgTabAspectRatio, g0));
+        layout.theImgTabGeo = g1;
+
+        if ( layout.theImgTabIsCentered ) {
+            const o = divGeo(subGeo(layout.theScreenGeo, g1), 2);
+            layout.theImgTabOff = o;
+        }
+    }
+
+    setGeoCSS(imgTab, layout.theImgTabGeo, layout.theImgTabOff);
+}
+
+function imgTabGeo() {
+    return layout.theImgTabGeo;
 }
 
 // if geometry g fits into the screen and
@@ -301,7 +336,7 @@ function screenGeo() {
 // do not expand geometry (img stays as small as it is)
 
 function fitToScreenGeo(g, blowUp) {
-    const d = screenGeo();
+    const d = imgTabGeo();
     if ( fitsInto(g, d)
          && (blowUp /= "magnify")
        ) return fitIntoGeo(g, d);
@@ -310,7 +345,7 @@ function fitToScreenGeo(g, blowUp) {
 
 function placeOnScreen(geo, shift0) {
     const shift   = shift0 || p00;
-    const leftTop = divGeo(subGeo(screenGeo(), geo), 2);
+    const leftTop = divGeo(subGeo(imgTabGeo(), geo), 2);
     return addGeo(leftTop, shift);
 }
 
@@ -337,11 +372,11 @@ function bestFitToGeo (s) {
 }
 
 function bestFitToScreenGeo () {
-    return bestFitToGeo(screenGeo());
+    return bestFitToGeo(imgTabGeo());
 }
 
 function bestFitIconGeo() {
-    const s = screenGeo();
+    const s = imgTabGeo();
     if (s.w <= 1280)
         return readGeo("120x90");
     if (s.w <= 1400)
@@ -505,6 +540,17 @@ function setCSS(e, attrs, val) {
     }
 }
 
+function setGeoCSS(id, p, o) {
+    const px  = toPx(p);
+    const css = { width : px.w,
+                  height: px.h };
+    if( o ) {
+        ox = toPx(o);
+        css.left = ox.w;
+        css.top  = ox.h;
+    }
+    setCSS(id, css);
+}
 function newElem(tag, x2, x3, x4) {
     let id = "";
     if (typeof x2 === "string") {  // elem id found
@@ -733,12 +779,10 @@ var picCache = new Image();
 /* initialization */
 
 function initShow() {
-    const g = toPx(screenGeo());
-    console.log("initShow: screen geo=" + showGeo(g));
+    trc(1, "initShow");
 
+    resizedScreen();
     initHandlers();
-
-    setCSS(imgTab, {width : g.w, height : g.h});
     showPath(pathCollections());
 }
 
@@ -1090,7 +1134,7 @@ function loadFullImg(id, url, imgGeo) {
 }
 
 function loadPanoramaImg(id, url, imgGeo) {
-    const scrGeo = screenGeo();
+    const scrGeo = imgTabGeo();
     const isH    = isHorizontal(imgGeo);
     const ar     = aspectRatio(imgGeo);
     const offset = isH ? scrGeo.w - imgGeo.w : scrGeo.h - imgGeo.h;
@@ -1284,7 +1328,7 @@ function showMagnifiedMovie(page) { showMovie1(page,    "magnify"); }
 
 function showBlog(page) {
     const req = page.imgReq;
-    const geo = toPx(screenGeo());
+    const geo = toPx(imgTabGeo());
     const txt = getPageBlog(page);
     const id  = nextImgId();
 
@@ -1318,7 +1362,7 @@ function showCol(page) {
     const iconReq  = { rType: "icon",
                        rPathPos: colReq.rPathPos
                      };
-    const g        = toPx(screenGeo());
+    const g        = toPx(imgTabGeo());
     const id       = nextImgId();
     const e = clearCont(id);
     setCSS(e, { width:    g.w,
@@ -1345,7 +1389,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
     const iconGeo  = bestFitIconGeo();       // the geometry of nav icons
     const reqGeo   = bestFitToGeo(iconGeo);  // the geometry of the requested icons (maybe larger than iconGeo)
-    const scrGeo   = screenGeo();
+    const scrGeo   = imgTabGeo();
 
     // icon geo with border
     const iconGeoB = addGeo(iconGeo, border2);
@@ -1700,7 +1744,7 @@ function isTinyImgPage() {
         const req = currPage.imgReq;
         if ( isPicReq(req) || isMovieReq(req) ) {
             const orgGeo = readGeo(currPage.oirGeo[0]);
-            return lessThan(orgGeo, screenGeo());
+            return lessThan(orgGeo, imgTabGeo());
         }
     }
     return false;
@@ -2236,6 +2280,7 @@ function keyPressed (e) {
 
 document.addEventListener("keypress", editKeyPressed);
 document.addEventListener("keyup",    keyUp);
+// document.addEventListener("resize",   resizedScreen);
 
 // ----------------------------------------
 // build metadata table
