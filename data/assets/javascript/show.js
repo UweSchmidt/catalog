@@ -221,6 +221,9 @@ function showGeo(geo) {
 
 // convert geometry to pixels
 function toPx(obj) {
+    if (typeof obj === "number") {
+        return Math.round(obj) + "px";
+    }
     const res = {};
     for (k in obj) {
         res[k] = Math.round(obj[k]) + "px";  // fields are now strings
@@ -288,6 +291,8 @@ const layout = {
     theImgTabOff         : p00,
     theImgTabIsCentered  : false,
     theImgTabAspectRatio : null,  // e.g. {w: 16, h: 10}, null: no constraint
+    theEditTabIsVisible  : false,
+    theEditTabWidth      : 0.0,
 };
 
 function resizedScreen() {
@@ -310,7 +315,10 @@ function setAspectRatio(p, c) {
 }
 
 function setSizeImgTab() {
-    const g0 = layout.theScreenGeo;
+    const g0 = roundGeo(mulGeo( layout.theScreenGeo,
+                                {w : 1 - layout.theEditTabWidth, h : 1}
+                              )
+                       );
     layout.theImgTabGeo = g0;
     layout.theImgTabOff = p00;
 
@@ -325,6 +333,35 @@ function setSizeImgTab() {
     }
 
     setGeoCSS(imgTab, layout.theImgTabGeo, layout.theImgTabOff);
+}
+
+function showHideEditTab () {
+    if ( layout.theEditTabIsVisible ) {
+        setCSS( "editTab",
+                { width : toPx(layout.theScreenGeo.w - layout.theImgTabGeo.w),
+                  visibility : "visible",
+                }
+              );
+    }
+    else {
+        setCSS( "editTab", { visibility : "hidden" });
+    }
+}
+
+function toggleEditTab () {
+    if ( ! layout.theEditTabIsVisible ) {
+        layout.theEditTabIsVisible = true;
+        layout.theEditTabWidth     = 0.2;
+        layout.theImgTabIsCentered = false;
+    }
+    else {
+        layout.theEditTabIsVisible = false;
+        layout.theEditTabWidth     = 0.0;
+        layout.theImgTabIsCentered = true;
+    }
+    setSizeImgTab();
+    showHideEditTab();
+    stayHere();
 }
 
 function imgTabGeo() {
@@ -838,6 +875,7 @@ function loadZoomableImg(id, url, geo, scale, shift) {
 
 function isZoomImg() {
     const i = getCurrImgElem();
+    if ( i == null ) return false;
     return i.classList.contains("zoom");
 }
 

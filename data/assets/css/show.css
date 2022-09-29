@@ -73,6 +73,24 @@ body {
   animation-fill-mode: forwards;
 }
 
+.editTab {
+  display:    block;
+  position:   absolute;
+  min-height: 80%;
+  right:      0px;
+  top:        0px;
+
+  background-color: #555;
+}
+
+.editTabCont {
+  width:      100%;
+
+  border:           2px solid #333;
+  padding:          1ex;
+  background-color: #555;
+}
+
 /* -------------------- */
 /* collection page */
 
