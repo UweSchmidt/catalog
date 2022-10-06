@@ -37,12 +37,12 @@ const videoAttrs = { controls: "",
                    };
 /* some test data */
 
-const g1 = {w:1920,h:1200};
-const g2 = {w:6000,h:4000};
-const g3 = {w:600, h:800};
-const g4 = {w:2000,h:3000};
-const g5 = {w:10000,h:1000};
-const g6 = {w:10000,h:2000};
+const g1 = {x:1920,y:1200};
+const g2 = {x:6000,y:4000};
+const g3 = {x:600, y:800};
+const g4 = {x:2000,y:3000};
+const g5 = {x:10000,y:1000};
+const g6 = {x:10000,y:2000};
 /* end test data */
 
 /* ---------------------------------------- */
@@ -100,133 +100,49 @@ function intercalate(s, xs) {
 
 const infiniteWidth = 1000000;
 
-const p00 = {w : 0, h : 0};
-const p11 = {w : 1, h : 1};
-
-function addGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return { w : g1.w + g2,   // geo + scalar
-                 h : g1.h + g2
-               };
-
-    } else {
-        return { w : g1.w + g2.w,
-                 h : g1.h + g2.h
-               };
-    }
-}
-
-function mulGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return { w : g1.w * g2,   // geo + scalar
-                 h : g1.h * g2
-               };
-
-    } else {
-        return { w : g1.w * g2.w,
-                 h : g1.h * g2.h
-               };
-    }
-}
-
-function divGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return { w : g1.w / g2,   // geo + scalar
-                 h : g1.h / g2
-               };
-
-    } else {
-        return { w : g1.w / g2.w,
-                 h : g1.h / g2.h
-               };
-    }
-}
-
-function subGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return { w : g1.w - g2,   // geo - scalar
-                 h : g1.h - g2
-               };
-
-    } else {
-        return { w : g1.w - g2.w,
-                 h : g1.h - g2.h
-               };
-    }
-}
-
-function eqGeo(g1, g2) {
-    return g1.w === g2.w && g1.h === g2.h;
-}
-
-function roundGeo(g) {
-    return { w : Math.round(g.w),
-             h : Math.round(g.h)
-           };
-}
-
-function maxXY(g) {
-    return Math.max(g.w, g.h);
-}
-
-function minXY(g) {
-    return Math.min(g.w, g.h);
-}
-
-function scaleGeo(g, s) {
-    return { w : Math.floor(g.w * s),
-             h : Math.floor(g.h * s)
-    };
-}
-
-function fitsInto(g1, g2) {
-    return g1.w <= g2.w && g1.h <= g2.h;
-}
-
-function lessThan(g1, g2) {
-    return g1.w < g2.w && g1.h < g2.h;
-}
+const p00 = V2(0,0);
+const p11 = V2(1,1);
 
 function isPano(g) {
-    const ar = aspectRatio(g);
-    return ( // fitsInto(imgTabGeo(), g)
+    const ar = aspectRatioV2(g);
+    return ( // fitsIntoV2(imgTabGeo(), g)
              // &&
              ( ar >= 2 || ar <= 0.5 )
            );
 }
 
 function isHorizontal(g) {
-    return aspectRatio(g) > 1;
-}
-
-function aspectRatio(g) {
-    return g.w / g.h;
+    return aspectRatioV2(g) > 1;
 }
 
 function readGeo(txt) {
     if (txt === "org")
-        return { w : 1, h : 1 };
+        return V2(1,1);
 
     const a = txt.split('x');
-    return { w : 1 * a[0],
-             h : 1 * a[1]
-           };
+    return V2(1 * a[0], 1 * a[1]);
 }
 
 function showGeo(geo) {
-    if (geo.w === 1 && geo.h === 1)
+    if (geo.x === 1 && geo.y === 1)
         return "org";
-    return "" + geo.w + "x" + geo.h;
+    return "" + geo.x + "x" + geo.y;
 }
 
 // convert geometry to pixels
-function toPx(obj) {
-    if (typeof obj === "number") {
-        return Math.round(obj) + "px";
+function toPx(val) {
+
+    // convert to CSS px units
+    function px(n) {
+        return Math.round(n) + "px";
+    }
+
+    if (typeof val === "number") {
+        return px(v);
     }
     const res = {};
-    for (k in obj) {
-        res[k] = Math.round(obj[k]) + "px";  // fields are now strings
+    for (k in val) {
+        res[k] = px(Math.round(val[k]));
     }
     return res;
 }
@@ -236,8 +152,8 @@ function toPx(obj) {
 // that fits into g
 
 function fitIntoGeo(s, g) {
-    const ar = minXY(divGeo(g, s));
-    return mulGeo(s, ar);
+    const ar = minV2(divV2(g, s));
+    return mulV2(s, ar);
 }
 
 // scale s such that is is
@@ -245,24 +161,24 @@ function fitIntoGeo(s, g) {
 // in which g fits into
 
 function fillGeo(s, g) {
-    const ar = maxXY(divGeo(g, s));
-    return mulGeo(s, ar);
+    const ar = maxV2(divV2(g, s));
+    return mulV2(s, ar);
 }
 
 // scale s such that it has the same height as g
 // and aspect ratio remain
 
 function sameHeigthGeo(s, g) {
-    const ar = divGeo(g, s).h;
-    return mulGeo(s, ar);
+    const ar = divV2(g, s).y;
+    return mulV2(s, ar);
 }
 
 // scale s such that it has the same width as g
 // and aspect ratio remains
 
 function sameWidthGeo(s, g) {
-    const ar = divGeo(g, s).w;
-    return mulGeo(s, ar);
+    const ar = divV2(g, s).x;
+    return mulV2(s, ar);
 }
 
 // --------------------
@@ -290,16 +206,15 @@ const layout = {
     theImgTabGeo         : p00,
     theImgTabOff         : p00,
     theImgTabIsCentered  : false,
-    theImgTabAspectRatio : null,  // e.g. {w: 16, h: 10}, null: no constraint
+    theImgTabAspectRatio : null,  // e.g. {x: 16, y: 10}, null: no constraint
     theEditTabIsVisible  : false,
     theEditTabWidth      : 0.0,
 };
 
 function resizedScreen() {
-    const g = { w : window.innerWidth,
-                h : window.innerHeight
-              };
-    trc(1, `resizedScreen: w=${g.w}, h=${g.h} `);
+    const g = V2(window.innerWidth, window.innerHeight);
+
+    trc(1, `resizedScreen: new geo=${showGeo(g)}`);
 
     layout.theScreenGeo = g;
     setSizeImgTab();
@@ -315,19 +230,19 @@ function setAspectRatio(p, c) {
 }
 
 function setSizeImgTab() {
-    const g0 = roundGeo(mulGeo( layout.theScreenGeo,
-                                {w : 1 - layout.theEditTabWidth, h : 1}
+    const g0 = roundV2(mulV2( layout.theScreenGeo,
+                              V2(1 - layout.theEditTabWidth, 1)
                               )
                        );
     layout.theImgTabGeo = g0;
     layout.theImgTabOff = p00;
 
     if ( layout.theImgTabAspectRatio != null ) {
-        const g1 = roundGeo(fitIntoGeo(layout.theImgTabAspectRatio, g0));
+        const g1 = roundV2(fitIntoGeo(layout.theImgTabAspectRatio, g0));
         layout.theImgTabGeo = g1;
 
         if ( layout.theImgTabIsCentered ) {
-            const o = divGeo(subGeo(layout.theScreenGeo, g1), 2);
+            const o = divV2(subV2(layout.theScreenGeo, g1), 2);
             layout.theImgTabOff = o;
         }
     }
@@ -338,13 +253,13 @@ function setSizeImgTab() {
 function showHideEditTab () {
     if ( layout.theEditTabIsVisible ) {
         setCSS( "editTab",
-                { width : toPx(layout.theScreenGeo.w - layout.theImgTabGeo.w),
-                  visibility : "visible",
+                { width: toPx(layout.theScreenGeo.x - layout.theImgTabGeo.x),
+                  visibility: "visible",
                 }
               );
     }
     else {
-        setCSS( "editTab", { visibility : "hidden" });
+        setCSS( "editTab", { visibility: "hidden" });
     }
 }
 
@@ -374,7 +289,7 @@ function imgTabGeo() {
 
 function fitToScreenGeo(g, blowUp) {
     const d = imgTabGeo();
-    if ( fitsInto(g, d)
+    if ( fitsIntoV2(g, d)
          && (blowUp /= "magnify")
        ) return fitIntoGeo(g, d);
     return g;
@@ -382,8 +297,8 @@ function fitToScreenGeo(g, blowUp) {
 
 function placeOnScreen(geo, shift0) {
     const shift   = shift0 || p00;
-    const leftTop = divGeo(subGeo(imgTabGeo(), geo), 2);
-    return addGeo(leftTop, shift);
+    const leftTop = divV2(subV2(imgTabGeo(), geo), 2);
+    return addV2(leftTop, shift);
 }
 
 const geoOrg = readGeo("org");
@@ -402,7 +317,7 @@ const serverSupportedGeos =
 function bestFitToGeo (s) {
     for (let v of serverSupportedGeos) {
         const g = readGeo(v);
-        if (fitsInto(s, g))
+        if (fitsIntoV2(s, g))
             return g;
     }
     return geoOrg;
@@ -414,9 +329,9 @@ function bestFitToScreenGeo () {
 
 function bestFitIconGeo() {
     const s = imgTabGeo();
-    if (s.w <= 1280)
+    if (s.x <= 1280)
         return readGeo("120x90");
-    if (s.w <= 1400)
+    if (s.x <= 1400)
         return readGeo("140x105");
 
     return readGeo("160x120");
@@ -579,12 +494,12 @@ function setCSS(e, attrs, val) {
 
 function setGeoCSS(id, p, o) {
     const px  = toPx(p);
-    const css = { width : px.w,
-                  height: px.h };
+    const css = { width : px.x,
+                  height: px.y };
     if( o ) {
         ox = toPx(o);
-        css.left = ox.w;
-        css.top  = ox.h;
+        css.left = ox.x;
+        css.top  = ox.y;
     }
     setCSS(id, css);
 }
@@ -831,10 +746,10 @@ function loadImg(id, url, geo, resizeAlg) {
     const o      = toPx(placeOnScreen(imgGeo));
     const g      = toPx(imgGeo);
 
-    const istyle = { width    : g.w,
-                     height   : g.h,
-                     left     : o.w,
-                     top      : o.h,
+    const istyle = { width    : g.x,
+                     height   : g.y,
+                     left     : o.x,
+                     top      : o.y,
                      position : "absolute",
                      overflow : "hidden"
                    };
@@ -854,7 +769,7 @@ var zoomState = { id     : "",
                   curOff : p00,  // left and top coords of displayed image
                   scale  : 1,    // resize factor of image
                   shift  : p00,  // shift org image from center
-                                 // {w : 0.2, h : 0.1}:
+                                 // {x: 0.2, y: 0.1}:
                                  // center moves 20% of width to the right
                                  // and 10% of height to the bottom
                 };
@@ -885,16 +800,16 @@ function setImgCenter(e) {
             offsetY: ${e.offsetY}
            `);
 
-    const sh = xy2shift({w : e.offsetX, h : e.offsetY});
+    const sh = xy2shift({x: e.offsetX, y: e.offsetY});
     zoomImg(null, sh);
-    // animImgZoom(null, mulGeo(sh, -1));
+    // animImgZoom(null, mulV2(sh, -1));
 }
 
 function xy2shift(xy) {
-    const p1 = divGeo(xy, zoomState.scale);               // pos in original pic
-    const p2 = subGeo(p1, mulGeo(zoomState.orgGeo, 0.5)); // offset from center
-    const sh = divGeo(p2, zoomState.orgGeo);              // offset rel to size
-    return mulGeo(sh, -1);
+    const p1 = divV2(xy, zoomState.scale);               // pos in original pic
+    const p2 = subV2(p1, mulV2(zoomState.orgGeo, 0.5)); // offset from center
+    const sh = divV2(p2, zoomState.orgGeo);              // offset rel to size
+    return mulV2(sh, -1);
 }
 
 function initZoomState(id) {
@@ -912,7 +827,7 @@ function initZoomState(id) {
 function initZoomGeo(geo) {
     zoomState.curGeo = geo;
     zoomState.curOff = placeOnScreen(geo, zoomState.shift);
-    zoomState.scale = geo.w / zoomState.orgGeo.w;
+    zoomState.scale = geo.x / zoomState.orgGeo.x;
 }
 
 function zoomTo(scale, shift) {
@@ -920,9 +835,9 @@ function zoomTo(scale, shift) {
     const sh = shift || zoomState.shift;
 
     const g0 = zoomState.orgGeo;
-    const g1 = mulGeo(g0, sc);
+    const g1 = mulV2(g0, sc);
 
-    const s1 = mulGeo(mulGeo(sh, g0), sc);
+    const s1 = mulV2(mulV2(sh, g0), sc);
     const o1 = placeOnScreen(g1, s1);
 
     zoomState.curGeo = g1;
@@ -936,10 +851,10 @@ function zoomTo(scale, shift) {
 function zoomCSS() {
     const g = toPx(zoomState.curGeo);
     const o = toPx(zoomState.curOff);
-    return { width    : g.w,
-             height   : g.h,
-             left     : o.w,
-             top      : o.h,
+    return { width    : g.x,
+             height   : g.y,
+             left     : o.x,
+             top      : o.y,
              position : "absolute",
              overflow : "hidden"
            };
@@ -952,7 +867,7 @@ function animImgZoom(scale, shift, duration) {
     function zoomCSSa() {
         const g = toPx(zoomState.curGeo);
         const o = toPx(zoomState.curOff);
-        return `width: ${g.w}; height: ${g.h}; left: ${o.w}; top: ${o.h}`;
+        return `width: ${g.x}; height: ${g.y}; left: ${o.x}; top: ${o.y}`;
     }
 
     const s0 = zoomCSSa();
@@ -1008,12 +923,12 @@ function animImgMinus() { animImgZoom(zoomState.scale / 1.2); }
 function animImgZoomFit() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFitIntoScreen(g0);
-    animImgZoom(g1.w / g0.w, p00);
+    animImgZoom(g1.x / g0.x, p00);
 }
 function animImgZoomFill() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFillScreen(g0);
-    animImgZoom(g1.w / g0.w, p00);
+    animImgZoom(g1.x / g0.x, p00);
 }
 
 // --------------------
@@ -1030,13 +945,13 @@ function zoomImgMinus() { zoomImg(zoomState.scale / 1.2); }
 function zoomImgFit() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFitIntoScreen(g0);
-    zoomImg(g1.w / g0.w, p00);
+    zoomImg(g1.x / g0.x, p00);
 }
 
 function zoomImgFill() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFillScreen(g0);
-    zoomImg(g1.w / g0.w, p00);
+    zoomImg(g1.x / g0.x, p00);
 }
 
 // --------------------
@@ -1136,19 +1051,19 @@ function mvstep(smallStep) { return smallStep ? 0.005 : 0.05; }
 
 function forwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addGeo(zoomState.shift, {w : s, h : 0}));
+    zoomImg(null, addV2(zoomState.shift, {x: s, y: 0}));
 }
 function backwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addGeo(zoomState.shift, {w : 0 - s, h : 0}));
+    zoomImg(null, addV2(zoomState.shift, {x: 0 - s, y: 0}));
 }
 function upwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addGeo(zoomState.shift, {w : 0, h : 0 - s}));
+    zoomImg(null, addV2(zoomState.shift, {x: 0, y: 0 - s}));
 }
 function downwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addGeo(zoomState.shift, {w : 0, h : s}));
+    zoomImg(null, addV2(zoomState.shift, {x: 0, y: s}));
 }
 
 // --------------------
@@ -1157,8 +1072,8 @@ function loadFullImg(id, url, imgGeo) {
     const off    = toPx({x:0, y:0});
     const g      = toPx(imgGeo);
 
-    const istyle = { width    : g.w,
-                     height   : g.h,
+    const istyle = { width    : g.x,
+                     height   : g.y,
                      left     : off.x,
                      top      : off.y,
                      position : "absolute",
@@ -1174,8 +1089,8 @@ function loadFullImg(id, url, imgGeo) {
 function loadPanoramaImg(id, url, imgGeo) {
     const scrGeo = imgTabGeo();
     const isH    = isHorizontal(imgGeo);
-    const ar     = aspectRatio(imgGeo);
-    const offset = isH ? scrGeo.w - imgGeo.w : scrGeo.h - imgGeo.h;
+    const ar     = aspectRatioV2(imgGeo);
+    const offset = isH ? scrGeo.x - imgGeo.x : scrGeo.y - imgGeo.y;
     const d = 2.5 * 7.0 * Math.max(ar, 1/ar);
 
     // add keyframe style
@@ -1295,10 +1210,10 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
     const movGeo  = fitToScreenGeo(geo, resizeAlg);
     const off     = toPx(placeOnScreen(movGeo));
     const g       = toPx(movGeo);
-    const istyle  = { width    : g.w,
-                      height   : g.h,
-                      left     : off.w,
-                      top      : off.h,
+    const istyle  = { width    : g.x,
+                      height   : g.y,
+                      left     : off.x,
+                      top      : off.y,
                       position : "absolute",
                       overflow : "hidden"
                    };
@@ -1309,8 +1224,8 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
 
     if (rType === "movie") {
         const v    = newMovElem(id, istyle, "movie video " + resizeAlg);
-        v.width    = movGeo.w;
-        v.heigth   = movGeo.h;
+        v.width    = movGeo.x;
+        v.heigth   = movGeo.y;
         if (videoAttrs.autoplay != null) {
             v.autoplay = "autoplay";
         }
@@ -1336,8 +1251,8 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
     }
     else if (rType === "gif") {
         const v2 = newImgElem(id,
-                              { width:  g.w,
-                                height: g.h
+                              { width:  g.x,
+                                height: g.y
                               },
                               "movie gif " + resizeAlg
                              );
@@ -1403,8 +1318,8 @@ function showCol(page) {
     const g        = toPx(imgTabGeo());
     const id       = nextImgId();
     const e = clearCont(id);
-    setCSS(e, { width:    g.w,
-                height:   g.h,
+    setCSS(e, { width:    g.x,
+                height:   g.y,
                 left:     "0px",
                 top:      "0px",
                 overflow: "auto"
@@ -1420,7 +1335,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
     const padding  = 10;
     const border   = 1;
     const border2  = 2 * border;
-    const gridGeo  = {w: 3, h: 2};
+    const gridGeo  = {x: 3, y: 2};
 
     // geometry for icons with/without border
     // in full and half size
@@ -1430,17 +1345,17 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
     const scrGeo   = imgTabGeo();
 
     // icon geo with border
-    const iconGeoB = addGeo(iconGeo, border2);
+    const iconGeoB = addV2(iconGeo, border2);
 
-    const i2h      = div(iconGeo.h - border2 - gap, 2);
+    const i2h      = div(iconGeo.y - border2 - gap, 2);
     const i2w      = div(3 * i2h, 2);
-    const ico2Geo  = {w: i2w, h: i2h};
-    const ico2GeoB = addGeo(ico2Geo,border2);
+    const ico2Geo  = {x: i2w, y: i2h};
+    const ico2GeoB = addV2(ico2Geo,border2);
 
-    const gapGeo   = mulGeo(subGeo(gridGeo, 1), gap);
-    const navGeo   = addGeo(mulGeo(ico2GeoB, gridGeo), gapGeo);
+    const gapGeo   = mulV2(subV2(gridGeo, 1), gap);
+    const navGeo   = addV2(mulV2(ico2GeoB, gridGeo), gapGeo);
 
-    const numCols = Math.max(div(scrGeo.w - 2 * padding, iconGeoB.w + gap));
+    const numCols = Math.max(div(scrGeo.x - 2 * padding, iconGeoB.x + gap));
 
     // geometry in px
     const iG       = toPx(iconGeo);
@@ -1489,8 +1404,8 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
         function buildHeadIcon() {
             if ( isHeader ) {
                 const r = newElem("div",
-                                  { width:  iG.w,
-                                    heigth: iG.h,
+                                  { width:  iG.x,
+                                    heigth: iG.y,
                                     border: cssBorder
                                   },
                                   "collection-header-icon");
@@ -1545,8 +1460,8 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                 const md  = ico.eMeta;
 
                 const r = newElem("div",
-                                  { width:  i2G.w,
-                                    height: i2G.h,
+                                  { width:  i2G.x,
+                                    height: i2G.y,
                                     border: cssBorder
                                   },
                                   "navicon"
@@ -1574,8 +1489,8 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
             const r = newElem("div",
                               { display:                 "grid",
-                                "grid-template-columns": replicate(3, " " + i2GB.w),
-                                "grid-template-rows":    replicate(2, " " + i2GB.h),
+                                "grid-template-columns": replicate(3, " " + i2GB.x),
+                                "grid-template-rows":    replicate(2, " " + i2GB.y),
                                 "grid-gap":              gap + "px"
                               });
 
@@ -1598,7 +1513,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
         const h = newElem("div",
                           { display: "grid",
-                            "grid-template-columns": iGB.w + " auto " + navGeo.w + "px",
+                            "grid-template-columns": iGB.x + " auto " + navGeo.x + "px",
                             "grid-column-gap": "1em"
                           },
                           isHeader ? "collection-header" : "collection-footer");
@@ -1611,8 +1526,8 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
     function buildColContents() {
         const r = newElem("div",
                           { display: "grid",
-                            "grid-template-columns": replicate(numCols, " " + iGB.w),
-                            "grid-auto-rows": iGB.h,
+                            "grid-template-columns": replicate(numCols, " " + iGB.x),
+                            "grid-auto-rows": iGB.y,
                             "grid-gap":       gap + "px",
                           },
                           "collection-contents");
@@ -1626,8 +1541,8 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             const ir = ce.eReq;
             const md = ce.eMeta;
             const e  = newElem("div",
-                               { width:  iG.w,
-                                 height: iG.h,
+                               { width:  iG.x,
+                                 height: iG.y,
                                  border: cssBorder
                                });
 
@@ -1670,7 +1585,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
     const c = newElem("div",
                       { padding:      padding + "px",
-                        "min-height": scrGeo.h + "px"
+                        "min-height": scrGeo.y + "px"
                       },
                       "collection"
                      );
@@ -1782,7 +1697,7 @@ function isTinyImgPage() {
         const req = currPage.imgReq;
         if ( isPicReq(req) || isMovieReq(req) ) {
             const orgGeo = readGeo(currPage.oirGeo[0]);
-            return lessThan(orgGeo, imgTabGeo());
+            return lessThanV2(orgGeo, imgTabGeo());
         }
     }
     return false;
