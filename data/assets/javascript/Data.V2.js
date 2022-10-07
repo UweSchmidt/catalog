@@ -16,8 +16,8 @@ function V2(x, y) {
     return {x: x, y: y};
 }
 
-const orgV2 = V2();
-const oneV2 = V2(1);
+const zeroV2 = V2();
+const oneV2  = V2(1);
 
 // to string
 

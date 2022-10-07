@@ -22,7 +22,7 @@ const status  = "status";
 var defaultTransitionDur = 1.0;
 var defaultZoomDur       = 1.5;
 
-var editMode  = true;
+var editMode  = false; // true;
 
 // default video attributes
 
@@ -39,92 +39,6 @@ const g4 = {x:2000,y:3000};
 const g5 = {x:10000,y:1000};
 const g6 = {x:10000,y:2000};
 /* end test data */
-
-/* ---------------------------------------- */
-/* geometry ops */
-
-const infiniteWidth = 1000000;
-
-const p00 = V2(0,0);
-const p11 = V2(1,1);
-
-function isPano(g) {
-    const ar = aspectRatioV2(g);
-    return ( // fitsIntoV2(imgTabGeo(), g)
-             // &&
-             ( ar >= 2 || ar <= 0.5 )
-           );
-}
-
-function isHorizontal(g) {
-    return aspectRatioV2(g) > 1;
-}
-
-function readGeo(txt) {
-    if (txt === "org")
-        return V2(1,1);
-
-    const a = txt.split('x');
-    return V2(1 * a[0], 1 * a[1]);
-}
-
-function showGeo(geo) {
-    if (geo.x === 1 && geo.y === 1)
-        return "org";
-    return "" + geo.x + "x" + geo.y;
-}
-
-// convert geometry to pixels
-function toPx(val) {
-
-    // convert to CSS px units
-    function px(n) {
-        return Math.round(n) + "px";
-    }
-
-    if (typeof val === "number") {
-        return px(v);
-    }
-    const res = {};
-    for (k in val) {
-        res[k] = px(Math.round(val[k]));
-    }
-    return res;
-}
-
-// scale s such that it is
-// the larges geo with same aspect ratio as s
-// that fits into g
-
-function fitIntoGeo(s, g) {
-    const ar = minV2(divV2(g, s));
-    return mulV2(s, ar);
-}
-
-// scale s such that is is
-// the smallest geo with same aspect ratio as s
-// in which g fits into
-
-function fillGeo(s, g) {
-    const ar = maxV2(divV2(g, s));
-    return mulV2(s, ar);
-}
-
-// scale s such that it has the same height as g
-// and aspect ratio remain
-
-function sameHeigthGeo(s, g) {
-    const ar = divV2(g, s).y;
-    return mulV2(s, ar);
-}
-
-// scale s such that it has the same width as g
-// and aspect ratio remains
-
-function sameWidthGeo(s, g) {
-    const ar = divV2(g, s).x;
-    return mulV2(s, ar);
-}
 
 // --------------------
 
@@ -147,9 +61,9 @@ function resizeToFitIntoScreen(g) {
 // --------------------
 
 const layout = {
-    theScreenGeo         : p00,
-    theImgTabGeo         : p00,
-    theImgTabOff         : p00,
+    theScreenGeo         : zeroV2,
+    theImgTabGeo         : zeroV2,
+    theImgTabOff         : zeroV2,
     theImgTabIsCentered  : false,
     theImgTabAspectRatio : null,  // e.g. {x: 16, y: 10}, null: no constraint
     theEditTabIsVisible  : false,
@@ -180,7 +94,7 @@ function setSizeImgTab() {
                               )
                        );
     layout.theImgTabGeo = g0;
-    layout.theImgTabOff = p00;
+    layout.theImgTabOff = zeroV2;
 
     if ( layout.theImgTabAspectRatio != null ) {
         const g1 = roundV2(fitIntoGeo(layout.theImgTabAspectRatio, g0));
@@ -241,12 +155,12 @@ function fitToScreenGeo(g, blowUp) {
 }
 
 function placeOnScreen(geo, shift0) {
-    const shift   = shift0 || p00;
+    const shift   = shift0 || zeroV2;
     const leftTop = divV2(subV2(imgTabGeo(), geo), 2);
     return addV2(leftTop, shift);
 }
 
-const geoOrg = readGeo("org");
+const geoOrg = oneV2;
 
 const serverSupportedGeos =
       [ "160x120",
@@ -304,7 +218,7 @@ function imgReqToUrl(imgReq, imgGeo) {
     return "/docs/"
         + imgReq.rType
         + "/"
-        + showGeo(imgGeo)
+        + ( eqV2(imgGeo, oneV2) ? "org" : showGeo(imgGeo) )
         + pp
         + ".jpg";
 }
@@ -709,11 +623,11 @@ function loadImg(id, url, geo, resizeAlg) {
 
 var zoomState = { id     : "",
                   idImg  : "",
-                  orgGeo : p00,  // original geometry of image
-                  curGeo : p00,  // geometry of image displayed on screen
-                  curOff : p00,  // left and top coords of displayed image
+                  orgGeo : zeroV2,  // original geometry of image
+                  curGeo : zeroV2,  // geometry of image displayed on screen
+                  curOff : zeroV2,  // left and top coords of displayed image
                   scale  : 1,    // resize factor of image
-                  shift  : p00,  // shift org image from center
+                  shift  : zeroV2,  // shift org image from center
                                  // {x: 0.2, y: 0.1}:
                                  // center moves 20% of width to the right
                                  // and 10% of height to the bottom
@@ -763,8 +677,8 @@ function initZoomState(id) {
                   idImg  : mkImgId(id),
                   orgGeo : g0,
                   curGeo : g0,
-                  curOff : placeOnScreen(g0, p00),
-                  shift  : p00,
+                  curOff : placeOnScreen(g0, zeroV2),
+                  shift  : zeroV2,
                   scale  : 1,
                 };
 }
@@ -862,18 +776,18 @@ function animImgZoom(scale, shift, duration) {
     i.classList.add(cn);    // start anim
 }
 
-function animImgZoom1() { animImgZoom(1, p00); }
+function animImgZoom1() { animImgZoom(1, zeroV2); }
 function animImgPlus()  { animImgZoom(zoomState.scale * 1.2); }
 function animImgMinus() { animImgZoom(zoomState.scale / 1.2); }
 function animImgZoomFit() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFitIntoScreen(g0);
-    animImgZoom(g1.x / g0.x, p00);
+    animImgZoom(g1.x / g0.x, zeroV2);
 }
 function animImgZoomFill() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFillScreen(g0);
-    animImgZoom(g1.x / g0.x, p00);
+    animImgZoom(g1.x / g0.x, zeroV2);
 }
 
 // --------------------
@@ -890,13 +804,13 @@ function zoomImgMinus() { zoomImg(zoomState.scale / 1.2); }
 function zoomImgFit() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFitIntoScreen(g0);
-    zoomImg(g1.x / g0.x, p00);
+    zoomImg(g1.x / g0.x, zeroV2);
 }
 
 function zoomImgFill() {
     var g0 = zoomState.orgGeo;
     var g1 = resizeToFillScreen(g0);
-    zoomImg(g1.x / g0.x, p00);
+    zoomImg(g1.x / g0.x, zeroV2);
 }
 
 // --------------------
@@ -1105,7 +1019,7 @@ function showImg1(page, resizeAlg) {
     var ig = null;
     if ( resizeAlg === "fullsize" ) {
         // scrollable fullsize image in 1:1 resolution
-        ig = { ref : readGeo("org"),
+        ig = { ref : oneV2,
                img : orgGeo
              };
     }
@@ -1118,7 +1032,7 @@ function showImg1(page, resizeAlg) {
     }
     else if ( resizeAlg === "zoom" ) {
         // zoomable image
-        ig = { ref : readGeo("org"),
+        ig = { ref : oneV2,
                img : resizeToFitIntoScreen(orgGeo)
              };
     }
@@ -1280,7 +1194,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
     const padding  = 10;
     const border   = 1;
     const border2  = 2 * border;
-    const gridGeo  = {x: 3, y: 2};
+    const gridGeo  = V2(3, 2);
 
     // geometry for icons with/without border
     // in full and half size
@@ -1294,7 +1208,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
     const i2h      = div(iconGeo.y - border2 - gap, 2);
     const i2w      = div(3 * i2h, 2);
-    const ico2Geo  = {x: i2w, y: i2h};
+    const ico2Geo  = V2(i2w, i2h);
     const ico2GeoB = addV2(ico2Geo,border2);
 
     const gapGeo   = mulV2(subV2(gridGeo, 1), gap);
