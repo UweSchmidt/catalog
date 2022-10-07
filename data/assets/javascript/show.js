@@ -206,144 +206,6 @@ function jsonReqToUrl(req) {
     return reqToUrl(req1);
 }
 
-/* ---------------------------------------- */
-
-function newText(txt) {
-    return document.createTextNode(txt);
-}
-
-function newElem0(tag) {
-    return document.createElement(tag);
-}
-
-function getElem(id) {
-    const e = document.getElementById(id);
-    if (! e) {
-        trc(1, "getElem: warning: no elem found for " + id);
-    }
-    return e;
-}
-
-function clearCont(e) {
-    if (typeof e === "string") {
-        const e1 = getElem(e);
-        if (e1 != null) {
-            clearCont(e1);
-        }
-        return e1;
-    } else {
-        e.innerHTML = '';
-        trc(1, "clearCont:" + JSON.stringify(e));
-        return e;
-    }
-}
-
-function setCSS(e, attrs, val) {
-    if (typeof e === "string") {  // e is an id
-        setCSS(getElem(e), attrs, val);
-    }
-    else if (typeof attrs == "string"
-             &&
-             typeof val === "string"
-            ) {
-        e.style[attrs] = val;
-    }
-    else if (typeof e === "object"
-             &&
-             typeof attrs === "object"
-            ) {
-        for (let a in attrs) {    // e is an element
-            e.style[a] = "" + attrs[a];
-        }
-        return e;
-    }
-    else {
-        throw ("setCSS: illegal arg types: (" +
-               typeof e + "," +
-               typeof attrs + "," +
-               typeof val + ")");
-    }
-}
-
-function setGeoCSS(id, p, o) {
-    const px  = toPx(p);
-    const css = { width : px.x,
-                  height: px.y };
-    if( o ) {
-        ox = toPx(o);
-        css.left = ox.x;
-        css.top  = ox.y;
-    }
-    setCSS(id, css);
-}
-function newElem(tag, x2, x3, x4) {
-    let id = "";
-    if (typeof x2 === "string") {  // elem id found
-        id = x2;
-        x2 = x3;
-        x3 = x4;
-    }
-    let css = {};
-    if (typeof x2 === "object") {  // style obj found
-        css = x2;
-        x2  = x3;
-    }
-    let cls = "";
-    if (typeof x2 === "string") {  // css class found
-        cls = x2;
-    }
-
-    const e = newElem0(tag);
-    setCSS(e, css);                // set style
-    if (id) {
-        e.id = id;                 // set id
-    }
-    if (cls) {
-        const clss = cls.split(" ");
-        for (let i = 0; i < clss.length; i++ ) {
-            const c = clss[i];
-            if (c) {
-                e.classList.add(c);
-            }
-        }
-    }
-    return e;
-}
-
-function clearImg(id) {
-    const e      = clearCont(id);
-    const dstyle = { width    : "100%",
-                     height   : "100%"
-                   };
-    setCSS(e, dstyle);
-    return e;
-}
-
-// --------------------
-
-function setContents(id, cont) {
-    document.getElementById(id).innerHTML = cont;
-}
-
-function setAttr(id, attr, val) {
-    document.getElementById(id)[attr] = val;
-}
-
-function setStyles(id, attrs) {
-    const e = document.getElementById(id);
-    for (let a in attrs) {
-        e.style[a] = attrs[a];
-    }
-}
-
-function setStyle(id, attr, val) {
-    document.getElementById(id).style[attr] = val;
-}
-
-function getStyle(id, attr) {
-    return document.getElementById(id).style[attr];
-}
-
 // ----------------------------------------
 
 function mkImgId(id) {
@@ -527,7 +389,7 @@ function loadImg(id, url, geo, resizeAlg) {
                      overflow : "hidden"
                    };
     // get element, clear contents and set style attributes
-    const e = clearImg(id);
+    const e = clearBlock(id);
     const i = newImgElem(id, istyle, "img " + resizeAlg);
     i.src   = url;
     e.appendChild(i);
@@ -553,7 +415,7 @@ function loadZoomableImg(id, url, geo, scale, shift) {
     zoomTo(scale, shift);
 
     // get element, clear contents and set style attributes
-    const e = clearImg(id);
+    const e = clearBlock(id);
     const s = zoomCSS();
     const i = newImgElem(id, s, "img zoom");
     i.src   = url;
@@ -853,7 +715,7 @@ function loadFullImg(id, url, imgGeo) {
                      overflow : "auto"     // !!! image becomes scrollable
                    };
     // get element, clear contents and set style attributes
-    const e = clearImg(id);
+    const e = clearBlock(id);
     const i = newImgElem(id, istyle, "img fullsize");
     i.src   = url;
     e.appendChild(i);
@@ -903,7 +765,7 @@ function loadPanoramaImg(id, url, imgGeo) {
         trc(1, "animation of panorama has finished");
     }
 
-    const e = clearImg(id);
+    const e = clearBlock(id);
     const i = newImgElem(id, {}, "img panorama");
     i.addEventListener("load", togglePanoAnimation);
     i.addEventListener("animationend", animationEndFunction);
@@ -991,7 +853,7 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
                       overflow : "hidden"
                    };
 
-    const e = clearImg(id);
+    const e = clearBlock(id);
 
     // build video/img element
 
@@ -1061,7 +923,7 @@ function showBlog(page) {
     trc(1, "showBlog: " + txt);
 
     // get element, clear contents and set style attributes
-    const e  = clearImg(id);
+    const e  = clearBlock(id);
 
     // build blog contents div
     const b  = newBlogElem(id,
@@ -1408,9 +1270,7 @@ function showPage(page) {
 }
 
 function showPath(path) {
-    const rPathPos = pathToPathPos(path);
-    const jReq = { rType: "json", rPathPos: rPathPos};
-    const jUrl = jsonReqToUrl(jReq);
+    const jUrl = mkJsonUrl(path, showGeo(bestFitToScreenGeo()));
     gotoUrl(jUrl);
 }
 
