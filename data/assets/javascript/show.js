@@ -1,10 +1,5 @@
-/* show.js single page slideshow */
-
-function trc (t, Text) {
-    if ( t > 0 ) {
-        console.log(Text);
-    }
-}
+// import Prelude
+// import Data.V2
 
 /* ---------------------------------------- */
 /* id's */
@@ -44,56 +39,6 @@ const g4 = {x:2000,y:3000};
 const g5 = {x:10000,y:1000};
 const g6 = {x:10000,y:2000};
 /* end test data */
-
-/* ---------------------------------------- */
-/* basic operations */
-
-function div(x, y) {
-    return Math.floor(x / y);
-}
-
-function mod(x, y) {
-    return Math.floor(x % y);
-}
-
-function odd(x) {
-    return mod(x, 2) === 1;
-}
-
-function even(x) {
-    return mod(x, 2) === 0;
-}
-
-function replicate(n, s) {
-    if (n < 1)
-        return "";
-    if (n < 2)
-        return s;
-    if (odd(n))
-        return s + replicate(n - 1, s);
-    if (even(n)) {
-        const s1 = replicate(div(n,2), s);
-        return s1 + s1;
-    };
-}
-
-function qt(s) {
-    return '"' + s + '"';
-}
-
-function intercalate(s, xs) {
-    const l = xs.length;
-    if (l === 0) {
-        return "";
-
-    } else {
-        let res = xs[0];
-        for (let i = 1; i < l; i++) {
-            res += s + xs[i];
-        }
-        return res;
-    }
-}
 
 /* ---------------------------------------- */
 /* geometry ops */
