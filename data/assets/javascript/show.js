@@ -692,19 +692,19 @@ function mvstep(smallStep) { return smallStep ? 0.005 : 0.05; }
 
 function forwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, {x: s, y: 0}));
+    zoomImg(null, addV2(zoomState.shift, V2(s, 0));
 }
 function backwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, {x: 0 - s, y: 0}));
+    zoomImg(null, addV2(zoomState.shift, V2(0 - s, 0));
 }
 function upwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, {x: 0, y: 0 - s}));
+    zoomImg(null, addV2(zoomState.shift, V2(0, 0 - s));
 }
 function downwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, {x: 0, y: s}));
+    zoomImg(null, addV2(zoomState.shift, V2(0, s));
 }
 
 // --------------------
@@ -1295,16 +1295,7 @@ function showNextPage(req) {
 }
 
 function showErr(errno, url, msg) {
-    trc(1, "showErr:" + url + ": " + errno + ", " + msg);
-
-    let txt = "";
-    if (errno === 500) {
-        txt = 'Server Fehler: ' + msg + ', url=' + url;
-    } else if (errno === 404) {
-        txt = 'Server Fehler: Kein Eintrag gefunden für ' + url;
-    } else {
-        txt = 'Server Fehler: ' + errno + ', url=' + url;
-    }
+    const txt = showErrText(errno, url, msg);
     showStatus('<span class="errormsg">' + txt + '</span>', 4);
 }
 
@@ -1873,24 +1864,6 @@ function keyPressed (e) {
 document.addEventListener("keypress", editKeyPressed);
 document.addEventListener("keyup",    keyUp);
 // document.addEventListener("resize",   resizedScreen);
-
-// ----------------------------------------
-
-function getJsonPage(url, processRes, processErr, processNext) {
-    trc(1, "getJsonPage: " + url);
-
-    $.ajax({
-        type: "GET",
-        url: url
-    }).done(function (res) {
-        trc(1, "getJsonPage: new page=" + res);
-        processRes(res);
-    }).fail(function (err) {
-        trc(1, "getJsonPage: server error=" + err + ", status=" + err.status);
-        const msg = err.responseJSON || err.responseText;
-        processErr(err.status, url, msg);
-    }).always(processNext);
-}
 
 // ----------------------------------------
 // slideshow stuff
