@@ -14,21 +14,26 @@ function trc (t, Text) {
 //
 // arithmetc ops
 
-function div(x, y) {
-    return Math.floor(x / y);
-}
+// for arithmetic in folds
+function add(x, y)  { return x + y; }
+function sub(x, y)  { return x - y; }
+function mul(x, y)  { return x * y; }
+function quot(x, y) { return x / y; }
 
-function mod(x, y) {
-    return Math.floor(x % y);
-}
+// integer div and mod
+function div(x, y) { return Math.floor(x / y); }
+function mod(x, y) { return Math.floor(x % y); }
 
-function odd(x) {
-    return mod(x, 2) === 1;
-}
+// predicates
+function odd(x)  { return mod(x, 2) === 1; }
+function even(x) { return mod(x, 2) === 0; }
 
-function even(x) {
-    return mod(x, 2) === 0;
-}
+function eq(x, y) { return x === y; }
+function ne(x, y) { return x !=  y; }
+function ge(x, y) { return x >=  y; }
+function gr(x, y) { return x >   y; }
+function le(x, y) { return x <=  y; }
+function lt(x, y) { return x <  y; }
 
 // --------------------
 //
@@ -77,38 +82,100 @@ function intercalate(s, xs) {
 function id(x) { return x; }
 
 function cnst(c) {
-    let f = (x) => { return c; };
+    function f (x) { return c; };
     return f;
+}
+
+// function composition
+// comp(f1, f2, f3)(v) === f1(f2(f3(v)))
+
+function comp(...fs) {
+    function composed(x) {
+        let res = x;
+        for (const f of fs) {
+            res = f(res);
+        }
+        return res;
+    }
+
+    return composed;
+}
+
+// currying
+// curry(f)(a1)(a2) = f(a1,a2)
+
+function curry(f) {
+    function f1(x1) {
+        function f2(x2) {
+            return f(x1, x2);
+        }
+        return f2;
+    }
+    return f1;
 }
 
 // --------------------
 //
-// list functions
 
+// curried fold
+
+function foldl(f2, unit) {
+    function go(xs) {
+        let res = unit;
+        for (const x of xs) {
+            res = f2(res, x);
+        }
+        return res;
+    }
+    return go;
+}
+
+const sum     = foldl(add, 0);
+const product = foldl(mul, 1);
+
+// curried map function
 // process all elements of an iterable and
 // build a list of all result values
 
-function map(f, xs) {
-    let res = [];
-    for (const x of xs) {
-        res.push(f(x));
+function map(f) {
+    function go(xs) {
+        let res = [];
+        for (const x of xs) {
+            res.push(f(x));
+        }
+        return res;
     }
-    return res;
+    return go;
 }
 
-function zipWith(f, xs, ys0) {
-    const ys = map(id, ys0);
-    let res = [];
-    for (const x of xs) {
-        if ( ys.length === 0 ) break;
-        const y = ys.shift();
-        res.push(f(x, y));
+const toList = map(id);
+
+// curries zipWith function
+// process all elements of two iterables and
+// zip the results together into a list
+
+function zipWith(f) {
+    function go(xs, ys) {
+        const iys = ys[Symbol.iterator]();
+        let res = [];
+        for (const x of xs) {
+            const iy = iys.next();
+            if ( iy.done )
+                break;
+            res.push(f(x, iy.value));
+        }
+        return res;
     }
-    return res;
+    return go;
 }
+
+// concat two iterables into a list
 
 function conc(xs, ys) {
-    return map(id, xs).concat(map(id,ys));
+    let res = [];
+    for (const x of xs) { res.push(x); }
+    for (const y of ys) { res.push(y); }
+    return res;
 }
 
 // --------------------
