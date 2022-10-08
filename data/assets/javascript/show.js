@@ -48,20 +48,27 @@ const g6 = {x:10000,y:2000};
 
 // --------------------
 
-function resizeToScreenHeight(g) {
-    return sameHeigthGeo(g, imgTabGeo());
+function resizeTo(frameGeo) {
+    function resize(dim) {
+        function go(g) {
+            return dim(g, frameGeo());
+        }
+        return go;
+    }
+    return resize;
 }
 
-function resizeToScreenWidth(g) {
-    return sameWidthGeo(g, imgTabGeo());
-}
+const resizeToImgTab        = resizeTo(imgTabGeo);
+const resizeToScreenHeight  = resizeToImgTab(sameHeightGeo);
+const resizeToScreenWidth   = resizeToImgTab(sameWidthGeo);
+const resizeToFillScreen    = resizeToImgTab(fillGeo);
+const resizeToFitIntoScreen = resizeToImgTab(fitIntoGeo);
 
-function resizeToFillScreen(g) {
-    return fillGeo(g, imgTabGeo());
-}
-
-function resizeToFitIntoScreen(g) {
-    return fitIntoGeo(g, imgTabGeo());
+function withGeo(frameGeo, f) {
+    function go(...args) {
+        return f(frameGeo(), ...args);
+    }
+    return go;
 }
 
 // --------------------
@@ -152,12 +159,17 @@ function imgTabGeo() {
 // the resize algorithm isn't "magnify"
 // do not expand geometry (img stays as small as it is)
 
-function fitToScreenGeo(g, blowUp) {
-    const d = imgTabGeo();
-    if ( fitsIntoV2(g, d)
-         && (blowUp /= "magnify")
-       ) return fitIntoGeo(g, d);
-    return g;
+const fitToScreenGeo = withGeo(imgTabGeo, fitToFrameGeo);
+
+function fitToFrameGeo(fGeo, geo, blowUp) {
+    trc(1,`fitToFrameGeo: fg=${showGeo(fGeo)}, g=${showGeo(geo)}, ${blowUp}`);
+    if ( ! fitsIntoV2(geo, fGeo)
+         ||
+         (blowUp === "magnify")
+       ) {
+        return fitIntoGeo(geo, fGeo);
+    }
+    return geo;
 }
 
 function placeOnScreen(geo, shift0) {
@@ -692,19 +704,19 @@ function mvstep(smallStep) { return smallStep ? 0.005 : 0.05; }
 
 function forwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, V2(s, 0));
+    zoomImg(null, addV2(zoomState.shift, V2(s, 0)));
 }
 function backwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, V2(0 - s, 0));
+    zoomImg(null, addV2(zoomState.shift, V2(0 - s, 0)));
 }
 function upwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, V2(0, 0 - s));
+    zoomImg(null, addV2(zoomState.shift, V2(0, 0 - s)));
 }
 function downwardImg(smallStep) {
     const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, V2(0, s));
+    zoomImg(null, addV2(zoomState.shift, V2(0, s)));
 }
 
 // --------------------
@@ -866,7 +878,7 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
     if (rType === "movie") {
         const v    = newMovElem(id, istyle, "movie video " + resizeAlg);
         v.width    = movGeo.x;
-        v.heigth   = movGeo.y;
+        v.height   = movGeo.y;
         if (videoAttrs.autoplay != null) {
             v.autoplay = "autoplay";
         }
@@ -1046,7 +1058,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             if ( isHeader ) {
                 const r = newElem("div",
                                   { width:  iG.x,
-                                    heigth: iG.y,
+                                    height: iG.y,
                                     border: cssBorder
                                   },
                                   "collection-header-icon");

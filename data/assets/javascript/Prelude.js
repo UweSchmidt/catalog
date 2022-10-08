@@ -114,6 +114,16 @@ function curry(f) {
     return f1;
 }
 
+function curry1(f) {
+    function f1(x1) {
+        function f2(...x2) {
+            return f(x1, ...x2);
+        }
+        return f2;
+    }
+    return f1;
+}
+
 // --------------------
 //
 

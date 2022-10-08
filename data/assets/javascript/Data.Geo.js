@@ -85,7 +85,7 @@ function fillGeo(s, g) {
 // scale s such that it has the same height as g
 // and aspect ratio remain
 
-function sameHeigthGeo(s, g) {
+function sameHeightGeo(s, g) {
     const ar = divV2(g, s).y;
     return mulV2(s, ar);
 }
