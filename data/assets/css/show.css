@@ -35,44 +35,6 @@ body {
   /* display : block; /* set by class */
 }
 
-/* ---------------------------------------- */
-/* image overlay animation */
-
-@keyframes fadein {
-    0% {opacity: 0.0}
-  100% {opacity: 1.0}
-}
-
-@keyframes fadeout {
-    0% {opacity: 1.0}
-  100% {opacity: 0.0}
-}
-
-.hiddenImage {
-  display: none;
-  /* opacity: 0.0; */
-}
-
-.fadeinImage {
-  display:             block;
-  opacity:             0;
-  animation-name:      fadein;
-  animation-duration:  1s;       /* default */
-  animation-fill-mode: forwards;
-}
-
-.visibleImage {
-  display: block;
-  opacity: 1.0;
-}
-
-.fadeoutImage {
-  display:             block;
-  animation-name:      fadeout;
-  animation-duration:  1s;       /*default */
-  animation-fill-mode: forwards;
-}
-
 .editTab {
   display:    block;
   position:   absolute;
@@ -211,40 +173,6 @@ body {
   /* display: none; */
 }
 
-@keyframes fadeinI {
-    0% {opacity: 0.0}
-  100% {opacity: 0.8}
-}
-
-@keyframes fadeoutI {
-    0% {opacity: 0.8}
-  100% {opacity: 0.0}
-}
-
-.hiddenInfo {
-  display: none;
-  opacity: 0.0;
-}
-
-.fadeinInfo {
-  display:             block;
-  animation-name:      fadeinI;
-  animation-duration:  0.5s;
-  animation-fill-mode: forwards;
-}
-
-.visibleInfo {
-  display: block;
-  opacity: 0.8;
-}
-
-.fadeoutInfo {
-  display:             block;
-  animation-name:      fadeoutI;
-  animation-duration:  0.5s;
-  animation-fill-mode: forwards;
-}
-
 span.errormsg {
   color: #800;
 }
@@ -347,4 +275,76 @@ a:focus {
   text-decoration: none;
   color:           #ff0000;
 }
+/* ---------------------------------------- */
+/* fadein fadeout animation */
+
+@keyframes kf-fadein-image {
+  0% {opacity: 0.0}
+  100% {opacity: 1.0}
+}
+
+@keyframes kf-fadeout-image {
+  0% {opacity: 1.0}
+  100% {opacity: 0.0}
+}
+
+.hidden-image {
+  display: none;
+  /* opacity: 0.0; */
+}
+
+.fadein-image {
+  display:             block;
+  opacity:             0;
+  animation-name:      kf-fadein-image;
+  animation-duration:  1s;       /* default */
+  animation-fill-mode: forwards;
+}
+
+.visible-image {
+  display: block;
+  opacity: 1.0;
+}
+
+.fadeout-image {
+  display:             block;
+  animation-name:      kf-fadeout-image;
+  animation-duration:  1s;       /*default */
+  animation-fill-mode: forwards;
+}
+
+@keyframes kf-fadein-info {
+  0% {opacity: 0.0}
+  100% {opacity: 0.8}
+}
+
+@keyframes kf-fadeout-info {
+  0% {opacity: 0.8}
+  100% {opacity: 0.0}
+}
+
+.hidden-info {
+  display: none;
+  opacity: 0.0;
+}
+
+.fadein-info {
+  display:             block;
+  animation-name:      kf-fadein-info;
+  animation-duration:  0.5s;
+  animation-fill-mode: forwards;
+}
+
+.visible-info {
+  display: block;
+  opacity: 0.8;
+}
+
+.fadeout-info {
+  display:             block;
+  animation-name:      kf-fadeout-info;
+  animation-duration:  0.5s;
+  animation-fill-mode: forwards;
+}
+
 /* -------------------- */

@@ -64,12 +64,23 @@ const resizeToScreenWidth   = resizeToImgTab(sameWidthGeo);
 const resizeToFillScreen    = resizeToImgTab(fillGeo);
 const resizeToFitIntoScreen = resizeToImgTab(fitIntoGeo);
 
+
+// add the current frame geo as 1. arg to a function
+
 function withGeo(frameGeo, f) {
     function go(...args) {
         return f(frameGeo(), ...args);
     }
     return go;
 }
+
+const bestFitToScreenGeo = withGeo(imgTabGeo, bestFitToGeo);
+const fitToScreenGeo     = withGeo(imgTabGeo, fitToFrameGeo);
+const placeOnScreen      = withGeo(imgTabGeo, placeOnScreen1);
+const loadPanoramaImg    = withGeo(imgTabGeo, loadPanoramaImg1);
+const showBlog           = withGeo(imgTabGeo, showBlog1);
+const showCol            = withGeo(imgTabGeo, showCol1);
+const isTinyImgPage      = withGeo(imgTabGeo, isTinyImgPage1);
 
 // --------------------
 
@@ -159,22 +170,20 @@ function imgTabGeo() {
 // the resize algorithm isn't "magnify"
 // do not expand geometry (img stays as small as it is)
 
-const fitToScreenGeo = withGeo(imgTabGeo, fitToFrameGeo);
-
-function fitToFrameGeo(fGeo, geo, blowUp) {
-    trc(1,`fitToFrameGeo: fg=${showGeo(fGeo)}, g=${showGeo(geo)}, ${blowUp}`);
-    if ( ! fitsIntoV2(geo, fGeo)
+function fitToFrameGeo(fameGeo, geo, blowUp) {
+    trc(1,`fitToFrameGeo: fg=${showGeo(fameGeo)}, g=${showGeo(geo)}, ${blowUp}`);
+    if ( ! fitsIntoV2(geo, fameGeo)
          ||
          (blowUp === "magnify")
        ) {
-        return fitIntoGeo(geo, fGeo);
+        return fitIntoGeo(geo, fameGeo);
     }
     return geo;
 }
 
-function placeOnScreen(geo, shift0) {
+function placeOnScreen1(frameGeo, geo, shift0) {
     const shift   = shift0 || zeroV2;
-    const leftTop = divV2(subV2(imgTabGeo(), geo), 2);
+    const leftTop = scaleV2(subV2(frameGeo, geo), 0.5);
     return addV2(leftTop, shift);
 }
 
@@ -200,15 +209,10 @@ function bestFitToGeo (s) {
     return geoOrg;
 }
 
-function bestFitToScreenGeo () {
-    return bestFitToGeo(imgTabGeo());
-}
-
-function bestFitIconGeo() {
-    const s = imgTabGeo();
-    if (s.x <= 1280)
+function bestFitIconGeo(frameGeo) {
+    if (frameGeo.x <= 1280)
         return readGeo("120x90");
-    if (s.x <= 1400)
+    if (frameGeo.x <= 1400)
         return readGeo("140x105");
 
     return readGeo("160x120");
@@ -295,8 +299,8 @@ function cut(id1, id2) {
     const e1 = getElem(id1);
     const e2 = getElem(id2);
 
-    nextAnimClass(e2, "visibleImage", "hiddenImage");
-    nextAnimClass(e1, "hiddenImage", "visibleImage");
+    nextAnimClass(e2, "visible-image", "hidden-image");
+    nextAnimClass(e1, "hidden-image", "visible-image");
     clearImageElem(e2);
 }
 
@@ -310,11 +314,11 @@ function crossFade(id1, id2, dur0) {
     trc(1, `crossFade: ${id1}, ${dur}sec`);
 
     setAnimDur(e2, dur);
-    nextAnimClass(e2, "visibleImage", "fadeoutImage")
-        || nextAnimClass(e2, "fadeinImage", "fadeoutImage");
+    nextAnimClass(e2, "visible-image", "fadeout-image")
+        || nextAnimClass(e2, "fadein-image", "fadeout-image");
 
     setAnimDur(e1, dur);
-    nextAnimClass(e1, "hiddenImage", "fadeinImage");
+    nextAnimClass(e1, "hidden-image", "fadein-image");
 }
 
 // ----------------------------------------
@@ -327,12 +331,12 @@ function fadeOutIn(id1, id2, dur0) {
     trc(1, `fadeOutIn: ${id1}, ${dur}sec`);
 
     setAnimDur(e2, dur);
-    nextAnimClass(e2, "visibleImage", "fadeoutImage")
-        || nextAnimClass(e2, "fadeinImage", "fadeoutImage");
+    nextAnimClass(e2, "visible-image", "fadeout-image")
+        || nextAnimClass(e2, "fadein-image", "fadeout-image");
 
     // setCSS(e1, {opacity: 0});
     setAnimDur(e1, dur, dur);
-    nextAnimClass(e1, "hiddenImage", "fadeinImage");
+    nextAnimClass(e1, "hidden-image", "fadein-image");
 }
 
 // ----------------------------------------
@@ -722,7 +726,7 @@ function downwardImg(smallStep) {
 // --------------------
 
 function loadFullImg(id, url, imgGeo) {
-    const off    = toPx({x:0, y:0});
+    const off    = toPx(zeroV2);
     const g      = toPx(imgGeo);
 
     const istyle = { width    : g.x,
@@ -739,11 +743,11 @@ function loadFullImg(id, url, imgGeo) {
     e.appendChild(i);
 }
 
-function loadPanoramaImg(id, url, imgGeo) {
-    const scrGeo = imgTabGeo();
+function loadPanoramaImg1(frameGeo, id, url, imgGeo) {
+
     const isH    = isHorizontal(imgGeo);
     const ar     = aspectRatioV2(imgGeo);
-    const offset = isH ? scrGeo.x - imgGeo.x : scrGeo.y - imgGeo.y;
+    const offset = isH ? frameGeo.x - imgGeo.x : frameGeo.y - imgGeo.y;
     const d = 2.5 * 7.0 * Math.max(ar, 1/ar);
 
     // add keyframe style
@@ -849,8 +853,8 @@ function showImg1(page, resizeAlg) {
     picCache.src = imgUrl; // the .onload handler is triggered here
 }
 
-function showImg(page)          { // showImg1(page, "no-magnify");
-                                  showZoomImg(page);
+function showImg(page)          { showImg1(page, "no-magnify");
+                                  // showZoomImg(page);
                                 }
 function showMagnifiedImg(page) { showImg1(page, "magnify");    }
 function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
@@ -932,13 +936,13 @@ function showMagnifiedMovie(page) { showMovie1(page,    "magnify"); }
 
 // ----------------------------------------
 
-function showBlog(page) {
+function showBlog1(frameGeo, page) {
     const req = page.imgReq;
-    const geo = toPx(imgTabGeo());
+    const geo = toPx(frameGeo);
     const txt = getPageBlog(page);
     const id  = nextImgId();
 
-    trc(1, "showBlog: " + txt);
+    trc(1, "showBlog1: " + txt);
 
     // get element, clear contents and set style attributes
     const e  = clearBlock(id);
@@ -957,7 +961,7 @@ function showBlog(page) {
 
 // ----------------------------------------
 
-function showCol(page) {
+function showCol1(frameGeo, page) {
     const colDescr = page.colDescr;
     const colReq   = colDescr.eReq;
     const colMeta  = colDescr.eMeta;
@@ -968,7 +972,7 @@ function showCol(page) {
     const iconReq  = { rType: "icon",
                        rPathPos: colReq.rPathPos
                      };
-    const g        = toPx(imgTabGeo());
+    const g        = toPx(frameGeo);
     const id       = nextImgId();
     const e = clearCont(id);
     setCSS(e, { width:    g.x,
@@ -977,12 +981,18 @@ function showCol(page) {
                 top:      "0px",
                 overflow: "auto"
               });
-    e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog));
+    e.appendChild(buildCollection(frameGeo,
+                                  colReq, iconReq,
+                                  colMeta,
+                                  navIcons, c1Icon, colIcons, colBlog));
 
     toggleImg12(id);
 }
 
-function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog) {
+function buildCollection(frameGeo,
+                         colReq, iconReq,
+                         colMeta,
+                         navIcons, c1Icon, colIcons, colBlog) {
     // geometry for navigation grid
     const gap      = 4;
     const padding  = 10;
@@ -993,9 +1003,8 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
     // geometry for icons with/without border
     // in full and half size
 
-    const iconGeo  = bestFitIconGeo();       // the geometry of nav icons
+    const iconGeo  = bestFitIconGeo(frameGeo); // the geometry of nav icons
     const reqGeo   = bestFitToGeo(iconGeo);  // the geometry of the requested icons (maybe larger than iconGeo)
-    const scrGeo   = imgTabGeo();
 
     // icon geo with border
     const iconGeoB = addV2(iconGeo, border2);
@@ -1008,7 +1017,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
     const gapGeo   = mulV2(subV2(gridGeo, 1), gap);
     const navGeo   = addV2(mulV2(ico2GeoB, gridGeo), gapGeo);
 
-    const numCols = Math.max(div(scrGeo.x - 2 * padding, iconGeoB.x + gap));
+    const numCols = Math.max(div(frameGeo.x - 2 * padding, iconGeoB.x + gap));
 
     // geometry in px
     const iG       = toPx(iconGeo);
@@ -1238,7 +1247,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
     const c = newElem("div",
                       { padding:      padding + "px",
-                        "min-height": scrGeo.y + "px"
+                        "min-height": frameGeo.y + "px"
                       },
                       "collection"
                      );
@@ -1334,12 +1343,12 @@ function isPanoImgPage() {               // a panoaram image is larger
     return false;
 }
 
-function isTinyImgPage() {
+function isTinyImgPage1(frameGeo) {
     if ( isImgPage() ) {
         const req = currPage.imgReq;
         if ( isPicReq(req) || isMovieReq(req) ) {
             const orgGeo = readGeo(currPage.oirGeo[0]);
-            return lessThanV2(orgGeo, imgTabGeo());
+            return lessThanV2(orgGeo, frameGeo);
         }
     }
     return false;
@@ -2021,32 +2030,32 @@ function initHandlers() {
 function handleImageAnim(id, ev) {
     const n = ev.animationName;
     trc(1, `handleImageAnim: ${id} ${n}`);
-    if ( n === "fadein" || n === "fadeout" ) {
+    if ( n === "kf-fadein-image" || n === "kf-fadeout-image" ) {
         ev.stopPropagation();
         const e = getElem(id);
-        nextAnimClass(e, "fadeinImage", "visibleImage");
-        nextAnimClass(e, "fadeoutImage", "hiddenImage") && clearImageElem(e);
+        nextAnimClass(e, "fadein-image", "visible-image");
+        nextAnimClass(e, "fadeout-image", "hidden-image") && clearImageElem(e);
     }
 }
 
 function hideImageElem(id) {
     trc(1, "hideImageElem:" + id);
     const e = getElem(id);
-    nextAnimClass(e, "fadeinImage",  "fadeoutImage");
-    nextAnimClass(e, "visibleImage", "fadeoutImage") && clearCont(e);
+    nextAnimClass(e, "fadein-image",  "fadeout-image");
+    nextAnimClass(e, "visible-image", "fadeout-image") && clearCont(e);
 }
 
 function showImageElem(id) {
     trc(1, "showImageElem:" + id);
     const e = getElem(id);
-    nextAnimClass(e, "fadeoutImage", "fadeinImage");
-    nextAnimClass(e, "hiddenImage",  "fadeinImage");
+    nextAnimClass(e, "fadeout-image", "fadein-image");
+    nextAnimClass(e, "hidden-image",  "fadein-image");
 }
 
 function isHiddenImage(id) {
     // trc(1, 'isHiddenImage: id=' + id);
     const cs = getElem(id).classList;
-    return cs.contains("hiddenImage") || cs.contains("fadeoutImage");
+    return cs.contains("hidden-image") || cs.contains("fadeout-image");
 }
 
 // ----------------------------------------
@@ -2055,8 +2064,8 @@ function isHiddenImage(id) {
 function handleInfoAnim(id) {
     trc(1, "handleInfoanim:" + id);
     const e = getElem(id);
-    nextAnimClass(e, "fadeinInfo", "visibleInfo");
-    nextAnimClass(e, "fadeoutInfo", "hiddenInfo");
+    nextAnimClass(e, "fadein-info", "visible-info");
+    nextAnimClass(e, "fadeout-info", "hidden-info");
 }
 
 function nextAnimClass(e, cur, nxt) {
@@ -2073,21 +2082,21 @@ function nextAnimClass(e, cur, nxt) {
 function hideAnimElem(id) {
     // trc(1, "showAnimElem:" + id);
     const e = getElem(id);
-    nextAnimClass(e, "fadeinInfo",  "fadeoutInfo");
-    nextAnimClass(e, "visibleInfo", "fadeoutInfo");
+    nextAnimClass(e, "fadein-info",  "fadeout-info");
+    nextAnimClass(e, "visible-info", "fadeout-info");
 }
 
 function showAnimElem(id) {
     // trc(1, "toggleAnimElem:" + id);
     const e = getElem(id);
-    nextAnimClass(e, "fadeoutInfo", "fadeinInfo");
-    nextAnimClass(e, "hiddenInfo",  "fadeinInfo");
+    nextAnimClass(e, "fadeout-info", "fadein-info");
+    nextAnimClass(e, "hidden-info",  "fadein-info");
 }
 
 function isHiddenAnim(id) {
     // trc(1, 'isHiddenAnim: id=' + id);
     const cs = getElem(id).classList;
-    return cs.contains("hiddenInfo") || cs.contains("fadeoutInfo");
+    return cs.contains("hidden-info") || cs.contains("fadeout-info");
 }
 
 // ----------------------------------------
