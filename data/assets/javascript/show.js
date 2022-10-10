@@ -70,15 +70,13 @@ const resizeToFitIntoScreen = resizeToImgTab(fitIntoGeo);
 
 const withGeo = withArg(imgTabGeo);
 
-const bestFitToScreenGeo = withGeo(bestFitToGeo);
-const fitToScreenGeo     = withGeo(fitToFrameGeo);
 const placeOnScreen      = withGeo(placeOnFrame);
 
-const showBlog           = withGeo(showBlog1);
-const showCol            = withGeo(showCol1);
+const showPath           = withGeo(showPath1);
+const showImgAlg         = withGeo(showImgAlg1);
+const showMovieAlg       = withGeo(showMovieAlg1);
 const isTinyImgPage      = withGeo(isTinyImgPage1);
 
-const loadImgFG          = withGeo(loadImgFG1);
 const jsonReqToUrl       = withGeo(jsonReqToUrl1);
 
 // --------------------
@@ -341,13 +339,14 @@ function loadImg(frameGeo, id, url, geo, resizeAlg) {
 
 // --------------------
 
-var zoomState = { id     : "",
-                  idImg  : "",
-                  orgGeo : zeroV2,  // original geometry of image
-                  curGeo : zeroV2,  // geometry of image displayed on screen
-                  curOff : zeroV2,  // left and top coords of displayed image
-                  scale  : 1,    // resize factor of image
-                  shift  : zeroV2,  // shift org image from center
+var zoomState = { id       : "",
+                  idImg    : "",
+                  frameGeo : zeroV2,  // current frame geo
+                  orgGeo   : zeroV2,  // original geometry of image
+                  curGeo   : zeroV2,  // geometry of image displayed on screen
+                  curOff   : zeroV2,  // left and top coords of displayed image
+                  scale    : 1,       // resize factor of image
+                  shift    : zeroV2,  // shift org image from center
                                  // {x: 0.2, y: 0.1}:
                                  // center moves 20% of width to the right
                                  // and 10% of height to the bottom
@@ -393,13 +392,14 @@ function xy2shift(xy) {
 
 function initZoomState(frameGeo, id) {
     const g0 = readGeo(currPage.oirGeo[0]);
-    zoomState = { id     : id,
-                  idImg  : mkImgId(id),
-                  orgGeo : g0,
-                  curGeo : g0,
-                  curOff : placeOnFrame(frameGeo, g0, zeroV2),
-                  shift  : zeroV2,
-                  scale  : 1,
+    zoomState = { id      : id,
+                  idImg   : mkImgId(id),
+                  frameGeo: frameGeo,
+                  orgGeo  : g0,
+                  curGeo  : g0,
+                  curOff  : placeOnFrame(frameGeo, g0, zeroV2),
+                  shift   : zeroV2,
+                  scale   : 1,
                 };
 }
 
@@ -417,7 +417,7 @@ function zoomTo(scale, shift) {
     const g1 = mulV2(g0, sc);
 
     const s1 = mulV2(mulV2(sh, g0), sc);
-    const o1 = placeOnScreen(g1, s1);
+    const o1 = placeOnFrame(zoomState.frameGeo, g1, s1);
 
     zoomState.curGeo = g1;
     zoomState.curOff = o1;
@@ -732,7 +732,7 @@ function loadImgFG1(frameGeo, id, req, geo, resizeAlg) {
     }
 }
 
-function showImgAlg(page, resizeAlg) {
+function showImgAlg1(frameGeo, page, resizeAlg) {
     const imgReq = page.imgReq;
     const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
 
@@ -745,7 +745,7 @@ function showImgAlg(page, resizeAlg) {
     }
     else if ( resizeAlg == "panorama" && isPano(orgGeo) ) {
         // animated panorama
-        g1 = resizeToFillScreen(orgGeo);
+        g1 = fillGeo(orgGeo, frameGeo);
         ig = { ref : g1,
                img : g1
              };
@@ -753,23 +753,23 @@ function showImgAlg(page, resizeAlg) {
     else if ( resizeAlg === "zoom" ) {
         // zoomable image
         ig = { ref : oneV2,
-               img : resizeToFitIntoScreen(orgGeo)
+               img : fitIntoGeo(orgGeo, frameGeo)
              };
     }
     else {
-        ig = { ref : bestFitToScreenGeo(orgGeo),
-               img : resizeToFitIntoScreen(orgGeo)
+        ig = { ref : bestFitToGeo(frameGeo, orgGeo),
+               img : fitIntoGeo(orgGeo, frameGeo)
              };
     };
 
     const imgUrl = imgReqToUrl(imgReq, ig.ref);
 
-    trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(ig.img));
+    trc(1, "showImgAlg: imgUrl=" + imgUrl + ", geo=" + showGeo(ig.img));
 
     // picCache: global image cache
     picCache.onload = () => {
         const id = nextImgId();
-        loadImgFG(id, imgUrl, ig.img, resizeAlg);
+        loadImgFG1(frameGeo, id, imgUrl, ig.img, resizeAlg);
         toggleImg12(id);
     };
     picCache.src = imgUrl; // the .onload handler is triggered here
@@ -785,9 +785,9 @@ function showZoomImg(page)      { showImgAlg(page, "zoom");       }
 
 // ----------------------------------------
 
-function loadMovie(id, url, geo, rType, resizeAlg) {
-    const movGeo  = fitToScreenGeo(geo, resizeAlg);
-    const off     = toPx(placeOnScreen(movGeo));
+function loadMovie1(frameGeo, id, url, geo, rType, resizeAlg) {
+    const movGeo  = fitToFrameGeo(frameGeo, geo, resizeAlg);
+    const off     = toPx(placeOnFrame(frameGeo, movGeo));
     const g       = toPx(movGeo);
     const istyle  = { width    : g.x,
                       height   : g.y,
@@ -841,20 +841,17 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
     }
 }
 
-function showMovie1(page, resizeAlg) {
+function showMovieAlg1(frameGeo, page, resizeAlg) {
     const movReq = page.imgReq;
     const movGeo = readGeo(page.oirGeo[0]);
     const movUrl = toMediaUrl(page.img);
     const id     = nextImgId();
 
-    trc(1, "showMovie: url=" + movUrl + ", geo=" + showGeo(movGeo));
+    trc(1, "showMovieAlg1: url=" + movUrl + ", geo=" + showGeo(movGeo));
 
-    loadMovie(id, movUrl, movGeo, movReq.rType, resizeAlg);
+    loadMovie1(frameGeo, id, movUrl, movGeo, movReq.rType, resizeAlg);
     toggleImg12(id);
 }
-
-function showMovie(page)          { showMovie1(page, "no-magnify"); }
-function showMagnifiedMovie(page) { showMovie1(page,    "magnify"); }
 
 // ----------------------------------------
 
@@ -1055,7 +1052,7 @@ function buildCollection(frameGeo,
                 }
 
                 const a = newElem("a");
-                a.href  = toHref(jsonReqToUrl(req));
+                a.href  = toHref(jsonReqToUrl1(frameGeo, req));
                 a.title = md["Descr:Title"]
                        || addBild(req, tt0)
                        || "";
@@ -1131,7 +1128,7 @@ function buildCollection(frameGeo,
                                });
 
             const a  = newElem("a");
-            a.href   = toHref(jsonReqToUrl(ir));
+            a.href   = toHref(jsonReqToUrl1(frameGeo, ir));
             a.title  = md["Descr:Title"]
                     || addBild(ir, (i + 1) + ". ");
 
@@ -1188,6 +1185,21 @@ function buildCollection(frameGeo,
 
 // ----------------------------------------
 
+function showImg(page)          { showImgAlg(page, "no-magnify");
+                                  // showZoomImg(page);
+                                }
+function showMagnifiedImg(page) { showImgAlg(page, "magnify");    }
+function showFullSizeImg(page)  { showImgAlg(page, "fullsize");   }
+function showPanoramaImg(page)  { showImgAlg(page, "panorama");   }
+function showZoomImg(page)      { showImgAlg(page, "zoom");       }
+
+const    showBlog                = withGeo(showBlog1);
+const    showCol                 = withGeo(showCol1);
+
+function showMovie(page)          { showMovieAlg(page, "no-magnify"); }
+function showMagnifiedMovie(page) { showMovieAlg(page,    "magnify"); }
+
+
 function showPage(page) {
     trc(1, "showPage:" + page);
 
@@ -1218,8 +1230,8 @@ function showPage(page) {
 
 }
 
-function showPath(path) {
-    const jUrl = mkJsonUrl(path, showGeo(bestFitToScreenGeo()));
+function showPath1(frameGeo, path) {
+    const jUrl = mkJsonUrl(path, showGeo(bestFitToGeo(frameGeo)));
     gotoUrl(jUrl);
 }
 
