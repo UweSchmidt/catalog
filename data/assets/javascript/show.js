@@ -78,7 +78,8 @@ const showBlog           = withGeo(showBlog1);
 const showCol            = withGeo(showCol1);
 const isTinyImgPage      = withGeo(isTinyImgPage1);
 
-const loadImg1           = withGeo(loadImg11);
+const loadImgFG          = withGeo(loadImgFG1);
+const jsonReqToUrl       = withGeo(jsonReqToUrl1);
 
 // --------------------
 
@@ -167,10 +168,10 @@ function imgTabGeo() {
 /* ---------------------------------------- */
 /* urls */
 
-function jsonReqToUrl(req) {
+function jsonReqToUrl1(frameGeo, req) {
     const req1 = mkRequest('json',
                            req.rPathPos,
-                           showGeo(bestFitToScreenGeo()));
+                           showGeo(bestFitToGeo(frameGeo)));
     return reqToUrl(req1);
 }
 
@@ -716,7 +717,7 @@ function loadPanoramaImg(frameGeo, id, url, imgGeo) {
     e.appendChild(i);
 }
 
-function loadImg11(frameGeo, id, req, geo, resizeAlg) {
+function loadImgFG1(frameGeo, id, req, geo, resizeAlg) {
     if (resizeAlg === "fullsize") {
         loadFullImg(frameGeo, id, req, geo);
     }
@@ -731,7 +732,7 @@ function loadImg11(frameGeo, id, req, geo, resizeAlg) {
     }
 }
 
-function showImg1(page, resizeAlg) {
+function showImgAlg(page, resizeAlg) {
     const imgReq = page.imgReq;
     const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
 
@@ -768,19 +769,19 @@ function showImg1(page, resizeAlg) {
     // picCache: global image cache
     picCache.onload = () => {
         const id = nextImgId();
-        loadImg1(id, imgUrl, ig.img, resizeAlg);
+        loadImgFG(id, imgUrl, ig.img, resizeAlg);
         toggleImg12(id);
     };
     picCache.src = imgUrl; // the .onload handler is triggered here
 }
 
-function showImg(page)          { showImg1(page, "no-magnify");
+function showImg(page)          { showImgAlg(page, "no-magnify");
                                   // showZoomImg(page);
                                 }
-function showMagnifiedImg(page) { showImg1(page, "magnify");    }
-function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
-function showPanoramaImg(page)  { showImg1(page, "panorama");   }
-function showZoomImg(page)      { showImg1(page, "zoom");       }
+function showMagnifiedImg(page) { showImgAlg(page, "magnify");    }
+function showFullSizeImg(page)  { showImgAlg(page, "fullsize");   }
+function showPanoramaImg(page)  { showImgAlg(page, "panorama");   }
+function showZoomImg(page)      { showImgAlg(page, "zoom");       }
 
 // ----------------------------------------
 
