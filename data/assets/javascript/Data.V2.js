@@ -63,27 +63,27 @@ function mulV2(p1, p2) {
 
 function divV2(p1, p2) {
     if (typeof p2 === "number") {
-        return { x: p1.x / p2,   // vector / scalar
-                 y: p1.y / p2
-               };
+        return V2(p1.x / p2,   // vector / scalar
+                  p1.y / p2
+                 );
 
     } else {
-        return { x: p1.x / p2.x,
-                 y: p1.y / p2.y
-               };
+        return V2(p1.x / p2.x,
+                  p1.y / p2.y
+                 );
     }
 }
 
 function subV2(p1, p2) {
     if (typeof p2 === "number") {
-        return { x: p1.x - p2,   // vector - scalar
-                 y: p1.y - p2
-               };
+        return V2(p1.x - p2,   // vector - scalar
+                  p1.y - p2
+                 );
 
     } else {
-        return { x: p1.x - p2.x,
-                 y: p1.y - p2.y
-               };
+        return V2(p1.x - p2.x,
+                  p1.y - p2.y
+                 );
     }
 }
 
@@ -96,9 +96,9 @@ function neqV2(p1, p2) {
 }
 
 function roundV2(p) {
-    return { x: Math.round(p.x),
-             y: Math.round(p.y)
-           };
+    return V2(Math.round(p.x),
+              Math.round(p.y)
+             );
 }
 
 function maxV2(p) {
@@ -115,9 +115,9 @@ function aspectRatioV2(p) {
 
 
 function scaleV2(p, s) {                // p * s with integer results
-    return { w : Math.floor(p.x * s),   // for screen geometry arithmetic
-             h : Math.floor(p.y * s)
-           };
+    return V2(Math.floor(p.x * s),   // for screen geometry arithmetic
+              Math.floor(p.y * s)
+             );
 }
 
 function fitsIntoV2(p1, p2) {

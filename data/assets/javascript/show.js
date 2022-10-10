@@ -21,10 +21,10 @@ const nextimg = {image1: img2, image2: img1};
 const panoCss = "panorama-css";
 const zoomCss = "image-zoom-css";
 
-const info    = "info";
-const infoTab = "info-table";
-const help    = "help";
-const status  = "status";
+const info     = "info";
+const infoTab  = "info-table";
+const help     = "help";
+const statusId = "status";
 
 var defaultTransitionDur = 1.0;
 var defaultZoomDur       = 1.5;
@@ -180,7 +180,10 @@ function fitToFrameGeo(fameGeo, geo, blowUp) {
 function placeOnScreen1(frameGeo, geo, shift0) {
     const shift   = shift0 || zeroV2;
     const leftTop = scaleV2(subV2(frameGeo, geo), 0.5);
-    return addV2(leftTop, shift);
+    const res     = addV2(leftTop, shift);
+    trc(1,`placeOnScreen: ${showGeo(frameGeo)} ${showGeo(geo)} ${showGeo(shift)}
+ ${showGeo(leftTop)} ${showGeo(res)}`);
+    return res;
 }
 
 const geoOrg = oneV2;
@@ -369,7 +372,7 @@ function showAnimDur() {
              ? "aus"
              : defaultTransitionDur + " sec."
             );
-    showStatus(msg);
+    statusBar.show(msg);
 }
 
 /* ---------------------------------------- */
@@ -1313,7 +1316,7 @@ function showNextPage(req) {
 
 function showErr(errno, url, msg) {
     const txt = showErrText(errno, url, msg);
-    showStatus('<span class="errormsg">' + txt + '</span>', 4);
+    statusBar.show('<span class="errormsg">' + txt + '</span>', 4);
 }
 
 // ----------------------------------------
@@ -1587,7 +1590,7 @@ function toggleVideoAutoplayDefault() {
     const msg = 'Videos werden'
           + (v === null ? ' nicht' : '')
           + 'automatisch gestartet';
-    showStatus(msg);
+    statusBar.show(msg);
 }
 function toggleVideoControlsDefault() { toggleVideoAttrDefault("controls"); }
 
@@ -1930,14 +1933,14 @@ function stopSlideShow() {
         slideShow      = false;
         slideShowType  = "";
         slideShowTimer = undefined;
-        showStatus("Automatischer Bildwechsel beendet");
+        statusBar.show("Automatischer Bildwechsel beendet");
     }
 }
 
 function startSlideShow() {
     if (! slideShow) {
         slideShow = true;
-        showStatus("Automatischer Bildwechsel gestartet");
+        statusBar.show("Automatischer Bildwechsel gestartet");
         advanceSlideShow();
     }
 }
@@ -1972,44 +1975,53 @@ function speedUpSlideShow() {
 
 function showDur() {
     const s =  Math.round(slideShowSpeed / 100) / 10;
-    showStatus('Automatischer Bildwechsel nach ' + s + " sec.");
+    statusBar.show('Automatischer Bildwechsel nach ' + s + " sec.");
 }
 
 // ----------------------------------------
 // status line
 
-var statusEnabled = true;
-var statusTimer   = undefined;
-const statusDur   = 2.0 * 1000;  // default: status messages are shown for 2 seconds
+function mkStatus(id) {
+    const state = {
+        id      : id,
+        enabled : true,
+        timer   : undefined,
+        dur     : 2.0 * 1000 // 2 seconds
+    };
+    function show(msg, dur) {
+        if ( state.enabled ) {
+            dur = dur || 1;
+            dur = state.dur * dur;
+            state.hide();
+            const s = getElem(state.id);
+            s.innerHTML = msg;
+            state.timer = setTimeout(state.hide, dur);
+            showAnim(state.id, 'info');
 
-function showStatus(msg, dur) {
-    if (statusEnabled) {
-        dur = dur || 1;
-        dur = statusDur * dur;
-        hideStatus();
-        const s = getElem(status);
-        s.innerHTML = msg;
-        statusTimer = setTimeout(hideStatus, dur);
-        showAnim(status, 'info');
+        }
     }
+    function hide() {
+        if ( status.timer != undefined ) {
+            clearTimeout(state.timer);
+        }
+        hideAnim(state.id, 'info');
+    }
+    state.show = show;
+    state.hide = hide;
+    return state;
 }
 
-function hideStatus() {
-    if (statusTimer != "undefined") {
-        clearTimeout(statusTimer);
-    }
-    hideAnim(status, 'info');
-}
+const statusBar = mkStatus(statusId);
 
 // ----------------------------------------
 
 function initHandlers() {
     const imageShowAnims = [
-        info,   'info',
-        help,   'info',
-        status, 'info',
-        img1,   'image',
-        img2,   'image'
+        info,     'info',
+        help,     'info',
+        statusId, 'info',
+        img1,     'image',
+        img2,     'image'
     ];
     initAnimHandlers(imageShowAnims);
 }
