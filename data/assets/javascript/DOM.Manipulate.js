@@ -153,3 +153,21 @@ function getStyle(id, attr) {
 
 
 // ----------------------------------------
+
+function newImgElem(id, css, cls) {
+    return newElem4("img", id, css, cls);
+}
+
+function newMovElem(id, css, cls) {
+    return newElem4("video", id, css, cls);
+}
+
+function newBlogElem(id, css, cls) {
+    return newElem4("div", id, css, cls);
+}
+
+function newElem4(elem, id, css, cls) {
+    return newElem(elem, mkImgId(id), css, cls);
+}
+
+// ----------------------------------------

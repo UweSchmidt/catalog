@@ -72,7 +72,7 @@ const withGeo = withArg(imgTabGeo);
 
 const bestFitToScreenGeo = withGeo(bestFitToGeo);
 const fitToScreenGeo     = withGeo(fitToFrameGeo);
-const placeOnScreen      = withGeo(placeOnScreen1);
+const placeOnScreen      = withGeo(placeOnFrame);
 const loadPanoramaImg    = withGeo(loadPanoramaImg1);
 const showBlog           = withGeo(showBlog1);
 const showCol            = withGeo(showCol1);
@@ -162,61 +162,6 @@ function imgTabGeo() {
     return layout.theImgTabGeo;
 }
 
-// if geometry g fits into the screen and
-// the resize algorithm isn't "magnify"
-// do not expand geometry (img stays as small as it is)
-
-function fitToFrameGeo(fameGeo, geo, blowUp) {
-    trc(1,`fitToFrameGeo: fg=${showGeo(fameGeo)}, g=${showGeo(geo)}, ${blowUp}`);
-    if ( ! fitsIntoV2(geo, fameGeo)
-         ||
-         (blowUp === "magnify")
-       ) {
-        return fitIntoGeo(geo, fameGeo);
-    }
-    return geo;
-}
-
-function placeOnScreen1(frameGeo, geo, shift0) {
-    const shift   = shift0 || zeroV2;
-    const leftTop = scaleV2(subV2(frameGeo, geo), 0.5);
-    const res     = addV2(leftTop, shift);
-    trc(1,`placeOnScreen: ${showGeo(frameGeo)} ${showGeo(geo)} ${showGeo(shift)}
- ${showGeo(leftTop)} ${showGeo(res)}`);
-    return res;
-}
-
-const geoOrg = oneV2;
-
-const serverSupportedGeos =
-      [ "160x120",
-        "160x160",
-        "900x600",
-        "1280x800",
-        "1400x1050",
-        "1600x1200",
-        "1920x1200",
-        "2560x1440"
-      ];
-
-function bestFitToGeo (s) {
-    for (let v of serverSupportedGeos) {
-        const g = readGeo(v);
-        if (fitsIntoV2(s, g))
-            return g;
-    }
-    return geoOrg;
-}
-
-function bestFitIconGeo(frameGeo) {
-    if (frameGeo.x <= 1280)
-        return readGeo("120x90");
-    if (frameGeo.x <= 1400)
-        return readGeo("140x105");
-
-    return readGeo("160x120");
-}
-
 /* ---------------------------------------- */
 /* urls */
 
@@ -231,22 +176,6 @@ function jsonReqToUrl(req) {
 
 function mkImgId(id) {
     return id + "-img";
-}
-
-function newImgElem(id, css, cls) {
-    return newElem4("img", id, css, cls);
-}
-
-function newMovElem(id, css, cls) {
-    return newElem4("video", id, css, cls);
-}
-
-function newBlogElem(id, css, cls) {
-    return newElem4("div", id, css, cls);
-}
-
-function newElem4(elem, id, css, cls) {
-    return newElem(elem, mkImgId(id), css, cls);
 }
 
 function getCurrImgElem() {
