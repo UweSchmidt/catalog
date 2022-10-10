@@ -65,22 +65,17 @@ const resizeToFillScreen    = resizeToImgTab(fillGeo);
 const resizeToFitIntoScreen = resizeToImgTab(fitIntoGeo);
 
 
-// add the current frame geo as 1. arg to a function
+// add imgTabGeo() as implicit 1. argument
 
-function withGeo(frameGeo, f) {
-    function go(...args) {
-        return f(frameGeo(), ...args);
-    }
-    return go;
-}
+const withGeo = withArg(imgTabGeo);
 
-const bestFitToScreenGeo = withGeo(imgTabGeo, bestFitToGeo);
-const fitToScreenGeo     = withGeo(imgTabGeo, fitToFrameGeo);
-const placeOnScreen      = withGeo(imgTabGeo, placeOnScreen1);
-const loadPanoramaImg    = withGeo(imgTabGeo, loadPanoramaImg1);
-const showBlog           = withGeo(imgTabGeo, showBlog1);
-const showCol            = withGeo(imgTabGeo, showCol1);
-const isTinyImgPage      = withGeo(imgTabGeo, isTinyImgPage1);
+const bestFitToScreenGeo = withGeo(bestFitToGeo);
+const fitToScreenGeo     = withGeo(fitToFrameGeo);
+const placeOnScreen      = withGeo(placeOnScreen1);
+const loadPanoramaImg    = withGeo(loadPanoramaImg1);
+const showBlog           = withGeo(showBlog1);
+const showCol            = withGeo(showCol1);
+const isTinyImgPage      = withGeo(isTinyImgPage1);
 
 // --------------------
 

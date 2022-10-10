@@ -101,8 +101,18 @@ function comp(...fs) {
     return composed;
 }
 
+// flip
+// ((a1, a2) -> b) -> ((a2,a1) -> b)
+
+function flip(f) {
+    function f1(x, y) {
+        return f(y, x);
+    }
+    return f1;
+}
+
 // currying
-// curry(f)(a1)(a2) = f(a1,a2)
+// (a1 -> a2 -> b) -> (a1 -> a2 -> b)
 
 function curry(f) {
     function f1(x1) {
@@ -114,6 +124,9 @@ function curry(f) {
     return f1;
 }
 
+// currying
+// (a1 -> (a2, ...) -> b) -> (a1 -> (a2, ...) -> b)
+
 function curry1(f) {
     function f1(x1) {
         function f2(...x2) {
@@ -123,6 +136,18 @@ function curry1(f) {
     }
     return f1;
 }
+
+// add the value computed by function fct1 as fst arg to a function f
+
+function withArg1(fct1, f) {
+    function go(...args) {
+        return f(fct1(), ...args);
+    }
+    return go;
+}
+
+// withArg :: (() -> m a) -> (a1 -> a2 -> ... -> m b) -> (a2 -> ... -> m b)
+const withArg = curry(withArg1);
 
 // --------------------
 //
