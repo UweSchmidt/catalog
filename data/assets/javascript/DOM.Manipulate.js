@@ -80,6 +80,23 @@ function setGeoCSS(id, p, o) {
     setCSS(id, css);
 }
 
+// ----------------------------------------
+
+function setAnimDur(e, dur, delay) {
+    const del = delay || 0;
+    setCSS(e, {"animation-duration": dur + "s",
+               "animation-delay":    del + "s"
+              });
+}
+
+function clearAnimDur(e) {
+    setCSS(e, {"animation-duration": null,
+               "animation-delay":    null,
+              });
+}
+
+// ----------------------------------------
+
 // create an element with id attr, style attributes, and class attribues
 function newElem(tag, x2, x3, x4) {
     let id = "";

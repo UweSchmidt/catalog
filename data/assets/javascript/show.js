@@ -73,10 +73,12 @@ const withGeo = withArg(imgTabGeo);
 const bestFitToScreenGeo = withGeo(bestFitToGeo);
 const fitToScreenGeo     = withGeo(fitToFrameGeo);
 const placeOnScreen      = withGeo(placeOnFrame);
-const loadPanoramaImg    = withGeo(loadPanoramaImg1);
+
 const showBlog           = withGeo(showBlog1);
 const showCol            = withGeo(showCol1);
 const isTinyImgPage      = withGeo(isTinyImgPage1);
+
+const loadImg1           = withGeo(loadImg11);
 
 // --------------------
 
@@ -269,18 +271,9 @@ function fadeOutIn(id1, id2, dur0) {
 
 // ----------------------------------------
 
-function setAnimDur(e, dur, delay) {
-    const del = delay || 0;
-    setCSS(e, {"animation-duration": dur + "s",
-               "animation-delay":    del + "s"
-              });
-}
-
 function clearImageElem(e) {
     clearCont(e);
-    setCSS(e, {"animation-duration": null,
-               "animation-delay":    null,
-              });
+    clearAnimDur(e);
 }
 
 // ----------------------------------------
@@ -326,9 +319,9 @@ function initShow() {
 // ----------------------------------------
 // display an ordinary image
 
-function loadImg(id, url, geo, resizeAlg) {
-    const imgGeo = fitToScreenGeo(geo, resizeAlg);
-    const o      = toPx(placeOnScreen(imgGeo));
+function loadImg(frameGeo, id, url, geo, resizeAlg) {
+    const imgGeo = fitToFrameGeo(frameGeo, geo, resizeAlg);
+    const o      = toPx(placeOnFrame(frameGeo, imgGeo));
     const g      = toPx(imgGeo);
 
     const istyle = { width    : g.x,
@@ -359,9 +352,9 @@ var zoomState = { id     : "",
                                  // and 10% of height to the bottom
                 };
 
-function loadZoomableImg(id, url, geo, scale, shift) {
-    initZoomState(id);
-    initZoomGeo(geo);
+function loadZoomableImg(frameGeo, id, url, geo, scale, shift) {
+    initZoomState(frameGeo, id);
+    initZoomGeo(frameGeo, geo);
     zoomTo(scale, shift);
 
     // get element, clear contents and set style attributes
@@ -397,21 +390,21 @@ function xy2shift(xy) {
     return mulV2(sh, -1);
 }
 
-function initZoomState(id) {
+function initZoomState(frameGeo, id) {
     const g0 = readGeo(currPage.oirGeo[0]);
     zoomState = { id     : id,
                   idImg  : mkImgId(id),
                   orgGeo : g0,
                   curGeo : g0,
-                  curOff : placeOnScreen(g0, zeroV2),
+                  curOff : placeOnFrame(frameGeo, g0, zeroV2),
                   shift  : zeroV2,
                   scale  : 1,
                 };
 }
 
-function initZoomGeo(geo) {
+function initZoomGeo(frameGeo, geo) {
     zoomState.curGeo = geo;
-    zoomState.curOff = placeOnScreen(geo, zoomState.shift);
+    zoomState.curOff = placeOnFrame(frameGeo, geo, zoomState.shift);
     zoomState.scale = geo.x / zoomState.orgGeo.x;
 }
 
@@ -653,7 +646,7 @@ function downwardImg(smallStep) {
 
 // --------------------
 
-function loadFullImg(id, url, imgGeo) {
+function loadFullImg(frameGeo, id, url, imgGeo) {
     const off    = toPx(zeroV2);
     const g      = toPx(imgGeo);
 
@@ -671,7 +664,7 @@ function loadFullImg(id, url, imgGeo) {
     e.appendChild(i);
 }
 
-function loadPanoramaImg1(frameGeo, id, url, imgGeo) {
+function loadPanoramaImg(frameGeo, id, url, imgGeo) {
 
     const isH    = isHorizontal(imgGeo);
     const ar     = aspectRatioV2(imgGeo);
@@ -723,18 +716,18 @@ function loadPanoramaImg1(frameGeo, id, url, imgGeo) {
     e.appendChild(i);
 }
 
-function loadImg1(id, req, geo, resizeAlg) {
+function loadImg11(frameGeo, id, req, geo, resizeAlg) {
     if (resizeAlg === "fullsize") {
-        loadFullImg(id, req, geo);
+        loadFullImg(frameGeo, id, req, geo);
     }
     else if (resizeAlg === "panorama") {
-        loadPanoramaImg(id, req, geo);
+        loadPanoramaImg(frameGeo, id, req, geo);
     }
     else if (resizeAlg === "zoom") {
-        loadZoomableImg(id, req, geo);
+        loadZoomableImg(frameGeo, id, req, geo);
     }
     else {
-        loadImg(id, req, geo, resizeAlg);
+        loadImg(frameGeo, id, req, geo, resizeAlg);
     }
 }
 
