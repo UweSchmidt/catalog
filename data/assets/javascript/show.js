@@ -1901,7 +1901,7 @@ function slideDur() {
     let   t  = 1; // seconds
     if (d) {
         t = d * 1;         // convert to number
-        if (!t) { t = 1;}  // no conv: reset to defaoult
+        if (!t) { t = 1;}  // no conv: reset to default
     }
     return t * slideShowSpeed;
 }
@@ -1979,37 +1979,7 @@ function showDur() {
 }
 
 // ----------------------------------------
-// status line
-
-function mkStatus(id) {
-    const state = {
-        id      : id,
-        enabled : true,
-        timer   : undefined,
-        dur     : 2.0 * 1000 // 2 seconds
-    };
-    function show(msg, dur) {
-        if ( state.enabled ) {
-            dur = dur || 1;
-            dur = state.dur * dur;
-            state.hide();
-            const s = getElem(state.id);
-            s.innerHTML = msg;
-            state.timer = setTimeout(state.hide, dur);
-            showAnim(state.id, 'info');
-
-        }
-    }
-    function hide() {
-        if ( status.timer != undefined ) {
-            clearTimeout(state.timer);
-        }
-        hideAnim(state.id, 'info');
-    }
-    state.show = show;
-    state.hide = hide;
-    return state;
-}
+// status bar
 
 const statusBar = mkStatus(statusId);
 
