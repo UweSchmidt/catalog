@@ -10,22 +10,14 @@
 // with
 // cls=name of animation class
 
-const imageShowAnims = [
-    info,   'info',
-    help,   'info',
-    status, 'info',
-    img1,   'image',
-    img2,   'image'
-];
-
 function initShowHandlers() {
     initAnimHandlers(imageShowAnims);
 }
 
 function initAnimHandlers(xs) {
     while (xs.length >= 2) {
-        const id  = xs.shift;
-        const cls = xs.shift;
+        const id  = xs.shift();
+        const cls = xs.shift();
         initAnimHandler(id, cls);
     }
 }
@@ -33,11 +25,11 @@ function initAnimHandlers(xs) {
 function initAnimHandler(id, cls) {
     const e = getElem(id);
     e.classList.add(`hidden-${cls}`);
-    e.addEventListender("animationend",
-                        function(ev) {
-                            handleAnim(id, cls, ev);
-                        }
-                       );
+    e.addEventListener("animationend",
+                       function(ev) {
+                           handleAnim(id, cls, ev);
+                       }
+                      );
 }
 
 function handleAnim(id, cls, ev) {
@@ -63,23 +55,23 @@ function nextAnimClass(e, cur, nxt) {
 }
 
 function hideAnim(id, cls) {
-    trc(1, `hideAnim: ${id}-${cls}`);
+    trc(1, `hideAnim: ${id} ${cls}`);
     const e = getElem(id);
-    nextAnimClass(e, "fadein-${cls}",  "fadeout-${cls}");
-    nextAnimClass(e, "visible-${cls}", "fadeout-${cls}");
+    nextAnimClass(e, `fadein-${cls}`,  `fadeout-${cls}`);
+    nextAnimClass(e, `visible-${cls}`, `fadeout-${cls}`);
 }
 
 function showAnim(id, cls) {
-    trc(1, `showAnim: ${id}-${cls}`);
+    trc(1, `showAnim: ${id} ${cls}`);
     const e = getElem(id);
-    nextAnimClass(e, "fadeout-${cls}", "fadein-${cls}");
-    nextAnimClass(e, "hidden-${cls}",  "fadein-${cls}");
+    nextAnimClass(e, `fadeout-${cls}`, `fadein-${cls}`);
+    nextAnimClass(e, `hidden-${cls}`,  `fadein-${cls}`);
 }
 
 function isHiddenAnim(id, cls) {
-    trc(1, `isHiddenAnim: ${id}-${cls}`);
+    trc(1, `isHiddenAnim: ${id} ${cls}`);
     const cs = getElem(id).classList;
-    return cs.contains("hidden-${cls}") || cs.contains("fadeout-${cls}");
+    return cs.contains(`hidden-${cls}`) || cs.contains(`fadeout-${cls}`);
 }
 
 // ----------------------------------------

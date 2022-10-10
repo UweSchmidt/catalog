@@ -4,6 +4,7 @@
 // import Data.V2
 // import Data.Geo
 // import DOM.Manipulate
+// import DOM.Animation
 // import Catalog.Urls
 // import Catalog.MetaData
 
@@ -252,7 +253,7 @@ function getCurrImgElem() {
 /* ---------------------------------------- */
 
 function currImgId() {
-    return isHiddenImage(img1) ? img2 : img1;
+    return isHiddenAnim(img1, 'image') ? img2 : img1;
 }
 
 function nextImgId() {
@@ -1486,15 +1487,15 @@ function buildInfo() {
 
 function showInfo() {
     hideHelp();
-    showAnimElem(info);
+    showAnim(info, 'info');
 }
 
 function hideInfo() {
-    hideAnimElem(info);
+    hideAnim(info, 'info');
 }
 
 function toggleInfo() {
-    if (isHiddenAnim(info)) {
+    if (isHiddenAnim(info, 'info')) {
         showInfo();
     } else {
         hideInfo(info);
@@ -1503,15 +1504,15 @@ function toggleInfo() {
 
 function showHelp() {
     hideInfo();
-    showAnimElem(help);
+    showAnim(help, 'info');
 }
 
 function hideHelp() {
-    hideAnimElem(help);
+    hideAnim(help, 'info');
 }
 
 function toggleHelp() {
-    if (isHiddenAnim(help)) {
+    if (isHiddenAnim(help, 'info')) {
         showHelp();
     } else {
         hideHelp(help);
@@ -1989,109 +1990,28 @@ function showStatus(msg, dur) {
         const s = getElem(status);
         s.innerHTML = msg;
         statusTimer = setTimeout(hideStatus, dur);
-        showAnimElem(status);
+        showAnim(status, 'info');
     }
 }
 
 function hideStatus() {
-    if (typeof statusTimer != "undefined") {
+    if (statusTimer != "undefined") {
         clearTimeout(statusTimer);
     }
-    hideAnimElem(status);
+    hideAnim(status, 'info');
 }
 
 // ----------------------------------------
 
 function initHandlers() {
-    for (let id of [info, help, status]) {
-        const e = getElem(id);
-        e.addEventListener("animationend",
-                           function () {
-                               handleInfoAnim(id);
-                           });
-    }
-    for (let id of [img1, img2]) {
-        const e = getElem(id);
-        e.addEventListener("animationend",
-                           function (ev) {
-                               handleImageAnim(id, ev);
-                            });
-    }
-}
-
-// ----------------------------------------
-// image1 / image2 overlay animation
-
-function handleImageAnim(id, ev) {
-    const n = ev.animationName;
-    trc(1, `handleImageAnim: ${id} ${n}`);
-    if ( n === "kf-fadein-image" || n === "kf-fadeout-image" ) {
-        ev.stopPropagation();
-        const e = getElem(id);
-        nextAnimClass(e, "fadein-image", "visible-image");
-        nextAnimClass(e, "fadeout-image", "hidden-image") && clearImageElem(e);
-    }
-}
-
-function hideImageElem(id) {
-    trc(1, "hideImageElem:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadein-image",  "fadeout-image");
-    nextAnimClass(e, "visible-image", "fadeout-image") && clearCont(e);
-}
-
-function showImageElem(id) {
-    trc(1, "showImageElem:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadeout-image", "fadein-image");
-    nextAnimClass(e, "hidden-image",  "fadein-image");
-}
-
-function isHiddenImage(id) {
-    // trc(1, 'isHiddenImage: id=' + id);
-    const cs = getElem(id).classList;
-    return cs.contains("hidden-image") || cs.contains("fadeout-image");
-}
-
-// ----------------------------------------
-// info, help & status animation
-
-function handleInfoAnim(id) {
-    trc(1, "handleInfoanim:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadein-info", "visible-info");
-    nextAnimClass(e, "fadeout-info", "hidden-info");
-}
-
-function nextAnimClass(e, cur, nxt) {
-    const cs = e.classList;
-    if (cs.contains(cur)) {
-        cs.remove(cur);
-        cs.add(nxt);
-        trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
-        return true;
-    }
-    return false;
-}
-
-function hideAnimElem(id) {
-    // trc(1, "showAnimElem:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadein-info",  "fadeout-info");
-    nextAnimClass(e, "visible-info", "fadeout-info");
-}
-
-function showAnimElem(id) {
-    // trc(1, "toggleAnimElem:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadeout-info", "fadein-info");
-    nextAnimClass(e, "hidden-info",  "fadein-info");
-}
-
-function isHiddenAnim(id) {
-    // trc(1, 'isHiddenAnim: id=' + id);
-    const cs = getElem(id).classList;
-    return cs.contains("hidden-info") || cs.contains("fadeout-info");
+    const imageShowAnims = [
+        info,   'info',
+        help,   'info',
+        status, 'info',
+        img1,   'image',
+        img2,   'image'
+    ];
+    initAnimHandlers(imageShowAnims);
 }
 
 // ----------------------------------------
