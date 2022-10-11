@@ -19,7 +19,6 @@ const nextimg = {image1: img2, image2: img1};
 
 // dynamically generated animation css
 const panoCss = "panorama-css";
-const zoomCss = "image-zoom-css";
 
 const info     = "info";
 const infoTab  = "info-table";
@@ -27,9 +26,6 @@ const help     = "help";
 const statusId = "status";
 
 var defaultTransitionDur = 1.0;
-var defaultZoomDur       = 1.5;
-
-var editMode  = false; // true;
 
 // default video attributes
 
@@ -130,34 +126,6 @@ function setSizeImgTab() {
     setGeoCSS(imgTab, layout.theImgTabGeo, layout.theImgTabOff);
 }
 
-function showHideEditTab () {
-    if ( layout.theEditTabIsVisible ) {
-        setCSS( "editTab",
-                { width: toPx(layout.theScreenGeo.x - layout.theImgTabGeo.x),
-                  visibility: "visible",
-                }
-              );
-    }
-    else {
-        setCSS( "editTab", { visibility: "hidden" });
-    }
-}
-
-function toggleEditTab () {
-    if ( ! layout.theEditTabIsVisible ) {
-        layout.theEditTabIsVisible = true;
-        layout.theEditTabWidth     = 0.2;
-        layout.theImgTabIsCentered = false;
-    }
-    else {
-        layout.theEditTabIsVisible = false;
-        layout.theEditTabWidth     = 0.0;
-        layout.theImgTabIsCentered = true;
-    }
-    setSizeImgTab();
-    showHideEditTab();
-    stayHere();
-}
 
 function imgTabGeo() {
     return layout.theImgTabGeo;
@@ -175,10 +143,6 @@ function jsonReqToUrl1(frameGeo, req) {
 
 // ----------------------------------------
 
-function mkImgId(id) {
-    return id + "-img";
-}
-
 function getCurrImgElem() {
     return getElem(mkImgId(currImgId()));
 }
@@ -195,7 +159,7 @@ function nextImgId() {
 
 function toggleImg12(id)  {
     const trans = getTransition(currPage, lastPage);
-    trans(id, nextimg[id]);
+    trans(id, nextimg[id], defaultTransitionDur, 'image');
 }
 
 // ----------------------------------------
@@ -218,61 +182,6 @@ function getTransition(cp, lp) {
         return crossFade;
     }
     return fadeOutIn;
-}
-
-// ----------------------------------------
-// simplest transition: exchange images without animation
-
-function cut(id1, id2) {
-    trc(1, "cut: " + id1);
-    const e1 = getElem(id1);
-    const e2 = getElem(id2);
-
-    nextAnimClass(e2, "visible-image", "hidden-image");
-    nextAnimClass(e1, "hidden-image", "visible-image");
-    clearImageElem(e2);
-}
-
-// ----------------------------------------
-// crossfade images
-
-function crossFade(id1, id2, dur0) {
-    const e1 = getElem(id1);
-    const e2 = getElem(id2);
-    const dur = dur0 || defaultTransitionDur;
-    trc(1, `crossFade: ${id1}, ${dur}sec`);
-
-    setAnimDur(e2, dur);
-    nextAnimClass(e2, "visible-image", "fadeout-image")
-        || nextAnimClass(e2, "fadein-image", "fadeout-image");
-
-    setAnimDur(e1, dur);
-    nextAnimClass(e1, "hidden-image", "fadein-image");
-}
-
-// ----------------------------------------
-// fadeout fadein
-
-function fadeOutIn(id1, id2, dur0) {
-    const e1 = getElem(id1);
-    const e2 = getElem(id2);
-    const dur = (dur0 || defaultTransitionDur) / 1;
-    trc(1, `fadeOutIn: ${id1}, ${dur}sec`);
-
-    setAnimDur(e2, dur);
-    nextAnimClass(e2, "visible-image", "fadeout-image")
-        || nextAnimClass(e2, "fadein-image", "fadeout-image");
-
-    // setCSS(e1, {opacity: 0});
-    setAnimDur(e1, dur, dur);
-    nextAnimClass(e1, "hidden-image", "fadein-image");
-}
-
-// ----------------------------------------
-
-function clearImageElem(e) {
-    clearCont(e);
-    clearAnimDur(e);
 }
 
 // ----------------------------------------
@@ -338,313 +247,6 @@ function loadImg(frameGeo, id, url, geo, resizeAlg) {
 }
 
 // --------------------
-
-var zoomState = { id       : "",
-                  idImg    : "",
-                  frameGeo : zeroV2,  // current frame geo
-                  orgGeo   : zeroV2,  // original geometry of image
-                  curGeo   : zeroV2,  // geometry of image displayed on screen
-                  curOff   : zeroV2,  // left and top coords of displayed image
-                  scale    : 1,       // resize factor of image
-                  shift    : zeroV2,  // shift org image from center
-                                 // {x: 0.2, y: 0.1}:
-                                 // center moves 20% of width to the right
-                                 // and 10% of height to the bottom
-                };
-
-function loadZoomableImg(frameGeo, id, url, geo, scale, shift) {
-    initZoomState(frameGeo, id);
-    initZoomGeo(frameGeo, geo);
-    zoomTo(scale, shift);
-
-    // get element, clear contents and set style attributes
-    const e = clearBlock(id);
-    const s = zoomCSS();
-    const i = newImgElem(id, s, "img zoom");
-    i.src   = url;
-    e.appendChild(i);
-    i.addEventListener("dblclick", setImgCenter);
-}
-
-function isZoomImg() {
-    const i = getCurrImgElem();
-    if ( i == null ) return false;
-    return i.classList.contains("zoom");
-}
-
-function setImgCenter(e) {
-    trc(1, `setImgCenter: shift image
-            offsetX: ${e.offsetX}
-            offsetY: ${e.offsetY}
-           `);
-
-    const sh = xy2shift({x: e.offsetX, y: e.offsetY});
-    zoomImg(null, sh);
-    // animImgZoom(null, mulV2(sh, -1));
-}
-
-function xy2shift(xy) {
-    const p1 = divV2(xy, zoomState.scale);               // pos in original pic
-    const p2 = subV2(p1, mulV2(zoomState.orgGeo, 0.5)); // offset from center
-    const sh = divV2(p2, zoomState.orgGeo);              // offset rel to size
-    return mulV2(sh, -1);
-}
-
-function initZoomState(frameGeo, id) {
-    const g0 = readGeo(currPage.oirGeo[0]);
-    zoomState = { id      : id,
-                  idImg   : mkImgId(id),
-                  frameGeo: frameGeo,
-                  orgGeo  : g0,
-                  curGeo  : g0,
-                  curOff  : placeOnFrame(frameGeo, g0, zeroV2),
-                  shift   : zeroV2,
-                  scale   : 1,
-                };
-}
-
-function initZoomGeo(frameGeo, geo) {
-    zoomState.curGeo = geo;
-    zoomState.curOff = placeOnFrame(frameGeo, geo, zoomState.shift);
-    zoomState.scale = geo.x / zoomState.orgGeo.x;
-}
-
-function zoomTo(scale, shift) {
-    const sc = scale || zoomState.scale;
-    const sh = shift || zoomState.shift;
-
-    const g0 = zoomState.orgGeo;
-    const g1 = mulV2(g0, sc);
-
-    const s1 = mulV2(mulV2(sh, g0), sc);
-    const o1 = placeOnFrame(zoomState.frameGeo, g1, s1);
-
-    zoomState.curGeo = g1;
-    zoomState.curOff = o1;
-    zoomState.shift  = sh;
-    zoomState.scale  = sc;
-
-    trc(1, "zoomTo: new zoomState=" + JSON.stringify(zoomState));
-}
-
-function zoomCSS() {
-    const g = toPx(zoomState.curGeo);
-    const o = toPx(zoomState.curOff);
-    return { width    : g.x,
-             height   : g.y,
-             left     : o.x,
-             top      : o.y,
-             position : "absolute",
-             overflow : "hidden"
-           };
-}
-
-function setImgZoomCSS() { setStyles(zoomState.idImg, zoomCSS()); }
-
-function animImgZoom(scale, shift, duration) {
-
-    function zoomCSSa() {
-        const g = toPx(zoomState.curGeo);
-        const o = toPx(zoomState.curOff);
-        return `width: ${g.x}; height: ${g.y}; left: ${o.x}; top: ${o.y}`;
-    }
-
-    const s0 = zoomCSSa();
-    zoomTo(scale, shift);
-    const s1 = zoomCSSa();
-
-    const cn = "zoom-anim";
-    const kf = "zoom-move";
-    const d  = duration || defaultZoomDur;  // default zoom duration
-
-    const cssKeyFrames = `
-          @keyframes ${kf} {
-                0% {${s0}}
-              100% {${s1}}
-          }
-          `;
-    const cssZoomClass = `
-          img.${cn} {
-              animation-name:            ${kf};
-              animation-duration:        ${d}s;
-              animation-delay:           0s;
-              animation-direction:       normal;
-              animation-iteration-count: 1;
-              animation-timing-function: ease-in-out;
-              animation-fill-mode:       both;
-          }
-          `;
-
-    const css = clearCont(zoomCss);
-    css.appendChild(newText(cssKeyFrames + cssZoomClass));
-
-    function animationEndFunction(ev) {
-        trc(1, `${ev.animationName} animation has finished`);
-
-        ev.stopPropagation();
-        const i = getCurrImgElem();
-        i.classList.remove(cn);
-        i.removeEventListener("animationend", animationEndFunction);
-
-        setImgZoomCSS();
-    }
-
-    trc(1, `animZoomImg: animation started: ${cn}`);
-
-    const i = getCurrImgElem();
-    i.addEventListener("animationend", animationEndFunction);
-    i.classList.add(cn);    // start anim
-}
-
-function animImgZoom1() { animImgZoom(1, zeroV2); }
-function animImgPlus()  { animImgZoom(zoomState.scale * 1.2); }
-function animImgMinus() { animImgZoom(zoomState.scale / 1.2); }
-function animImgZoomFit() {
-    var g0 = zoomState.orgGeo;
-    var g1 = resizeToFitIntoScreen(g0);
-    animImgZoom(g1.x / g0.x, zeroV2);
-}
-function animImgZoomFill() {
-    var g0 = zoomState.orgGeo;
-    var g1 = resizeToFillScreen(g0);
-    animImgZoom(g1.x / g0.x, zeroV2);
-}
-
-// --------------------
-
-function zoomImg(scale, shift) {
-    zoomTo(scale, shift);
-    setImgZoomCSS();
-}
-
-function zoomImg1()     { zoomImg(1); }
-function zoomImgPlus()  { zoomImg(zoomState.scale * 1.2); }
-function zoomImgMinus() { zoomImg(zoomState.scale / 1.2); }
-
-function zoomImgFit() {
-    var g0 = zoomState.orgGeo;
-    var g1 = resizeToFitIntoScreen(g0);
-    zoomImg(g1.x / g0.x, zeroV2);
-}
-
-function zoomImgFill() {
-    var g0 = zoomState.orgGeo;
-    var g1 = resizeToFillScreen(g0);
-    zoomImg(g1.x / g0.x, zeroV2);
-}
-
-// --------------------
-
-function editModeOn() {
-    if ( ! editMode ) {
-        editMode = true;
-        trc(1, "editModeOn");
-    }
-}
-
-function editModeOff() {
-    if ( editMode ) {
-        editMode = false;
-        trc(1, "editModeOff");
-    }
-}
-
-function editKeyPressed(e) {
-    const handled = handleKeyPressed(e);
-    if ( handled ) {
-        e.stopPropagation();
-    }
-    else {
-        keyPressed(e);
-    }
-}
-
-function handleKeyPressed(e) {
-    if ( ! editMode ) {
-        return false;
-    }
-    if ( ! isZoomImg() ) {
-        return false;
-    }
-    const k = e.key;
-    trc(1,`handleKeyPressed: ${k}`);
-
-    // img resize
-
-    if ( k === "+" || k === "*" ) {
-        blowupImg(k === "*");
-        return true;
-    }
-    if ( k === "-" || k === "_") {
-        shrinkImg(k === "_");
-        return true;
-    }
-
-    if ( k === "0") {
-        zoomImgFit();
-        return true;
-    }
-
-    if ( k === "1") {
-        zoomImgFill();
-        return true;
-    }
-    if ( k === "2") {
-        zoomImg1();
-        return true;
-    }
-
-    // img move
-    if ( k === "l" || k === "L") {
-        backwardImg(k == "L");
-        return true;
-    }
-    if ( k === "r" || k === "R") {
-        forwardImg(k == "R");
-        return true;
-    }
-    if ( k === "u" || k === "U") {
-        upwardImg(k == "U");
-        return true;
-    }
-    if ( k === "d" || k === "D") {
-        downwardImg(k == "D");
-        return true;
-    }
-
-    return false;
-}
-
-function zmstep(smallStep) { return smallStep ? 1.01 : 1.1; }
-
-function blowupImg(smallStep) {
-    const s = zmstep(smallStep);
-    zoomImg(zoomState.scale * s);
-}
-function shrinkImg(smallStep) {
-    const s = zmstep(smallStep);
-    zoomImg(zoomState.scale / s);
-}
-
-function mvstep(smallStep) { return smallStep ? 0.005 : 0.05; }
-
-function forwardImg(smallStep) {
-    const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, V2(s, 0)));
-}
-function backwardImg(smallStep) {
-    const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, V2(0 - s, 0)));
-}
-function upwardImg(smallStep) {
-    const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, V2(0, 0 - s)));
-}
-function downwardImg(smallStep) {
-    const s = mvstep(smallStep);
-    zoomImg(null, addV2(zoomState.shift, V2(0, s)));
-}
-
 // --------------------
 
 function loadFullImg(frameGeo, id, url, imgGeo) {
@@ -881,6 +483,12 @@ function showBlog1(frameGeo, page) {
 // ----------------------------------------
 
 function showCol1(frameGeo, page) {
+    const id = nextImgId();
+    showColId(id, frameGeo, page);
+    toggleImg12(id);
+}
+
+function showColId(id, frameGeo, page) {
     const colDescr = page.colDescr;
     const colReq   = colDescr.eReq;
     const colMeta  = colDescr.eMeta;
@@ -892,20 +500,20 @@ function showCol1(frameGeo, page) {
                        rPathPos: colReq.rPathPos
                      };
     const g        = toPx(frameGeo);
-    const id       = nextImgId();
-    const e = clearCont(id);
+    const e        = clearCont(id);
     setCSS(e, { width:    g.x,
                 height:   g.y,
                 left:     "0px",
                 top:      "0px",
                 overflow: "auto"
               });
-    e.appendChild(buildCollection(frameGeo,
-                                  colReq, iconReq,
-                                  colMeta,
-                                  navIcons, c1Icon, colIcons, colBlog));
-
-    toggleImg12(id);
+    e.appendChild(
+        buildCollection(frameGeo,
+                        colReq, iconReq,
+                        colMeta,
+                        navIcons, c1Icon, colIcons, colBlog
+                       )
+    );
 }
 
 function buildCollection(frameGeo,
@@ -1816,102 +1424,9 @@ function keyPressed (e) {
 // document.onkeypress = keyPressed;
 // document.onkeyup    = keyUp;
 
-document.addEventListener("keypress", editKeyPressed);
+document.addEventListener("keypress", keyPressed);
 document.addEventListener("keyup",    keyUp);
 // document.addEventListener("resize",   resizedScreen);
-
-// ----------------------------------------
-// slideshow stuff
-
-var slideShow      = false;
-var slideShowTimer;
-var slideShowType  = "";
-
-const slideShowDefaultSpeed = 5000;  // default: 5 sec in milliseconds
-var   slideShowSpeed = slideShowDefaultSpeed;  // default: 5 sec in milliseconds
-
-function slideDur() {
-    const md = getPageMeta();
-    const d  = md["Descr:Duration"];
-    let   t  = 1; // seconds
-    if (d) {
-        t = d * 1;         // convert to number
-        if (!t) { t = 1;}  // no conv: reset to default
-    }
-    return t * slideShowSpeed;
-}
-
-function advanceSlideShow() {
-    trc(1, "advance SlideShow");
-    const hasNext = ( slideShowType == "allColls")
-          ? goForward()
-          : ( isColPage()
-              ? gotoChild(0)
-              : gotoNext()
-            );
-    if (! hasNext) {
-        stopSlideShow();
-        gotoPar();
-    } else {
-        const ms = slideDur();
-        slideShowTimer = setTimeout(advanceSlideShow, ms);
-        trc(1, "advanceSlideShow timer set msec: " + ms + " (" + slideShowType + ")");
-    }
-}
-
-function stopSlideShow() {
-    if (slideShow) {
-        if (typeof slideShowTimer != "undefined") {
-            clearTimeout(slideShowTimer);
-            trc(1, "timer cleared");
-        }
-        slideShow      = false;
-        slideShowType  = "";
-        slideShowTimer = undefined;
-        statusBar.show("Automatischer Bildwechsel beendet");
-    }
-}
-
-function startSlideShow() {
-    if (! slideShow) {
-        slideShow = true;
-        statusBar.show("Automatischer Bildwechsel gestartet");
-        advanceSlideShow();
-    }
-}
-
-function startStopSlideShow(stype) {
-    slideShowType=stype;
-    toggleSlideShow();
-}
-
-function toggleSlideShow() {
-    if (slideShow) {
-        stopSlideShow();
-    } else {
-        startSlideShow();
-    }
-}
-
-function resetSpeedSlideShow() {
-    slideShowSpeed = slideShowDefaultSpeed;
-    showDur();
-}
-
-function slowDownSlideShow() {
-    slideShowSpeed = slideShowSpeed * 1.2;
-    showDur();
-}
-
-function speedUpSlideShow() {
-    slideShowSpeed = Math.max(slideShowSpeed / 1.2, 2500);
-    showDur();
-}
-
-function showDur() {
-    const s =  Math.round(slideShowSpeed / 100) / 10;
-    statusBar.show('Automatischer Bildwechsel nach ' + s + " sec.");
-}
 
 // ----------------------------------------
 // status bar

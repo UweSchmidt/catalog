@@ -187,4 +187,8 @@ function newElem4(elem, id, css, cls) {
     return newElem(elem, mkImgId(id), css, cls);
 }
 
+function mkImgId(id) {
+    return id + "-img";
+}
+
 // ----------------------------------------

@@ -10,6 +10,8 @@
 // with
 // cls=name of animation class
 
+// import DOM.Manipulate
+
 function initShowHandlers() {
     initAnimHandlers(imageShowAnims);
 }
@@ -72,6 +74,62 @@ function isHiddenAnim(id, cls) {
     trc(1, `isHiddenAnim: ${id} ${cls}`);
     const cs = getElem(id).classList;
     return cs.contains(`hidden-${cls}`) || cs.contains(`fadeout-${cls}`);
+}
+
+// ----------------------------------------
+// simplest transition: exchange images without animation
+
+function cut(id1, id2, dur, cls) {
+    cls = cls || 'image';
+    trc(1, "cut: " + id1);
+    const e1 = getElem(id1);
+    const e2 = getElem(id2);
+
+    nextAnimClass(e2, `visible-${cls}`, `hidden-${cls}`);
+    nextAnimClass(e1, `hidden-${cls}`, `visible-${cls}`);
+    clearImageElem(e2);
+}
+
+// ----------------------------------------
+// crossfade images
+
+function crossFade(id1, id2, dur, cls) {
+    const e1 = getElem(id1);
+    const e2 = getElem(id2);
+    trc(1, `crossFade: ${id1}, ${dur}sec`);
+
+    setAnimDur(e2, dur);
+    nextAnimClass(e2, `visible-${cls}`, `fadeout-${cls}`)
+        || nextAnimClass(e2, `fadein-${cls}`, `fadeout-${cls}`);
+
+    setAnimDur(e1, dur);
+    nextAnimClass(e1, `hidden-${cls}`, `fadein-${cls}`);
+}
+
+// ----------------------------------------
+// fadeout fadein
+
+function fadeOutIn(id1, id2, dur, cls) {
+    cls = cls || 'image';
+    const e1 = getElem(id1);
+    const e2 = getElem(id2);
+    cls = cls || 'image';
+    trc(1, `fadeOutIn: ${id1}, ${dur}sec`);
+
+    setAnimDur(e2, dur);
+    nextAnimClass(e2, `visible-${cls}`, `fadeout-${cls}`)
+        || nextAnimClass(e2, `fadein-${cls}`, `fadeout-${cls}`);
+
+    // setCSS(e1, {opacity: 0});
+    setAnimDur(e1, dur, dur);
+    nextAnimClass(e1, `hidden-${cls}`, `fadein-${cls}`);
+}
+
+// ----------------------------------------
+
+function clearImageElem(e) {
+    clearCont(e);
+    clearAnimDur(e);
 }
 
 // ----------------------------------------
