@@ -28,7 +28,8 @@ const opRender    = "render";
 const opFadeout   = "fadeout";
 const opFadein    = "fadein";
 const opMove      = "move";
-const opShow      = "show";
+const opShown     = "shown";
+const opDelay     = "delay";
 const opWait      = "wait";
 const opExit      = "exit";
 
@@ -66,15 +67,19 @@ function mkFadeout(transition, duration) {
            };
 };
 
-function mkShow(dur) {
-    return { op:  opShow,
-             dur: dur,
-           };
+function mkShowEnd() {
+    return { op:  opShown };
 };
 
 function mkMove() {
     return { op: opMove };
 };
+
+function mkDelay(dur) {
+    return { op:  opDelay,
+             dur: dur
+           };
+}
 
 function mkWait(reljno, st) {
     return { op:     opWait,
@@ -110,12 +115,25 @@ function mkWaitJob(jno, jstatus) {
 
 // machine state: global
 
-var jobsCode    = new Map();  // Map Jno [Instr]
-var jobsAll     = new Map();  // Map Jno ActiveJob
-var jobsWaiting = new Map();  // Map (Jno, Status) (Set Jno)
-var jobsReady   = [];         // Queue Jno
-var jobsRunning = new Set();  // Set Jno
+var vmRunning;
+var vmStepCnt;
+var jobsCode;
+var jobsAll;
+var jobsWaiting;
+var jobsReady;
+var jobsRunning;
 
+function initVM() {
+    vmRunning   = false;
+    vmStepCnt   = 0;
+    jobsCode    = new Map();  // Map Jno [Instr]
+    jobsAll     = new Map();  // Map Jno ActiveJob
+    jobsWaiting = new Map();  // Map (Jno, Status) (Set Jno)
+    jobsReady   = [];         // Queue Jno
+    jobsRunning = new Set();  // Set Jno
+}
+
+initVM();
 
 // --------------------
 // jobs:
@@ -155,6 +173,10 @@ function addReady(jno) {
     if (! jobsAll.get(jno).jstatus.has(stFinished)) {
         jobsReady.push(jno);           // add at end of job queue
         trc(1, `addReady: ${jno}`);
+
+        if ( jobsReady.length === 1) {
+            run();                         // new ready job, (re)start VM
+        }
     }
 }
 function nextReady() {
@@ -174,7 +196,7 @@ function addWaiting(jno, waitFor) {
     const k1 = toKeyWaitJob(waitFor);
     const s1 = jobsWaiting.get(k1) || new Set();
     jobsWaiting.set(k1, s1.add(jno));
-    trc(1, `addWaiting: ${jno} waits for ${k1}`);
+    trc(1, `addWaiting: job ${jno} waits for ${k1}`);
 }
 function wakeupWaiting(waitFor) {
     const k1 = toKeyWaitJob(waitFor);
@@ -183,7 +205,7 @@ function wakeupWaiting(waitFor) {
         trc(1,`wakeupWaiting: ${k1}`);
         jobsWaiting.delete(k1);
         s1.forEach((jno) => {
-            trc(1,`wakup: ${jno}`);
+            trc(1,`wakup: job ${jno}`);
             addReady(jno);
         });
     }
@@ -197,37 +219,29 @@ function toKeyWaitJob(wj) {
 
 // --------------------
 
-function run(n) { steps(0, n);}
-
-function steps(n, mx) {
-    if ( n < mx ) {
-        trc(1, `${n}. step started`);
-        res = step1();
-        switch ( res ) {
-        case 'step' :
-            trc(1, `${n}. step finished`);
-            steps(n + 1, mx);
-            break;
-
-        case 'running' :                    // wait for async jobs to finish
-            trc(1, `${n}. step: wait for async instr to terminate`);
-            setTimeout(function() { steps(n, mx)}, 1000);
-            break;
-
-        case 'blocked' :
-            trc(1, `${n}. step: ${jobsWaiting.size} jobs blocked`);
-            return;
-
-        case 'terminated' :
-            trc(1, `${n}. step: terminated and all jobs done`);
-            return;
-
-        default:
-        }
+function run() {
+    if ( vmRunning ) {
+        trc(1, "run: VM already running");
+        return;
     }
     else {
-        trc(1, `${n}. step: done, ${mx} instructions executed`);
+        trc(1, "run: (re)start VM");
+        run1();
     }
+}
+
+function run1() {
+    vmRunning = true;
+    do {
+        trc(1, `${vmStepCnt}. step started`);
+        res = step1();
+        trc(1, `${vmStepCnt}. step finished`);
+        vmStepCnt++;
+    }
+    while ( res === 'step' );
+
+    vmRunning = false;
+    trc(1, `${vmStepCnt - 1}. step: res = ${res}`);
 }
 
 function step1() {
@@ -257,32 +271,32 @@ function execInstr(instr, activeJob) {
     var st;
 
     if ( op === opInit ) {
-
         st = stCreated;
     }
     else if ( op === opLoadpage ) {
-
         st = stReadypage;
     }
     else if ( op === opLoadmedia ) {
-
         st = stReadymedia;
     }
     else if ( op === opRender ) {
-
         st = stRendered;
     }
     else if ( op === opFadein ) {
-
         st = stVisible;
     }
-    else if ( op === opShow ) {  // async
-        execShow(instr, activeJob);
-        return;
+    else if ( op === opShown ) {
+        st = stShown;
     }
     else if ( op === opMove ) {  // TODO async
-
         st = stVisible;
+    }
+    else if ( op === opDelay ) {
+        if ( instr.dur ) {
+            execDelay(instr, activeJob); // async
+            return;
+        }
+        st = stNothing;  // delay 0 -> instr is a noop
     }
     else if ( op === opFadeout ) {
 
@@ -324,9 +338,12 @@ function execInstr(instr, activeJob) {
 }
 
 // --------------------
+
+/*
 // show instr: async, delay job for a given time
 // but make timeout interruptable
 // timeout is stored in active job obj
+
 
 function execShow(instr, aj) {
     const jno = aj.jno;
@@ -342,6 +359,23 @@ function execShow(instr, aj) {
 
     // put job into set of jobs running asyncronized
     trc(1, `execShow: add to running: ${jno}`);
+    addRunning(jno);
+}
+*/
+function execDelay(instr, aj) {
+    const jno = aj.jno;
+
+    // set termination action
+    aj.jterm = function () {
+        trc(1, `finish delay instr: (${jno}, ${aj.jpc})`);
+        termInstr(jno, stNothing);
+    };
+
+    // set timeout
+    aj.jtimeout = setTimeout(aj.jterm, instr.dur);
+
+    // put job into set of jobs running asyncronized
+    trc(1, `execDelay: add to running: ${jno}`);
     addRunning(jno);
 }
 
@@ -401,7 +435,8 @@ function mkJob1(jno, url, dur) {
                       mkLoadmedia(),
                       mkRender(),
                       mkFadein(),
-                      mkShow(dur),
+                      mkDelay(dur),
+                      mkShowEnd(),
                       mkFadeout(),
                       mkExit()
                     ]
@@ -468,12 +503,14 @@ function mkJob(jno, jd) {
     // --------------------
     // show code
 
-    let cshow = [ mkShow(jd.showDur) ];
+    let cshow = [ mkDelay(jd.showDur),
+                  mkShowEnd()
+                ];
 
     // --------------------
     // exit code
 
-    let cexit = [ mkExit()];
+    let cexit = [ mkExit() ];
 
     // --------------------
 
@@ -503,7 +540,10 @@ var j2 = mkJob(2, { url: "/egon",
                   }
               );
 
-addJob(j1.jno, j1.jcode);
-addJob(j2.jno, j2.jcode);
-addReady(j1.jno);
-addReady(j2.jno);
+function ttt() {
+    initVM();
+    addJob(j1.jno, j1.jcode);
+    addJob(j2.jno, j2.jcode);
+    addReady(j1.jno);
+    addReady(j2.jno);
+}
