@@ -1,0 +1,122 @@
+<!DOCTYPE HTML>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <title id="head-title">PlaySlideShow 0.5.9.1 2022-09-18</title>
+    <meta name="description" content="Web Photo Album">
+    <meta name="author" content="Uwe Schmidt">
+    <meta name="generator" content="catalog-servant version 0.5.9.1 from 2022-09-18">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" type="text/css" href="/assets/css/show.css">
+
+    <script type="text/javascript" src="/bootstrap/4.5.0/js/jquery/jquery-3.5.1.min.js"></script>
+    <script type="text/javascript" src="/rpc.js"></script>
+
+    <!-- local .js modules -->
+    <script type="text/javascript" src="/assets/javascript/Prelude.js"></script>
+    <script type="text/javascript" src="/assets/javascript/Data.V2.js"></script>
+    <script type="text/javascript" src="/assets/javascript/Data.Geo.js"></script>
+    <script type="text/javascript" src="/assets/javascript/DOM.Manipulate.js"></script>
+    <script type="text/javascript" src="/assets/javascript/DOM.Animation.js"></script>
+    <script type="text/javascript" src="/assets/javascript/DOM.Status.js"></script>
+    <script type="text/javascript" src="/assets/javascript/Catalog.Urls.js"></script>
+    <script type="text/javascript" src="/assets/javascript/Catalog.MetaData.js"></script>
+    <script type="text/javascript" src="/assets/javascript/Catalog.Json.js"></script>
+    <script type="text/javascript" src="/assets/javascript/Show.Load.js"></script>
+    <script type="text/javascript" src="/assets/javascript/Show.SlideShow.js"></script>
+
+    <!-- the application .js -->
+    <script type="text/javascript" src="/assets/javascript/Play.js"></script>
+
+    <!-- elements for dynamic css (key frames for animation)-->
+    <style id="panorama-css" type="text/css"></style>
+    <style id="image-css" type="text/css"></style>
+    <style id="image-zoom-css" type="text/css"></style>
+
+  </head>
+  <body onload="initPlay();" onresize="resizedScreen();">
+    <div id="imageTab">
+
+      <!-- image display elements -->
+      <!-- one of the images contains the current picture or collection
+           the next image or collection is loaded in the other div
+           and afterwards a transition of the visiblity is done
+           at the moment a transition consists of a swap of the
+           display: block and display: hidden styles
+        -->
+      <div id="image1" class="visible-image">
+      </div>
+      <div id="image2" class="hidden-image">
+      </div>
+
+      <!-- image metadata -->
+      <div id="info" title="Bilddaten" class="hidden-info">
+        <h1>Bilddaten</h1>
+        <div id="info-table">
+          <div class="key">Name</div><div class="value">Wert</div>
+        </div>
+      </div>
+
+      <!-- status line -->
+      <div id="status" title="Status-Zeile" class="hidden-info">
+        Status-Meldung
+      </div>
+
+      <!-- help: keyboard shortcuts, TODO: not yet completly implemented -->
+      <div id="help" class="hidden-info">
+        <h1>Tastenkürzel</h1>
+        <div id="help-table">
+          <div class="key">Leertaste</div>
+          <div class="value">im Album: 1. Bild, sonst nächstes Bild</div>
+          <div class="key">→, n, &gt;</div>
+          <div class="value">im Album: nächstes Album, sonst nächstes Bild</div>
+          <div class="key">←, p, &lt;</div>
+          <div class="value">im Album: voriges Album, sonst voriges Bild</div>
+          <div class="key">↑, u, ^</div>
+          <div class="value">zum umfassenden Album</div>
+          <div class="key">↓, d, v</div>
+          <div class="value">zum 1. Bild eines Albums</div>
+          <div class="key">x</div>
+          <div class="value">momentanes Bild/Album neu laden</div>
+          <div class="key">i</div>
+          <div class="value">Anzeige der Metadaten eines Bildes</div>
+          <div class="key">f</div>
+          <div class="value">Anzeige eines Bildes in Originalgröße</div>
+          <div class="key">l</div>
+          <div class="value">Anzeige eines kleinen Bildes oder Videos im Vollbild-Modus</div>
+          <div class="key">a, q</div>
+          <div class="value">Animation eines Panorama-Bildes</div>
+          <div class="key">s</div>
+          <div class="value">start/stop automatischer Bildwechsel im momentanen Album</div>
+          <div class="key">S</div>
+          <div class="value">start/stop automatischer Bildwechsel alle Alben</div>
+          <div class="key">+</div>
+          <div class="value">automatischer Bildwechsel schneller</div>
+          <div class="key">-</div>
+          <div class="value">automatischer Bildwechsel langsamer</div>
+          <div class="key">0</div>
+          <div class="value">automatischer Bildwechsel Dauer zurücksetzen</div>
+          <div class="key">T</div>
+          <div class="value">Animation Bildwechsel schneller</div>
+          <div class="key">t</div>
+          <div class="value">Animation Bildwechsel langsamer</div>
+          <div class="key">e</div>
+          <div class="value">Öffnen des Editors mit dem aktuellen Album</div>
+          <div class="key">A</div>
+          <div class="value">Autoplay für videos an/aus, default: aus</div>
+          <div class="key">m</div>
+          <div class="value">Ton bei aktuellem Video an/aus</div>
+          <div class="key">c</div>
+          <div class="value">Kontrollleiste bei aktuellem Video an/aus</div>
+          <div class="key">?, h</div>
+          <div class="value">Diese Hilfe-Info</div>
+        </div>
+      </div>
+    </div>
+    <div id="editTab" class="editTab" style="visibility: hidden">
+      <div id="editTabCont" class="editTabCont">
+        <div>Edit Pane</div>
+      </div>
+    </div>
+  </body>
+</html>
