@@ -50,9 +50,243 @@ function isImgPage(page) {
     return ! isColPage(page);
 }
 
-// ----------------------------------------
+// --------------------
 
-function showColId(id, frameGeo, page) {
+function jsonReqToUrl1(frameGeo, req) {
+    const req1 = mkRequest('json',
+                           req.rPathPos,
+                           showGeo(bestFitToGeo(frameGeo)));
+    return reqToUrl(req1);
+}
+
+// --------------------
+// function for open catalog edit in new tab
+
+function openEditPage(path, pos) {
+    var url = "edit-4.5.0.html"
+        + "?path=" + path
+        + ( pos
+            ? "&picno=" + picno
+            : ""
+          );
+    trc(1, "openEditPage: url=" + url);
+    window.open(url, "_blank");
+}
+
+// ----------------------------------------
+// build an image element for a given resizeAlg
+
+function loadAnImg(id, frameGeo, req, geo, resizeAlg) {
+    if (resizeAlg === "fullsize") {
+        loadFullImg(id, frameGeo, req, geo);
+    }
+    else if (resizeAlg === "panorama") {
+        loadPanoramaImg(id, frameGeo, req, geo);
+    }
+    else if (resizeAlg === "zoom") {
+        loadZoomableImg(frameGeo, id, req, geo);
+    }
+    else {
+        loadImg(id, frameGeo, req, geo, resizeAlg);
+    }
+}
+
+// ----------------------------------------
+// build ordinary image page
+
+function loadImg(id, frameGeo, url, geo, resizeAlg) {
+    const imgGeo = fitToFrameGeo(frameGeo, geo, resizeAlg);
+    const o      = toPx(placeOnFrame(frameGeo, imgGeo));
+    const g      = toPx(imgGeo);
+
+    const istyle = { width    : g.x,
+                     height   : g.y,
+                     left     : o.x,
+                     top      : o.y,
+                     position : "absolute",
+                     overflow : "hidden"
+                   };
+    // get element, clear contents and set style attributes
+    const e = clearBlock(id);
+    const i = newImgElem(id, istyle, "img " + resizeAlg);
+    i.src   = url;
+    e.appendChild(i);
+}
+
+// ----------------------------------------
+// build an element for a scrollable image in original resolution
+
+function loadFullImg(id, frameGeo, url, imgGeo) {
+    const off    = toPx(zeroV2);
+    const g      = toPx(imgGeo);
+
+    const istyle = { width    : g.x,
+                     height   : g.y,
+                     left     : off.x,
+                     top      : off.y,
+                     position : "absolute",
+                     overflow : "auto"     // !!! image becomes scrollable
+                   };
+    // get element, clear contents and set style attributes
+    const e = clearBlock(id);
+    const i = newImgElem(id, istyle, "img fullsize");
+    i.src   = url;
+    e.appendChild(i);
+}
+
+
+// ----------------------------------------
+// build element for panorama image
+
+function loadPanoramaImg(id, frameGeo, url, imgGeo) {
+
+    const isH    = isHorizontal(imgGeo);
+    const ar     = aspectRatioV2(imgGeo);
+    const offset = isH ? frameGeo.x - imgGeo.x : frameGeo.y - imgGeo.y;
+    const d = 2.5 * 7.0 * Math.max(ar, 1/ar);
+
+    // add keyframe style
+    const s = clearCont(panoCss);
+
+    const kf  = "pano-move";
+    const dr  = isH ? "left" : "bottom";
+    const dr1 = isH ? "top"  : "left";
+
+    // css for animated panoramas
+    const cssKeyFrames = `
+          @keyframes ${kf} {
+                0% {${dr}: 0px}
+               45% {${dr}: ${offset}px}
+               55% {${dr}: ${offset}px}
+              100% {${dr}: 0px}
+          }
+          `;
+
+    const cssPanoClass = `
+          img.panorama {
+              position: absolute;
+              ${dr}:     0px;
+              ${dr1}:    0px;
+              animation-name:            ${kf};
+              animation-duration:        ${d}s;
+              animation-delay:           2s;
+              animation-iteration-count: 1;
+              animation-timing-function: ease-in-out;
+              animation-play-state:      paused;
+          }
+          `;
+
+    s.appendChild(newText(cssKeyFrames + cssPanoClass));
+
+    function animationEndFunction() {
+        trc(1, "animation of panorama has finished");
+    }
+
+    const e = clearBlock(id);
+    const i = newImgElem(id, {}, "img panorama");
+    i.addEventListener("load", togglePanoAnimation);
+    i.addEventListener("animationend", animationEndFunction);
+    i.src = url;
+    e.appendChild(i);
+}
+
+// ----------------------------------------
+// build movie page
+
+function loadMovie(id, frameGeo, page, resizeAlg) {
+    const movReq = page.imgReq;
+    const movGeo = readGeo(page.oirGeo[0]);
+    const movUrl = toMediaUrl(page.img);
+
+    trc(1, "loadMovie: url=" + movUrl + ", geo=" + showGeo(movGeo));
+
+    loadMovie1(id, frameGeo, movUrl, movGeo, movReq.rType, resizeAlg);
+}
+
+function loadMovie1(id, frameGeo, url, geo, rType, resizeAlg) {
+    const movGeo  = fitToFrameGeo(frameGeo, geo, resizeAlg);
+    const off     = toPx(placeOnFrame(frameGeo, movGeo));
+    const g       = toPx(movGeo);
+    const istyle  = { width    : g.x,
+                      height   : g.y,
+                      left     : off.x,
+                      top      : off.y,
+                      position : "absolute",
+                      overflow : "hidden"
+                   };
+
+    const e = clearBlock(id);
+
+    // build video/img element
+
+    if (rType === "movie") {
+        const v    = newMovElem(id, istyle, "movie video " + resizeAlg);
+        v.width    = movGeo.x;
+        v.height   = movGeo.y;
+        if (videoAttrs.autoplay != null) {
+            v.autoplay = "autoplay";
+        }
+        if (videoAttrs.controls != null) {
+            v.controls = "controls";
+        }
+        if (videoAttrs.muted != null) {
+            v.muted = "muted";
+        }
+
+        const s = newElem("source");
+        s.src  = url;
+        s.type = "video/mp4";
+
+        const w = newElem("span")
+                  .appendChild(
+                      newText("your browser does not support HTML5 video"));
+        v.appendChild(s).appendChild(w);
+
+        // insert new content into element
+        e.appendChild(v);
+
+    }
+    else if (rType === "gif") {
+        const v2 = newImgElem(id,
+                              { width:  g.x,
+                                height: g.y
+                              },
+                              "movie gif " + resizeAlg
+                             );
+        v2.src   = url;
+
+        e.appendChild(v2);
+    }
+}
+
+// ----------------------------------------
+// build a blog page
+
+function loadBlog(id, frameGeo, page) {
+    const req = page.imgReq;
+    const geo = toPx(frameGeo);
+    const txt = getPageBlog(page);
+
+    trc(1, "loadBlog: " + txt);
+
+    // get element, clear contents and set style attributes
+    const e  = clearBlock(id);
+
+    // build blog contents div
+    const b  = newBlogElem(id,
+                           { height:   "100%",
+                             overflow: "auto"
+                           },
+                           "blog"
+                          );
+    b.innerHTML = txt;
+    e.appendChild(b);
+}
+
+// ----------------------------------------
+// build collection page
+
+function loadCollection(id, frameGeo, page) {
     const colDescr = page.colDescr;
     const colReq   = colDescr.eReq;
     const colMeta  = colDescr.eMeta;
@@ -355,29 +589,6 @@ function buildCollection(frameGeo,
     c.appendChild(buildColHeaderFooter(false));
     c.appendChild(ruler());
     return c;
-}
-
-// --------------------
-
-function jsonReqToUrl1(frameGeo, req) {
-    const req1 = mkRequest('json',
-                           req.rPathPos,
-                           showGeo(bestFitToGeo(frameGeo)));
-    return reqToUrl(req1);
-}
-
-// --------------------
-// function for open catalog edit in new tab
-
-function openEditPage(path, pos) {
-    var url = "edit-4.5.0.html"
-        + "?path=" + path
-        + ( pos
-            ? "&picno=" + picno
-            : ""
-          );
-    trc(1, "openEditPage: url=" + url);
-    window.open(url, "_blank");
 }
 
 // ----------------------------------------
