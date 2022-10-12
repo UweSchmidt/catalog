@@ -90,4 +90,7 @@ function initPlay() {
     statusBar.show("Slideshow initialized");
 }
 
+addEvent(window, 'resize', resizedScreen);
+addEvent(window, 'load', initPlay);
+
 // ----------------------------------------
