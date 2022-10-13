@@ -61,6 +61,7 @@ const infoTab  = "info-table";
 const help     = "help";
 const panoCss  = "panorama-css";
 const statusId  = "status";
+const stageId  = imgTab;
 
 // statusbar object
 

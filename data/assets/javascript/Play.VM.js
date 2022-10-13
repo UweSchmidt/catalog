@@ -1,3 +1,4 @@
+// ----------------------------------------
 // stati
 
 const stCreated    = "created";
@@ -10,6 +11,8 @@ const stHidden     = "hidden";
 const stFinished   = "finished";
 const stNothing    = "nothing";
 
+// set of stati
+
 function emptySt() {
     return new Set();
 };
@@ -19,6 +22,8 @@ function addSt(st, stats) {
 function memberSt(st, stats) {
     return stats.has(st);
 }
+
+// ----------------------------------------
 // opcodes
 
 const opInit      = "init";
@@ -32,6 +37,16 @@ const opShown     = "shown";
 const opDelay     = "delay";
 const opWait      = "wait";
 const opExit      = "exit";
+
+// ----------------------------------------
+// transitions
+
+const trCut       = 'cut';
+const trFadein    = 'fadein';
+const trFadeout   = 'fadeout';
+const trCrossfade = 'crossfade';
+
+// ----------------------------------------
 
 // build instructions
 
@@ -49,21 +64,29 @@ function mkLoadmedia() {
     return { op: opLoadmedia };
 };
 
-function mkRender() {
-    return { op: opRender };
+function mkRender(media) {
+    return { op:    opRender,
+             media: media,
+           };
 };
 
 function mkFadein(transition, duration) {
+    if ( duration === 0) {
+        transition = trCut;
+    }
     return { op:    opFadein,
-             trans: transition || 'cut',
-             dur:   duration   || 0,
+             trans: transition,
+             dur:   duration,
            };
 };
 
 function mkFadeout(transition, duration) {
+    if ( duration === 0) {
+        transition = trCut;
+    }
     return { op:    opFadeout,
-             trans: transition || 'cut',
-             dur:   duration   || 0,
+             trans: transition,
+             dur:   duration,
            };
 };
 
@@ -97,6 +120,9 @@ function mkExit() {
 // type activeJob = { jno: n, jpc: n, }
 
 function noop() {}
+
+// ----------------------------------------
+// virtual machine code interpretation
 
 function mkActiveJob(jno, jpc, jstatus) {
     return { jno     : jno,
@@ -279,18 +305,50 @@ function execInstr(instr, activeJob) {
     else if ( op === opLoadmedia ) {
         st = stReadymedia;
     }
+
+    // render frame and media element
     else if ( op === opRender ) {
+        render(jno, instr.media);
         st = stRendered;
     }
+
+    // fadein
     else if ( op === opFadein ) {
-        st = stVisible;
+        if ( instr.trans === trCut) {
+            fadeinCut(jno);
+            st = stVisible;
+        }
+        else { // TODO: async op
+            fadeinAnim(jno, instr.dur);
+            st = stVisible;
+        }
     }
+
+    // fadeout
+    else if ( op === opFadeout ) {
+        if ( instr.trans === trCut) {
+            fadeoutCut(jno);
+            st = stHidden;
+        }
+        else { // TODO: async op
+            fadeoutAnim(jno, instr.dur);
+            st = stHidden;
+        }
+    }
+
+    // mark end of showing slide, fadeout will start
+    // used vor syncing crossfade transitions
+
     else if ( op === opShown ) {
         st = stShown;
     }
+
+    // animated move and/or scaling of media
     else if ( op === opMove ) {  // TODO async
         st = stVisible;
     }
+
+    // sleep a given time
     else if ( op === opDelay ) {
         if ( instr.dur ) {
             execDelay(instr, activeJob); // async
@@ -298,10 +356,8 @@ function execInstr(instr, activeJob) {
         }
         st = stNothing;  // delay 0 -> instr is a noop
     }
-    else if ( op === opFadeout ) {
 
-        st = stHidden;
-    }
+    // syncing with previous slides
     else if ( op === opWait ) {
         const jno1 = jno - instr.reljno;
         const st1  = instr.status;
@@ -326,8 +382,12 @@ function execInstr(instr, activeJob) {
         trc(1, `wait: job ${jno1} already has status ${st1}, continue`);
         st = stNothing;
     }
+
+    // cleanup
     else if ( op === opExit ) {
-        trc(1, `exit: job terminated, delete job ${activeJob.jno}`);
+        trc(1, `exit: job terminated, delete job ${jno}`);
+        // // just for debugging
+        // removeFrame(jno);
         st = stFinished;
     }
 
@@ -419,45 +479,132 @@ function advanceJobStatus(aj, st) {
 
 // --------------------
 
+function newFrame(id, stageGeo, fmt) {
+    let geo = stageGeo;
+    let off = V2(0,0);
+
+    switch ( fmt ) {
+    case 'leftHalf' :
+        geo.w = div(stageGeo.w, 2);
+        break;
+    case 'rightHalf' :
+        geo.w = stageGeo.w - div(stageGeo.w, 2);
+        off.w = div(stageGeo.w, 2);
+        break;
+    default:
+        break;
+    }
+
+    let s = cssAbsGeo(geo, off);
+        s.display = "none";
+
+    let e = newElem('div', id, s, 'frame');
+    return e;
+}
+
+function mkFrameId(jno) {
+    return `frame-${jno}`;
+}
+
+// --------------------
+// build a new frame containing a media element
+
+function render(jno, media) {
+    const ty = media.type;
+
+    switch ( ty ) {
+    case 'text':
+        renderText(jno, media);
+        break;
+    default:
+        throw `render: unknown media type: ${ty}`;
+    }
+}
+
+function renderText(jno, media) {
+    const frameId   = mkFrameId(jno);
+    const frameGeo  = stageGeo();
+    const frame     = newFrame(frameId, frameGeo, V2(0,0));
+
+    const ms        = cssAbsGeo(media.geo, media.off);
+    ms.height = "auto";
+    ms['background-color'] = "red";
+
+    const me        = newBlogElem(frameId, ms, 'text');
+    me.innerHTML = media.text;
+    frame.appendChild(me);
+    getElem(stageId).appendChild(frame);
+}
+
+// --------------------
+// transitions
+
+function fadeCut(frameId, display, opacity) {
+    setCSS(frameId,
+           { display: display,
+             opacity: opacity,
+           }
+          );
+}
+
+function fadeinCut (jno) { fadeCut(mkFrameId(jno), 'block', 1.0); }
+function fadeoutCut(jno) { fadeCut(mkFrameId(jno), 'none', null); }
+
+function fadeAnim(frameId, dur, fade) { // fade = 'fadein' or 'fadeout'
+    const e   = getElem(frameId);
+    const cls = `${fade}-image`;
+    const opacity = (fade === 'fadein' ) ? 0.0 : 1.0;
+
+    function handleFadeEnd(ev) {
+        trc(1,`handleFadeEnd: ${frameId}, ${dur/1000}, ${fade}`);
+        ev.stopPropagation();
+        e.classList.remove(cls);
+        e.removeEventListener('animationend', handleFadeEnd);
+        if ( fade === 'fadeout' ) {
+            fadeCut(frameId, 'none', null);
+        } else {
+            fadeCut(frameId, 'block', 1.0);
+        }
+    }
+
+    fadeCut(frameId, 'block', opacity);
+    e.classList.add(cls);
+    e.addEventListener('animationend', handleFadeEnd);
+
+    // start animation
+    setAnimDur(e, dur/1000);
+}
+
+function fadeinAnim (jno, dur) { fadeAnim(mkFrameId(jno), dur, 'fadein'); }
+function fadeoutAnim(jno, dur) { fadeAnim(mkFrameId(jno), dur, 'fadeout'); }
+
+// ----------------------------------------
+// cleanup
+
+function removeFrame(jno) {
+    const frameId  = mkFrameId(jno);
+    const e = getElem(frameId);
+    e.remove();
+}
+
+// ----------------------------------------
+//
 // job creation
 
 var newJobNo = 0;
-
-const trCut       = 'cut';
-const trFadein    = 'fadein';
-const trFadeout   = 'fadeout';
-const trCrossfade = 'crossfade';
-
-function mkJob1(jno, url, dur) {
-    return { jno:   jno,
-             jcode: [ mkInit(),
-                      mkLoadpage(url),
-                      mkLoadmedia(),
-                      mkRender(),
-                      mkFadein(),
-                      mkDelay(dur),
-                      mkShowEnd(),
-                      mkFadeout(),
-                      mkExit()
-                    ]
-           };
-};
 
 function mkJob(jno, jd) {
     // init code
     let cinit = [ mkInit(),
                   mkLoadpage(jd.url),
                   mkLoadmedia(),
-                  mkRender(),
+                  mkRender(jd.media),
                 ];
 
     // --------------------
     // fadein code
 
     let cfadein = [];
-    if ( jd.fadeinDur === 0 ) {
-        jd.fadeinTrans = trCut;
-    }
 
     switch ( jd.fadeinTrans ) {
     case 'fadein' :
@@ -484,14 +631,13 @@ function mkJob(jno, jd) {
     // fadeout code
 
     let cfadeout = [];
-    if ( jd.fadeoutDur === 0 ) {
-        jd.fadeoutTrans = trCut;
-    }
 
     switch ( jd.fadeoutTrans ) {
     case 'fadeout' :
     case 'crossfade' :
-        cfadeout = [ mkFadeout(trFadeout, jd.fadeoutDur) ];
+        cfadeout = [ mkFadeout(trFadeout, jd.fadeoutDur),
+                     mkDelay(jd.fadeoutDur)
+                   ];
         break;
 
     case trCut :
@@ -529,6 +675,11 @@ var j1 = mkJob(1, { url: "/emil",
                     fadeinTrans: trFadein,
                     fadeoutDur: 2000,
                     fadeoutTrans: trCrossfade,
+                    media: { type: "text",
+                             text: "<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
+                             geo: V2(200, 100),
+                             off: V2(20, 30),
+                           }
                   }
               );
 var j2 = mkJob(2, { url: "/egon",
@@ -537,6 +688,11 @@ var j2 = mkJob(2, { url: "/egon",
                     fadeinTrans: trCrossfade,
                     fadeoutDur: 1000,
                     fadeoutTrans: trCrossfade,
+                    media: { type: "text",
+                             text: "<h2>Hallo Welt</h2>",
+                             geo: V2(100, 300),
+                             off: V2(50, 100),
+                           }
                   }
               );
 

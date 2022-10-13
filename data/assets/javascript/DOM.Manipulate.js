@@ -53,7 +53,13 @@ function setCSS(e, attrs, val) {
              typeof attrs === "object"
             ) {
         for (let a in attrs) {    // e is an element
-            e.style[a] = "" + attrs[a];
+            const v = attrs[a];
+            if ( v === undefined || v === null || v === "" ) {
+                e.style.removeProperty(a);
+            }
+            else {
+                e.style[a] = "" + v;
+            }
         }
         return e;
     }
@@ -124,7 +130,7 @@ function newElem(tag, x2, x3, x4) {
         const clss = cls.split(" ");
         for (let i = 0; i < clss.length; i++ ) {
             const c = clss[i];
-            if (c) {
+            if ( c ) {
                 e.classList.add(c);
             }
         }
@@ -189,6 +195,20 @@ function newElem4(elem, id, css, cls) {
 
 function mkImgId(id) {
     return id + "-img";
+}
+
+// ----------------------------------------
+
+function cssAbsGeo(geo, off) {
+    const g = toPx(geo);
+    const o = toPx(off);
+    return { width    : g.x,
+             height   : g.y,
+             left     : o.x,
+             top      : o.y,
+             position : "absolute",
+             overflow : "hidden"
+           };
 }
 
 // ----------------------------------------
