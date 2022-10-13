@@ -1,4 +1,10 @@
 // ----------------------------------------
+// the slideshow VM
+
+
+// all timings are in seconds
+
+// ----------------------------------------
 // stati
 
 const stCreated    = "created";
@@ -62,31 +68,31 @@ function mkLoadpage(url) {
 
 function mkLoadmedia() {
     return { op: opLoadmedia };
-};
+}
 
 function mkRender(media) {
     return { op:    opRender,
              media: media,
            };
-};
+}
 
-function mkFadein(transition, duration) {
-    if ( duration === 0) {
-        transition = trCut;
+function mkFadein(dur, trans) {
+    if ( dur === 0) {
+        trans = trCut;
     }
     return { op:    opFadein,
-             trans: transition,
-             dur:   duration,
+             trans: trans,
+             dur:   dur,
            };
 };
 
-function mkFadeout(transition, duration) {
-    if ( duration === 0) {
-        transition = trCut;
+function mkFadeout(dur, trans) {
+    if ( dur === 0) {
+        trans = trCut;
     }
     return { op:    opFadeout,
-             trans: transition,
-             dur:   duration,
+             trans: trans,
+             dur:   dur,
            };
 };
 
@@ -94,8 +100,11 @@ function mkShowEnd() {
     return { op:  opShown };
 };
 
-function mkMove() {
-    return { op: opMove };
+function mkMove(dur, off, scale) {
+    return { op:    opMove,
+             off:   off,
+             scale: scale
+           };
 };
 
 function mkDelay(dur) {
@@ -432,7 +441,7 @@ function execDelay(instr, aj) {
     };
 
     // set timeout
-    aj.jtimeout = setTimeout(aj.jterm, instr.dur);
+    aj.jtimeout = setTimeout(aj.jterm, instr.dur * 1000); // sec -> msec
 
     // put job into set of jobs running asyncronized
     trc(1, `execDelay: add to running: ${jno}`);
@@ -511,29 +520,33 @@ function mkFrameId(jno) {
 
 function render(jno, media) {
     const ty = media.type;
+    const sg = stageGeo();
 
     switch ( ty ) {
     case 'text':
-        renderText(jno, media);
+        renderText(jno, media, sg, stageId);
         break;
     default:
         throw `render: unknown media type: ${ty}`;
     }
 }
 
-function renderText(jno, media) {
+function renderText(jno, media, frameGeo, parentId) {
     const frameId   = mkFrameId(jno);
-    const frameGeo  = stageGeo();
     const frame     = newFrame(frameId, frameGeo, V2(0,0));
 
-    const ms        = cssAbsGeo(media.geo, media.off);
+    // media geo is rel to frame geo
+    const g = mulV2(media.geo, frameGeo);
+    const o = mulV2(media.off, frameGeo);
+
+    const ms  = cssAbsGeo(g, o);
     ms.height = "auto";
     ms['background-color'] = "red";
 
     const me        = newBlogElem(frameId, ms, 'text');
     me.innerHTML = media.text;
     frame.appendChild(me);
-    getElem(stageId).appendChild(frame);
+    getElem(parentId).appendChild(frame);
 }
 
 // --------------------
@@ -556,7 +569,7 @@ function fadeAnim(frameId, dur, fade) { // fade = 'fadein' or 'fadeout'
     const opacity = (fade === 'fadein' ) ? 0.0 : 1.0;
 
     function handleFadeEnd(ev) {
-        trc(1,`handleFadeEnd: ${frameId}, ${dur/1000}, ${fade}`);
+        trc(1,`handleFadeEnd: ${frameId}, ${dur}, ${fade}`);
         ev.stopPropagation();
         e.classList.remove(cls);
         e.removeEventListener('animationend', handleFadeEnd);
@@ -572,7 +585,7 @@ function fadeAnim(frameId, dur, fade) { // fade = 'fadein' or 'fadeout'
     e.addEventListener('animationend', handleFadeEnd);
 
     // start animation
-    setAnimDur(e, dur/1000);
+    setAnimDur(e, dur);
 }
 
 function fadeinAnim (jno, dur) { fadeAnim(mkFrameId(jno), dur, 'fadein'); }
@@ -609,20 +622,20 @@ function mkJob(jno, jd) {
     switch ( jd.fadeinTrans ) {
     case 'fadein' :
         cfadein = [ mkWait(1, stHidden),   // wait for previous job
-                    mkFadein(trFadein, jd.fadeinDur)
+                    mkFadein(jd.fadeinDur, trFadein),
                   ];
         break;
 
     case 'crossfade' :
         cfadein = [ mkWait(1, stShown),   // crossfade starts earlier
-                    mkFadein(trFadein, jd.fadeinDur)
+                    mkFadein(jd.fadeinDur, trFadein)
                   ];
         break;
 
     case trCut :
     default:
         cfadein = [ mkWait(1, stShown),
-                    mkFadein(trCut, 0)
+                    mkFadein(0, trCut)
                   ];
         break;
     }
@@ -635,14 +648,14 @@ function mkJob(jno, jd) {
     switch ( jd.fadeoutTrans ) {
     case 'fadeout' :
     case 'crossfade' :
-        cfadeout = [ mkFadeout(trFadeout, jd.fadeoutDur),
+        cfadeout = [ mkFadeout(jd.fadeoutDur, trFadeout),
                      mkDelay(jd.fadeoutDur)
                    ];
         break;
 
     case trCut :
     default:
-        cfadeout = [ mkFadeout(trCut, 0) ];
+        cfadeout = [ mkFadeout(0, trCut) ];
         break;
     }
 
@@ -668,30 +681,47 @@ function mkJob(jno, jd) {
 }
 
 // --------------------
+/*
+var s0 = `
+  load      /emil/egon/003.jpg
+  fadein    1.0s
+  show      2.0s
+  move      2.0s +20-30 1.2
+  show      1.0s
+  crossfade 2.0s
+  `;
+
+var s1 = [ mkFadein(1.0, trFadein),
+           mkDelay(3.0),
+           mkMove(2.0, V2(0.2,0.3), 1.2),
+           mkDelay(3.0),
+           mkFadeout(1.0, 'crossfade'),
+         ];
+*/
 
 var j1 = mkJob(1, { url: "/emil",
-                    showDur: 3000,
-                    fadeinDur: 1000,
+                    showDur: 3.000,
+                    fadeinDur: 1.000,
                     fadeinTrans: trFadein,
-                    fadeoutDur: 2000,
+                    fadeoutDur: 2.000,
                     fadeoutTrans: trCrossfade,
                     media: { type: "text",
                              text: "<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
-                             geo: V2(200, 100),
-                             off: V2(20, 30),
+                             geo: V2(0.50, 0.30),    // rel. to frame Geo
+                             off: V2(0.10, 0.30),
                            }
                   }
               );
 var j2 = mkJob(2, { url: "/egon",
-                    showDur: 5000,
-                    fadeinDur: 2000,
+                    showDur: 5.000,
+                    fadeinDur: 2.000,
                     fadeinTrans: trCrossfade,
-                    fadeoutDur: 1000,
+                    fadeoutDur: 1.000,
                     fadeoutTrans: trCrossfade,
                     media: { type: "text",
                              text: "<h2>Hallo Welt</h2>",
-                             geo: V2(100, 300),
-                             off: V2(50, 100),
+                             geo: V2(0.70, 0.10),
+                             off: V2(0.20, 0.10),
                            }
                   }
               );
@@ -702,4 +732,5 @@ function ttt() {
     addJob(j2.jno, j2.jcode);
     addReady(j1.jno);
     addReady(j2.jno);
+    setAspectRatio(V2(4,3));
 }
