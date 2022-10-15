@@ -10,7 +10,6 @@
 const stCreated    = "created";
 const stReadypage  = "readypage";
 const stReadymedia = "readymedia";
-const stRendered   = "rendered";
 const stVisible    = "visible";
 const stShown      = "shown";
 const stHidden     = "hidden";
@@ -39,10 +38,10 @@ const opRender    = "render";
 const opFadeout   = "fadeout";
 const opFadein    = "fadein";
 const opMove      = "move";
-const opShown     = "shown";
+const opSetstatus    = "setstatus";
 const opDelay     = "delay";
 const opWait      = "wait";
-const opExit      = "exit";
+const opFinish    = "finish";
 
 // ----------------------------------------
 // transitions
@@ -96,8 +95,10 @@ function mkFadeout(dur, trans) {
            };
 };
 
-function mkShowEnd() {
-    return { op:  opShown };
+function mkSetstatus(st) {
+    return { op:  opSetstatus,
+             st: st,
+           };
 };
 
 function mkMove(dur, off, scale) {
@@ -120,8 +121,8 @@ function mkWait(reljno, st) {
            };
 };
 
-function mkExit() {
-    return { op: opExit };
+function mkFinish() {
+    return { op: opFinish };
 };
 
 // type Job = [Instr]
@@ -256,7 +257,7 @@ function toKeyWaitJob(wj) {
 
 function run() {
     if ( vmRunning ) {
-        trc(1, "run: VM already running");
+        // trc(1, "run: VM already running");
         return;
     }
     else {
@@ -306,68 +307,96 @@ function execInstr(instr, activeJob) {
     var st;
 
     if ( op === opInit ) {
-        st = stCreated;
+        trc(1,`execInstr: op=${op}`);
+        advanceReadyJob(activeJob);
+        return;
     }
-    else if ( op === opLoadpage ) {
-        st = stReadypage;
+
+    if ( op === opLoadpage ) {
+        trc(1,`execInstr: op=${op}`);
+
+        // load page
+
+        advanceReadyJob(activeJob);
+        return;
     }
-    else if ( op === opLoadmedia ) {
-        st = stReadymedia;
+
+    if ( op === opLoadmedia ) {
+        trc(1,`execInstr: op=${op}`);
+
+        // load media
+
+        advanceReadyJob(activeJob);
+        return;
     }
 
     // render frame and media element
-    else if ( op === opRender ) {
+    if ( op === opRender ) {
         render(jno, instr.media);
-        st = stRendered;
+        advanceReadyJob(activeJob);
+        return;
     }
 
     // fadein
-    else if ( op === opFadein ) {
+    if ( op === opFadein ) {
         if ( instr.trans === trCut) {
             fadeinCut(jno);
-            st = stVisible;
         }
-        else { // TODO: async op
+        else {
             fadeinAnim(jno, instr.dur);
-            st = stVisible;
         }
+        advanceReadyJob(activeJob);
+        return;
     }
 
     // fadeout
-    else if ( op === opFadeout ) {
+    if ( op === opFadeout ) {
         if ( instr.trans === trCut) {
             fadeoutCut(jno);
-            st = stHidden;
         }
-        else { // TODO: async op
+        else {
             fadeoutAnim(jno, instr.dur);
-            st = stHidden;
         }
-    }
-
-    // mark end of showing slide, fadeout will start
-    // used vor syncing crossfade transitions
-
-    else if ( op === opShown ) {
-        st = stShown;
+        advanceReadyJob(activeJob);
+        return;
     }
 
     // animated move and/or scaling of media
-    else if ( op === opMove ) {  // TODO async
-        st = stVisible;
+    if ( op === opMove ) {
+        trc(1,`execInstr: op=${op}`);
+
+        // move media
+
+        advanceReadyJob(activeJob);
+        return;
+    }
+
+    // add status to status set and wakeup waiting for status
+    else if ( op === opSetstatus ) {
+        const st = instr.st;
+
+        trc(1,`job ${jno}: add status ${st}`);
+
+        // wakeup jobs waiting for this job to reach status
+        activeJob.jstatus.add(st);
+        wakeupWaiting(mkWaitJob(jno, st));
+
+        advanceReadyJob(activeJob);
+        return;
     }
 
     // sleep a given time
-    else if ( op === opDelay ) {
+    if ( op === opDelay ) {
         if ( instr.dur ) {
             execDelay(instr, activeJob); // async
             return;
         }
-        st = stNothing;  // delay 0 -> instr is a noop
+        advanceReadyJob(activeJob);
+        return;
     }
 
     // syncing with previous slides
-    else if ( op === opWait ) {
+    if ( op === opWait ) {
         const jno1 = jno - instr.reljno;
         const st1  = instr.status;
 
@@ -389,48 +418,31 @@ function execInstr(instr, activeJob) {
 
         // job not blocked, instr becomes a noop
         trc(1, `wait: job ${jno1} already has status ${st1}, continue`);
-        st = stNothing;
+        advanceReadyJob(activeJob);
+        return;
     }
 
     // cleanup
-    else if ( op === opExit ) {
+    if ( op === opFinish ) {
         trc(1, `exit: job terminated, delete job ${jno}`);
+
         // // just for debugging
         // removeFrame(jno);
-        st = stFinished;
+        // remJob(jno);
+
+        advanceReadyJob(activeJob);
+        return;
     }
 
     // default instr end
     // for instructions executed syncronized
 
-    advanceJobStatus(activeJob, st);
+    trc(1,`execInstr: op=${op} not yet implemented !!!`);
+    advanceReadyJob(activeJob, st);
 }
 
 // --------------------
 
-/*
-// show instr: async, delay job for a given time
-// but make timeout interruptable
-// timeout is stored in active job obj
-
-
-function execShow(instr, aj) {
-    const jno = aj.jno;
-
-    // set termination action
-    aj.jterm = function () {
-        trc(1, `finish show instr: (${jno}, ${aj.jpc})`);
-        termInstr(jno, stShown);
-    };
-
-    // set timeout
-    aj.jtimeout = setTimeout(aj.jterm, instr.dur);
-
-    // put job into set of jobs running asyncronized
-    trc(1, `execShow: add to running: ${jno}`);
-    addRunning(jno);
-}
-*/
 function execDelay(instr, aj) {
     const jno = aj.jno;
 
@@ -450,18 +462,18 @@ function execDelay(instr, aj) {
 
 // --------------------
 
-function termInstr(jno, st) {
-    trc(1, `termInstr: jno=${jno}, st=${st}`);
+function termInstr(jno) {
+    trc(1, `termInstr: jno=${jno}`);
     const aj = jobsAll.get(jno);
     trc(1, `termInstr: finalize instr (${jno}, ${aj.jpc})`);
     if ( aj ) {
-        remRunning(jno);           // remove from set of async jobs
+        remRunning(jno);                   // remove from set of async jobs
 
         if ( aj.jtimeout ) {               // clear timeouts
             clearTimeout(aj.jtimeout);     // when interrupted by input events
             aj.timeout = null;
         }
-        advanceJobStatus(aj, st);
+        advanceReadyJob(aj);
     }
 }
 
@@ -475,14 +487,10 @@ function advanceJob(aj) {
     jobsAll.set(jno, aj1);
 }
 
-function advanceJobStatus(aj, st) {
+function advanceReadyJob(aj) {
     const jno = aj.jno;
-    const aj1 = mkActiveJob(jno, aj.jpc + 1, aj.jstatus.add(st));
-    jobsAll.set(jno, aj1);
-
-    trc(1, `advanceJobStatus: (${jno}, ${aj1.jpc}): status: ${st}`);
-
-    wakeupWaiting(mkWaitJob(jno, st));
+    advanceJob(aj);
+    // trc(1, `advanceReadyJob: (${jno}, ${aj.jpc + 1}): status: ${st}`);
     addReady(jno);
 }
 
@@ -609,8 +617,12 @@ var newJobNo = 0;
 function mkJob(jno, jd) {
     // init code
     let cinit = [ mkInit(),
+                  mkSetstatus(stCreated),
                   mkLoadpage(jd.url),
+                  mkSetstatus(stReadypage),
+                  mkWait(1, stReadymedia),  // wait for prev job loading media
                   mkLoadmedia(),
+                  mkSetstatus(stReadymedia),
                   mkRender(jd.media),
                 ];
 
@@ -623,19 +635,22 @@ function mkJob(jno, jd) {
     case 'fadein' :
         cfadein = [ mkWait(1, stHidden),   // wait for previous job
                     mkFadein(jd.fadeinDur, trFadein),
+                    mkSetstatus(stVisible),
                   ];
         break;
 
     case 'crossfade' :
         cfadein = [ mkWait(1, stShown),   // crossfade starts earlier
-                    mkFadein(jd.fadeinDur, trFadein)
+                    mkFadein(jd.fadeinDur, trFadein),
+                    mkSetstatus(stVisible),
                   ];
         break;
 
     case trCut :
     default:
         cfadein = [ mkWait(1, stShown),
-                    mkFadein(0, trCut)
+                    mkFadein(0, trCut),
+                    mkSetstatus(stVisible),
                   ];
         break;
     }
@@ -649,13 +664,16 @@ function mkJob(jno, jd) {
     case 'fadeout' :
     case 'crossfade' :
         cfadeout = [ mkFadeout(jd.fadeoutDur, trFadeout),
-                     mkDelay(jd.fadeoutDur)
+                     mkDelay(jd.fadeoutDur),
+                     mkSetstatus(stHidden),
                    ];
         break;
 
     case trCut :
     default:
-        cfadeout = [ mkFadeout(0, trCut) ];
+        cfadeout = [ mkFadeout(0, trCut),
+                     mkSetstatus(stHidden),
+                   ];
         break;
     }
 
@@ -663,13 +681,15 @@ function mkJob(jno, jd) {
     // show code
 
     let cshow = [ mkDelay(jd.showDur),
-                  mkShowEnd()
+                  mkSetstatus(stShown),
                 ];
 
     // --------------------
     // exit code
 
-    let cexit = [ mkExit() ];
+    let cexit = [ mkFinish(),
+                  mkSetstatus(stFinished)
+                ];
 
     // --------------------
 
