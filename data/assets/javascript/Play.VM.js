@@ -502,18 +502,19 @@ function newFrame(id, stageGeo, fmt) {
 
     switch ( fmt ) {
     case 'leftHalf' :
-        geo.w = div(stageGeo.w, 2);
+        geo = mulV2(stageGeo, V2(0.5,1));
         break;
     case 'rightHalf' :
-        geo.w = stageGeo.w - div(stageGeo.w, 2);
-        off.w = div(stageGeo.w, 2);
+        geo = mulV2(stageGeo, V2(0.5,1));
+        off = mulV2(stageGeo, V2(0.5,0));
         break;
     default:
         break;
     }
 
     let s = cssAbsGeo(geo, off);
-        s.display = "none";
+    s.display = "none";
+    s.opacity = 0;
 
     let e = newElem('div', id, s, 'frame');
     return e;
@@ -544,11 +545,12 @@ function renderText(jno, media, frameGeo, parentId) {
     const frame     = newFrame(frameId, frameGeo, V2(0,0));
 
     // media geo is rel to frame geo
-    const g = mulV2(media.geo, frameGeo);
-    const o = mulV2(media.off, frameGeo);
+    // make media geo absolute
+    const g1 = mulV2(media.geo, frameGeo);
+    const go = placeImg(frameGeo, g1, 'fix', 1, 'NW', media.off);
+    const ms = cssAbsGeo(go.geo, go.off);
 
-    const ms  = cssAbsGeo(g, o);
-    ms.height = "auto";
+    ms.height = "auto";                // heigth depends on the content
     ms['background-color'] = "red";
 
     const me        = newBlogElem(frameId, ms, 'text');

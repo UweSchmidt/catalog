@@ -234,6 +234,9 @@ function offsetAlg(name) {
 //            : orientation: NW = top left corner
 //
 // shift      : afterwards shift the image by given amount
+//              reltive to size of the frame
+//              shift = (0.1,0.2) -> 10% of frame width to the right
+//                                   20% of frame height to the bottom
 
 function placeImg(frameGeo, imgGeo, alg, scale, dir, shift) {
     const al = alg   || 'fix';
@@ -242,14 +245,16 @@ function placeImg(frameGeo, imgGeo, alg, scale, dir, shift) {
     const geo = mulV2(g1, V2(sc, sc));
 
     const d   = dir   || 'center';
-    const sh  = shift || V2(0,0);
+    const sh  = mulV2(shift || V2(0,0), frameGeo);
     const o1  = mulV2(subV2(frameGeo, geo), V2(0.5));
     const o2  = offsetAlg(d)(o1);
     const off = addV2(o2, sh);
+    const res =  { geo: geo,
+                   off: off
+                 };
 
-    return { geo: toPx(geo),
-             off: toPx(off)
-           };
+    trc(1,`placeImg: ${showGeo(res.geo)}, ${showGeo(res.off)}`);
+    return res;
 }
 
 // ----------------------------------------
