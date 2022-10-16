@@ -168,4 +168,88 @@ function sameWidthGeo(s, g) {
     return mulV2(s, ar);
 }
 
+// don't resize geometry
+function realSize(s, g) {
+    return s;
+}
 // --------------------
+
+function offsetC (o) { return o; }
+function offsetN (o) { return V2(o.x, 0);}
+function offsetNW(o) { return V2(0, 0); }
+function offsetW (o) { return V2(0, o.y);}
+function offsetSW(o) { return V2(0, o.y * 2);}
+function offsetS (o) { return V2(o.x, o.y * 2);}
+function offsetSE(o) { return V2(o.x * 2, o.y * 2);}
+function offsetE (o) { return V2(o.x * 2, o.y);}
+function offsetNE(o) { return V2(o.x * 2, 0);}
+
+// --------------------
+
+function resizeAlg(name) {
+    switch ( name ) {
+    case 'fitInto'    : return fitIntoGeo;
+    case 'fill'       : return fillGeo;
+    case 'sameHeight' : return sameHeightGeo;
+    case 'sameWidth'  : return sameWidthGeo;
+    case 'fix'        :
+    default           : return realSize;
+    }
+}
+
+function offsetAlg(name) {
+    switch ( name ) {
+    case 'N' : return offsetN;
+    case 'NW': return offsetNW;
+    case 'W' : return offsetW;
+    case 'SW': return offsetSW;
+    case 'S' : return offsetS;
+    case 'SE': return offsetSE;
+    case 'E' : return offsetE;
+    case 'NE': return offsetNE;
+    case 'center':
+    default: return offsetC;
+    }
+}
+
+// --------------------
+//
+// resize and place an image into a frame
+//
+// frameGeo   : the size of the stage
+// imgGeo     : size of the meda (img, movie, ...)
+//
+// alg        : resize algorithms
+// fitInto    : largest geo with whole image fits into frame
+// fill       : smallest geo with whole frame is covered by image
+// sameHeight : image has same height as frame
+// sameWidth  : image has same width as frame
+// fix        : default, image isn't resized
+//
+// scale      : afterwards image may be scaled by a factor
+//
+// dir        : alignment
+// center     : default, image is centered on stage
+// N, NW, W, SW, S, SE, E, NE
+//            : orientation: NW = top left corner
+//
+// shift      : afterwards shift the image by given amount
+
+function placeImg(frameGeo, imgGeo, alg, scale, dir, shift) {
+    const al = alg   || 'fix';
+    const sc = scale || 1.0;
+    const g1 = resizeAlg(alg)(imgGeo, frameGeo);
+    const geo = mulV2(g1, V2(sc, sc));
+
+    const d   = dir   || 'center';
+    const sh  = shift || V2(0,0);
+    const o1  = mulV2(subV2(frameGeo, geo), V2(0.5));
+    const o2  = offsetAlg(d)(o1);
+    const off = addV2(o2, sh);
+
+    return { geo: toPx(geo),
+             off: toPx(off)
+           };
+}
+
+// ----------------------------------------

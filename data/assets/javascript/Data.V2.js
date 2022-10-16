@@ -114,7 +114,7 @@ function aspectRatioV2(p) {
 }
 
 
-function scaleV2(p, s) {                // p * s with integer results
+function scaleV2(p, s) {             // p * s with integer results
     return V2(Math.floor(p.x * s),   // for screen geometry arithmetic
               Math.floor(p.y * s)
              );
