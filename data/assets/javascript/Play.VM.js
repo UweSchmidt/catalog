@@ -60,10 +60,8 @@ function mkInit() {
     return { op: opInit };
 }
 
-function mkLoadpage(url) {
-    return { op:  opLoadpage,
-             url: url
-           };
+function mkLoadpage() {
+    return { op:  opLoadpage };
 }
 
 function mkLoadmedia() {
@@ -329,9 +327,7 @@ function execInstr(instr, activeJob) {
     if ( op === opLoadpage ) {
         trc(1,`execInstr: op=${op}`);
 
-        // load page
-
-        advanceReadyJob(activeJob);
+        loadPage(activeJob, jobsData.get(jno));
         return;
     }
 
@@ -524,6 +520,39 @@ function advanceReadyJob(aj) {
 
 // --------------------
 
+function loadPage(activeJob, jobData) {
+    const fg  = bestFitToGeo(stageGeo());
+    const req = { rType:    'json',
+                  geo:      showGeo(fg),
+                  rPathPos: jobData.imgPathPos,
+                };
+    const url = reqToUrl(req);
+    trc(1,`loadPage: ${url}`);
+
+    function processRes(page) {
+        const ty = getPageType(page);
+        switch ( ty ) {
+        case 'img':
+            jobData.imgMetaData = getPageMeta(page);
+            jobData.imgGeo = page.oirGeo[0];
+            break;
+        default:
+            trc(1,`loadPage: unsupported page type ${ty}`);
+        }
+    }
+    function processErr(errno, url, msg) {
+        const txt = showErrText(errno, url, msg);
+        statusBar.show(txt);
+    }
+    function processNext() {
+        advanceReadyJob(activeJob);
+    }
+
+    getJsonPage(url, processRes, processErr, processNext);
+}
+
+// --------------------
+
 function newFrame(id, stageGeo, fmt) {
     let geo = stageGeo;
     let off = V2(0,0);
@@ -659,7 +688,7 @@ function mkJob(jno, jd) {
     switch ( jd.type ) {
     case 'img':
         cload = [ mkSetData('type', 'img'),
-                  mkSetData('imgPathPos', jd.rPathPos),
+                  mkSetData('imgPathPos', jd.imgPathPos),
                   mkLoadpage(),
                   mkSetStatus(stReadypage),
                   mkWait(1, stReadymedia),  // wait for prev job loading media
@@ -780,7 +809,7 @@ var j2 = mkJob(2, { type: 'text',
 var j3 = mkJob(3, { type: 'img',
                     imgPathPos: ['/archive/collections/albums/EinPaarBilder',1],
                     imgGeo: null,      // set by loadPage
-                    imgMetadata: null, // set by loadPage
+                    imgMetaData: null, // set by loadPage
 
                     showDur: 5.000,
                     fadeinDur: 2.000,
@@ -793,7 +822,7 @@ var j3 = mkJob(3, { type: 'img',
 var j4 = mkJob(4, { type: 'img',
                     imgPathPos: ['/archive/collections/albums/EinPaarBilder',2],
                     imgGeo: null,      // set by loadPage
-                    imgMetadata: null, // set by loadPage
+                    imgMetaData: null, // set by loadPage
 
                     showDur: 5.000,
                     fadeinDur: 2.000,
@@ -824,8 +853,10 @@ function ttt() {
     initVM();
     addJob(j1.jno, j1.jcode);
     addJob(j2.jno, j2.jcode);
+    addJob(j3.jno, j3.jcode);
     addReady(j1.jno);
     addReady(j2.jno);
+    addReady(j3.jno);
     setAspectRatio(V2(4,3));
 }
 
