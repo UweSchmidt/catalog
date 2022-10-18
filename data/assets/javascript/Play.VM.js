@@ -38,7 +38,8 @@ const opRender    = "render";
 const opFadeout   = "fadeout";
 const opFadein    = "fadein";
 const opMove      = "move";
-const opSetstatus    = "setstatus";
+const opSetData   = "setdata";
+const opSetStatus = "setstatus";
 const opDelay     = "delay";
 const opWait      = "wait";
 const opFinish    = "finish";
@@ -69,9 +70,8 @@ function mkLoadmedia() {
     return { op: opLoadmedia };
 }
 
-function mkRender(media) {
+function mkRender() {
     return { op:    opRender,
-             media: media,
            };
 }
 
@@ -95,9 +95,16 @@ function mkFadeout(dur, trans) {
            };
 };
 
-function mkSetstatus(st) {
-    return { op:  opSetstatus,
+function mkSetStatus(st) {
+    return { op:  opSetStatus,
              st: st,
+           };
+};
+
+function mkSetData(key, data) {
+    return { op:   opSetData,
+             key:  key,
+             data: data,
            };
 };
 
@@ -154,6 +161,7 @@ function mkWaitJob(jno, jstatus) {
 var vmRunning;
 var vmStepCnt;
 var jobsCode;
+var jobsData;
 var jobsAll;
 var jobsWaiting;
 var jobsReady;
@@ -163,6 +171,7 @@ function initVM() {
     vmRunning   = false;
     vmStepCnt   = 0;
     jobsCode    = new Map();  // Map Jno [Instr]
+    jobsData    = new Map();  // Map Jno JobData
     jobsAll     = new Map();  // Map Jno ActiveJob
     jobsWaiting = new Map();  // Map (Jno, Status) (Set Jno)
     jobsReady   = [];         // Queue Jno
@@ -176,14 +185,19 @@ initVM();
 
 function addJob(jno, jcode) {
     jobsCode.set(jno, jcode);
+    jobsData.set(jno, {});
     jobsAll.set(jno, mkActiveJob(jno, 0, new Set()));
 }
 function remJob(jno) {
     jobsCode.delete(jno);
+    jobsData.delete(jno);
     jobsAll.delete(jno);
 };
 function getCode(jno) {
     return jobsCode.get(jno);
+}
+function getData(jno) {
+    return jobsData.get(jno);
 }
 function noMoreJobs() {
     return ! readyJobs() && ! runningJobs();
@@ -332,7 +346,7 @@ function execInstr(instr, activeJob) {
 
     // render frame and media element
     if ( op === opRender ) {
-        render(jno, instr.media);
+        render(jno, jobsData.get(jno));
         advanceReadyJob(activeJob);
         return;
     }
@@ -371,8 +385,17 @@ function execInstr(instr, activeJob) {
         return;
     }
 
+    if ( op === opSetData ) {
+        trc(1,`execInstr: op=${op}: key=${instr.key}`);
+        const data = getData(jno);
+        data[instr.key] = instr.data;
+
+        advanceReadyJob(activeJob);
+        return;
+    }
+
     // add status to status set and wakeup waiting for status
-    else if ( op === opSetstatus ) {
+    if ( op === opSetStatus ) {
         const st = instr.st;
 
         trc(1,`job ${jno}: add status ${st}`);
@@ -403,8 +426,14 @@ function execInstr(instr, activeJob) {
         trc(1, `wait: ${jno} requires (${jno1}, ${st1})`);
 
         const aj1  = jobsAll.get(jno1);
-        if ( aj1 ) {
-            if ( ! aj1.jstatus.has(st1) ) {
+        if ( aj1                                // job j1 exists
+             &&
+             ( ! (aj1.jstatus.has(st1)          // job j1 already has reached st1
+                  ||
+                  aj1.jstatus.has(stFinished)   // job j1 already finished
+                 )
+             )
+           ) {
                 // jno1 is too slow
                 // put job into wait queue
                 // and setup syncronizing
@@ -413,7 +442,6 @@ function execInstr(instr, activeJob) {
                 const aj = advanceJob(activeJob);        // finish wait instr
                 addWaiting(jno, mkWaitJob(jno1, st1));
                 return;
-            }
         }
 
         // job not blocked, instr becomes a noop
@@ -527,34 +555,38 @@ function mkFrameId(jno) {
 // --------------------
 // build a new frame containing a media element
 
-function render(jno, media) {
-    const ty = media.type;
+function render(jno, jobData) {
+    const ty = jobData.type;
     const sg = stageGeo();
 
     switch ( ty ) {
     case 'text':
-        renderText(jno, media, sg, stageId);
+        renderText(jno, jobData.textData, sg, stageId);
         break;
     default:
-        throw `render: unknown media type: ${ty}`;
+        throw `render: unsupported media type: ${ty}`;
     }
 }
 
-function renderText(jno, media, frameGeo, parentId) {
+function renderText(jno, textData, frameGeo, parentId) {
     const frameId   = mkFrameId(jno);
     const frame     = newFrame(frameId, frameGeo, V2(0,0));
 
     // media geo is rel to frame geo
     // make media geo absolute
-    const g1 = mulV2(media.geo, frameGeo);
-    const go = placeImg(frameGeo, g1, 'fix', 1, 'NW', media.off);
+    const g1 = mulV2(textData.geo, frameGeo);
+    const go = placeImg(frameGeo, g1, 'fix', 1, 'NW', textData.off);
     const ms = cssAbsGeo(go.geo, go.off);
+
+    // save current geometry in job data
+    const data = getData(jno);
+    data['go'] = go;                   // geo offset in pixel
 
     ms.height = "auto";                // heigth depends on the content
     ms['background-color'] = "red";
 
     const me        = newBlogElem(frameId, ms, 'text');
-    me.innerHTML = media.text;
+    me.innerHTML = textData.text;
     frame.appendChild(me);
     getElem(parentId).appendChild(frame);
 }
@@ -619,14 +651,32 @@ var newJobNo = 0;
 function mkJob(jno, jd) {
     // init code
     let cinit = [ mkInit(),
-                  mkSetstatus(stCreated),
-                  mkLoadpage(jd.url),
-                  mkSetstatus(stReadypage),
+                  mkSetStatus(stCreated)
+                ];
+
+
+    let cload = [];
+    switch ( jd.type ) {
+    case 'img':
+        cload = [ mkSetData('type', 'img'),
+                  mkSetData('imgPathPos', jd.rPathPos),
+                  mkLoadpage(),
+                  mkSetStatus(stReadypage),
                   mkWait(1, stReadymedia),  // wait for prev job loading media
                   mkLoadmedia(),
-                  mkSetstatus(stReadymedia),
-                  mkRender(jd.media),
+                  mkSetStatus(stReadymedia),
+                  mkRender(),
                 ];
+        break;
+    case 'text':
+        cload = [ mkSetData('type', 'text'),
+                  mkSetStatus(stReadypage),
+                  mkSetStatus(stReadymedia),
+                  mkSetData('textData', jd.textData),
+                  mkRender(),
+                ];
+        break;
+    }
 
     // --------------------
     // fadein code
@@ -637,14 +687,14 @@ function mkJob(jno, jd) {
     case 'fadein' :
         cfadein = [ mkWait(1, stHidden),   // wait for previous job
                     mkFadein(jd.fadeinDur, trFadein),
-                    mkSetstatus(stVisible),
+                    mkSetStatus(stVisible),
                   ];
         break;
 
     case 'crossfade' :
         cfadein = [ mkWait(1, stShown),   // crossfade starts earlier
                     mkFadein(jd.fadeinDur, trFadein),
-                    mkSetstatus(stVisible),
+                    mkSetStatus(stVisible),
                   ];
         break;
 
@@ -652,7 +702,7 @@ function mkJob(jno, jd) {
     default:
         cfadein = [ mkWait(1, stShown),
                     mkFadein(0, trCut),
-                    mkSetstatus(stVisible),
+                    mkSetStatus(stVisible),
                   ];
         break;
     }
@@ -667,14 +717,14 @@ function mkJob(jno, jd) {
     case 'crossfade' :
         cfadeout = [ mkFadeout(jd.fadeoutDur, trFadeout),
                      mkDelay(jd.fadeoutDur),
-                     mkSetstatus(stHidden),
+                     mkSetStatus(stHidden),
                    ];
         break;
 
     case trCut :
     default:
         cfadeout = [ mkFadeout(0, trCut),
-                     mkSetstatus(stHidden),
+                     mkSetStatus(stHidden),
                    ];
         break;
     }
@@ -683,70 +733,92 @@ function mkJob(jno, jd) {
     // show code
 
     let cshow = [ mkDelay(jd.showDur),
-                  mkSetstatus(stShown),
+                  mkSetStatus(stShown),
                 ];
 
     // --------------------
     // exit code
 
     let cexit = [ mkFinish(),
-                  mkSetstatus(stFinished)
+                  mkSetStatus(stFinished)
                 ];
 
     // --------------------
 
-    const code = [].concat(cinit, cfadein, cshow, cfadeout, cexit);
+    const code = [].concat(cinit, cload, cfadein, cshow, cfadeout, cexit);
 
     return { jno:   jno,
              jcode: code
            };
 }
 
-// --------------------
-/*
-var s0 = `
-  load      /emil/egon/003.jpg
-  fadein    1.0s
-  show      2.0s
-  move      2.0s +20-30 1.2
-  show      1.0s
-  crossfade 2.0s
-  `;
-
-var s1 = [ mkFadein(1.0, trFadein),
-           mkDelay(3.0),
-           mkMove(2.0, V2(0.2,0.3), 1.2),
-           mkDelay(3.0),
-           mkFadeout(1.0, 'crossfade'),
-         ];
-*/
-
-var j1 = mkJob(1, { url: "/emil",
+var j1 = mkJob(1, { type: 'text',
+                    textData: { text: "<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
+                                geo: V2(0.50, 0.30),    // rel. to frame Geo
+                                off: V2(0.10, 0.30),
+                              },
                     showDur: 3.000,
                     fadeinDur: 1.000,
                     fadeinTrans: trFadein,
                     fadeoutDur: 2.000,
                     fadeoutTrans: trCrossfade,
-                    media: { type: "text",
-                             text: "<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
-                             geo: V2(0.50, 0.30),    // rel. to frame Geo
-                             off: V2(0.10, 0.30),
-                           }
                   }
               );
-var j2 = mkJob(2, { url: "/egon",
+var j2 = mkJob(2, { type: 'text',
+                    textData: { text: "<h2>Hallo Welt</h2>",
+                                geo: V2(0.70, 0.10),
+                                off: V2(0.20, 0.10),
+                              },
                     showDur: 5.000,
                     fadeinDur: 2.000,
                     fadeinTrans: trCrossfade,
                     fadeoutDur: 1.000,
                     fadeoutTrans: trCrossfade,
-                    media: { type: "text",
-                             text: "<h2>Hallo Welt</h2>",
-                             geo: V2(0.70, 0.10),
-                             off: V2(0.20, 0.10),
-                           }
                   }
               );
+
+var j3 = mkJob(3, { type: 'img',
+                    imgPathPos: ['/archive/collections/albums/EinPaarBilder',1],
+                    imgGeo: null,      // set by loadPage
+                    imgMetadata: null, // set by loadPage
+
+                    showDur: 5.000,
+                    fadeinDur: 2.000,
+                    fadeinTrans: trCrossfade,
+                    fadeoutDur: 1.000,
+                    fadeoutTrans: trCrossfade,
+                  }
+              );
+
+var j4 = mkJob(4, { type: 'img',
+                    imgPathPos: ['/archive/collections/albums/EinPaarBilder',2],
+                    imgGeo: null,      // set by loadPage
+                    imgMetadata: null, // set by loadPage
+
+                    showDur: 5.000,
+                    fadeinDur: 2.000,
+                    fadeinTrans: trCrossfade,
+                    fadeoutDur: 1.000,
+                    fadeoutTrans: trCrossfade,
+                  }
+              );
+
+var irq1 = { geo: "1400x1050",
+             rPathPos: ['/archive/collections/albums/EinPaarBilder',0],
+             rType: "img"
+           };
+
+var irq2 = { geo: "1400x1050",
+             rPathPos: ['/archive/collections/albums/EinPaarBilder',1],
+             rType: "img"
+           };
+
+var irq3 = { geo: "1400x1050",
+             rPathPos: ['/archive/collections/albums/EinPaarBilder',2],
+             rType: "img"
+           };
+
+var t1 = jsonReqToUrl1(V2(9000,6000), irq1);
 
 function ttt() {
     initVM();
