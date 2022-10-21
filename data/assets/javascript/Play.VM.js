@@ -362,9 +362,7 @@ function execInstr(instr, activeJob) {
     if ( op === opLoadmedia ) {
         trc(1,`execInstr: op=${op}`);
 
-        // load media
-        abortJob(activeJob);
-        // advanceReadyJob(activeJob);
+        loadMedia(activeJob, jobsData.get(jno));
         return;
     }
 
@@ -612,7 +610,38 @@ function loadPage(activeJob, jobData) {
 
 function loadMedia(activeJob, jobData) {
     const jno = activeJob.jno;
+    const ty  = jobData.type;
 
+    switch ( ty ) {
+    case 'img':
+        jobData.imgCache = new Image();           // image cache
+        const req = { rType: 'img',
+                      rPathPos: jobData.imgPathPos
+                    };
+        const url = imgReqToUrl(req, jobData.imgReqGeo);
+
+        trc(1, `loadMedia: ${url}`);
+
+        addRunning(jno);
+        jobData.imgCache.onload = function () {
+            const img = jobData.imgCache;
+            jobData.imgResGeo = V2(img.naturalWidth, img.naturalHeight);
+
+            remRunning(jno);            // remove job from async jobs
+            advanceReadyJob(activeJob); // next step(s)
+        };
+        jobData.imgCache.src = url;     // triggers loading of image into cache
+        return;
+
+    case 'text':                        // no request required for type 'text'
+        advanceReadyJob(activeJob);
+        return;
+
+    default:
+        trc(1,`loadMedia: unsupported type ${ty}`);
+        abortJob(activeJob);
+        return;
+    }
 }
 
 // --------------------
@@ -887,8 +916,7 @@ var j3 = mkJob(3, { type: 'img',
                             dir:   'W',
                             shift: V2(0,0),
                            },
-                           {alg: 'fix',        // real img size
-                           }
+                           // {alg: 'fix',},        // real img size
                           ],
                     showDur: 5.000,
                     fadeinDur: 2.000,
