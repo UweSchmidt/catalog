@@ -205,10 +205,11 @@ function noMoreJobs() {
 // --------------------
 // jobsRunning:
 
-function addRunning(jno) {
+function addAsyncRunning(jno) {
+    trc(1, `addAsyncRunning: add to async running jobs: ${jno}`);
     jobsRunning.add(jno);
 }
-function remRunning(jno) {
+function remAsyncRunning(jno) {
     jobsRunning.delete(jno);
 }
 function runningJobs() {
@@ -311,7 +312,9 @@ function run1() {
     do {
         trc(1, `${vmStepCnt}. step started`);
         res = step1();
-        trc(1, `${vmStepCnt}. step finished`);
+        if ( res === 'step') {
+            trc(1, `${vmStepCnt}. step finished`);
+        }
         vmStepCnt++;
     }
     while ( res === 'step' );
@@ -497,7 +500,7 @@ function execDelay(instr, aj) {
         termAsyncInstr(jno);
     };
 
-    startAsyncInstr(jno);
+    addAsyncRunning(jno);
     // set timeout
     aj.jtimeout = setTimeout(aj.jterm, instr.dur * 1000); // sec -> msec
 }
@@ -527,11 +530,6 @@ function terminateJob(activeJob) {
 
 // --------------------
 
-function startAsyncInstr(jno) {
-    trc(1, `startAsyncInstr: add to running jobs: ${jno}`);
-    addRunning(jno);
-}
-
 function termAsyncInstr(jno) {
     trc(1, `termAsyncInstr: jno=${jno}`);
     const aj = jobsAll.get(jno);
@@ -541,7 +539,7 @@ function termAsyncInstr(jno) {
             clearTimeout(aj.jtimeout);     // when interrupted by input events
             aj.timeout = null;
         }
-        remRunning(jno);                   // remove from set of async jobs
+        remAsyncRunning(jno);                   // remove from set of async jobs
         advanceReadyJob(aj);
     }
 }
@@ -575,7 +573,7 @@ function loadPage(activeJob, jobData) {
     trc(1,`loadPage: ${url}`);
 
     function processRes(page) {
-        remRunning(jno);
+        remAsyncRunning(jno);
         const ty = getPageType(page);
         switch ( ty ) {
         case 'img':
@@ -596,13 +594,13 @@ function loadPage(activeJob, jobData) {
         advanceReadyJob(activeJob);
     }
     function processErr(errno, url, msg) {
-        remRunning(jno);
+        remAsyncRunning(jno);
         const txt = showErrText(errno, url, msg);
         statusBar.show(txt);
         abortJob(activeJob);
     }
 
-    startAsyncInstr(jno);
+    addAsyncRunning(jno);
     getJsonPage(url, processRes, processErr, noop);
 }
 
@@ -622,12 +620,12 @@ function loadMedia(activeJob, jobData) {
 
         trc(1, `loadMedia: ${url}`);
 
-        addRunning(jno);
+        addAsyncRunning(jno);
         jobData.imgCache.onload = function () {
             const img = jobData.imgCache;
             jobData.imgResGeo = V2(img.naturalWidth, img.naturalHeight);
 
-            remRunning(jno);            // remove job from async jobs
+            remAsyncRunning(jno);            // remove job from async jobs
             advanceReadyJob(activeJob); // next step(s)
         };
         jobData.imgCache.src = url;     // triggers loading of image into cache
