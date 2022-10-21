@@ -14,6 +14,7 @@ const stVisible    = "visible";
 const stShown      = "shown";
 const stHidden     = "hidden";
 const stFinished   = "finished";
+const stAborted    = "aborted";
 const stNothing    = "nothing";
 
 // set of stati
@@ -254,7 +255,7 @@ function addWaiting(jno, waitFor) {
 function wakeupWaiting(waitFor) {
     const jno1    = waitFor.jno;
     const status1 = waitFor.jstatus;
-    trc(1,`wakeupWaiting: (${jno1},${status1})`);
+    // trc(1,`wakeupWaiting: (${jno1},${status1})`);
 
     const stmap   = jobsWaiting.get(jno1);    // lookup waiting jobs for jno1
     if ( stmap ) {
@@ -269,6 +270,21 @@ function wakeupWaiting(waitFor) {
                 trc(1,`wakup: job ${jno}`);   // waiting for jno1 reaching
                 addReady(jno);                // status1
             });
+        }
+    }
+}
+
+function wakeupAllWaiting(jno1) {
+    trc(1,`wakeupAllWaiting: ${jno1}`);
+
+    const stmap = jobsWaiting.get(jno1);
+    if ( stmap ) {
+        let sts = [];
+        for (const s of stmap.keys()) {
+            sts.push(s);
+        }
+        for (const s1 of sts) {
+            wakeupWaiting(mkWaitJob(jno1, s1));
         }
     }
 }
@@ -347,14 +363,14 @@ function execInstr(instr, activeJob) {
         trc(1,`execInstr: op=${op}`);
 
         // load media
-
-        advanceReadyJob(activeJob);
+        abortJob(activeJob);
+        // advanceReadyJob(activeJob);
         return;
     }
 
     // render frame and media element
     if ( op === opRender ) {
-        render(jno, jobsData.get(jno));
+        render(activeJob, jobsData.get(jno));
         advanceReadyJob(activeJob);
         return;
     }
@@ -460,13 +476,8 @@ function execInstr(instr, activeJob) {
 
     // cleanup
     if ( op === opFinish ) {
-        trc(1, `exit: job terminated, delete job ${jno}`);
-
-        // // just for debugging
-        // removeFrame(jno);
-        // remJob(jno);
-
-        advanceReadyJob(activeJob);
+        trc(1, `exit: normal job termination: ${jno}`);
+        terminateJob(activeJob);
         return;
     }
 
@@ -491,6 +502,29 @@ function execDelay(instr, aj) {
     startAsyncInstr(jno);
     // set timeout
     aj.jtimeout = setTimeout(aj.jterm, instr.dur * 1000); // sec -> msec
+}
+
+// --------------------
+
+function abortJob(activeJob) {
+    trc(1, `abortJob: job abborted: ${activeJob.jno}`);
+    activeJob.jstatus.add(stAborted);
+    terminateJob(activeJob);
+}
+
+function terminateJob(activeJob) {
+    const jno = activeJob.jno;
+
+    trc(1, `terminateJob: job terminated, delete job: ${jno}`);
+
+    // // just for debugging
+    // removeFrame(jno);
+    // remJob(jno);
+
+    activeJob.jstatus.add(stFinished);
+    wakeupAllWaiting(jno);
+    advanceReadyJob(activeJob);
+
 }
 
 // --------------------
@@ -535,35 +569,50 @@ function advanceReadyJob(aj) {
 
 function loadPage(activeJob, jobData) {
     const jno = activeJob.jno;
-    const fg  = bestFitToGeo(stageGeo());
     const req = { rType:    'json',
-                  geo:      showGeo(fg),
+                  geo:      'org',
                   rPathPos: jobData.imgPathPos,
                 };
     const url = reqToUrl(req);
     trc(1,`loadPage: ${url}`);
 
     function processRes(page) {
+        remRunning(jno);
         const ty = getPageType(page);
         switch ( ty ) {
         case 'img':
+            const frameGeo      = stageGeo();
+            const imgGeo        = readGeo(page.oirGeo[0]);
+            const mxGeo         = maxGeo(frameGeo, imgGeo, jobData.geos);
+
             jobData.imgMetaData = getPageMeta(page);
-            jobData.imgGeo = page.oirGeo[0];
+            jobData.imgGeo      = imgGeo;
+            jobData.imgMaxGeo   = mxGeo;
+            jobData.imgReqGeo   = bestFitToGeo(mxGeo);
             break;
         default:
             trc(1,`loadPage: unsupported page type ${ty}`);
+            abortJob(activeJob);
+            return;
         }
+        advanceReadyJob(activeJob);
     }
     function processErr(errno, url, msg) {
+        remRunning(jno);
         const txt = showErrText(errno, url, msg);
         statusBar.show(txt);
-    }
-    function processNext() {
-        termAsyncInstr(jno);
+        abortJob(activeJob);
     }
 
     startAsyncInstr(jno);
-    getJsonPage(url, processRes, processErr, processNext);
+    getJsonPage(url, processRes, processErr, noop);
+}
+
+// --------------------
+
+function loadMedia(activeJob, jobData) {
+    const jno = activeJob.jno;
+
 }
 
 // --------------------
@@ -599,16 +648,18 @@ function mkFrameId(jno) {
 // --------------------
 // build a new frame containing a media element
 
-function render(jno, jobData) {
-    const ty = jobData.type;
-    const sg = stageGeo();
+function render(activeJob, jobData) {
+    const jno = activeJob.jno;
+    const ty  = jobData.type;
+    const sg  = stageGeo();
 
     switch ( ty ) {
     case 'text':
         renderText(jno, jobData.textData, sg, stageId);
         break;
     default:
-        throw `render: unsupported media type: ${ty}`;
+        abortJob(activeJob);
+        // throw `render: unsupported media type: ${ty}`;
     }
 }
 
@@ -704,6 +755,7 @@ function mkJob(jno, jd) {
     case 'img':
         cload = [ mkSetData('type', 'img'),
                   mkSetData('imgPathPos', jd.imgPathPos),
+                  mkSetData('geos', jd.geos),
                   mkLoadpage(),
                   mkSetStatus(stReadypage),
                   mkWait(1, stReadymedia),  // wait for prev job loading media
@@ -825,7 +877,19 @@ var j3 = mkJob(3, { type: 'img',
                     imgPathPos: ['/archive/collections/albums/EinPaarBilder',1],
                     imgGeo: null,      // set by loadPage
                     imgMetaData: null, // set by loadPage
-
+                    geos: [{alg:   'fitInto',  // default
+                            scale: 1.0,        // default
+                            dir:   'center',   // default
+                            shift:  V2(0,0),   // default
+                           },
+                           {alg:   'fill',
+                            scale: 1.2,
+                            dir:   'W',
+                            shift: V2(0,0),
+                           },
+                           {alg: 'fix',        // real img size
+                           }
+                          ],
                     showDur: 5.000,
                     fadeinDur: 2.000,
                     fadeinTrans: trCrossfade,
@@ -868,10 +932,10 @@ function ttt() {
     initVM();
     addJob(j1.jno, j1.jcode);
     addJob(j2.jno, j2.jcode);
-//    addJob(j3.jno, j3.jcode);
+    addJob(j3.jno, j3.jcode);
     addReady(j1.jno);
     addReady(j2.jno);
-//    addReady(j3.jno);
+    addReady(j3.jno);
     setAspectRatio(V2(4,3));
 }
 

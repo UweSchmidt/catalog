@@ -139,7 +139,7 @@ function toPx(val) {
 // that fits into g
 
 function fitIntoGeo(s, g) {
-    const ar = minV2(divV2(g, s));
+    const ar = minCompV2(divV2(g, s));
     return mulV2(s, ar);
 }
 
@@ -148,7 +148,7 @@ function fitIntoGeo(s, g) {
 // in which g fits into
 
 function fillGeo(s, g) {
-    const ar = maxV2(divV2(g, s));
+    const ar = maxCompV2(divV2(g, s));
     return mulV2(s, ar);
 }
 
@@ -254,6 +254,27 @@ function placeImg(frameGeo, imgGeo, alg, scale, dir, shift) {
                  };
 
     trc(1,`placeImg: ${showGeo(res.geo)}, ${showGeo(res.off)}`);
+    return res;
+}
+
+function placeMedia(frameGeo, imgGeo) {
+    function place(gs) {
+        const alg = gs.alg     || 'fitInto';
+        const scale = gs.scale || 1.0;
+        const dir   = gs.scale || 'center';
+        const shift = gs.shift || V2(0,0);
+        return placeImg(frameGeo, imgGeo, alg, scale, dir, shift);
+    }
+    return place;
+}
+
+function maxGeo(frameGeo, imgGeo, geos) {
+    const place = placeMedia(frameGeo, imgGeo);
+    let res = V2(0,0);
+    for (const g of geos) {
+        res = maxV2(res, place(g).geo);
+    }
+    trc(1,`maxGeo: res=${showGeo(res)}`);
     return res;
 }
 

@@ -87,6 +87,18 @@ function subV2(p1, p2) {
     }
 }
 
+function maxV2(p1, p2) {
+    return V2(Math.max(p1.x, p2.x),
+              Math.max(p1.y, p2.y)
+             );
+}
+
+function minV2(p1, p2) {
+    return V2(Math.min(p1.x, p2.x),
+              Math.min(p1.y, p2.y)
+             );
+}
+
 function eqV2(p1, p2) {
     return p1.x === p2.x && p1.y === p2.y;
 }
@@ -101,11 +113,11 @@ function roundV2(p) {
              );
 }
 
-function maxV2(p) {
+function maxCompV2(p) {
     return Math.max(p.x, p.y);
 }
 
-function minV2(p) {
+function minCompV2(p) {
     return Math.min(p.x, p.y);
 }
 
