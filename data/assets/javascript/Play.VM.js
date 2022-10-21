@@ -171,7 +171,7 @@ function initVM() {
     jobsCode    = new Map();  // Map Jno [Instr]
     jobsData    = new Map();  // Map Jno JobData
     jobsAll     = new Map();  // Map Jno ActiveJob
-    jobsWaiting = new Map();  // Map (Jno, Status) (Set Jno)
+    jobsWaiting = new Map();  // Map Jno (Map Status (Set Jno))
     jobsReady   = [];         // Queue Jno
     jobsRunning = new Set();  // Set Jno
 }
@@ -241,28 +241,40 @@ function readyJobs() {
 // for lookup jobsWaiting the WaitJob objects must be serialized
 
 function addWaiting(jno, waitFor) {
-    const k1 = toKeyWaitJob(waitFor);
-    const s1 = jobsWaiting.get(k1) || new Set();
-    jobsWaiting.set(k1, s1.add(jno));
-    trc(1, `addWaiting: job ${jno} waits for ${k1}`);
+    const jno1    = waitFor.jno;
+    const status1 = waitFor.jstatus;
+
+    const stmap   = jobsWaiting.get(jno1) || new Map();
+    const jnoset  = stmap.get(status1)  || new Set();
+    const stmap1  = stmap.set(status1, jnoset.add(jno));
+    jobsWaiting.set(jno1, stmap1);
+    trc(1, `addWaiting: job ${jno} waits for (${jno1},${status1})`);
 }
+
 function wakeupWaiting(waitFor) {
-    const k1 = toKeyWaitJob(waitFor);
-    const s1 = jobsWaiting.get(k1);
-    if ( s1 ) {
-        trc(1,`wakeupWaiting: ${k1}`);
-        jobsWaiting.delete(k1);
-        s1.forEach((jno) => {
-            trc(1,`wakup: job ${jno}`);
-            addReady(jno);
-        });
+    const jno1    = waitFor.jno;
+    const status1 = waitFor.jstatus;
+    trc(1,`wakeupWaiting: (${jno1},${status1})`);
+
+    const stmap   = jobsWaiting.get(jno1);    // lookup waiting jobs for jno1
+    if ( stmap ) {
+        const jnos = stmap.get(status1);      // lookup waiting jobs for status1
+        if ( jnos ) {                         // jobs found
+            trc(1,`wakeupWaiting: (${jno1},${status1})`);
+            stmap.delete(status1);            // cleanup map of waiting jobs
+            if ( stmap.size === 0) {
+                jobsWaiting.delete(jno1);
+            }
+            jnos.forEach((jno) => {             // wakeup all jobs
+                trc(1,`wakup: job ${jno}`);   // waiting for jno1 reaching
+                addReady(jno);                // status1
+            });
+        }
     }
 }
+
 function waitingJobs() {
     return jobsWaiting.size > 0;
-}
-function toKeyWaitJob(wj) {
-    return `(${wj.jno},${wj.jstatus})`;
 }
 
 // --------------------
@@ -473,30 +485,31 @@ function execDelay(instr, aj) {
     // set termination action
     aj.jterm = function () {
         trc(1, `finish delay instr: (${jno}, ${aj.jpc})`);
-        termInstr(jno, stNothing);
+        termAsyncInstr(jno);
     };
 
+    startAsyncInstr(jno);
     // set timeout
     aj.jtimeout = setTimeout(aj.jterm, instr.dur * 1000); // sec -> msec
-
-    // put job into set of jobs running asyncronized
-    trc(1, `execDelay: add to running: ${jno}`);
-    addRunning(jno);
 }
 
 // --------------------
 
-function termInstr(jno) {
-    trc(1, `termInstr: jno=${jno}`);
-    const aj = jobsAll.get(jno);
-    trc(1, `termInstr: finalize instr (${jno}, ${aj.jpc})`);
-    if ( aj ) {
-        remRunning(jno);                   // remove from set of async jobs
+function startAsyncInstr(jno) {
+    trc(1, `startAsyncInstr: add to running jobs: ${jno}`);
+    addRunning(jno);
+}
 
+function termAsyncInstr(jno) {
+    trc(1, `termAsyncInstr: jno=${jno}`);
+    const aj = jobsAll.get(jno);
+    trc(1, `termAsyncInstr: finalize instr (${jno}, ${aj.jpc})`);
+    if ( aj ) {
         if ( aj.jtimeout ) {               // clear timeouts
             clearTimeout(aj.jtimeout);     // when interrupted by input events
             aj.timeout = null;
         }
+        remRunning(jno);                   // remove from set of async jobs
         advanceReadyJob(aj);
     }
 }
@@ -521,6 +534,7 @@ function advanceReadyJob(aj) {
 // --------------------
 
 function loadPage(activeJob, jobData) {
+    const jno = activeJob.jno;
     const fg  = bestFitToGeo(stageGeo());
     const req = { rType:    'json',
                   geo:      showGeo(fg),
@@ -545,9 +559,10 @@ function loadPage(activeJob, jobData) {
         statusBar.show(txt);
     }
     function processNext() {
-        advanceReadyJob(activeJob);
+        termAsyncInstr(jno);
     }
 
+    startAsyncInstr(jno);
     getJsonPage(url, processRes, processErr, processNext);
 }
 
@@ -853,10 +868,10 @@ function ttt() {
     initVM();
     addJob(j1.jno, j1.jcode);
     addJob(j2.jno, j2.jcode);
-    addJob(j3.jno, j3.jcode);
+//    addJob(j3.jno, j3.jcode);
     addReady(j1.jno);
     addReady(j2.jno);
-    addReady(j3.jno);
+//    addReady(j3.jno);
     setAspectRatio(V2(4,3));
 }
 
