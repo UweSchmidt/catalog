@@ -644,25 +644,12 @@ function loadMedia(activeJob, jobData) {
 
 // --------------------
 
-function newFrame(id, stageGeo, fmt) {
-    let geo = stageGeo;
-    let off = V2(0,0);
-
-    switch ( fmt ) {
-    case 'leftHalf' :
-        geo = mulV2(stageGeo, V2(0.5,1));
-        break;
-    case 'rightHalf' :
-        geo = mulV2(stageGeo, V2(0.5,1));
-        off = mulV2(stageGeo, V2(0.5,0));
-        break;
-    default:
-        break;
-    }
+function newFrame(id, geo, off) {
 
     let s = cssAbsGeo(geo, off);
-    s.display = "none";
+    // s.display = "none";
     s.opacity = 0;
+    s.visibility = 'hidden';
 
     let e = newElem('div', id, s, 'frame');
     return e;
@@ -679,10 +666,11 @@ function render(activeJob, jobData) {
     const jno = activeJob.jno;
     const ty  = jobData.type;
     const sg  = stageGeo();
+    const fid = mkFrameId(jno);
 
     switch ( ty ) {
     case 'text':
-        renderText(jno, jobData.textData, sg, stageId);
+        renderText(jobData, fid, sg, stageId);
         break;
     default:
         abortJob(activeJob);
@@ -690,42 +678,52 @@ function render(activeJob, jobData) {
     }
 }
 
-function renderText(jno, textData, frameGeo, parentId) {
-    const frameId   = mkFrameId(jno);
-    const frame     = newFrame(frameId, frameGeo, V2(0,0));
+function renderText(jobData, frameId, stageGeo, parentId) {
+    // const frameId   = mkFrameId(jno);
+    const frameGO   = placeFrame(stageGeo, jobData.frameGeo);
+    const frameGeo  = frameGO.geo;
+    const frameOff  = frameGO.off;
+    const frame     = newFrame(frameId, frameGeo, frameOff);
 
     // media geo is rel to frame geo
     // make media geo absolute
-    const g1 = mulV2(textData.geo, frameGeo);
-    const go = placeImg(frameGeo, g1, 'fix', 1, 'NW', textData.off);
+
+    const go = placeFrame(frameGeo, jobData.geos[0]); // TODO fixed index 0?
+    jobData.go = go;  // save current geometry in job data
+
+    // const g1 = mulV2(textData.geo, frameGeo);
+    // const go = placeImg(frameGeo, g1, 'fix', 1, 'NW', textData.off);
+
     const ms = cssAbsGeo(go.geo, go.off);
+    ms.height = "auto";                     // heigth depends on the content
+    ms['background-color'] = "transparent";
 
-    // save current geometry in job data
-    const data = getData(jno);
-    data['go'] = go;                   // geo offset in pixel
-
-    ms.height = "auto";                // heigth depends on the content
-    ms['background-color'] = "red";
-
-    const me        = newBlogElem(frameId, ms, 'text');
-    me.innerHTML = textData.text;
+    const me = newBlogElem(frameId, ms, 'text');
+    me.innerHTML = jobData.text;
     frame.appendChild(me);
     getElem(parentId).appendChild(frame);
+
+    // set computed height of text element in go.geo
+    // element must be inserted into DOM
+    // and css display set to 'block' (not 'none')
+    const rect = me.getBoundingClientRect();
+    jobData.go.geo.y = rect.height;
 }
 
 // --------------------
 // transitions
 
-function fadeCut(frameId, display, opacity) {
+function fadeCut(frameId, visibility, opacity) {
     setCSS(frameId,
-           { display: display,
+           { // display: display,
              opacity: opacity,
+             visibility: visibility,
            }
           );
 }
 
-function fadeinCut (jno) { fadeCut(mkFrameId(jno), 'block', 1.0); }
-function fadeoutCut(jno) { fadeCut(mkFrameId(jno), 'none', null); }
+function fadeinCut (jno) { fadeCut(mkFrameId(jno), 'visible', 1.0); }
+function fadeoutCut(jno) { fadeCut(mkFrameId(jno), 'hidden',  0.0); }
 
 function fadeAnim(frameId, dur, fade) { // fade = 'fadein' or 'fadeout'
     const e   = getElem(frameId);
@@ -738,13 +736,13 @@ function fadeAnim(frameId, dur, fade) { // fade = 'fadein' or 'fadeout'
         e.classList.remove(cls);
         e.removeEventListener('animationend', handleFadeEnd);
         if ( fade === 'fadeout' ) {
-            fadeCut(frameId, 'none', null);
+            fadeCut(frameId, 'hidden', 0.0);
         } else {
-            fadeCut(frameId, 'block', 1.0);
+            fadeCut(frameId, 'visible', 1.0);
         }
     }
 
-    fadeCut(frameId, 'block', opacity);
+    fadeCut(frameId, 'visible', opacity);
     e.classList.add(cls);
     e.addEventListener('animationend', handleFadeEnd);
 
@@ -770,6 +768,34 @@ function removeFrame(jno) {
 
 var newJobNo = 0;
 
+const defaultFrameGeo = {    // full frame
+    alg:   'fitInto',
+    scale: V2(1.0,1.0),
+    dir:   'center',
+    shift: V2(0,0),
+}
+;
+const leftHalfGeo = {
+    alg:   'fitInto',
+    scale: V2(0.5,1.0),
+    dir:   'W',
+    shift: V2(0,0),
+};
+
+const rightHalfGeo = {
+    alg:   'fitInto',
+    scale: V2(0.5,1.0),
+    dir:   'E',
+    shift: V2(0,0),
+};
+
+const defaultSlideGeo = {
+    alg:   'fitInto',  // default
+    scale: 1.0,        // default
+    dir:   'center',   // default
+    shift:  V2(0,0),   // default
+};
+
 function mkJob(jno, jd) {
     // init code
     let cinit = [ mkInit(),
@@ -782,7 +808,8 @@ function mkJob(jno, jd) {
     case 'img':
         cload = [ mkSetData('type', 'img'),
                   mkSetData('imgPathPos', jd.imgPathPos),
-                  mkSetData('geos', jd.geos),
+                  mkSetData('geos',       jd.geos     || [defaultSlideGeo]),
+                  mkSetData('frameGeo',   jd.frameGeo || defaultFrameGeo),
                   mkLoadpage(),
                   mkSetStatus(stReadypage),
                   mkWait(1, stReadymedia),  // wait for prev job loading media
@@ -793,9 +820,11 @@ function mkJob(jno, jd) {
         break;
     case 'text':
         cload = [ mkSetData('type', 'text'),
+                  mkSetData('geos',       jd.geos     || [defaultSlideGeo]),
+                  mkSetData('frameGeo',   jd.frameGeo || defaultFrameGeo),
                   mkSetStatus(stReadypage),
                   mkSetStatus(stReadymedia),
-                  mkSetData('textData', jd.textData),
+                  mkSetData('text', jd.text || "???"),
                   mkRender(),
                 ];
         break;
@@ -876,10 +905,13 @@ function mkJob(jno, jd) {
 }
 
 var j1 = mkJob(1, { type: 'text',
-                    textData: { text: "<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
-                                geo: V2(0.50, 0.30),    // rel. to frame Geo
-                                off: V2(0.10, 0.30),
-                              },
+                    text: "<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
+                    frameGeo: defaultFrameGeo,
+                    geos: [{ scale: V2(0.50,0.30),
+                             dir:   'NW',
+                             shift: V2(0.10,0.30)
+                           }],
+
                     showDur: 3.000,
                     fadeinDur: 1.000,
                     fadeinTrans: trFadein,
@@ -888,10 +920,12 @@ var j1 = mkJob(1, { type: 'text',
                   }
               );
 var j2 = mkJob(2, { type: 'text',
-                    textData: { text: "<h2>Hallo Welt</h2>",
-                                geo: V2(0.70, 0.10),
-                                off: V2(0.20, 0.10),
-                              },
+                    text: "<h2>Hallo Welt</h2>",
+                    frameGeo: rightHalfGeo,
+                    geos: [{ scale: V2(0.70,0.10),
+                             dir:   'NW',
+                             shift: V2(0.20,0.10)
+                           }],
                     showDur: 5.000,
                     fadeinDur: 2.000,
                     fadeinTrans: trCrossfade,
@@ -904,17 +938,14 @@ var j3 = mkJob(3, { type: 'img',
                     imgPathPos: ['/archive/collections/albums/EinPaarBilder',1],
                     imgGeo: null,      // set by loadPage
                     imgMetaData: null, // set by loadPage
-                    geos: [{alg:   'fitInto',  // default
-                            scale: 1.0,        // default
-                            dir:   'center',   // default
-                            shift:  V2(0,0),   // default
-                           },
-                           {alg:   'fill',
-                            scale: 1.2,
-                            dir:   'W',
-                            shift: V2(0,0),
-                           },
-                           // {alg: 'fix',},        // real img size
+                    frameGeo : defaultFrameGeo,
+                    geos: [ defaultSlideGeo,
+                            { alg:   'fill',
+                              scale: 1.2,
+                              dir:   'W',
+                              shift: V2(0,0),
+                            },
+                           // { alg: 'fix', },        // real img size
                           ],
                     showDur: 5.000,
                     fadeinDur: 2.000,
@@ -928,6 +959,7 @@ var j4 = mkJob(4, { type: 'img',
                     imgPathPos: ['/archive/collections/albums/EinPaarBilder',2],
                     imgGeo: null,      // set by loadPage
                     imgMetaData: null, // set by loadPage
+                    geos: [defaultSlideGeo],
 
                     showDur: 5.000,
                     fadeinDur: 2.000,

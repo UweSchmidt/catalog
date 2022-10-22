@@ -239,15 +239,13 @@ function offsetAlg(name) {
 //                                   20% of frame height to the bottom
 
 function placeImg(frameGeo, imgGeo, alg, scale, dir, shift) {
-    const al = alg   || 'fix';
-    const sc = scale || 1.0;
-    const g1 = resizeAlg(alg)(imgGeo, frameGeo);
-    const geo = mulV2(g1, V2(sc, sc));
+    const sc  = scale || V2(1.0,1.0);
+    const g1  = resizeAlg(alg)(imgGeo, frameGeo);
+    const geo = mulV2(g1, sc);
 
-    const d   = dir   || 'center';
     const sh  = mulV2(shift || V2(0,0), frameGeo);
     const o1  = mulV2(subV2(frameGeo, geo), V2(0.5));
-    const o2  = offsetAlg(d)(o1);
+    const o2  = offsetAlg(dir)(o1);
     const off = addV2(o2, sh);
     const res =  { geo: geo,
                    off: off
@@ -259,13 +257,20 @@ function placeImg(frameGeo, imgGeo, alg, scale, dir, shift) {
 
 function placeMedia(frameGeo, imgGeo) {
     function place(gs) {
-        const alg = gs.alg     || 'fitInto';
-        const scale = gs.scale || 1.0;
-        const dir   = gs.scale || 'center';
+        const alg   = gs.alg   || 'fitInto';
+        const sc    = gs.scale || V2(1.0,1.0);
+        const scale = typeof sc === 'Number'
+                    ? V2(sc, sc)
+                    : sc;
+        const dir   = gs.dir   || 'center';
         const shift = gs.shift || V2(0,0);
         return placeImg(frameGeo, imgGeo, alg, scale, dir, shift);
     }
     return place;
+}
+
+function placeFrame(frameGeo, gs) {
+    return placeMedia(frameGeo, frameGeo)(gs);
 }
 
 function maxGeo(frameGeo, imgGeo, geos) {
