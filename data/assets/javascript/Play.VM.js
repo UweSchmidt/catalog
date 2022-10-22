@@ -644,15 +644,10 @@ function loadMedia(activeJob, jobData) {
 
 // --------------------
 
-function newFrame(id, geo, off) {
-
-    let s = cssAbsGeo(geo, off);
-    // s.display = "none";
-    s.opacity = 0;
-    s.visibility = 'hidden';
-
-    let e = newElem('div', id, s, 'frame');
-    return e;
+function newFrame(id, geo, off, css) {
+    const s1 = cssAbsGeo(geo, off);
+    const s2 = {...s1, ...css};
+    return newElem('div', id, s2, 'frame');
 }
 
 function mkFrameId(jno) {
@@ -683,7 +678,12 @@ function renderText(jobData, frameId, stageGeo, parentId) {
     const frameGO   = placeFrame(stageGeo, jobData.frameGeo);
     const frameGeo  = frameGO.geo;
     const frameOff  = frameGO.off;
-    const frame     = newFrame(frameId, frameGeo, frameOff);
+    const frameCss  = { opacity: 0,
+                        visibility: 'hidden',
+                        display:    'block',
+                        overflow:   'auto',
+                      };
+    const frame     = newFrame(frameId, frameGeo, frameOff, frameCss);
 
     // media geo is rel to frame geo
     // make media geo absolute
@@ -694,9 +694,11 @@ function renderText(jobData, frameId, stageGeo, parentId) {
     // const g1 = mulV2(textData.geo, frameGeo);
     // const go = placeImg(frameGeo, g1, 'fix', 1, 'NW', textData.off);
 
-    const ms = cssAbsGeo(go.geo, go.off);
-    ms.height = "auto";                     // heigth depends on the content
-    ms['background-color'] = "transparent";
+    const ms1 = cssAbsGeo(go.geo, go.off);
+    const ms2 = { height:             'auto',   // heigth depends on the content
+                  'background-color': 'transparent',
+                };
+    const ms  = {...ms1, ...ms2};
 
     const me = newBlogElem(frameId, ms, 'text');
     me.innerHTML = jobData.text;
