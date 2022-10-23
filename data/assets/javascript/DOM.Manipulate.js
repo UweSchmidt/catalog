@@ -207,7 +207,6 @@ function cssAbsGeo(geo, off) {
              left     : o.x,
              top      : o.y,
              position : "absolute",
-             overflow : "hidden"
            };
 }
 

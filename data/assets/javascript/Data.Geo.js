@@ -283,4 +283,8 @@ function maxGeo(frameGeo, imgGeo, geos) {
     return res;
 }
 
+function showGo(go) {
+    return `${showGeo(go.geo)},${showGeo(go.off)}`;
+}
+
 // ----------------------------------------

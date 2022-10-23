@@ -69,8 +69,9 @@ function mkLoadmedia() {
     return { op: opLoadmedia };
 }
 
-function mkRender() {
-    return { op:    opRender,
+function mkRender(gix) {
+    return { op:  opRender,
+             gix: gix,
            };
 }
 
@@ -371,7 +372,7 @@ function execInstr(instr, activeJob) {
 
     // render frame and media element
     if ( op === opRender ) {
-        render(activeJob, jobsData.get(jno));
+        render(activeJob, jobsData.get(jno), instr.gix);
         advanceReadyJob(activeJob);
         return;
     }
@@ -617,6 +618,7 @@ function loadMedia(activeJob, jobData) {
                       rPathPos: jobData.imgPathPos
                     };
         const url = imgReqToUrl(req, jobData.imgReqGeo);
+        jobData.imgUrl = url;
 
         trc(1, `loadMedia: ${url}`);
 
@@ -657,7 +659,7 @@ function mkFrameId(jno) {
 // --------------------
 // build a new frame containing a media element
 
-function render(activeJob, jobData) {
+function render(activeJob, jobData, gix) {
     const jno = activeJob.jno;
     const ty  = jobData.type;
     const sg  = stageGeo();
@@ -665,51 +667,91 @@ function render(activeJob, jobData) {
 
     switch ( ty ) {
     case 'text':
-        renderText(jobData, fid, sg, stageId);
+        renderText(jobData, fid, sg, stageId, gix);
         break;
+
+    case 'img':
+        renderImg(jobData, fid, sg, stageId, gix);
+        break;
+
     default:
         abortJob(activeJob);
         // throw `render: unsupported media type: ${ty}`;
     }
 }
 
-function renderText(jobData, frameId, stageGeo, parentId) {
-    // const frameId   = mkFrameId(jno);
+function renderFrame(jobData, frameId, stageGeo, frameCss) {
     const frameGO   = placeFrame(stageGeo, jobData.frameGeo);
     const frameGeo  = frameGO.geo;
     const frameOff  = frameGO.off;
+    const frame     = newFrame(frameId, frameGeo, frameOff, frameCss);
+
+    jobData.frameGO = frameGO;  // save frame geo/off
+    return frame;
+}
+
+function renderImg(jobData, frameId, stageGeo, parentId, gix) {
     const frameCss  = { opacity: 0,
                         visibility: 'hidden',
                         display:    'block',
-                        overflow:   'auto',
+                        overflow:   'hidden',
                       };
-    const frame     = newFrame(frameId, frameGeo, frameOff, frameCss);
+    const frame     = renderFrame(jobData, frameId, stageGeo, frameCss);
+    const frameGeo  = jobData.frameGO.geo;
+    const imgGeo    = jobData.imgGeo;
 
+    const go   = placeMedia(frameGeo, imgGeo)(jobData.geos[gix]);
+    jobData.go = go;
+    const ms   = cssAbsGeo(go.geo, go.off);
+    const me   = newImgElem(frameId, ms, 'img');
+    me.src     = jobData.imgUrl;
+
+    frame.appendChild(me);
+    getElem(parentId).appendChild(frame);
+}
+
+function renderText(jobData, frameId, stageGeo, parentId, gix) {
+    const frameCss  = { opacity: 0,
+                        visibility: 'hidden',
+                        display:    'block',
+                        overflow:   'hidden',
+                      };
+    const frame     = renderFrame(jobData, frameId, stageGeo, frameCss);
+    const frameGeo  = jobData.frameGO.geo;
+
+    // compute geomety of 'div' element containing the text
     // media geo is rel to frame geo
     // make media geo absolute
 
-    const go = placeFrame(frameGeo, jobData.geos[0]); // TODO fixed index 0?
-    jobData.go = go;  // save current geometry in job data
-
-    // const g1 = mulV2(textData.geo, frameGeo);
-    // const go = placeImg(frameGeo, g1, 'fix', 1, 'NW', textData.off);
+    const gs   = jobData.geos[gix];
+    const go   = placeFrame(frameGeo, gs);
+    jobData.go = go;        // save text element geo/off in job data
 
     const ms1 = cssAbsGeo(go.geo, go.off);
-    const ms2 = { height:             'auto',   // heigth depends on the content
+    const ms2 = { height:             'auto',
+                  width:              'auto',
+                  // 'background-color': 'red',
                   'background-color': 'transparent',
                 };
     const ms  = {...ms1, ...ms2};
 
-    const me = newBlogElem(frameId, ms, 'text');
+    // build a 'div' element containing the text
+    // and insert it and the frame into DOM
+
+    const me     = newBlogElem(frameId, ms, 'text');
     me.innerHTML = jobData.text;
     frame.appendChild(me);
     getElem(parentId).appendChild(frame);
 
-    // set computed height of text element in go.geo
-    // element must be inserted into DOM
-    // and css display set to 'block' (not 'none')
-    const rect = me.getBoundingClientRect();
-    jobData.go.geo.y = rect.height;
+    // compute real size of text
+    // recompute geo/off for text
+    // and overwrite preliminary geo/off
+
+    const rect    = me.getBoundingClientRect();
+    const textGeo = V2(rect.width, rect.height);
+    const go3     = placeMedia(frameGeo, textGeo)(gs);
+    const ms3     = cssAbsGeo(go3.geo, go3.off);
+    setCSS(me, ms3);
 }
 
 // --------------------
@@ -817,7 +859,7 @@ function mkJob(jno, jd) {
                   mkWait(1, stReadymedia),  // wait for prev job loading media
                   mkLoadmedia(),
                   mkSetStatus(stReadymedia),
-                  mkRender(),
+                  mkRender(0),   // 1. geo is initial geo
                 ];
         break;
     case 'text':
@@ -827,7 +869,7 @@ function mkJob(jno, jd) {
                   mkSetStatus(stReadypage),
                   mkSetStatus(stReadymedia),
                   mkSetData('text', jd.text || "???"),
-                  mkRender(),
+                  mkRender(0),
                 ];
         break;
     }
@@ -909,9 +951,9 @@ function mkJob(jno, jd) {
 var j1 = mkJob(1, { type: 'text',
                     text: "<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
                     frameGeo: defaultFrameGeo,
-                    geos: [{ scale: V2(0.50,0.30),
+                    geos: [{ alg: 'fix',
                              dir:   'NW',
-                             shift: V2(0.10,0.30)
+                             shift: V2(0.10,0.10)
                            }],
 
                     showDur: 3.000,
@@ -924,9 +966,9 @@ var j1 = mkJob(1, { type: 'text',
 var j2 = mkJob(2, { type: 'text',
                     text: "<h2>Hallo Welt</h2>",
                     frameGeo: rightHalfGeo,
-                    geos: [{ scale: V2(0.70,0.10),
-                             dir:   'NW',
-                             shift: V2(0.20,0.10)
+                    geos: [{ alg:  'fix',
+                             dir:  'SE',
+                             shift: V2(-0.20,-0.20)
                            }],
                     showDur: 5.000,
                     fadeinDur: 2.000,
@@ -938,14 +980,12 @@ var j2 = mkJob(2, { type: 'text',
 
 var j3 = mkJob(3, { type: 'img',
                     imgPathPos: ['/archive/collections/albums/EinPaarBilder',1],
-                    imgGeo: null,      // set by loadPage
-                    imgMetaData: null, // set by loadPage
                     frameGeo : defaultFrameGeo,
                     geos: [ defaultSlideGeo,
                             { alg:   'fill',
-                              scale: 1.2,
-                              dir:   'W',
-                              shift: V2(0,0),
+                              scale: 2.0,
+                              dir:   'center',
+                              // shift: V2(0,0),
                             },
                            // { alg: 'fix', },        // real img size
                           ],
@@ -959,14 +999,26 @@ var j3 = mkJob(3, { type: 'img',
 
 var j4 = mkJob(4, { type: 'img',
                     imgPathPos: ['/archive/collections/albums/EinPaarBilder',2],
-                    imgGeo: null,      // set by loadPage
-                    imgMetaData: null, // set by loadPage
                     geos: [defaultSlideGeo],
 
                     showDur: 5.000,
                     fadeinDur: 2.000,
                     fadeinTrans: trCrossfade,
                     fadeoutDur: 1.000,
+                    fadeoutTrans: trCrossfade,
+                  }
+              );
+var j5 = mkJob(5, { type: 'text',
+                    text: "<h1>The End</h1>",
+                    frameGeo: defaultFrameGeo,
+                    geos: [{ alg: 'fix',
+                             dir: 'center',
+                           }],
+
+                    showDur: 3.000,
+                    fadeinDur: 1.000,
+                    fadeinTrans: trFadein,
+                    fadeoutDur: 4.000,
                     fadeoutTrans: trCrossfade,
                   }
               );
@@ -989,14 +1041,18 @@ var irq3 = { geo: "1400x1050",
 var t1 = jsonReqToUrl1(V2(9000,6000), irq1);
 
 function ttt() {
+    setAspectRatio(V2(4,3));
     initVM();
     addJob(j1.jno, j1.jcode);
     addJob(j2.jno, j2.jcode);
     addJob(j3.jno, j3.jcode);
+    addJob(j4.jno, j4.jcode);
+    addJob(j5.jno, j5.jcode);
     addReady(j1.jno);
     addReady(j2.jno);
     addReady(j3.jno);
-    setAspectRatio(V2(4,3));
+    addReady(j4.jno);
+    addReady(j5.jno);
 }
 
 // ----------------------------------------
