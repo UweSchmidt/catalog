@@ -139,6 +139,130 @@ function mkFinish() {
 function noop() {}
 
 // ----------------------------------------
+
+function cInit(name) {
+    return [
+        mkInit(),
+        mkSetStatus(stCreated),
+        mkSetData('name', name)
+    ];
+}
+
+function cTerm() {
+    return [
+        mkFinish(),
+        mkSetStatus(stFinished)
+    ];
+}
+
+function cLoadImg(imgPathPos, frameGeo, geos, gix, jnoWait) {
+    return [
+        mkSetData('type', 'img'),
+        mkSetData('imgPathPos', imgPathPos),
+        mkSetData('frameGeo',   frameGeo || defaultFrameGeo),
+        mkSetData('geos',       geos     || [defaultSlideGeo]),
+        mkLoadpage(),
+        mkSetStatus(stReadypage),
+        mkWait(jnoWait || 1, stReadymedia), // wait for prev job loading media
+        mkLoadmedia(),
+        mkSetStatus(stReadymedia),
+        mkRender(gix || 0),                 // 1. geo is initial geo
+    ];
+}
+
+function cLoadText(frameGeo, geos, text, gix) {
+    return [
+        mkSetData('type', 'text'),
+        mkSetData('frameGeo',     frameGeo || defaultFrameGeo),
+        mkSetData('geos',         geos     || [defaultSlideGeo]),
+        mkSetStatus(stReadypage),
+        mkSetStatus(stReadymedia),
+        mkSetData('text', text || "???"),
+        mkRender(gix || 0),
+
+    ];
+}
+
+// text slide with align/offset spec and text
+//
+// example: cLoadText({dir: 'NW', shift: V2(0.1,0.2)}, '<h1>Hello</h1>')
+//   places the text 'Hello' redered as a 'H1' elem
+//   with 10% of stage width as padding to the left
+//   and 20% of stage height as padding at the top of the stage
+
+function cLoadText1(gs, text) {
+    const gs1 = {...gs, alg: 'fix'};
+    return cLoadText(defaultFrameGeo, [gs1], text);
+}
+
+function cView(dur) {
+    return [
+        mkDelay(dur),
+    ];
+}
+
+function cFadein(dur, fade, waitJob) {
+    const pj = waitJob || 1;
+
+    switch ( fade ) {
+    case 'fadein':
+        return [
+            mkWait(pj, stHidden),   // wait for previous job
+            mkFadein(dur, trFadein),
+            mkSetStatus(stVisible),
+        ];
+    case 'crossfade':
+        return [
+            mkWait(pj, stShown),   // crossfade starts earlier
+            mkFadein(dur, trFadein),
+            mkSetStatus(stVisible),
+        ];
+    case trCut:
+    default:
+        return [
+            mkWait(pj, stShown),
+            mkFadein(0, trCut),
+            mkSetStatus(stVisible),
+        ];
+    }
+}
+
+function cFadeout(dur, fade) {
+    switch ( fade ) {
+    case 'fadeout':
+    case 'crossfade':
+        return [
+            mkFadeout(dur, trFadeout),
+            mkDelay(dur),
+            mkSetStatus(stHidden),
+        ];
+    case trCut:
+    default:
+        return [
+            mkFadeout(0, trCut),
+            mkSetStatus(stHidden),
+        ];
+    }
+}
+
+function cFadeoutTerm(dur, fade) {
+    return [
+        ...cFadeout(dur, fade),
+        ...cTerm()
+    ];
+}
+// shortcut for viewing a slide
+// with crossfading
+
+function cViewCrossfade(dur, fadeDur) {
+    return [
+        ...cFadein(fadeDur, trCrossfade),
+        ...cView(dur),
+        ...cFadeoutTerm(fadeDur, trCrossfade)
+    ];
+}
+
+// ----------------------------------------
 // virtual machine code interpretation
 
 function mkActiveJob(jno, jpc, jstatus) {
@@ -840,205 +964,76 @@ const defaultSlideGeo = {
     shift:  V2(0,0),   // default
 };
 
-function mkJob(jno, jd) {
-    // init code
-    let cinit = [ mkInit(),
-                  mkSetStatus(stCreated)
-                ];
+// --------------------
 
-
-    let cload = [];
-    switch ( jd.type ) {
-    case 'img':
-        cload = [ mkSetData('type', 'img'),
-                  mkSetData('imgPathPos', jd.imgPathPos),
-                  mkSetData('geos',       jd.geos     || [defaultSlideGeo]),
-                  mkSetData('frameGeo',   jd.frameGeo || defaultFrameGeo),
-                  mkLoadpage(),
-                  mkSetStatus(stReadypage),
-                  mkWait(1, stReadymedia),  // wait for prev job loading media
-                  mkLoadmedia(),
-                  mkSetStatus(stReadymedia),
-                  mkRender(0),   // 1. geo is initial geo
-                ];
-        break;
-    case 'text':
-        cload = [ mkSetData('type', 'text'),
-                  mkSetData('geos',       jd.geos     || [defaultSlideGeo]),
-                  mkSetData('frameGeo',   jd.frameGeo || defaultFrameGeo),
-                  mkSetStatus(stReadypage),
-                  mkSetStatus(stReadymedia),
-                  mkSetData('text', jd.text || "???"),
-                  mkRender(0),
-                ];
-        break;
-    }
-
-    // --------------------
-    // fadein code
-
-    let cfadein = [];
-
-    switch ( jd.fadeinTrans ) {
-    case 'fadein' :
-        cfadein = [ mkWait(1, stHidden),   // wait for previous job
-                    mkFadein(jd.fadeinDur, trFadein),
-                    mkSetStatus(stVisible),
-                  ];
-        break;
-
-    case 'crossfade' :
-        cfadein = [ mkWait(1, stShown),   // crossfade starts earlier
-                    mkFadein(jd.fadeinDur, trFadein),
-                    mkSetStatus(stVisible),
-                  ];
-        break;
-
-    case trCut :
-    default:
-        cfadein = [ mkWait(1, stShown),
-                    mkFadein(0, trCut),
-                    mkSetStatus(stVisible),
-                  ];
-        break;
-    }
-
-    // --------------------
-    // fadeout code
-
-    let cfadeout = [];
-
-    switch ( jd.fadeoutTrans ) {
-    case 'fadeout' :
-    case 'crossfade' :
-        cfadeout = [ mkFadeout(jd.fadeoutDur, trFadeout),
-                     mkDelay(jd.fadeoutDur),
-                     mkSetStatus(stHidden),
-                   ];
-        break;
-
-    case trCut :
-    default:
-        cfadeout = [ mkFadeout(0, trCut),
-                     mkSetStatus(stHidden),
-                   ];
-        break;
-    }
-
-    // --------------------
-    // show code
-
-    let cshow = [ mkDelay(jd.showDur),
-                  mkSetStatus(stShown),
-                ];
-
-    // --------------------
-    // exit code
-
-    let cexit = [ mkFinish(),
-                  mkSetStatus(stFinished)
-                ];
-
-    // --------------------
-
-    const code = [].concat(cinit, cload, cfadein, cshow, cfadeout, cexit);
-
-    return { jno:   jno,
-             jcode: code
-           };
+function mkJob(jno,code) {
+    return {jno: jno, jcode: code};
 }
 
-var j1 = mkJob(1, { type: 'text',
-                    text: "<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
-                    frameGeo: defaultFrameGeo,
-                    geos: [{ alg: 'fix',
-                             dir:   'NW',
-                             shift: V2(0.10,0.10)
-                           }],
+var j1 = mkJob(
+    1,
+    [ ...cInit('HalloWelt'),
+      ...cLoadText(
+          defaultFrameGeo,
+          [{alg: 'fix', dir: 'NW', shift: V2(0.10,0.10)}],
+          "<h1>Hallo Welt</h1><p>Hier bin ich!</p>"
+      ),
+      ...cFadein(1.0, trFadein),
+      ...cView(3.0),
+      ...cFadeout(2.0, trCrossfade),
+      ...cTerm()
+    ]);
 
-                    showDur: 3.000,
-                    fadeinDur: 1.000,
-                    fadeinTrans: trFadein,
-                    fadeoutDur: 2.000,
-                    fadeoutTrans: trCrossfade,
-                  }
-              );
-var j2 = mkJob(2, { type: 'text',
-                    text: "<h2>Hallo Welt</h2>",
-                    frameGeo: rightHalfGeo,
-                    geos: [{ alg:  'fix',
-                             dir:  'SE',
-                             shift: V2(-0.20,-0.20)
-                           }],
-                    showDur: 5.000,
-                    fadeinDur: 2.000,
-                    fadeinTrans: trCrossfade,
-                    fadeoutDur: 1.000,
-                    fadeoutTrans: trCrossfade,
-                  }
-              );
+var j2 = mkJob(
+    2,
+    [ ...cInit('Hallo'),
+      ...cLoadText(
+          rightHalfGeo,
+          [{alg: 'fix', dir: 'SE', shift: V2(-0.20,-0.20)}],
+          "<h2>Hallo Welt</h2>"),
+      ...cViewCrossfade(3.0,0.5)
+    ]);
 
-var j3 = mkJob(3, { type: 'img',
-                    imgPathPos: ['/archive/collections/albums/EinPaarBilder',1],
-                    frameGeo : defaultFrameGeo,
-                    geos: [ defaultSlideGeo,
-                            { alg:   'fill',
-                              scale: 2.0,
-                              dir:   'center',
-                              // shift: V2(0,0),
-                            },
-                           // { alg: 'fix', },        // real img size
-                          ],
-                    showDur: 5.000,
-                    fadeinDur: 2.000,
-                    fadeinTrans: trCrossfade,
-                    fadeoutDur: 1.000,
-                    fadeoutTrans: trCrossfade,
-                  }
-              );
+var j3 = mkJob(
+    3,
+    [ ...cInit('Ente1'),
+      ...cLoadImg(
+          ['/archive/collections/albums/EinPaarBilder',1],
+          defaultFrameGeo,
+          [ defaultSlideGeo,
+            {alg: 'fill', scale: 2.0, dir: 'center',},
+            {alg: 'fix',},                  // real img size
+          ],
+      ),
+      ...cFadein(2.0, trCrossfade),
+      ...cView(5.0),
+      // some animations
+      ...cFadeoutTerm(1.0, trCrossfade)
+    ]);
 
-var j4 = mkJob(4, { type: 'img',
-                    imgPathPos: ['/archive/collections/albums/EinPaarBilder',2],
-                    geos: [defaultSlideGeo],
 
-                    showDur: 5.000,
-                    fadeinDur: 2.000,
-                    fadeinTrans: trCrossfade,
-                    fadeoutDur: 1.000,
-                    fadeoutTrans: trCrossfade,
-                  }
-              );
-var j5 = mkJob(5, { type: 'text',
-                    text: "<h1>The End</h1>",
-                    frameGeo: defaultFrameGeo,
-                    geos: [{ alg: 'fix',
-                             dir: 'center',
-                           }],
+var j4 = mkJob(
+    4,
+    [ ...cInit("Ente2"),
+      ...cLoadImg(
+          ['/archive/collections/albums/EinPaarBilder',2],
+          defaultFrameGeo,
+          [{alg: 'fill', scale: 1.1, dir: 'center',},],
+      ),
+      ...cViewCrossfade(5.0,1.0)
+    ]);
 
-                    showDur: 3.000,
-                    fadeinDur: 1.000,
-                    fadeinTrans: trFadein,
-                    fadeoutDur: 4.000,
-                    fadeoutTrans: trCrossfade,
-                  }
-              );
-
-var irq1 = { geo: "1400x1050",
-             rPathPos: ['/archive/collections/albums/EinPaarBilder',0],
-             rType: "img"
-           };
-
-var irq2 = { geo: "1400x1050",
-             rPathPos: ['/archive/collections/albums/EinPaarBilder',1],
-             rType: "img"
-           };
-
-var irq3 = { geo: "1400x1050",
-             rPathPos: ['/archive/collections/albums/EinPaarBilder',2],
-             rType: "img"
-           };
-
-var t1 = jsonReqToUrl1(V2(9000,6000), irq1);
+var j5 = mkJob(
+    5,
+    [ ...cInit("Ende"),
+      ...cLoadText1({dir: 'center'},
+                    `<h1>The End</h1>
+                     <div>This is the end, my friend.</div>`
+                   ),
+      ...cFadein(1.0, trFadein),
+      ...cView(3.0),
+      ...cFadeoutTerm(5.0, trFadeout)
+    ]);
 
 function ttt() {
     setAspectRatio(V2(4,3));
