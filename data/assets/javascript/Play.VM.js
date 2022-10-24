@@ -844,17 +844,19 @@ function mkFrameId(jno) {
     return `frame-${jno}`;
 }
 
+function imgGeoToCSS(jobData, gix) {
+    const frameGeo = jobData.frameGO.geo;
+    const imgGeo   = jobData.imgGeo;
+    const go       = placeMedia(frameGeo, imgGeo)(jobData.geos[gix]);
+    jobData.go     = go;
+    return cssAbsGeo(go.geo, go.off);
+}
+
 // --------------------
 
 function place(activeJob, jobData, gix) {
-    const jno      = activeJob.jno;
-    const fid      = mkFrameId(jno);
-    const frameGeo = jobData.frameGO.geo;
-    const imgGeo   = jobData.imgGeo;
-
-    const go   = placeMedia(frameGeo, imgGeo)(jobData.geos[gix]);
-    jobData.go = go;
-    const ms   = cssAbsGeo(go.geo, go.off);
+    const fid  = mkFrameId(activeJob.jno);
+    const ms   = imgGeoToCSS(jobData, gix);
     setCSS(mkImgId(fid), ms);
 }
 
@@ -893,20 +895,15 @@ function renderFrame(jobData, frameId, stageGeo, frameCss) {
 }
 
 function renderImg(jobData, frameId, stageGeo, parentId, gix) {
-    const frameCss  = { opacity: 0,
-                        visibility: 'hidden',
-                        display:    'block',
-                        overflow:   'hidden',
-                      };
-    const frame     = renderFrame(jobData, frameId, stageGeo, frameCss);
-    const frameGeo  = jobData.frameGO.geo;
-    const imgGeo    = jobData.imgGeo;
-
-    const go   = placeMedia(frameGeo, imgGeo)(jobData.geos[gix]);
-    jobData.go = go;
-    const ms   = cssAbsGeo(go.geo, go.off);
-    const me   = newImgElem(frameId, ms, 'img');
-    me.src     = jobData.imgUrl;
+    const frameCss = { opacity: 0,
+                       visibility: 'hidden',
+                       display:    'block',
+                       overflow:   'hidden',
+                     };
+    const frame    = renderFrame(jobData, frameId, stageGeo, frameCss);
+    const ms       = imgGeoToCSS(jobData, gix);
+    const me       = newImgElem(frameId, ms, 'img');
+    me.src         = jobData.imgUrl;
 
     frame.appendChild(me);
     getElem(parentId).appendChild(frame);
