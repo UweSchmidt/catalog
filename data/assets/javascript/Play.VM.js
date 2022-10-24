@@ -831,8 +831,8 @@ function loadMedia(activeJob, jobData) {
 
 // --------------------
 
-function newFrame(id, geo, off, css) {
-    const s1 = cssAbsGeo(geo, off);
+function newFrame(id, go, css) {
+    const s1 = cssAbsGeo(go);
     const s2 = {...s1, ...css};
     return newElem('div', id, s2, 'frame');
 }
@@ -846,7 +846,7 @@ function imgGeoToCSS(jobData, gix) {
     const imgGeo   = jobData.imgGeo;
     const go       = placeMedia(frameGeo, imgGeo)(jobData.geos[gix]);
     jobData.go     = go;
-    return cssAbsGeo(go.geo, go.off);
+    return cssAbsGeo(go);
 }
 
 // --------------------
@@ -860,12 +860,57 @@ function place(activeJob, jobData, gix) {
 }
 
 function move(activeJob, jobData, dur, gix) {
-    const fid  = mkFrameId(activeJob.jno);
-    const ms   = imgGeoToCSS(jobData, gix);
+    const fid   = mkFrameId(activeJob.jno);
+    const cssId = mkCssId(activeJob.jno, gix);
+
+    const ms0   = cssAbsGeo(jobData.go);     // transition start
+    const ms1   = imgGeoToCSS(jobData, gix); // transition end
+
+    const cssKeyFrames = `
+@keyframes kf-${cssId} {
+    0% {${moveCSS(ms0)}}
+  100% {${moveCSS(ms1)}}
+}
+`;
+    const cssMoveClass = `
+img.${cssId}, div.${cssId} {
+  animation-name:            kf-${cssId};
+  animation-duration:        ${dur}s;
+  animation-delay:           0s;
+  animation-direction:       normal;
+  animation-iteration-count: 1;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode:       both;
+}
+`;
+
+    newCssNode(cssId);
+    getElem(cssId).appendChild(newText(cssKeyFrames + cssMoveClass));
 
     trc(1,`move: ${activeJob.jno} dur=${dur} gix=${gix}`);
     trc(1,`move: dummy impl`);
-    setCSS(mkImgId(fid), ms);
+    setCSS(mkImgId(fid), ms1);
+}
+
+function moveCSS(ms) {
+    return `width: ${ms.width}; height: ${ms.height}; left: ${ms.left}; top: ${ms.top}`;
+}
+
+function mkCssId(jno, gix) {
+    return `css-job-${jno}-${gix}`;
+}
+
+function newCssNode(cssId) {
+    let e = document.getElementById(cssId);
+    if ( ! e ) {
+        e = newElem('style', cssId);
+        e.type = 'text/css';
+    }
+    else {
+        clearCont(e);
+    }
+    getElem('head').appendChild(e);
+    return e;
 }
 
 // --------------------
@@ -894,12 +939,9 @@ function render(activeJob, jobData, gix) {
 
 function renderFrame(jobData, frameId, stageGeo, frameCss) {
     const frameGO   = placeFrame(stageGeo, jobData.frameGeo);
-    const frameGeo  = frameGO.geo;
-    const frameOff  = frameGO.off;
-    const frame     = newFrame(frameId, frameGeo, frameOff, frameCss);
-
     jobData.frameGO = frameGO;  // save frame geo/off
-    return frame;
+
+    return newFrame(frameId, frameGO, frameCss);
 }
 
 function renderImg(jobData, frameId, stageGeo, parentId, gix) {
@@ -934,7 +976,7 @@ function renderText(jobData, frameId, stageGeo, parentId, gix) {
     const go   = placeFrame(frameGeo, gs);
     jobData.go = go;        // save text element geo/off in job data
 
-    const ms1 = cssAbsGeo(go.geo, go.off);
+    const ms1 = cssAbsGeo(go);
     const ms2 = { height:             'auto',
                   width:              'auto',
                   // 'background-color': 'red',
@@ -957,7 +999,7 @@ function renderText(jobData, frameId, stageGeo, parentId, gix) {
     const rect    = me.getBoundingClientRect();
     const textGeo = V2(rect.width, rect.height);
     const go3     = placeMedia(frameGeo, textGeo)(gs);
-    const ms3     = cssAbsGeo(go3.geo, go3.off);
+    const ms3     = cssAbsGeo(go3);
     setCSS(me, ms3);
 }
 
@@ -1118,8 +1160,8 @@ var j5 =
         );
 
 var jobList = [
-    j1,
-    j2,
+//    j1,
+//    j2,
     j3,
     j4,
     j5,

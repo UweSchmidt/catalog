@@ -199,9 +199,9 @@ function mkImgId(id) {
 
 // ----------------------------------------
 
-function cssAbsGeo(geo, off) {
-    const g = toPx(geo);
-    const o = toPx(off);
+function cssAbsGeo(go) {
+    const g = toPx(go.geo);
+    const o = toPx(go.off);
     return { width    : g.x,
              height   : g.y,
              left     : o.x,
