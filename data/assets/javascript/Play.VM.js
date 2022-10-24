@@ -39,6 +39,7 @@ const opRender    = "render";
 const opFadeout   = "fadeout";
 const opFadein    = "fadein";
 const opMove      = "move";
+const opPlace     = "place";    // move without animation
 const opSetData   = "setdata";
 const opSetStatus = "setstatus";
 const opDelay     = "delay";
@@ -76,9 +77,6 @@ function mkRender(gix) {
 }
 
 function mkFadein(dur, trans) {
-    if ( dur === 0) {
-        trans = trCut;
-    }
     return { op:    opFadein,
              trans: trans,
              dur:   dur,
@@ -86,9 +84,6 @@ function mkFadein(dur, trans) {
 };
 
 function mkFadeout(dur, trans) {
-    if ( dur === 0) {
-        trans = trCut;
-    }
     return { op:    opFadeout,
              trans: trans,
              dur:   dur,
@@ -108,10 +103,16 @@ function mkSetData(key, data) {
            };
 };
 
-function mkMove(dur, off, scale) {
-    return { op:    opMove,
-             off:   off,
-             scale: scale
+function mkMove(dur, gix) {
+    return { op:  opMove,
+             dur: dur,
+             gix: gix
+           };
+};
+
+function mkPlace(gix) {
+    return { op:  opPlace,
+             gix: gix
            };
 };
 
@@ -191,20 +192,37 @@ function cView(dur) {
     ];
 }
 
-function cFadein(dur, fade, waitJob) {
-    const pj = waitJob || 1;
+function cMove(dur, gix) {
+    if ( dur === 0 ) {
+        return [
+            mkPlace(gix),
+        ];
+    }
+    else {
+        return [
+            mkMove(dur, gix),
+            mkDelay(dur)
+        ];
+    }
+}
+
+function cFadein(dur, fade0, waitJob) {
+    const pj   = waitJob || 1;
+    const fade = (dur === 0) ? trCut : fade0;
 
     switch ( fade ) {
     case 'fadein':
         return [
             mkWait(pj, stHidden),   // wait for previous job
             mkFadein(dur, trFadein),
+            mkDelay(dur),
             mkSetStatus(stVisible),
         ];
     case 'crossfade':
         return [
             mkWait(pj, stShown),   // crossfade starts earlier
             mkFadein(dur, trFadein),
+            mkDelay(dur),
             mkSetStatus(stVisible),
         ];
     case trCut:
@@ -217,7 +235,9 @@ function cFadein(dur, fade, waitJob) {
     }
 }
 
-function cFadeout(dur, fade) {
+function cFadeout(dur, fade0) {
+    const fade = (dur === 0) ? trCut : fade0;
+
     switch ( fade ) {
     case 'fadeout':
     case 'crossfade':
@@ -572,6 +592,13 @@ function execInstr(instr, activeJob) {
         return;
     }
 
+    // move and/or scale without animation
+    if ( op === opPlace ) {
+        place(activeJob, jobsData.get(jno), instr.gix);
+        advanceReadyJob(activeJob);
+        return;
+    }
+
     if ( op === opSetData ) {
         trc(1,`execInstr: op=${op}: key=${instr.key}`);
         const data = getData(jno);
@@ -818,6 +845,20 @@ function mkFrameId(jno) {
 }
 
 // --------------------
+
+function place(activeJob, jobData, gix) {
+    const jno      = activeJob.jno;
+    const fid      = mkFrameId(jno);
+    const frameGeo = jobData.frameGO.geo;
+    const imgGeo   = jobData.imgGeo;
+
+    const go   = placeMedia(frameGeo, imgGeo)(jobData.geos[gix]);
+    jobData.go = go;
+    const ms   = cssAbsGeo(go.geo, go.off);
+    setCSS(mkImgId(fid), ms);
+}
+
+// --------------------
 // build a new frame containing a media element
 
 function render(activeJob, jobData, gix) {
@@ -931,8 +972,8 @@ function fadeinCut (jno) { fadeCut(mkFrameId(jno), 'visible', 1.0); }
 function fadeoutCut(jno) { fadeCut(mkFrameId(jno), 'hidden',  0.0); }
 
 function fadeAnim(frameId, dur, fade) { // fade = 'fadein' or 'fadeout'
-    const e   = getElem(frameId);
-    const cls = `${fade}-image`;
+    const e       = getElem(frameId);
+    const cls     = `${fade}-image`;
     const opacity = (fade === 'fadein' ) ? 0.0 : 1.0;
 
     function handleFadeEnd(ev) {
@@ -1039,13 +1080,22 @@ var j3 = mkJob(
                   defaultFrameGeo,
                   [ defaultSlideGeo,
                     {alg: 'fill', scale: 2.0, dir: 'center',},
+                    {alg: 'fitInto', scale: 0.5, dir: 'center',},
                     {alg: 'fix',},                  // real img size
+                    {alg: 'fitInto', scale: 0.5, dir: 'W',},
                   ]
                  ),
          cViewStd0(2.0, trCrossfade,
                    1.0, trCrossfade,
-                   [...cView(5.0),
-                    // more view steps
+                   [...cView(2.0),
+                    ...cMove(0.0,1),
+                    ...cView(3.0),
+                    ...cMove(0.0,2),
+                    ...cView(3.0),
+                    ...cMove(0.0,3),
+                    ...cView(3.0),
+                    ...cMove(0.0,4),
+                    ...cView(3.0)
                    ]
                   )
         )
