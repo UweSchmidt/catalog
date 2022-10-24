@@ -584,10 +584,7 @@ function execInstr(instr, activeJob) {
 
     // animated move and/or scaling of media
     if ( op === opMove ) {
-        trc(1,`execInstr: op=${op}`);
-
-        // move media
-
+        move(activeJob, jobsData.get(jno), instr.dur, instr.gix);
         advanceReadyJob(activeJob);
         return;
     }
@@ -857,6 +854,17 @@ function imgGeoToCSS(jobData, gix) {
 function place(activeJob, jobData, gix) {
     const fid  = mkFrameId(activeJob.jno);
     const ms   = imgGeoToCSS(jobData, gix);
+
+    trc(1,`place: ${activeJob.jno} gix=${gix}`);
+    setCSS(mkImgId(fid), ms);
+}
+
+function move(activeJob, jobData, dur, gix) {
+    const fid  = mkFrameId(activeJob.jno);
+    const ms   = imgGeoToCSS(jobData, gix);
+
+    trc(1,`move: ${activeJob.jno} dur=${dur} gix=${gix}`);
+    trc(1,`move: dummy impl`);
     setCSS(mkImgId(fid), ms);
 }
 
@@ -1085,11 +1093,11 @@ var j3 = mkJob(
          cViewStd0(2.0, trCrossfade,
                    1.0, trCrossfade,
                    [...cView(2.0),
-                    ...cMove(0.0,1),
+                    ...cMove(1.0,1),
                     ...cView(3.0),
-                    ...cMove(0.0,2),
+                    ...cMove(1.0,2),
                     ...cView(3.0),
-                    ...cMove(0.0,3),
+                    ...cMove(1.0,3),
                     ...cView(3.0),
                     ...cMove(0.0,4),
                     ...cView(3.0)
