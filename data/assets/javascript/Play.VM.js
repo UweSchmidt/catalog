@@ -1053,18 +1053,15 @@ function mkJob(jno,code) {
     return {jno: jno, jcode: code};
 }
 
-var j1 = mkJob(
-    1,
+var j1 =
     cJob('HalloWelt',
          cLoadText1({dir: 'NW', shift: V2(0.10,0.10)},
                     "<h1>Hallo Welt</h1><p>Hier bin ich!</p>"
                    ),
          cViewStd(1.0, trFadein, 3.0, 2.0, trCrossfade)
-        )
-);
+        );
 
-var j2 = mkJob(
-    2,
+var j2 =
     cJob('Hallo',
          cLoadText(rightHalfGeo,
                    [{alg: 'fix', dir: 'SE', shift: V2(-0.20,-0.20)}],
@@ -1075,11 +1072,9 @@ var j2 = mkJob(
                     // more view steps
                    ]
                   )
-        )
-);
+        );
 
-var j3 = mkJob(
-    3,
+var j3 =
     cJob('Ente1',
          cLoadImg(['/archive/collections/albums/EinPaarBilder',1],
                   defaultFrameGeo,
@@ -1103,43 +1098,46 @@ var j3 = mkJob(
                     ...cView(3.0)
                    ]
                   )
-        )
-);
+        );
 
-var j4 = mkJob(
-    4,
+var j4 =
     cJob("Ente2",
          cLoadImgStd(['/archive/collections/albums/EinPaarBilder',2],
                      {alg: 'fill', scale: 1.1, dir: 'center'}
                     ),
          cViewCrossfade(5.0,1.0)
-        )
-);
+        );
 
-var j5 = mkJob(
-    5,
+var j5 =
     cJob('Ende',
          cLoadText1({dir: 'center'},
                     `<h1>The End</h1>
                      <div>This is the end, my friend.</div>`
                    ),
          cViewStd(1.0, trFadein, 3.0, 5.0, trFadeout)
-        )
-);
+        );
+
+var jobList = [
+    j1,
+    j2,
+    j3,
+    j4,
+    j5,
+];
+
+function startJobs(js) {
+    for (let i = 0; i < js.length; ++i) {
+        addJob(i+1, js[i]);
+    }
+    for (let i = 0; i < js.length; ++i) {
+        addReady(i+1);
+    }
+}
 
 function ttt() {
     setAspectRatio(V2(4,3));
     initVM();
-    addJob(j1.jno, j1.jcode);
-    addJob(j2.jno, j2.jcode);
-    addJob(j3.jno, j3.jcode);
-    addJob(j4.jno, j4.jcode);
-    addJob(j5.jno, j5.jcode);
-    addReady(j1.jno);
-    addReady(j2.jno);
-    addReady(j3.jno);
-    addReady(j4.jno);
-    addReady(j5.jno);
+    startJobs(jobList);
 }
 
 // ----------------------------------------
