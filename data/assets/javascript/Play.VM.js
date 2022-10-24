@@ -139,6 +139,8 @@ function mkFinish() {
 function noop() {}
 
 // ----------------------------------------
+//
+// basic compile macros
 
 function cInit(name) {
     return [
@@ -181,18 +183,6 @@ function cLoadText(frameGeo, geos, text, gix) {
         mkRender(gix || 0),
 
     ];
-}
-
-// text slide with align/offset spec and text
-//
-// example: cLoadText({dir: 'NW', shift: V2(0.1,0.2)}, '<h1>Hello</h1>')
-//   places the text 'Hello' redered as a 'H1' elem
-//   with 10% of stage width as padding to the left
-//   and 20% of stage height as padding at the top of the stage
-
-function cLoadText1(gs, text) {
-    const gs1 = {...gs, alg: 'fix'};
-    return cLoadText(defaultFrameGeo, [gs1], text);
 }
 
 function cView(dur) {
@@ -245,21 +235,68 @@ function cFadeout(dur, fade) {
     }
 }
 
-function cFadeoutTerm(dur, fade) {
+// --------------------
+//
+// structured compile macros
+
+// frame a job with setup and view into a complete job
+
+function cJob(name, cSetup, cView) {
     return [
-        ...cFadeout(dur, fade),
+        ...cInit(name),
+        ...cSetup,
+        ...cView,
         ...cTerm()
     ];
 }
-// shortcut for viewing a slide
-// with crossfading
+
+// --------------------
+//
+// setup macros
+
+// text slide with align/offset spec and text
+//
+// example: cLoadText({dir: 'NW', shift: V2(0.1,0.2)}, '<h1>Hello</h1>')
+//   places the text 'Hello' redered as a 'H1' elem
+//   with 10% of stage width as padding to the left
+//   and 20% of stage height as padding at the top of the stage
+
+function cLoadText1(gs, text) {
+    const gs1 = {...gs, alg: 'fix'};
+    return cLoadText(defaultFrameGeo, [gs1], text);
+}
+
+function cLoadImgStd(imgPath, gs) {
+    return cLoadImg(imgPath, defaultFrameGeo, [gs]);
+}
+
+// --------------------
+//
+// view macros
+
+// a slide view: fadein, fadeout and view steps
+
+function cViewStd0(fadeinDur, fadeinTr, fadeoutDur, fadeoutTr, cView) {
+    return [
+        ...cFadein(fadeinDur, fadeinTr),
+        ...cView,
+        ...cFadeout(fadeoutDur, fadeoutTr)
+    ];
+}
+
+// a standard slide view: fadein, view, fadeout
+
+function cViewStd(fadeinDur, fadeinTr, dur, fadeoutDur, fadeoutTr) {
+    return cViewStd0(fadeinDur, fadeinTr,
+                     fadeoutDur, fadeoutTr,
+                     cView(dur)
+                    );
+}
+
+// a standard view with crossfade in/out
 
 function cViewCrossfade(dur, fadeDur) {
-    return [
-        ...cFadein(fadeDur, trCrossfade),
-        ...cView(dur),
-        ...cFadeoutTerm(fadeDur, trCrossfade)
-    ];
+    return cViewStd(fadeDur, trCrossfade, dur, fadeDur, trCrossfade);
 }
 
 // ----------------------------------------
@@ -972,68 +1009,68 @@ function mkJob(jno,code) {
 
 var j1 = mkJob(
     1,
-    [ ...cInit('HalloWelt'),
-      ...cLoadText(
-          defaultFrameGeo,
-          [{alg: 'fix', dir: 'NW', shift: V2(0.10,0.10)}],
-          "<h1>Hallo Welt</h1><p>Hier bin ich!</p>"
-      ),
-      ...cFadein(1.0, trFadein),
-      ...cView(3.0),
-      ...cFadeout(2.0, trCrossfade),
-      ...cTerm()
-    ]);
+    cJob('HalloWelt',
+         cLoadText1({dir: 'NW', shift: V2(0.10,0.10)},
+                    "<h1>Hallo Welt</h1><p>Hier bin ich!</p>"
+                   ),
+         cViewStd(1.0, trFadein, 3.0, 2.0, trCrossfade)
+        )
+);
 
 var j2 = mkJob(
     2,
-    [ ...cInit('Hallo'),
-      ...cLoadText(
-          rightHalfGeo,
-          [{alg: 'fix', dir: 'SE', shift: V2(-0.20,-0.20)}],
-          "<h2>Hallo Welt</h2>"),
-      ...cViewCrossfade(3.0,0.5)
-    ]);
+    cJob('Hallo',
+         cLoadText(rightHalfGeo,
+                   [{alg: 'fix', dir: 'SE', shift: V2(-0.20,-0.20)}],
+                   "<h2>Hallo Welt</h2>"),
+         cViewStd0(0.5, trCrossfade,
+                   0.5, trCrossfade,
+                   [...cView(3.0),
+                    // more view steps
+                   ]
+                  )
+        )
+);
 
 var j3 = mkJob(
     3,
-    [ ...cInit('Ente1'),
-      ...cLoadImg(
-          ['/archive/collections/albums/EinPaarBilder',1],
-          defaultFrameGeo,
-          [ defaultSlideGeo,
-            {alg: 'fill', scale: 2.0, dir: 'center',},
-            {alg: 'fix',},                  // real img size
-          ],
-      ),
-      ...cFadein(2.0, trCrossfade),
-      ...cView(5.0),
-      // some animations
-      ...cFadeoutTerm(1.0, trCrossfade)
-    ]);
-
+    cJob('Ente1',
+         cLoadImg(['/archive/collections/albums/EinPaarBilder',1],
+                  defaultFrameGeo,
+                  [ defaultSlideGeo,
+                    {alg: 'fill', scale: 2.0, dir: 'center',},
+                    {alg: 'fix',},                  // real img size
+                  ]
+                 ),
+         cViewStd0(2.0, trCrossfade,
+                   1.0, trCrossfade,
+                   [...cView(5.0),
+                    // more view steps
+                   ]
+                  )
+        )
+);
 
 var j4 = mkJob(
     4,
-    [ ...cInit("Ente2"),
-      ...cLoadImg(
-          ['/archive/collections/albums/EinPaarBilder',2],
-          defaultFrameGeo,
-          [{alg: 'fill', scale: 1.1, dir: 'center',},],
-      ),
-      ...cViewCrossfade(5.0,1.0)
-    ]);
+    cJob("Ente2",
+         cLoadImgStd(['/archive/collections/albums/EinPaarBilder',2],
+                     {alg: 'fill', scale: 1.1, dir: 'center'}
+                    ),
+         cViewCrossfade(5.0,1.0)
+        )
+);
 
 var j5 = mkJob(
     5,
-    [ ...cInit("Ende"),
-      ...cLoadText1({dir: 'center'},
+    cJob('Ende',
+         cLoadText1({dir: 'center'},
                     `<h1>The End</h1>
                      <div>This is the end, my friend.</div>`
                    ),
-      ...cFadein(1.0, trFadein),
-      ...cView(3.0),
-      ...cFadeoutTerm(5.0, trFadeout)
-    ]);
+         cViewStd(1.0, trFadein, 3.0, 5.0, trFadeout)
+        )
+);
 
 function ttt() {
     setAspectRatio(V2(4,3));
