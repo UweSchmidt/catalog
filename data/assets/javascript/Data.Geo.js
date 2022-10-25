@@ -22,13 +22,19 @@ const serverSupportedGeos =
         "2560x1440"
       ];
 
-function bestFitToGeo (s) {
+function bestFitToGeo (reqGeo, orgGeo) {
     for (let v of serverSupportedGeos) {
         const g = readGeo(v);
-        if (fitsIntoV2(s, g))
+        if (fitsIntoV2(reqGeo, g))
             return g;
     }
-    return geoOrg;
+
+    // optimize resizing for large pictures like panoramas
+    const sizeReqGeo = areaV2(reqGeo);
+    const sizeOrgGeo = areaV2(orgGeo);
+    return ( 4 * sizeReqGeo < sizeOrgGeo )
+        ? roundV2(reqGeo)  // request a scaled down copy
+        : geoOrg;          // request original size image
 }
 
 // --------------------

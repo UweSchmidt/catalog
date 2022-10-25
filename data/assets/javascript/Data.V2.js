@@ -125,6 +125,9 @@ function aspectRatioV2(p) {
     return p.x / p.y;
 }
 
+function areaV2(p) {
+    return p.x * p.y;
+}
 
 function scaleV2(p, s) {             // p * s with integer results
     return V2(Math.floor(p.x * s),   // for screen geometry arithmetic

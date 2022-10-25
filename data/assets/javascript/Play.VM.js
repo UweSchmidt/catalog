@@ -206,6 +206,17 @@ function cMove(dur, gix) {
     }
 }
 
+/*
+function wrap(node, c1) {
+    function go(...args) {
+        return {node: node, succ: c1(...args)};
+    }
+    return go;
+}
+
+const cFadein = wrap('cFadein', cFadein1);
+*/
+
 function cFadein(dur, fade0, waitJob) {
     const pj   = waitJob || 1;
     const fade = (dur === 0) ? trCut : fade0;
@@ -770,7 +781,8 @@ function loadPage(activeJob, jobData) {
             jobData.imgMetaData = getPageMeta(page);
             jobData.imgGeo      = imgGeo;
             jobData.imgMaxGeo   = mxGeo;
-            jobData.imgReqGeo   = bestFitToGeo(mxGeo);
+            jobData.imgReqGeo   = bestFitToGeo(mxGeo, imgGeo);
+
             break;
         default:
             trc(1,`loadPage: unsupported page type ${ty}`);
@@ -799,7 +811,7 @@ function loadMedia(activeJob, jobData) {
     switch ( ty ) {
     case 'img':
         jobData.imgCache = new Image();           // image cache
-        const req = { rType: 'img',
+        const req = { rType:    'img',
                       rPathPos: jobData.imgPathPos
                     };
         const url = imgReqToUrl(req, jobData.imgReqGeo);
@@ -845,7 +857,8 @@ function imgGeoToCSS(jobData, gix) {
     const frameGeo = jobData.frameGO.geo;
     const imgGeo   = jobData.imgGeo;
     const go       = placeMedia(frameGeo, imgGeo)(jobData.geos[gix]);
-    jobData.go     = go;
+    jobData.gix    = gix;          // save current geo spec index
+    jobData.go     = go;           // save current abs geo/off
     return cssAbsGeo(go);
 }
 
@@ -1169,6 +1182,26 @@ var j4 =
          cViewCrossfade(5.0,1.0)
         );
 
+var j6 =
+    cJob("arizona",
+         cLoadImg(['/archive/collections/clipboard',0],
+                  defaultFrameGeo,
+                  [{alg: 'sameHeight', scale: 1, dir: 'W'},
+                   {alg: 'sameHeight', scale: 1, dir: 'E'},
+                   {alg: 'sameWidth',  scale: 1, dir: 'center'},
+                 ]
+                 ),
+         cViewStd0(1.5, trCrossfade,
+                   1.5, trCrossfade,
+                   [...cView(2.0),
+                    ...cMove(10.0,1),
+                    ...cView(2.0),
+                    ...cMove(4.0,2),
+                    ...cView(3.0),
+                   ]
+                  )
+        );
+
 var j5 =
     cJob('Ende',
          cLoadText1({dir: 'center'},
@@ -1181,8 +1214,9 @@ var j5 =
 var jobList = [
 //    j1,
 //    j2,
-    j3,
-    j4,
+//    j3,
+    j6,
+//    j4,
     j5,
 ];
 
