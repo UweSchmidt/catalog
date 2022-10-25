@@ -862,6 +862,7 @@ function place(activeJob, jobData, gix) {
 function move(activeJob, jobData, dur, gix) {
     const fid   = mkFrameId(activeJob.jno);
     const cssId = mkCssId(activeJob.jno, gix);
+    const imgId = mkImgId(fid);
 
     const ms0   = cssAbsGeo(jobData.go);     // transition start
     const ms1   = imgGeoToCSS(jobData, gix); // transition end
@@ -883,13 +884,27 @@ img.${cssId}, div.${cssId} {
   animation-fill-mode:       both;
 }
 `;
+    // install CSS animation code
+    const c = newCssNode(cssId);
+    c.appendChild(newText(cssKeyFrames + cssMoveClass));
 
-    newCssNode(cssId);
-    getElem(cssId).appendChild(newText(cssKeyFrames + cssMoveClass));
+    const i = getElem(imgId);
+
+    function animEnd(ev) {
+        trc(1, `animEnd: ${ev.animationName} animation has finished`);
+
+        ev.stopPropagation();
+        i.classList.remove(cssId);
+        i.removeEventListener("animationend", animEnd);
+        setCSS(imgId, ms1);
+        // // for debugging
+        // c.remove();
+    }
 
     trc(1,`move: ${activeJob.jno} dur=${dur} gix=${gix}`);
-    trc(1,`move: dummy impl`);
-    setCSS(mkImgId(fid), ms1);
+
+    i.addEventListener('animationend', animEnd);
+    i.classList.add(cssId);
 }
 
 function moveCSS(ms) {
@@ -1052,7 +1067,8 @@ function fadeoutAnim(jno, dur) { fadeAnim(mkFrameId(jno), dur, 'fadeout'); }
 function removeFrame(jno) {
     const frameId  = mkFrameId(jno);
     const e = getElem(frameId);
-    e.remove();
+
+    e && e.remove();
 }
 
 // ----------------------------------------
@@ -1121,23 +1137,26 @@ var j3 =
          cLoadImg(['/archive/collections/albums/EinPaarBilder',1],
                   defaultFrameGeo,
                   [ defaultSlideGeo,
-                    {alg: 'fill', scale: 2.0, dir: 'center',},
+                    {alg: 'fill',    scale: 2.0, dir: 'center',},
                     {alg: 'fitInto', scale: 0.5, dir: 'center',},
                     {alg: 'fix',},                  // real img size
                     {alg: 'fitInto', scale: 0.5, dir: 'W',},
+                    defaultSlideGeo,
                   ]
                  ),
          cViewStd0(2.0, trCrossfade,
-                   1.0, trCrossfade,
+                   2.0, trCrossfade,
                    [...cView(2.0),
-                    ...cMove(1.0,1),
+                    ...cMove(3.0,1),
                     ...cView(3.0),
-                    ...cMove(1.0,2),
+                    ...cMove(5.0,2),
                     ...cView(3.0),
-                    ...cMove(1.0,3),
+                    ...cMove(2.0,3),
                     ...cView(3.0),
-                    ...cMove(0.0,4),
-                    ...cView(3.0)
+                    ...cMove(1.0,4),
+                    ...cView(3.0),
+                    ...cMove(1.0,5),
+                    ...cView(3.0),
                    ]
                   )
         );
@@ -1167,8 +1186,11 @@ var jobList = [
     j5,
 ];
 
-function startJobs(js) {
+function restartJobs(js) {
     for (let i = 0; i < js.length; ++i) {
+        // remove comments in terminateJob to cleanup on the fly
+        removeFrame(i+1);    // cleanup DOM when restartd
+        remJob(i+1);         // cleanup job data when restarted
         addJob(i+1, js[i]);
     }
     for (let i = 0; i < js.length; ++i) {
@@ -1179,7 +1201,7 @@ function startJobs(js) {
 function ttt() {
     setAspectRatio(V2(4,3));
     initVM();
-    startJobs(jobList);
+    restartJobs(jobList);
 }
 
 // ----------------------------------------
