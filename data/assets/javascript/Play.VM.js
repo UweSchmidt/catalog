@@ -44,6 +44,7 @@ const opSetData   = "setdata";
 const opSetStatus = "setstatus";
 const opDelay     = "delay";
 const opWait      = "wait";
+const opWaitInput = "waitinput";
 const opFinish    = "finish";
 
 // ----------------------------------------
@@ -122,6 +123,11 @@ function mkDelay(dur) {
            };
 }
 
+function mkWaitInput() {
+    return { op: opWaitInput
+           };
+}
+
 function mkWait(reljno, st) {
     return { op:     opWait,
              reljno: reljno,
@@ -187,9 +193,16 @@ function cLoadText(frameGeo, geos, text, gix) {
 }
 
 function cView(dur) {
-    return [
-        mkDelay(dur),
-    ];
+    if ( dur <= 0 ) {
+        return [
+            mkWaitInput(),
+        ];
+    }
+    else {
+        return [
+            mkDelay(dur),
+        ];
+    }
 }
 
 function cMove(dur, gix) {
@@ -292,7 +305,8 @@ function cJob(name, cSetup, cView) {
 //   with 10% of stage width as padding to the left
 //   and 20% of stage height as padding at the top of the stage
 
-function cLoadText1(gs, text) {
+function cLoadText1(text, gs) {
+    gs = gs || defaultSlideGeo;
     const gs1 = {...gs, alg: 'fix'};
     return cLoadText(defaultFrameGeo, [gs1], text);
 }
@@ -356,6 +370,7 @@ var jobsCode;
 var jobsData;
 var jobsAll;
 var jobsWaiting;
+var jobsInput;
 var jobsReady;
 var jobsRunning;
 
@@ -366,6 +381,7 @@ function initVM() {
     jobsData    = new Map();  // Map Jno JobData
     jobsAll     = new Map();  // Map Jno ActiveJob
     jobsWaiting = new Map();  // Map Jno (Map Status (Set Jno))
+    jobsInput   = [];         // Queue Jno
     jobsReady   = [];         // Queue Jno
     jobsRunning = new Set();  // Set Jno
 }
@@ -380,19 +396,23 @@ function addJob(jno, jcode) {
     jobsData.set(jno, {});
     jobsAll.set(jno, mkActiveJob(jno, 0, new Set()));
 }
+
 function remJob(jno) {
     jobsCode.delete(jno);
     jobsData.delete(jno);
     jobsAll.delete(jno);
 };
+
 function getCode(jno) {
     return jobsCode.get(jno);
 }
+
 function getData(jno) {
     return jobsData.get(jno);
 }
+
 function noMoreJobs() {
-    return ! readyJobs() && ! runningJobs();
+    return ! readyJobs() && ! runningJobs() && ! waitingForInputJobs();
 }
 
 // --------------------
@@ -422,10 +442,12 @@ function addReady(jno) {
         }
     }
 }
+
 function nextReady() {
     const jno = jobsReady.shift();      // get and rem 1. elem of job queue
     return jobsAll.get(jno);
 }
+
 function readyJobs() {
     return jobsReady.length > 0;
 }
@@ -460,7 +482,7 @@ function wakeupWaiting(waitFor) {
             if ( stmap.size === 0) {
                 jobsWaiting.delete(jno1);
             }
-            jnos.forEach((jno) => {             // wakeup all jobs
+            jnos.forEach((jno) => {           // wakeup all jobs
                 trc(1,`wakup: job ${jno}`);   // waiting for jno1 reaching
                 addReady(jno);                // status1
             });
@@ -485,6 +507,25 @@ function wakeupAllWaiting(jno1) {
 
 function waitingJobs() {
     return jobsWaiting.size > 0;
+}
+
+// --------------------
+
+function addInputJob(jno) {
+    trc(1,`addInputJob: job ${jno} inserted into waiting for click queue`);
+    jobsInput.push(jno);
+}
+
+function wakeupInputJobs() {
+    jobsInput.forEach((jno) => {
+        trc(1,`wakeupInputJobs: job ${jno} moved to ready jobs`);
+        addReady(jno);
+    });
+    jobsInput = [];
+}
+
+function waitingForInputJobs() {
+    return jobsInput.length > 0;
 }
 
 // --------------------
@@ -528,6 +569,9 @@ function step1() {
     }
     else if ( runningJobs() ) {
         return 'running';
+    }
+    else if ( waitingForInputJobs() ){
+        return 'waiting for input';
     }
     else if ( waitingJobs() ){
         return 'blocked';
@@ -637,6 +681,13 @@ function execInstr(instr, activeJob) {
             return;
         }
         advanceReadyJob(activeJob);
+        return;
+    }
+
+    // put job into queue of jobs waiting for click
+    if ( op == opWaitInput ) {
+        addInputJob(jno);
+        advanceJob(activeJob);
         return;
     }
 
@@ -1126,8 +1177,8 @@ function mkJob(jno,code) {
 
 var j1 =
     cJob('HalloWelt',
-         cLoadText1({dir: 'NW', shift: V2(0.10,0.10)},
-                    "<h1>Hallo Welt</h1><p>Hier bin ich!</p>"
+         cLoadText1("<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
+                    {dir: 'NW', shift: V2(0.10,0.10)},
                    ),
          cViewStd(1.0, trFadein, 3.0, 2.0, trCrossfade)
         );
@@ -1195,7 +1246,7 @@ var j6 =
                    1.5, trCrossfade,
                    [...cView(2.0),
                     ...cMove(10.0,1),
-                    ...cView(2.0),
+                    ...cView(-1),
                     ...cMove(4.0,2),
                     ...cView(3.0),
                    ]
@@ -1204,8 +1255,7 @@ var j6 =
 
 var j5 =
     cJob('Ende',
-         cLoadText1({dir: 'center'},
-                    `<h1>The End</h1>
+         cLoadText1(`<h1>The End</h1>
                      <div>This is the end, my friend.</div>`
                    ),
          cViewStd(1.0, trFadein, 3.0, 5.0, trFadeout)
@@ -1236,6 +1286,10 @@ function ttt() {
     setAspectRatio(V2(4,3));
     initVM();
     restartJobs(jobList);
+}
+
+function click() {
+    wakeupInputJobs();
 }
 
 // ----------------------------------------

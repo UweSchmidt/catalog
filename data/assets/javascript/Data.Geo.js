@@ -194,25 +194,39 @@ function offsetNE(o) { return V2(o.x * 2, 0);}
 
 function resizeAlg(name) {
     switch ( name ) {
+    case 'fit'        :
     case 'fitInto'    : return fitIntoGeo;
     case 'fill'       : return fillGeo;
+    case 'fitheight'  :
     case 'sameHeight' : return sameHeightGeo;
+    case 'fitwidth'   :
     case 'sameWidth'  : return sameWidthGeo;
     case 'fix'        :
+    case 'abs'        :
     default           : return realSize;
     }
 }
 
 function offsetAlg(name) {
     switch ( name ) {
+    case 'n' :
     case 'N' : return offsetN;
+    case 'nw':
     case 'NW': return offsetNW;
+    case 'w' :
     case 'W' : return offsetW;
+    case 'sw':
     case 'SW': return offsetSW;
+    case 's' :
     case 'S' : return offsetS;
+    case 'se':
     case 'SE': return offsetSE;
+    case 'e' :
     case 'E' : return offsetE;
+    case 'ne':
     case 'NE': return offsetNE;
+    case 'C' :
+    case 'c' :
     case 'center':
     default: return offsetC;
     }
