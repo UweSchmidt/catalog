@@ -1265,7 +1265,7 @@ var j6 =
 
 var j5 =
     cJob('Ende',
-         cLoadText1(`<h1>The End</h1>
+         cLoadText1(`<h1 class='text-center'>The End</h1>
                      <div>This is the end, my friend.</div>`
                    ),
          cViewStd(1.0, trFadein, 'click', 5.0, trFadeout)
