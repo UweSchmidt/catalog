@@ -113,6 +113,18 @@ function roundV2(p) {
              );
 }
 
+function ceilV2(p) {
+    return V2(Math.ceil(p.x),
+              Math.ceil(p.y)
+             );
+}
+
+function floorV2(p) {
+    return V2(Math.floor(p.x),
+              Math.floor(p.y)
+             );
+}
+
 function maxCompV2(p) {
     return Math.max(p.x, p.y);
 }
@@ -127,12 +139,6 @@ function aspectRatioV2(p) {
 
 function areaV2(p) {
     return p.x * p.y;
-}
-
-function scaleV2(p, s) {             // p * s with integer results
-    return V2(Math.floor(p.x * s),   // for screen geometry arithmetic
-              Math.floor(p.y * s)
-             );
 }
 
 function fitsIntoV2(p1, p2) {

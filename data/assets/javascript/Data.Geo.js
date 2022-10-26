@@ -71,7 +71,7 @@ function fitToFrameGeo(fameGeo, geo, blowUp) {
 
 function placeOnFrame(frameGeo, geo, shift0) {
     const shift   = shift0 || zeroV2;
-    const leftTop = scaleV2(subV2(frameGeo, geo), 0.5);
+    const leftTop = floorV2(mulV2(subV2(frameGeo, geo), 0.5));
     const res     = addV2(leftTop, shift);
     trc(1,`placeOnFramw: ${showGeo(leftTop)} ${showGeo(res)}`);
     return res;

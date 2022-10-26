@@ -214,7 +214,7 @@ function cMove(dur, gix) {
     else {
         return [
             mkMove(dur, gix),
-            mkDelay(dur)
+            cView(dur)
         ];
     }
 }
@@ -232,7 +232,7 @@ const cFadein = wrap('cFadein', cFadein1);
 
 function cFadein(dur, fade0, waitJob) {
     const pj   = waitJob || 1;
-    const fade = (dur === 0) ? trCut : fade0;
+    const fade = (dur <= 0) ? trCut : fade0;
 
     switch ( fade ) {
     case 'fadein':
@@ -260,7 +260,7 @@ function cFadein(dur, fade0, waitJob) {
 }
 
 function cFadeout(dur, fade0) {
-    const fade = (dur === 0) ? trCut : fade0;
+    const fade = (dur <= 0) ? trCut : fade0;
 
     switch ( fade ) {
     case 'fadeout':
@@ -685,7 +685,7 @@ function execInstr(instr, activeJob) {
     }
 
     // put job into queue of jobs waiting for click
-    if ( op == opWaitInput ) {
+    if ( op === opWaitInput ) {
         addInputJob(jno);
         advanceJob(activeJob);
         return;
@@ -1057,9 +1057,9 @@ function renderText(jobData, frameId, stageGeo, parentId, gix) {
 
     const ms1 = cssAbsGeo(go);
     const ms2 = { height:             'auto',
-                  width:              'auto',
-                  // 'background-color': 'red',
-                  'background-color': 'transparent',
+                  width:              null,
+                  'background-color': 'red',
+                  // 'background-color': 'transparent',
                 };
     const ms  = {...ms1, ...ms2};
 
@@ -1076,7 +1076,9 @@ function renderText(jobData, frameId, stageGeo, parentId, gix) {
     // and overwrite preliminary geo/off
 
     const rect    = me.getBoundingClientRect();
-    const textGeo = V2(rect.width, rect.height);
+
+    // round up geo, else unwanted linebreaks are added during rendering
+    const textGeo = ceilV2(V2(rect.width, rect.height));
     const go3     = placeMedia(frameGeo, textGeo)(gs);
     const ms3     = cssAbsGeo(go3);
     setCSS(me, ms3);
@@ -1258,14 +1260,14 @@ var j5 =
          cLoadText1(`<h1>The End</h1>
                      <div>This is the end, my friend.</div>`
                    ),
-         cViewStd(1.0, trFadein, 3.0, 5.0, trFadeout)
+         cViewStd(1.0, trFadein, -3.0, 5.0, trFadeout)
         );
 
 var jobList = [
 //    j1,
 //    j2,
 //    j3,
-    j6,
+//    j6,
 //    j4,
     j5,
 ];
