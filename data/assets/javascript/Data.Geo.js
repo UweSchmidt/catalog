@@ -120,6 +120,19 @@ function showGeo(geo) {
     return "" + geo.x + "x" + geo.y;
 }
 
+function showOff(off) {
+    function sign(x) {
+        return (x < 0) ? "" + x : "+" + x;
+    }
+    return sign(off.x) + sign(off.y);
+}
+
+function showGO(go) {
+    const g = showGeo(go.geo);
+    const o = nullV2(go.off) ? "" : showOff(go.off);
+    return g + o;
+}
+
 // Number or Geo to CSS pixel format
 function toPx(val) {
 

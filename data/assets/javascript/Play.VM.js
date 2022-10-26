@@ -92,7 +92,7 @@ function mkFadeout(dur, trans) {
 };
 
 function mkSetStatus(st) {
-    return { op:  opSetStatus,
+    return { op: opSetStatus,
              st: st,
            };
 };
@@ -209,7 +209,7 @@ function cMove(dur, gix) {
     if ( isPositive(dur) ) {
         return [
             mkMove(dur, gix),
-            cView(dur)
+            ...cView(dur)
         ];
     }
     else {
@@ -1319,7 +1319,10 @@ const reFract   = reOptSign + reFractN;
 const reGeo     = par(reFractN) + 'x' + par(reFractN);
 const reOff     = par(reFractS) + par(reFractS);
 const reGO      = reGeo + reOff;
+const rePathPx  = "/archive/collections";
+const reRemPx   = rePathPx + par("/.*");
 const rePicPath = "(/.*)/pic-" + par(reNat);
+const reDir     = par("N|NE|E|SE|S|SW|W|NW|C");
 
 function parse1(re, build) {
     function go(inp) {
@@ -1340,21 +1343,55 @@ function pAlt(p1, p2) {
     return go;
 }
 
-const parse = {
-    all:    parse1(".*", (l) => { return l[0];}),
+// const parseAll = parse1(".*", (l) => { return l[0];});
+
+function parseAll(build) {
+    return (x) => {
+        return ( build ) ? build(x) : x;
+
+    };
+}
+
+const parseDur = pAlt(parse1(reFractN + "s", buildNum),
+                      parseAll(cnst(0.0))
+                     );
+const ps = {
+    all:    parseAll,
+
+    // numbers
     nat:    parse1(reNat, buildNum),
     snat:   parse1(reSNat, buildNum),
     int:    parse1(reInt, buildNum),
     fract:  parse1(reFract, buildNum),
     sfract: parse1(reFractS, buildNum),
+
+    // direction
+    dir:    pAlt(parse1(reDir, (l) => { return l[0] }),
+                 parseAll(cnst('C'))
+                ),
+
+    // duration
+    dur:       parseDur,
+    clickdur:  pAlt(parse1('click', cnst('click')),
+                    parseDur
+                   ),
+
+    // geo and offset
     geo:    parse1(reGeo, buildV2),
     off:    pAlt(parse1(reOff, buildV2),
                  parse1(reGeo, buildV2)
                 ),
-    go:     parse1(reGO, buildGO),
-    path:   pAlt(parse1(rePicPath, buildPathPic),
-                 parse1(".*", (l) => { return [l[0]]; })
+    go:     pAlt(parse1(reGO, buildGO),
+                 parse1(reGeo, buildGOgeo)
                 ),
+
+    // image paths
+    path:    pAlt(parse1(rePicPath, buildPathPic),
+                  parse1(".*", (l) => { return [l[0]]; })
+                 ),
+    pathpx: pAlt(parse1(reRemPx, (l) => { return l[1]; }),
+                 parseAll
+                )
 };
 
 function buildNum(l) { return 1 * l[0]; }
@@ -1364,7 +1401,91 @@ function buildGO(l)  {
     const off = buildV2(l.slice(4));
     return {geo: geo, off: off};
 }
+
+function buildGOgeo(l) {
+    const geo = buildV2(l);
+    return {geo: geo, off: V2(0,0)};
+}
+
 function buildPathPic(l) {
     return [l[1], 1 * l[2]];
 }
+
+// ----------------------------------------
+
+function ppSimple(x) { return "" + x; }
+function ppDur(x) { return "" + x + "s"; }
+
+function ppPath(l) {
+    return l[0] + (l[1] ? ppSimple(l[1]) : "");
+}
+
+function ppPathPrefix(p) { return rePathPx + p; }
+function ppInstr(i) {
+    const op = i.op;
+    let  res = [fillR(10, op)];
+
+    switch ( op ) {
+    case opInit:
+    case opLoadpage:
+    case opLoadmedia:
+    case opWaitInput:
+    case opFinish:
+        break;
+
+    case opRender:
+    case opPlace:
+        res.push(pp.num(i.gix));
+        break;
+
+    case opFadein:
+    case opFadeout:
+        res.push(i.trans, pp.dur(i.dur));
+        break;
+
+    case opSetStatus:
+        res.push(i.st);
+        break;
+
+    case opSetData:
+        res.push(i.key, JSON.stringify(i.data));
+        break;
+
+    case opMove:
+        res.push(pp.dur(i.dur), pp.num(i.gix));
+        break;
+
+    case opDelay:
+        res.push(pp.dur(i.dur));
+        break;
+
+    case opWait:
+        res.push(pp.num(i.reljno), i.status);
+        break;
+
+    default:
+        res.push('unknown op');
+    }
+    return nl(unwords(res));
+}
+
+function showCode(is) {
+    return intercalate("", map(ppInstr)(is));
+}
+
+const pp = {
+    text:     ppSimple,
+    num:      ppSimple,
+    dur:      ppDur,
+    dir:      ppSimple,
+    clickdur: ppSimple,
+    geo:      showGeo,
+    off:      showOff,
+    go:       showGO,
+    path:     ppPath,
+    pathpx:   ppPathPrefix,
+    instr:    ppInstr,
+    code:     showCode,
+};
+
 // ----------------------------------------

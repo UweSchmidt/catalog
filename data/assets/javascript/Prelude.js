@@ -80,6 +80,15 @@ function replicate(n, s) {
     };
 }
 
+function fillR(n, xs) {
+    return xs + replicate(n - xs.length, " ");
+}
+
+function fillL(n, xs) {
+    return replicate(n - xs.length, " ") + xs;
+}
+
+
 // simple quoting
 // works only if s doen't contain double quotes
 
@@ -103,6 +112,12 @@ function intercalate(s, xs) {
     }
 }
 
+function unwords(xs) {
+    return intercalate(" ", xs);
+}
+
+function nl(s) { return s + "\n"; }
+
 // --------------------
 //
 // functions
@@ -115,7 +130,7 @@ function cnst(c) {
 }
 
 // function composition
-// comp(f1, f2, f3)(v) === f1(f2(f3(v)))
+// comp(f1, f2, f3)(v) === f3(f2(f1(v)))
 
 function comp(...fs) {
     function composed(x) {

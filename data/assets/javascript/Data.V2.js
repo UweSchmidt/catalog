@@ -107,6 +107,10 @@ function neqV2(p1, p2) {
     return ! eqV2(p1, p2);
 }
 
+function nullV2(p) {
+    return p.x === 0 && p.y === 0;
+}
+
 function roundV2(p) {
     return V2(Math.round(p.x),
               Math.round(p.y)
