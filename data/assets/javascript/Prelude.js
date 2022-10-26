@@ -37,6 +37,34 @@ function lt(x, y) { return x <  y; }
 
 // --------------------
 //
+// type checks
+
+function isEmpty(x) {
+    return x === undefined || x === null || x === "";
+}
+
+function isString(x) {
+    return typeof x === 'string';
+}
+
+function isObject(x) {
+    return typeof x === 'object';
+}
+
+function isNumber(x) {
+    return typeof x === 'number';
+}
+
+function isPositive(x) {
+    return isNumber(x) && x > 0;
+}
+
+function isNegative(x) {
+    return isNumber(x) && x < 0;
+}
+
+// --------------------
+//
 // string functions
 
 function replicate(n, s) {

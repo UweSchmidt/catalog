@@ -23,7 +23,7 @@ function getElem(id) {
 // e may be an id of an element or the element itself
 
 function clearCont(e) {
-    if (typeof e === "string") {
+    if ( isString(e) ) {
         const e1 = getElem(e);
         if (e1 != null) {
             clearCont(e1);
@@ -39,22 +39,22 @@ function clearCont(e) {
 // set CSS attribute(s) in an element (identified by an id)
 
 function setCSS(e, attrs, val) {
-    if (typeof e === "string") {  // e is an id
+    if ( isString(e) ) {  // e is an id
         setCSS(getElem(e), attrs, val);
     }
-    else if (typeof attrs == "string"
-             &&
-             typeof val === "string"
+    else if ( isString(attrs)
+              &&
+              isString(val)
             ) {
         e.style[attrs] = val;
     }
-    else if (typeof e === "object"
-             &&
-             typeof attrs === "object"
+    else if ( isObject(e)
+              &&
+              isObject(attrs)
             ) {
         for (let a in attrs) {    // e is an element
             const v = attrs[a];
-            if ( v === undefined || v === null || v === "" ) {
+            if ( isEmpty(v) ) {
                 e.style.removeProperty(a);
             }
             else {
@@ -106,18 +106,18 @@ function clearAnimDur(e) {
 // create an element with id attr, style attributes, and class attribues
 function newElem(tag, x2, x3, x4) {
     let id = "";
-    if (typeof x2 === "string") {  // elem id found
+    if ( isString(x2) ) {  // elem id found
         id = x2;
         x2 = x3;
         x3 = x4;
     }
     let css = {};
-    if (typeof x2 === "object") {  // style obj found
+    if ( isObject(x2) ) {  // style obj found
         css = x2;
         x2  = x3;
     }
     let cls = "";
-    if (typeof x2 === "string") {  // css class found
+    if ( isString(x2) ) {  // css class found
         cls = x2;
     }
 

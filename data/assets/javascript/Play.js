@@ -24,7 +24,7 @@ function resizedScreen() {
 function setAspectRatio(p, c) {
     trc(1, "setAspectRatio " + c);
     layout.stageAspectRatio = p;
-    if ( c != undefined ) {
+    if ( c !== undefined ) {
         layout.stageIsCentered = c;
     }
     setSizeImgTab();

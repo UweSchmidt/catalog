@@ -193,28 +193,28 @@ function cLoadText(frameGeo, geos, text, gix) {
 }
 
 function cView(dur) {
-    if ( dur <= 0 ) {
+    if ( isPositive(dur) ) {
         return [
-            mkWaitInput(),
+            mkDelay(dur),
         ];
     }
     else {
         return [
-            mkDelay(dur),
+            mkWaitInput(),
         ];
     }
 }
 
 function cMove(dur, gix) {
-    if ( dur === 0 ) {
+    if ( isPositive(dur) ) {
         return [
-            mkPlace(gix),
+            mkMove(dur, gix),
+            cView(dur)
         ];
     }
     else {
         return [
-            mkMove(dur, gix),
-            cView(dur)
+            mkPlace(gix),
         ];
     }
 }
@@ -232,7 +232,10 @@ const cFadein = wrap('cFadein', cFadein1);
 
 function cFadein(dur, fade0, waitJob) {
     const pj   = waitJob || 1;
-    const fade = (dur <= 0) ? trCut : fade0;
+    const fade =
+          isPositive(dur)
+          ? fade0
+          : trCut;
 
     switch ( fade ) {
     case 'fadein':
@@ -260,7 +263,10 @@ function cFadein(dur, fade0, waitJob) {
 }
 
 function cFadeout(dur, fade0) {
-    const fade = (dur <= 0) ? trCut : fade0;
+    const fade =
+          isPositive(dur)
+          ? fade0
+          : trCut;
 
     switch ( fade ) {
     case 'fadeout':
@@ -1260,7 +1266,7 @@ var j5 =
          cLoadText1(`<h1>The End</h1>
                      <div>This is the end, my friend.</div>`
                    ),
-         cViewStd(1.0, trFadein, -3.0, 5.0, trFadeout)
+         cViewStd(1.0, trFadein, 'click', 5.0, trFadeout)
         );
 
 var jobList = [
