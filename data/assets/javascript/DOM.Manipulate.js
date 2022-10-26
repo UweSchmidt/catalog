@@ -11,6 +11,10 @@ function newElem0(tag) {
     return document.createElement(tag);
 }
 
+function hasElem(id) {
+    return isObject(document.getElementById(id));
+}
+
 function getElem(id) {
     const e = document.getElementById(id);
     if (! e) {

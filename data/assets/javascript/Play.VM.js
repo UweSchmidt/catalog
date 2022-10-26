@@ -986,14 +986,16 @@ function mkCssId(jno, gix) {
 }
 
 function newCssNode(cssId) {
-    let e = document.getElementById(cssId);
-    if ( ! e ) {
+    let e;
+    if ( hasElem(cssId) ) {
+        e = getElem(cssId);
+        clearCont(e);
+    }
+    else {
         e = newElem('style', cssId);
         e.type = 'text/css';
     }
-    else {
-        clearCont(e);
-    }
+
     getElem('head').appendChild(e);
     return e;
 }
