@@ -1303,3 +1303,68 @@ function click() {
 }
 
 // ----------------------------------------
+//
+// parsers
+
+function par(x) { return `(${x})`;}
+
+const reNat     = '[0-9]+';
+const reSign    = '[-+]';
+const reOptSign = reSign + '?';
+const reSNat    = reSign + reNat;
+const reInt     = reOptSign +  + reNat;
+const reFractN  = reNat + "(.[0-9]*)?";
+const reFractS  = reSign + reFractN;
+const reFract   = reOptSign + reFractN;
+const reGeo     = par(reFractN) + 'x' + par(reFractN);
+const reOff     = par(reFractS) + par(reFractS);
+const reGO      = reGeo + reOff;
+const rePicPath = "(/.*)/pic-" + par(reNat);
+
+function parse1(re, build) {
+    function go(inp) {
+        const regex = new RegExp("^" + re + "$", "g");
+        let res = regex.exec(inp);
+        if ( res && build ) { res = build(res); }
+        return res;
+    }
+    return go;
+}
+
+
+function pAlt(p1, p2) {
+    function go(inp) {
+        const res = p1(inp);
+        return res || p2(inp);
+    }
+    return go;
+}
+
+const parse = {
+    all:    parse1(".*", (l) => { return l[0];}),
+    nat:    parse1(reNat, buildNum),
+    snat:   parse1(reSNat, buildNum),
+    int:    parse1(reInt, buildNum),
+    fract:  parse1(reFract, buildNum),
+    sfract: parse1(reFractS, buildNum),
+    geo:    parse1(reGeo, buildV2),
+    off:    pAlt(parse1(reOff, buildV2),
+                 parse1(reGeo, buildV2)
+                ),
+    go:     parse1(reGO, buildGO),
+    path:   pAlt(parse1(rePicPath, buildPathPic),
+                 parse1(".*", (l) => { return [l[0]]; })
+                ),
+};
+
+function buildNum(l) { return 1 * l[0]; }
+function buildV2(l)  { return V2(1 * l[1], 1 * l[3]); }
+function buildGO(l)  {
+    const geo = buildV2(l);
+    const off = buildV2(l.slice(4));
+    return {geo: geo, off: off};
+}
+function buildPathPic(l) {
+    return [l[1], 1 * l[2]];
+}
+// ----------------------------------------
