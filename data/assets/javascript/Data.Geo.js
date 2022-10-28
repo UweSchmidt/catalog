@@ -127,6 +127,8 @@ function showOff(off) {
     return sign(off.x) + sign(off.y);
 }
 
+function GO(geo, off) { return {geo: geo, off: off}; }
+
 function showGO(go) {
     const g = showGeo(go.geo);
     const o = nullV2(go.off) ? "" : showOff(go.off);

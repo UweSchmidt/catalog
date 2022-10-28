@@ -1555,8 +1555,6 @@ function parse1(p1, inp) {
     }
 }
 
-// function newParser() {}
-
 function succ(res, state) { return {res: res, state: state}; };
 function fail(err, state) { return {err: err, state: state}; };
 //                                            ^^^^^^^^^^^^
@@ -1825,18 +1823,23 @@ const blank      = oneOf(' \t');
 const someBlanks = someT(blank);
 const manyBlanks = manyT(blank);
 const newline    = char('\n');
-
-const del        = (p) => {return fmap(cnst(""), p);};    // discard result
-
 const eol        = alt(newline, eof);
-const blanksep   = del(alt(someBlanks,
-                           followedBy(eol)
-                          )
-                      );
-const wssep      = del(null);   // TODO
 
-const tokenB    = (p) => { return cxR(p, blanksep); };  // space and tabs
-const tokenW    = (p) => { return cxR(p, wssep); };     // blanks and nl
+const del        = (p) => {
+    return fmap(cnst(""), p);      // discard result
+};
+
+const lineCmt    = (w) => {
+    return del(seqT(word(w), manyT(noneOf('\n'))));
+};
+const lineCmtJS  = lineCmt('//');
+const lineCmtHS  = lineCmt('--');
+
+const blanksep   = del(alt(someBlanks, followedBy(eol)));
+const wssep      = del(alt(ws1,eof));
+
+const tokenBL   = (p) => { return cxR(p, blanksep); };  // space and tabs
+const tokenWS   = (p) => { return cxR(p, wssep); };     // blanks and nl
 
 // number parsers
 
@@ -1844,37 +1847,48 @@ const digit      = oneOf("0123456789");
 const manyDigits = manyT(digit);
 const someDigits = someT(digit);
 const fractN     = seqT(someDigits,
-                        opt("",
-                            seqT(char('.'),
-                                 someDigits
-                                )
-                           )
+                        opt("", seqT(char('.'), someDigits))
                        );
-const fractS     = seqT(oneOf('-+'),
-                        fractN
-                       );
-const fract      = seqT(opt("",
-                            oneOf('-+')
-                           ) ,
-                        fractN
-                       );
+const fractS     = seqT(oneOf('-+'), fractN);
+const fract      = seqT(opt("", oneOf('-+')) , fractN);
+
 // --------------------
 //
-// geo and offset parser
+// geo and offset Parser String
 
-const geoS       = seq(seqT(fractN, del(char('x'))),
+const geoS       = seq(seqT(fractN, del(char('x'))),  // 12.3x4.5
                        fractN
                       );
+
+const offS       = seq(fractS, fractS);               // +1.5-2.0
 
 // --------------------
 //
 // object parsers
 
 // whitespace parsing maybe configured here
-let token    = tokenB;
+// a token parser parses a token, converts the string(s)
+// into values
+// removes trailing whitespace
+// whitespace and comment parsing can be configured
+// by the token parser variable
 
-const pGeo   = fmap((xs) => { return V2(1 * xs[0], 1 * xs[1]); },
-                    token(geoS)
-                   );
+let   token = tokenWS;
+
+const pGeo = fmap((xs) => { return V2(1 * xs[0], 1 * xs[1]); },
+                  geoS
+                 );
+
+const pOff = fmap((xs) => { return V2(1 * xs[0], 1 * xs[1]); },
+                  offS
+                 );
+
+const geoSym = token(pGeo);
+const offSym = token(pOff);
+
+const goSym  = token(fmap((xs) => { return GO(...xs); },
+                          seq(pGeo, opt(V2(0,0),pOff))
+                         )
+                    );
 
 // --------------------
