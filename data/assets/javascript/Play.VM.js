@@ -1470,7 +1470,7 @@ function ppInstr(i) {
 }
 
 function showCode(is) {
-    return intercalate("", map(ppInstr)(is));
+    return concatS(map(ppInstr)(is));
 }
 
 const pp = {
@@ -1489,3 +1489,259 @@ const pp = {
 };
 
 // ----------------------------------------
+
+function initParserState(inp) {
+    let s0 = {
+        inp : inp,
+        ix  : 0,
+        cc  : 0,
+        lc  : 0,
+    };
+
+    function saveState() {
+        return [s0.ix, s0.cc, s0.lc];
+    }
+
+    function resetState(cs) {
+        s0.ix = cs[0];
+        s0.cc = cs[1];
+        s0.lc = cs[2];
+    }
+
+    s0.save  = saveState;
+    s0.reset = resetState;
+    return s0;
+}
+
+// object used as module
+
+function parse(p, inp) {
+    const s0 = initParserState(inp);
+    trc(1,JSON.stringify(s0));
+    return p(s0);
+}
+
+// function newParser() {}
+
+function succ(res, state) { return {res: res, state: state}; };
+function fail(err, state) { return {err: err, state: state}; };
+//                                            ^^^^^^^^^^^^
+//                                            for better error reporting
+
+// (a -> Bool) -> Parser a
+function satisfy(pred) {
+    return (state) => {
+        const c = state.inp[state.ix];
+        if ( c ) {
+            if ( pred(c) ) {
+                state.ix++;
+                if ( c === "\n" ) {
+                    state.lc += 1;
+                    state.cc  = 0;
+                }
+                else {
+                    state.cc += 1;
+                }
+                return succ(c,state);
+            }
+            else {
+                return fail(`unexpected char '${c}'`, state);
+            }
+        }
+        else {
+            return fail("end of input", state);
+        }
+    };
+}
+
+// Parser a
+const item = satisfy(cnst(true));
+
+// Char -> Parser String
+function char(c) {
+    return satisfy((c1) => { return (c === c1)});
+}
+
+// Set Char -> Parser Char
+function oneOf(s) {
+    return satisfy((c1) => {
+        return s.indexOf(c1) >= 0;
+    });
+}
+
+// Set Char -> Parser Char
+function noneOf(s) {
+    return satisfy((c1) => {
+        return s.indexOf(c1) < 0;
+    });
+}
+
+// a -> Parser a
+function unit(res) {
+        return (state) => { return succ(res, state); };
+    }
+
+// String -> Parser a
+function failure(msg) {
+    return (state) => { return fail(msg, state); };
+}
+
+// Parser String
+function eof(state) {
+    trc(1,`eof: ${state.inp} ${state.ix}`);
+    const c = state.inp[state.ix];
+    if ( ! c ) {
+        return succ("", state);
+    }
+    else {
+        const rest = state.inp.slice(state.ix);
+        return fail(`end of input expected, but seen: '${rest}'`);
+    }
+}
+
+// (a -> b) -> Parser a -> Parser b
+function fmap(f, p) {
+        return (st0) => {
+            const r1 = p(st0);
+            if ( r1.err ) {
+                return r1;
+            }
+            else {
+                const st1 = r1.state;
+                const rs1 = r1.res;
+                trc(1,`fmap: arg ${JSON.stringify(rs1)}`);
+                const res = f(rs1);
+                trc(1,`fmap: res ${JSON.stringify(res)}`);
+                return succ(res, st1);
+            }
+        };
+    }
+
+// (a -> b -> c) -> Parser a -> Parser b -> Parser c
+function appl(f, p1, p2) {
+    return (st0) => {
+        const r1 = p1(st0);
+        if ( r1.err )
+            return r1;
+        const st1 = r1.state;
+        const r2  = p2(st1);
+        if ( r2.err )
+            return r2;
+        const st2 = r2.state;
+        return succ(f(r1.res, r2.res), st2);
+    };
+}
+
+// Parser a -> (a -> Parser b) -> Parser b
+function bind(p1, f) {
+        return (state) => {
+            const r1 = p1(state);
+            if ( r1.err ) {
+                return r1;
+            }
+            else {
+                const p2 = f(r1.res);
+                return p2(r1.state);
+            }
+        };
+    }
+
+function seq(...ps) {
+    function go(state) {
+        let st = state;
+        let xs = [];
+        for (let i = 0; i < ps.length; i++) {
+            const rs = ps[i](st);
+            if ( rs.err )
+                return rs;
+            xs.push(rs.res);
+            trc(1,`seq: ${rs.res} ${JSON.stringify(xs)}`);
+            st = rs.state;
+        }
+        return succ(xs, st);
+    }
+    return go;
+}
+
+// Parser a -> Parser a -> Parser a
+function alt(p1, p2) {
+        return (state) => {
+            const s1 = state.save();
+            const r1 = p1(state);
+            if ( r1.err ) {
+                state.reset(s1);
+                return p2(state);
+            }
+            else {
+                return r1;
+            }
+        };
+    }
+
+// (Parser a, ...) -> Parser a
+function alts(...ps) {
+    let res = failure("no alternatve matched");
+    for (let i = ps.length; i > 0; i--) {
+        res = alt(ps[i-1], res);
+    }
+    return res;
+}
+
+// a -> Parser a -> Parser a
+function opt(defVal, p) {
+    return alt(p,
+               unit(defVal)
+              );
+}
+
+// Parser a -> Parser [a]
+function many(p) {
+    function go(state) {
+        let st = state;
+        let xs = [];
+        let rs = p(st);
+        while ( ! rs.err ) {
+            xs.push(rs.res);
+            st = rs.state;
+            rs = p(st);
+        }
+        return succ(xs, st);
+    }
+    return go;
+}
+
+// Parser a -> Parser [a]
+function some(p) {
+    return appl(cons, p, many(p));
+}
+
+// Parser [String] -> Parser String
+function joinT(p) {
+    return fmap((xs) => {return concatS(...xs);}, p);
+}
+
+// Parser String -> Parser String
+const manyT = (p)     => { return joinT(many(p)); };
+const someT = (p)     => { return joinT(some(p)); };
+const seqT  = (...ps) => { return joinT(seq(...ps)); };
+
+
+// Parser String
+const digit      = oneOf("0123456789");
+const manyDigits = manyT(digit);
+const someDigits = someT(digit);
+const fractN     = seqT(someDigits,
+                        opt("",
+                            seqT(char('.'),
+                                 someDigits
+                                )
+                           )
+                       );
+const fractS     = seqT(oneOf('-+'),
+                        fractN
+                       );
+const fract      = seqT(opt("",
+                            oneOf('-+')
+                           ) ,
+                        fractN
+                       );

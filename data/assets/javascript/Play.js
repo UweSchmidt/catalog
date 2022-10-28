@@ -88,7 +88,7 @@ function initPlay() {
     trc(1, "initPlay");
     resizedScreen();
     initHandlers();
-    statusBar.show("Slideshow initialized");
+    // statusBar.show("Slideshow initialized");
 }
 
 addEvent(window, 'resize', resizedScreen);

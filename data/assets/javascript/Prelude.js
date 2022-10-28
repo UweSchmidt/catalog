@@ -67,6 +67,11 @@ function isNegative(x) {
 //
 // string functions
 
+// (String, ...) -> String
+function concatS(...args) {
+    return args.join("");
+}
+
 function replicate(n, s) {
     if (n < 1)
         return "";
@@ -99,17 +104,7 @@ function qt(s) {
 // intercalate a list of strings
 
 function intercalate(s, xs) {
-    const l = xs.length;
-    if (l === 0) {
-        return "";
-
-    } else {
-        let res = xs[0];
-        for (let i = 1; i < l; i++) {
-            res += s + xs[i];
-        }
-        return res;
-    }
+    return xs.join(s);
 }
 
 function unwords(xs) {
@@ -254,6 +249,11 @@ function conc(xs, ys) {
     for (const x of xs) { res.push(x); }
     for (const y of ys) { res.push(y); }
     return res;
+}
+
+function cons(x, xs) {
+    xs.unshift(x);
+    return xs;
 }
 
 // --------------------
