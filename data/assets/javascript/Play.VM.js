@@ -1303,6 +1303,7 @@ function click() {
 }
 
 // ----------------------------------------
+/*
 //
 // parsers
 
@@ -1410,7 +1411,7 @@ function buildGOgeo(l) {
 function buildPathPic(l) {
     return [l[1], 1 * l[2]];
 }
-
+*/
 // ----------------------------------------
 
 function ppSimple(x) { return "" + x; }
@@ -1498,27 +1499,60 @@ function initParserState(inp) {
         lc  : 0,
     };
 
+    // save the variable parts of the parser state
     function saveState() {
         return [s0.ix, s0.cc, s0.lc];
     }
 
+    // restore saved parser state
+    // for backtracking in alt and followedBy parsers
     function resetState(cs) {
         s0.ix = cs[0];
         s0.cc = cs[1];
         s0.lc = cs[2];
     }
 
-    s0.save  = saveState;
-    s0.reset = resetState;
+    // prepare error message with source line and position
+    function showErr(msg) {
+        const ls  = lines(s0.inp);
+        const lc1 = s0.lc;
+        const lc0 = Math.max(0, lc1 - 3);
+        let   ls1 = take(lc1 - lc0 + 1, drop(lc0, ls));
+        const l2  = replicate(s0.cc, " ") + "^^^^^";
+        const l3  = `line ${s0.lc + 1}: ${msg}`;
+        ls1.push(l2,l3,"");
+        trc(1, unlines(ls1));
+    }
+
+    s0.save   = saveState;
+    s0.reset  = resetState;
+    s0.errmsg = showErr;
     return s0;
 }
 
 // object used as module
 
-function parse(p, inp) {
+function parse(p1, inp) {
     const s0 = initParserState(inp);
     trc(1,JSON.stringify(s0));
-    return p(s0);
+
+    const res = p1(s0);
+    trc(1,JSON.stringify(res));
+
+    return res;
+}
+
+function parse1(p1, inp) {
+    const res = parse(p1, inp);
+
+    if ( res.err ) {
+        const msg = res.state.errmsg(res.err);
+        trc(1, msg);
+        return "";
+    }
+    else {
+        return res.res;
+    }
 }
 
 // function newParser() {}
@@ -1599,6 +1633,30 @@ function eof(state) {
     }
 }
 
+// Parser String -> Parser ()        // () == ""
+function followedBy(p) {
+    function go(state) {
+        const s1 = state.save();
+        const r1 = p(state);
+        state.reset(s1);
+        if ( r1.err ) {
+            return fail("followed context not matched", state);
+        }
+        else {
+            return succ("", state);
+        }
+     }
+    return go;
+}
+
+function notFollowedBy(p) {
+    return alt(seqT(followedBy(p),
+                    failure("wrong context followed")
+                   ),
+               unit("")
+              );
+}
+
 // (a -> b) -> Parser a -> Parser b
 function fmap(f, p) {
         return (st0) => {
@@ -1632,7 +1690,23 @@ function appl(f, p1, p2) {
     };
 }
 
-// Parser a -> (a -> Parser b) -> Parser b
+// generalisation of <$> and <*>
+// f <$> Parser a <*> Parser b <*> ...
+//
+// ((a, b, ...) -> r) -> Parser a -> Parser b -> ... -> Parser r
+function app(f, ...ps) {
+    return fmap((xs) => { return f(...xs); },
+                seq(...ps)
+               );
+}
+
+// Parser a -> Parser b -> Parser a    // <*  from Applicative
+function cxR(p, cx) { return app(fst, p, cx); }  // discard 2. res
+
+// Parser b -> Parser a -> Parser a    // *>  from Applicative
+function cxL(cx, p) { return app(snd, cx, p); }  // discard 1. res
+
+// Parser a -> (a -> Parser b) -> Parser b    // >>=
 function bind(p1, f) {
         return (state) => {
             const r1 = p1(state);
@@ -1646,6 +1720,8 @@ function bind(p1, f) {
         };
     }
 
+// [Parser a] -> Parser [a]
+// (Parser a, Parser b, ...) -> Parser (a, b, ...)
 function seq(...ps) {
     function go(state) {
         let st = state;
@@ -1712,21 +1788,58 @@ function many(p) {
 
 // Parser a -> Parser [a]
 function some(p) {
-    return appl(cons, p, many(p));
+    return app(cons, p, many(p));
 }
 
 // Parser [String] -> Parser String
 function joinT(p) {
-    return fmap((xs) => {return concatS(...xs);}, p);
+    return fmap((xs)  => { return concatS(...xs); }, p);
 }
 
 // Parser String -> Parser String
 const manyT = (p)     => { return joinT(many(p)); };
 const someT = (p)     => { return joinT(some(p)); };
+
+// (Parser String, ...) -> ParserString
 const seqT  = (...ps) => { return joinT(seq(...ps)); };
 
+// String -> Parser String
+function word(w) {
+    const ps = map((c) => {return char(c);})(w);
+    return seqT(...ps);
+}
+
+// --------------------
+//
+// token parsers
 
 // Parser String
+
+// whitespace parsers
+
+const ws         = oneOf(' \t\n');
+const ws0        = manyT(ws);
+const ws1        = someT(ws);
+
+const blank      = oneOf(' \t');
+const someBlanks = someT(blank);
+const manyBlanks = manyT(blank);
+const newline    = char('\n');
+
+const del        = (p) => {return fmap(cnst(""), p);};    // discard result
+
+const eol        = alt(newline, eof);
+const blanksep   = del(alt(someBlanks,
+                           followedBy(eol)
+                          )
+                      );
+const wssep      = del(null);   // TODO
+
+const tokenB    = (p) => { return cxR(p, blanksep); };  // space and tabs
+const tokenW    = (p) => { return cxR(p, wssep); };     // blanks and nl
+
+// number parsers
+
 const digit      = oneOf("0123456789");
 const manyDigits = manyT(digit);
 const someDigits = someT(digit);
@@ -1745,3 +1858,23 @@ const fract      = seqT(opt("",
                            ) ,
                         fractN
                        );
+// --------------------
+//
+// geo and offset parser
+
+const geoS       = seq(seqT(fractN, del(char('x'))),
+                       fractN
+                      );
+
+// --------------------
+//
+// object parsers
+
+// whitespace parsing maybe configured here
+let token    = tokenB;
+
+const pGeo   = fmap((xs) => { return V2(1 * xs[0], 1 * xs[1]); },
+                    token(geoS)
+                   );
+
+// --------------------

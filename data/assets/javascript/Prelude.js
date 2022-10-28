@@ -107,6 +107,22 @@ function intercalate(s, xs) {
     return xs.join(s);
 }
 
+function lines(txt) {
+    return txt.split("\n");
+}
+
+function take(n, xs) {
+    return xs.slice(0, Math.max(0, n));
+}
+
+function drop(n, xs) {
+    return xs.slice(Math.max(0, n));
+}
+
+function unlines(xs) {
+    return intercalate("\n", xs);
+}
+
 function unwords(xs) {
     return intercalate(" ", xs);
 }
@@ -117,12 +133,11 @@ function nl(s) { return s + "\n"; }
 //
 // functions
 
-function id(x) { return x; }
+function id(x)     { return x; }
+function cnst(c)   { return (x) => { return c; }; }
 
-function cnst(c) {
-    function f (x) { return c; };
-    return f;
-}
+function fst(x, y) { return x; }
+function snd(x, y) { return y; }
 
 // function composition
 // comp(f1, f2, f3)(v) === f3(f2(f1(v)))
