@@ -10,6 +10,10 @@ function trc (t, Text) {
     }
 }
 
+// null represents the empty tuple ()
+// Void :: ()                           // void is a keyword
+const Void = null;
+
 // --------------------
 //
 // arithmetc ops
