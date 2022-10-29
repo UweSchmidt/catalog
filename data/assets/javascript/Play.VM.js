@@ -1632,7 +1632,7 @@ function eof(state) {
 }
 
 // Parser a -> Parser ()
-const voidP = (p) => {
+const sep = (p) => {
     return fmap(cnst(Void), p);      // discard result
 };
 
@@ -1691,17 +1691,17 @@ function app(f, ...ps) {
 
 // Parser a -> Parser b -> Parser a                // <*  from Applicative
 function cxR(p, cx) {
-    return app(id, p, voidP(cx));                  // discard right context
+    return app(id, p, sep(cx));                  // discard right context
 }
 
 // Parser b -> Parser a -> Parser a                // *>  from Applicative
 function cxL(cx, p) {
-    return app(id, voidP(cx), p);                  // discard left context
+    return app(id, sep(cx), p);                  // discard left context
 }
 
 // Parser b -> Parser a -> Parser c -> Parser a    // *>  <* from Applicative
 function cx(cx1, p, cx2) {
-    return app(id, voidP(cx1), p, voidP(cx1));     // discard context
+    return app(id, sep(cx1), p, sep(cx1));     // discard context
 }
 
 // Parser a -> (a -> Parser b) -> Parser b    // >>=
@@ -1774,7 +1774,13 @@ function opt(defVal, p) {
     return alt(p, unit(defVal));
 }
 
-// Parser a -> Parser [a]
+// many and some parsers always return a list
+// if parser p is of type 'Parser ()', the result
+// will be always the empty list
+
+// Parser a  -> Parser [a]
+// Parser () -> Parser []  (res: empty list)
+
 function many(p) {
     function go(state) {
         let st = state;
@@ -1787,14 +1793,26 @@ function many(p) {
             st = rs.state;
             rs = p(st);
         }
+        trc(1,`many: ${JSON.stringify(st)} ${JSON.stringify(xs)}`);
         return succ(xs, st);
     }
     return go;
 }
 
-// Parser a -> Parser [a]
+// Parser a  -> Parser [a]
+// Parser () -> Parser []  (res: empty list)
 function some(p) {
-    return app(cons, p, many(p));
+    function cons1(...args) {
+        // trc(1,`cons1: ${JSON.stringify(args)}`);
+        if ( args.length === 1 ) {
+            return id(...args);           // return args[0];
+        }
+        if ( args.length === 2 ) {
+            return cons(...args);
+        }
+        throw "some: cons1: wrong args";
+    }
+    return app(cons1, p, many(p));
 }
 
 // Parser [String] -> Parser String
@@ -1817,44 +1835,69 @@ function word(w) {
 
 // --------------------
 //
+// whitespace and comment separators
+
+const ws         = oneOf(' \t\n');
+const newline    = char('\n');
+
+const lineCmtJS  = lineCmtP('//');
+const lineCmtHS  = lineCmtP('--');
+
+const multiCmtJS = failure("multiCmtJS parser not yet implemented");
+const multiCmtHS = failure("multiCmtHS parser not yet implemented");
+
+const noCmt      = failure("no comment");
+
+let   lineCmt    = lineCmtJS;
+let   multiCmt   = multiCmtJS;
+
+// whitespace parsing for line oriented parsers
+function lineSep1(cmt) {
+    return alts(some(sep(alts(ws, cmt))),
+                followedBy(newline),
+                eof
+               );
+};
+
+function textSep1(lcmt, tcmt) {
+    return alts(some(sep(alts(ws,
+                              newline,
+                              lcmt,
+                              tcmt
+                             )
+                        )
+                    ),
+                eof
+               );
+};
+
+// String -> Parser ()
+function lineCmtP(w) {
+    return seq(word(w), manyT(noneOf('\n')));
+};
+
+const lineSep   = lineSep1(noCmt);
+const lineSepJS = lineSep1(lineCmtJS);
+const lineSepHS = lineSep1(lineCmtHS);
+
+const textSep   = textSep1(noCmt, noCmt);
+const textSepJS = textSep1(lineCmtJS, multiCmtJS);
+
+
+// --------------------
+//
 // token parsers
 
 // Parser String
 
 // whitespace parsers
 
-const ws         = oneOf(' \t\n');
 const ws0        = manyT(ws);
 const ws1        = someT(ws);
 
 const blank      = oneOf(' \t');
 const someBlanks = someT(blank);
 const manyBlanks = manyT(blank);
-const newline    = char('\n');
-
-// Parser ()
-const eol        = alt(voidP(newline), eof);
-
-// String -> Parser ()
-const lineCmt    = (w) => {
-    return voidP(seqT(word(w), manyT(noneOf('\n'))));
-};
-
-// Parser ()
-const lineCmtJS  = lineCmt('//');
-const lineCmtHS  = lineCmt('--');
-
-const blanksep   = voidP(alt(someBlanks, followedBy(eol)));
-const wssep      = voidP(alt(ws1,eof));
-
-const blanksCmt  = (lcp) => {
-    return voidP(alts(lcp,
-                      seq(voidP(someBlanks), opt(Void, lcp)),
-                      followedBy(eol)
-                     ));
-};
-const blanksJS = blanksCmt(lineCmtJS);
-const blanksHS = blanksCmt(lineCmtHS);
 
 // token parsers discard trailing whitespace
 // tokenBL discard whitespace only on current line
@@ -1862,10 +1905,10 @@ const blanksHS = blanksCmt(lineCmtHS);
 
 // Parser a -> Parser a
 
-const tokenBL   = (p) => { return cxR(p, blanksep); };  // space and tabs
-const tokenBLJS = (p) => { return cxR(p, blanksJS); };  // space, tabs, //...
+const tokenL   = (p) => { return cxR(p, lineSep);   };  // space and tabs
+const tokenLJS = (p) => { return cxR(p, lineSepJS); };  // space, tabs, //...
 
-const tokenWS   = (p) => { return cxR(p, wssep); };     // space, tab, nl
+const tokenT   = (p) => { return cxR(p, textSep); };     // space, tab, nl
 
 
 // number parsers
@@ -1884,7 +1927,7 @@ const fract      = seqT(opt("", oneOf('-+')) , fractN);
 // geo and offset Parser String
 
 const geoS       = seq(fractN,              // 12.3x4.5
-                       voidP(char('x')),
+                       sep(char('x')),
                        fractN
                       );
 
@@ -1901,7 +1944,7 @@ const offS       = seq(fractS, fractS);               // +1.5-2.0
 // whitespace and comment parsing can be configured
 // by the token parser variable
 
-let   token = tokenBLJS;
+let   token = tokenLJS;
 
 const pGeo = fmap((xs) => { return V2(1 * xs[0], 1 * xs[1]); },
                   geoS
