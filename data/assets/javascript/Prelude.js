@@ -4,10 +4,14 @@
 
 // --------------------
 
-function trc (t, Text) {
+function trc (t, txt) {
     if ( t > 0 ) {
-        console.log(Text);
+        console.log(txt);
     }
+}
+
+function trc2(txt, x) {
+    console.log(`${txt} ${x ? JSON.stringify(x) : ""}`);
 }
 
 // null represents the empty tuple ()
@@ -65,6 +69,10 @@ function isPositive(x) {
 
 function isNegative(x) {
     return isNumber(x) && x < 0;
+}
+
+function toNum(x) {
+    return 1 * x;
 }
 
 // --------------------

@@ -55,6 +55,9 @@ const trFadein    = 'fadein';
 const trFadeout   = 'fadeout';
 const trCrossfade = 'crossfade';
 
+const trWords     = [ trCut, trFadein, trFadeout, trCrossfade ];
+const trDefault   = trCut;
+
 // ----------------------------------------
 
 // build instructions
@@ -1151,6 +1154,16 @@ function removeFrame(jno) {
 
 var newJobNo = 0;
 
+// constructor
+function GeoSpec(alg, scale, dir, shift) {
+    return {
+        alg:   alg,
+        scale: scale,
+        dir:   dir,
+        shift: shift,
+    };
+}
+
 const defaultFrameGeo = {    // full frame
     alg:   'fitInto',
     scale: V2(1.0,1.0),
@@ -1833,6 +1846,15 @@ function word(w) {
     return seqT(...ps);
 }
 
+// if a word w1 is prefix of a word w2
+// w1 must be put into the list behind w2
+// else tokenising does not word properly
+
+function words(ws) {
+    const ps = map(word)(ws);
+    return alts(...ps);
+}
+
 // --------------------
 //
 // whitespace and comment separators
@@ -1907,9 +1929,17 @@ const manyBlanks = manyT(blank);
 
 const tokenL   = (p) => { return cxR(p, lineSep);   };  // space and tabs
 const tokenLJS = (p) => { return cxR(p, lineSepJS); };  // space, tabs, //...
-
 const tokenT   = (p) => { return cxR(p, textSep); };     // space, tab, nl
 
+let   token = tokenL;
+
+/* comp not yet tested
+
+function wordToken(ws) {
+    const ps = map(comp(word, token))(ws);
+    return alts(...ps);
+}
+*/
 
 // number parsers
 
@@ -1931,7 +1961,6 @@ const geoS       = seq(fractN,              // 12.3x4.5
                        fractN
                       );
 
-const offS       = seq(fractS, fractS);               // +1.5-2.0
 
 // --------------------
 //
@@ -1944,22 +1973,22 @@ const offS       = seq(fractS, fractS);               // +1.5-2.0
 // whitespace and comment parsing can be configured
 // by the token parser variable
 
-let   token = tokenLJS;
+const pFractN = fmap(toNum, fractN);
+const pGeo    = app(toV2, fractN, sep(char('x')), fractN);  // 12.3x4.5
+const pOff    = app(toV2, fractS, fractS);                  // +1.5-2.0
 
-const pGeo = fmap((xs) => { return V2(1 * xs[0], 1 * xs[1]); },
-                  geoS
-                 );
+const geoSy   = token(pGeo);
+const offSy   = token(pOff);
 
-const pOff = fmap((xs) => { return V2(1 * xs[0], 1 * xs[1]); },
-                  offS
-                 );
+const goSy    = token(app(GO, pGeo, opt(V2(0,0),pOff)));
 
-const geoSym = token(pGeo);
-const offSym = token(pOff);
+const algSy   = opt(resizeDefault, token(words(resizeWords)));
+const scaleSy = opt(1,             alt(geoSy, token(pFractN)));
+const dirSy   = opt(dirDefault,    token(words(dirWords)));
+const shiftSy = opt(V2(0,0),       offSy);
 
-const goSym  = token(fmap((xs) => { return GO(...xs); },
-                          seq(pGeo, opt(V2(0,0),pOff))
-                         )
-                    );
+const trSy    = opt(trDefault,     token(words(trWords)));
+
+const geoSpec = app(GeoSpec, algSy, scaleSy, dirSy, shiftSy);
 
 // --------------------

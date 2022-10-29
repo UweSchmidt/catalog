@@ -207,6 +207,19 @@ function offsetNE(o) { return V2(o.x * 2, 0);}
 
 // --------------------
 
+const resizeWords = [
+    'abs',
+    'fitInto',
+    'fitHeight',
+    'fitWidth',
+    'fit',
+    'fill',
+    'fix',
+    'sameHeight',
+    'sameWidth',
+];
+const resizeDefault = 'fix';
+
 function resizeAlg(name) {
     switch ( name ) {
     case 'fit'        :
@@ -222,26 +235,20 @@ function resizeAlg(name) {
     }
 }
 
+const dirWords   = ['NE','SE','SW','NW','N','W','E','S','C'];
+const dirDefault = 'center';
+
 function offsetAlg(name) {
     switch ( name ) {
-    case 'n' :
     case 'N' : return offsetN;
-    case 'nw':
     case 'NW': return offsetNW;
-    case 'w' :
     case 'W' : return offsetW;
-    case 'sw':
     case 'SW': return offsetSW;
-    case 's' :
     case 'S' : return offsetS;
-    case 'se':
     case 'SE': return offsetSE;
-    case 'e' :
     case 'E' : return offsetE;
-    case 'ne':
     case 'NE': return offsetNE;
     case 'C' :
-    case 'c' :
     case 'center':
     default: return offsetC;
     }
@@ -264,7 +271,7 @@ function offsetAlg(name) {
 // scale      : afterwards image may be scaled by a factor
 //
 // dir        : alignment
-// center     : default, image is centered on stage
+// C          : default, image is centered on stage
 // N, NW, W, SW, S, SE, E, NE
 //            : orientation: NW = top left corner
 //
@@ -297,7 +304,7 @@ function placeMedia(frameGeo, imgGeo) {
         const scale = typeof sc === 'Number'
                     ? V2(sc, sc)
                     : sc;
-        const dir   = gs.dir   || 'center';
+        const dir   = gs.dir   || 'C';
         const shift = gs.shift || V2(0,0);
         return placeImg(frameGeo, imgGeo, alg, scale, dir, shift);
     }

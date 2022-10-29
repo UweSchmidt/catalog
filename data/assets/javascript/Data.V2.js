@@ -16,6 +16,13 @@ function V2(x, y) {
     return {x: x, y: y};
 }
 
+function toV2(...args) {
+    trc2("toV2:", args);
+    const args2 = map(toNum)(args);
+    trc2("toV2:", args2);
+    return V2(...args2);
+}
+
 const zeroV2 = V2();
 const oneV2  = V2(1);
 
