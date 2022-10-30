@@ -17,6 +17,18 @@ const stFinished   = "finished";
 const stAborted    = "aborted";
 const stNothing    = "nothing";
 
+const statiWords = [
+    stCreated,
+    stReadypage,
+    stReadymedia,
+    stVisible,
+    stShown,
+    stHidden,
+    stFinished,
+    stAborted,
+    stNothing,
+];
+
 // set of stati
 
 function emptySt() {
@@ -46,6 +58,23 @@ const opDelay     = "delay";
 const opWait      = "wait";
 const opWaitInput = "waitinput";
 const opFinish    = "finish";
+
+const opCodes = [
+    opInit,
+    opLoadpage,
+    opLoadmedia,
+    opRender,
+    opFadeout,
+    opFadein,
+    opMove,
+    opPlace,
+    opSetData,
+    opSetStatus,
+    opDelay,
+    opWait,
+    opWaitInput,
+    opFinish,
+];
 
 // ----------------------------------------
 // transitions
@@ -1537,9 +1566,14 @@ function initParserState(inp) {
         trc(1, unlines(ls1));
     }
 
+    function rest() {
+        return s0.inp.slice(s0.ix);
+    }
+
     s0.save   = saveState;
     s0.reset  = resetState;
     s0.errmsg = showErr;
+    s0.rest   = rest;
     return s0;
 }
 
@@ -1631,6 +1665,16 @@ function failure(msg) {
     return (state) => { return fail(msg, state); };
 }
 
+function withErr(p, msg) {
+    return (state) => {
+        const res = p(state);
+        if ( res.err ) {
+            res.err = msg;
+        }
+        return res;
+    };
+}
+
 // Parser ()
 function eof(state) {
     trc(1,`eof: ${state.inp} ${state.ix}`);
@@ -1639,14 +1683,14 @@ function eof(state) {
         return succ(Void, state);
     }
     else {
-        const rest = state.inp.slice(state.ix);
-        return fail(`end of input expected, but seen: '${rest}'`);
+        const rest = state.inp.slice(state.ix, state.ix + 40);
+        return fail(`end of input expected, but seen: '${rest}...'`, state);
     }
 }
 
 // Parser a -> Parser ()
-const sep = (p) => {
-    return fmap(cnst(Void), p);      // discard result
+const del = (p) => {
+    return fmap(cnst(Void), p);      // discard result, e.g. for separators
 };
 
 // Parser String -> Parser ()        // Void = ()
@@ -1704,17 +1748,17 @@ function app(f, ...ps) {
 
 // Parser a -> Parser b -> Parser a                // <*  from Applicative
 function cxR(p, cx) {
-    return app(id, p, sep(cx));                  // discard right context
+    return app(id, p, del(cx));                  // discard right context
 }
 
 // Parser b -> Parser a -> Parser a                // *>  from Applicative
 function cxL(cx, p) {
-    return app(id, sep(cx), p);                  // discard left context
+    return app(id, del(cx), p);                  // discard left context
 }
 
 // Parser b -> Parser a -> Parser c -> Parser a    // *>  <* from Applicative
 function cx(cx1, p, cx2) {
-    return app(id, sep(cx1), p, sep(cx1));     // discard context
+    return app(id, del(cx1), p, del(cx2));     // discard context
 }
 
 // Parser a -> (a -> Parser b) -> Parser b    // >>=
@@ -1846,9 +1890,12 @@ function word(w) {
     return seqT(...ps);
 }
 
-// if a word w1 is prefix of a word w2
+// CAUTION: if a word w1 is prefix of a word w2
 // w1 must be put into the list behind w2
 // else tokenising does not word properly
+// right: ['fixandfoxi, fix']
+// wrong: ['fix', 'fixandfoxi']
+// see 'wordToken'
 
 function words(ws) {
     const ps = map(word)(ws);
@@ -1860,6 +1907,7 @@ function words(ws) {
 // whitespace and comment separators
 
 const ws         = oneOf(' \t\n');
+const blank      = oneOf(' \t');
 const newline    = char('\n');
 
 const lineCmtJS  = lineCmtP('//');
@@ -1875,14 +1923,14 @@ let   multiCmt   = multiCmtJS;
 
 // whitespace parsing for line oriented parsers
 function lineSep1(cmt) {
-    return alts(some(sep(alts(ws, cmt))),
+    return alts(some(del(alts(blank, cmt))),
                 followedBy(newline),
                 eof
                );
 };
 
 function textSep1(lcmt, tcmt) {
-    return alts(some(sep(alts(ws,
+    return alts(some(del(alts(ws,
                               newline,
                               lcmt,
                               tcmt
@@ -1917,7 +1965,6 @@ const textSepJS = textSep1(lineCmtJS, multiCmtJS);
 const ws0        = manyT(ws);
 const ws1        = someT(ws);
 
-const blank      = oneOf(' \t');
 const someBlanks = someT(blank);
 const manyBlanks = manyT(blank);
 
@@ -1933,13 +1980,23 @@ const tokenT   = (p) => { return cxR(p, textSep); };     // space, tab, nl
 
 let   token = tokenL;
 
-/* comp not yet tested
+// the seq of words does not matter with this parser
+// even if a word w1 is prefix of a word w2, and
+// w2 occurs behind w1 the parser works
 
-function wordToken(ws) {
-    const ps = map(comp(word, token))(ws);
+function wordTokens(ws) {
+    const ps = map(wordToken)(ws);
     return alts(...ps);
 }
-*/
+
+// String -> Parser ()
+function wordToken(w) {
+    return token(word(w));
+}
+
+function wordToken0(w) {
+    return del(wordToken(w));
+}
 
 // number parsers
 
@@ -1957,7 +2014,7 @@ const fract      = seqT(opt("", oneOf('-+')) , fractN);
 // geo and offset Parser String
 
 const geoS       = seq(fractN,              // 12.3x4.5
-                       sep(char('x')),
+                       del(char('x')),
                        fractN
                       );
 
@@ -1973,22 +2030,62 @@ const geoS       = seq(fractN,              // 12.3x4.5
 // whitespace and comment parsing can be configured
 // by the token parser variable
 
+// geo parser
 const pFractN = fmap(toNum, fractN);
-const pGeo    = app(toV2, fractN, sep(char('x')), fractN);  // 12.3x4.5
+const pGeo    = app(toV2, fractN, del(char('x')), fractN);  // 12.3x4.5
 const pOff    = app(toV2, fractS, fractS);                  // +1.5-2.0
 
 const geoSy   = token(pGeo);
 const offSy   = token(pOff);
-
+const scaleSy = opt(1,             alt(geoSy, token(pFractN)));
+const shiftSy = opt(V2(0,0),       offSy);
 const goSy    = token(app(GO, pGeo, opt(V2(0,0),pOff)));
 
-const algSy   = opt(resizeDefault, token(words(resizeWords)));
-const scaleSy = opt(1,             alt(geoSy, token(pFractN)));
-const dirSy   = opt(dirDefault,    token(words(dirWords)));
-const shiftSy = opt(V2(0,0),       offSy);
+// duration parser
+const durSy   = fmap(toNum, token(cxR(fractN, char('s'))));
 
-const trSy    = opt(trDefault,     token(words(trWords)));
+// keyword parser
+const algSy     = opt(resizeDefault, wordTokens(resizeWords));
+const dirSy     = opt(dirDefault,    wordTokens(dirWords));
+const transSy   = opt(trDefault,     wordTokens(trWords));
+const statusSy  = wordTokens(statiWords);
 
+// compound parsers
 const geoSpec = app(GeoSpec, algSy, scaleSy, dirSy, shiftSy);
+
+const instrInit      = fmap(cnst(mkInit()),     wordToken0(opInit));
+const instrLoadpage  = fmap(cnst(mkLoadpage()), wordToken0(opLoadpage));
+const instrLoadmedia = fmap(cnst(mkLoadpage()), wordToken0(opLoadmedia));
+
+const instrFadein   = app(mkFadein,
+                          wordToken0(opFadein),
+                          durSy,
+                          transSy
+                          );
+
+const instrFadeout  = app(mkFadeout,
+                          wordToken0(opFadeout),
+                          durSy,
+                          transSy
+                         );
+
+const instrSetStatus = app(mkSetStatus,
+                           wordToken0(opSetStatus),
+                           statusSy
+                          );
+
+const instr0   = alts(instrInit,
+                      instrLoadpage,
+                      instrFadein,
+                      instrFadeout,
+                      instrSetStatus,
+                      );
+
+const instr1 = cx(manyBlanks,
+                  instr0,
+                  newline,
+                 );
+
+const code = cxR(many(instr1), eof);
 
 // --------------------

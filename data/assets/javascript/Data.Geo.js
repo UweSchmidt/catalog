@@ -209,10 +209,10 @@ function offsetNE(o) { return V2(o.x * 2, 0);}
 
 const resizeWords = [
     'abs',
+    'fit',
     'fitInto',
     'fitHeight',
     'fitWidth',
-    'fit',
     'fill',
     'fix',
     'sameHeight',
