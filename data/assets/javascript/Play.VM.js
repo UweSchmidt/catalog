@@ -1345,116 +1345,6 @@ function click() {
 }
 
 // ----------------------------------------
-/*
-//
-// parsers
-
-function par(x) { return `(${x})`;}
-
-const reNat     = '[0-9]+';
-const reSign    = '[-+]';
-const reOptSign = reSign + '?';
-const reSNat    = reSign + reNat;
-const reInt     = reOptSign +  + reNat;
-const reFractN  = reNat + "(.[0-9]*)?";
-const reFractS  = reSign + reFractN;
-const reFract   = reOptSign + reFractN;
-const reGeo     = par(reFractN) + 'x' + par(reFractN);
-const reOff     = par(reFractS) + par(reFractS);
-const reGO      = reGeo + reOff;
-const rePathPx  = "/archive/collections";
-const reRemPx   = rePathPx + par("/.*");
-const rePicPath = "(/.*)/pic-" + par(reNat);
-const reDir     = par("N|NE|E|SE|S|SW|W|NW|C");
-
-function parse1(re, build) {
-    function go(inp) {
-        const regex = new RegExp("^" + re + "$", "g");
-        let res = regex.exec(inp);
-        if ( res && build ) { res = build(res); }
-        return res;
-    }
-    return go;
-}
-
-
-function pAlt(p1, p2) {
-    function go(inp) {
-        const res = p1(inp);
-        return res || p2(inp);
-    }
-    return go;
-}
-
-// const parseAll = parse1(".*", (l) => { return l[0];});
-
-function parseAll(build) {
-    return (x) => {
-        return ( build ) ? build(x) : x;
-
-    };
-}
-
-const parseDur = pAlt(parse1(reFractN + "s", buildNum),
-                      parseAll(cnst(0.0))
-                     );
-const ps = {
-    all:    parseAll,
-
-    // numbers
-    nat:    parse1(reNat, buildNum),
-    snat:   parse1(reSNat, buildNum),
-    int:    parse1(reInt, buildNum),
-    fract:  parse1(reFract, buildNum),
-    sfract: parse1(reFractS, buildNum),
-
-    // direction
-    dir:    pAlt(parse1(reDir, (l) => { return l[0] }),
-                 parseAll(cnst('C'))
-                ),
-
-    // duration
-    dur:       parseDur,
-    clickdur:  pAlt(parse1('click', cnst('click')),
-                    parseDur
-                   ),
-
-    // geo and offset
-    geo:    parse1(reGeo, buildV2),
-    off:    pAlt(parse1(reOff, buildV2),
-                 parse1(reGeo, buildV2)
-                ),
-    go:     pAlt(parse1(reGO, buildGO),
-                 parse1(reGeo, buildGOgeo)
-                ),
-
-    // image paths
-    path:    pAlt(parse1(rePicPath, buildPathPic),
-                  parse1(".*", (l) => { return [l[0]]; })
-                 ),
-    pathpx: pAlt(parse1(reRemPx, (l) => { return l[1]; }),
-                 parseAll
-                )
-};
-
-function buildNum(l) { return 1 * l[0]; }
-function buildV2(l)  { return V2(1 * l[1], 1 * l[3]); }
-function buildGO(l)  {
-    const geo = buildV2(l);
-    const off = buildV2(l.slice(4));
-    return {geo: geo, off: off};
-}
-
-function buildGOgeo(l) {
-    const geo = buildV2(l);
-    return {geo: geo, off: V2(0,0)};
-}
-
-function buildPathPic(l) {
-    return [l[1], 1 * l[2]];
-}
-*/
-// ----------------------------------------
 
 function ppSimple(x) { return "" + x; }
 function ppDur(x) { return "" + x + "s"; }
@@ -1539,11 +1429,12 @@ function initParserState(inp) {
         ix  : 0,
         cc  : 0,
         lc  : 0,
+        backtrack: false,
     };
 
     // save the variable parts of the parser state
     function saveState() {
-        return [s0.ix, s0.cc, s0.lc];
+        return [s0.ix, s0.cc, s0.lc, s0.backtrack];
     }
 
     // restore saved parser state
@@ -1552,8 +1443,12 @@ function initParserState(inp) {
         s0.ix = cs[0];
         s0.cc = cs[1];
         s0.lc = cs[2];
+        s0.backtrack = cs[3];
     }
 
+    function resetBacktrack(cs) {
+        s0.backtrack = cs[3];
+    }
     // prepare error message with source line and position
     function showErr(msg) {
         const ls  = lines(s0.inp);
@@ -1572,6 +1467,7 @@ function initParserState(inp) {
 
     s0.save   = saveState;
     s0.reset  = resetState;
+    s0.resetBacktrack = resetBacktrack;
     s0.errmsg = showErr;
     s0.rest   = rest;
     return s0;
@@ -1657,8 +1553,17 @@ function noneOf(s) {
 
 // a -> Parser a
 function unit(res) {
-        return (state) => { return succ(res, state); };
-    }
+    return (state) => { return succ(res, state); };
+}
+
+// mark state to not backtrack in an alt parser
+// but fail instead
+//
+// Parser ()
+function pCut(state) {
+    state.backtrack = false;
+    return succ(Void, state);
+}
 
 // String -> Parser a
 function failure(msg) {
@@ -1722,16 +1627,14 @@ function notFollowedBy(p) {
 function fmap(f, p) {
         return (st0) => {
             const r1 = p(st0);
+            // trc2('fmap: r1=', r1);
             if ( r1.err ) {
                 return r1;
             }
             else {
-                const st1 = r1.state;
-                const rs1 = r1.res;
-                trc(1,`fmap: arg ${JSON.stringify(rs1)}`);
-                const res = f(rs1);
-                trc(1,`fmap: res ${JSON.stringify(res)}`);
-                return succ(res, st1);
+                r1.res = f(r1.res);
+                // trc2("fmap: rs=", r1);
+                return r1;
             }
         };
     }
@@ -1806,13 +1709,30 @@ function seq(...ps) {
 function alt(p1, p2) {
         return (state) => {
             const s1 = state.save();
+
+            // allow backtracking, as long as not cut parser is reached
+            state.backtrack = true;
+            // trc2("alt: state=", state);
+
             const r1 = p1(state);
-            if ( r1.err ) {
-                state.reset(s1);
-                return p2(state);
+            trc2("alt: r1=", r1);
+
+            if ( r1.err ) {                     // p1 failed
+                if ( r1.state.backtrack ) {     // backtracking allowed
+                    state.reset(s1);            // reset state and
+                    const r2 = p2(state);       // run p2
+                    // trc2("alt: r2=", r2);
+                    return r2;
+                }
+                else {                          // no backtracking
+                    // r1.state.resetBacktrack(s1);// restore backtracking flag
+                    trc(1, "alt: no backtracking");
+                    return r1;                  // and report error
+                }
             }
-            else {
-                return r1;
+            else {                              // p1 succeded
+                r1.state.resetBacktrack(s1);    // restore backtracking flag
+                return r1;                      // and return result
             }
         };
     }
@@ -1840,18 +1760,32 @@ function opt(defVal, p) {
 
 function many(p) {
     function go(state) {
-        let st = state;
-        let xs = [];
-        let rs = p(st);
-        while ( ! rs.err ) {
-            if ( rs.res !== Void ) {
-                xs.push(rs.res);
+        let   st = state;
+        let   xs = [];                       // result accumulator
+
+        while ( true ) {
+            const s1 = st.save();
+            st.backtrack = true;
+            let rs = p(st);
+
+            if ( rs.err ) {
+                if ( rs.state.backtrack ) {  // terminate loop
+                    st.reset(s1);            // reset state
+                    const res = succ(xs, st);
+                    trc2('many: res:', res);
+                    return res;              // and return xs
+                }
+                else {                       // error when running p
+                    trc2("many: failed:", rs);
+                    return rs;               // propagate error
+                }
             }
-            st = rs.state;
-            rs = p(st);
+                                             // one more item parsed
+            if ( rs.res !== Void ) {
+                xs.push(rs.res);             // update xs
+            }
+            st = rs.state;                   // update st
         }
-        trc(1,`many: ${JSON.stringify(st)} ${JSON.stringify(xs)}`);
-        return succ(xs, st);
     }
     return go;
 }
@@ -1969,16 +1903,22 @@ const someBlanks = someT(blank);
 const manyBlanks = manyT(blank);
 
 // token parsers discard trailing whitespace
+// and stop backtracking, due to successfully parse a token
+//
 // tokenBL discard whitespace only on current line
 // tokenWS discards whitespace and newlines
 
 // Parser a -> Parser a
 
-const tokenL   = (p) => { return cxR(p, lineSep);   };  // space and tabs
-const tokenLJS = (p) => { return cxR(p, lineSepJS); };  // space, tabs, //...
-const tokenT   = (p) => { return cxR(p, textSep); };     // space, tab, nl
+function tokenL  (p) { return cxR(p, lineSep);   };  // space and tabs
+function tokenLJS(p) { return cxR(p, lineSepJS); };  // space, tabs, //...
+function tokenT  (p) { return cxR(p, textSep);   };    // space, tab, nl
+function tokenC  (p) { return cxR(p, pCut);      };
 
-let   token = tokenL;
+// if token parser succeds,
+// backtracking is disabled
+
+let token = (p) => { return tokenC(tokenL(p)); };
 
 // the seq of words does not matter with this parser
 // even if a word w1 is prefix of a word w2, and
@@ -2048,7 +1988,9 @@ const durSy   = fmap(toNum, token(cxR(fractN, char('s'))));
 const algSy     = opt(resizeDefault, wordTokens(resizeWords));
 const dirSy     = opt(dirDefault,    wordTokens(dirWords));
 const transSy   = opt(trDefault,     wordTokens(trWords));
-const statusSy  = wordTokens(statiWords);
+const statusSy  = withErr(wordTokens(statiWords),
+                          "status expected"
+                         );
 
 // compound parsers
 const geoSpec = app(GeoSpec, algSy, scaleSy, dirSy, shiftSy);
@@ -2083,7 +2025,7 @@ const instr0   = alts(instrInit,
 
 const instr1 = cx(manyBlanks,
                   instr0,
-                  newline,
+                  seq(pCut, newline),
                  );
 
 const code = cxR(many(instr1), eof);
