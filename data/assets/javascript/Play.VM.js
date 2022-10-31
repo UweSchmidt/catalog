@@ -45,6 +45,9 @@ function memberSt(st, stats) {
 // opcodes
 
 const opInit      = "init";
+const opType      = "type";
+const opFrame     = "frame";
+const opText      = "text";
 const opLoadpage  = "loadpage";
 const opLoadmedia = "loadmedia";
 const opRender    = "render";
@@ -53,7 +56,7 @@ const opFadein    = "fadein";
 const opMove      = "move";
 const opPlace     = "place";    // move without animation
 const opSetData   = "setdata";
-const opSetStatus = "setstatus";
+const opStatus    = "status";
 const opDelay     = "delay";
 const opWait      = "wait";
 const opWaitInput = "waitinput";
@@ -61,6 +64,9 @@ const opFinish    = "finish";
 
 const opCodes = [
     opInit,
+    opType,
+    opFrame,
+    opText,
     opLoadpage,
     opLoadmedia,
     opRender,
@@ -69,11 +75,19 @@ const opCodes = [
     opMove,
     opPlace,
     opSetData,
-    opSetStatus,
+    opStatus,
     opDelay,
     opWait,
     opWaitInput,
     opFinish,
+];
+
+const tyText = "text";
+const tyImg  = "img";
+
+const tyWords = [
+    tyText,
+    tyImg,
 ];
 
 // ----------------------------------------
@@ -91,8 +105,28 @@ const trDefault   = trCut;
 
 // build instructions
 
-function mkInit() {
-    return { op: opInit };
+function mkInit(name) {
+    return { op:   opInit,
+             name: name,
+           };
+}
+
+function mkType(type) {
+    return { op:   opType,
+             type: type,
+           };
+}
+
+function mkFrame(gs) {
+    return { op: opFrame,
+             gs: gs,
+           };
+}
+
+function mkText(text) {
+    return { op:   opText,
+             text: text,
+           };
 }
 
 function mkLoadpage() {
@@ -123,8 +157,8 @@ function mkFadeout(dur, trans) {
            };
 };
 
-function mkSetStatus(st) {
-    return { op: opSetStatus,
+function mkStatus(st) {
+    return { op: opStatus,
              st: st,
            };
 };
@@ -170,7 +204,6 @@ function mkWait(reljno, st) {
 function mkFinish() {
     return { op: opFinish };
 };
-
 // type Job = [Instr]
 // type Jobno = Int
 // type activeJob = { jno: n, jpc: n, }
@@ -183,42 +216,41 @@ function noop() {}
 
 function cInit(name) {
     return [
-        mkInit(),
-        mkSetStatus(stCreated),
-        mkSetData('name', name)
+        mkInit(name),
+        mkStatus(stCreated),
     ];
 }
 
 function cTerm() {
     return [
+        mkStatus(stFinished),
         mkFinish(),
-        mkSetStatus(stFinished)
     ];
 }
 
-function cLoadImg(imgPathPos, frameGeo, geos, gix, jnoWait) {
+function cLoadImg(imgPathPos, frameGS, geos, gix, jnoWait) {
     return [
-        mkSetData('type', 'img'),
+        mkType('img'),
         mkSetData('imgPathPos', imgPathPos),
-        mkSetData('frameGeo',   frameGeo || defaultFrameGeo),
+        mkFrame(frameGS || defaultFrameGS),
         mkSetData('geos',       geos     || [defaultSlideGeo]),
         mkLoadpage(),
-        mkSetStatus(stReadypage),
+        mkStatus(stReadypage),
         mkWait(jnoWait || 1, stReadymedia), // wait for prev job loading media
         mkLoadmedia(),
-        mkSetStatus(stReadymedia),
+        mkStatus(stReadymedia),
         mkRender(gix || 0),                 // 1. geo is initial geo
     ];
 }
 
-function cLoadText(frameGeo, geos, text, gix) {
+function cLoadText(frameGS, geos, text, gix) {
     return [
-        mkSetData('type', 'text'),
-        mkSetData('frameGeo',     frameGeo || defaultFrameGeo),
+        mkType('text'),
+        mkFrame(frameGS || defaultFrameGS),
         mkSetData('geos',         geos     || [defaultSlideGeo]),
-        mkSetStatus(stReadypage),
-        mkSetStatus(stReadymedia),
-        mkSetData('text', text || "???"),
+        mkStatus(stReadypage),
+        mkStatus(stReadymedia),
+        mkText(text || "???"),
         mkRender(gix || 0),
 
     ];
@@ -275,21 +307,21 @@ function cFadein(dur, fade0, waitJob) {
             mkWait(pj, stHidden),   // wait for previous job
             mkFadein(dur, trFadein),
             mkDelay(dur),
-            mkSetStatus(stVisible),
+            mkStatus(stVisible),
         ];
     case 'crossfade':
         return [
             mkWait(pj, stShown),   // crossfade starts earlier
             mkFadein(dur, trFadein),
             mkDelay(dur),
-            mkSetStatus(stVisible),
+            mkStatus(stVisible),
         ];
     case trCut:
     default:
         return [
             mkWait(pj, stShown),
             mkFadein(0, trCut),
-            mkSetStatus(stVisible),
+            mkStatus(stVisible),
         ];
     }
 }
@@ -306,13 +338,13 @@ function cFadeout(dur, fade0) {
         return [
             mkFadeout(dur, trFadeout),
             mkDelay(dur),
-            mkSetStatus(stHidden),
+            mkStatus(stHidden),
         ];
     case trCut:
     default:
         return [
             mkFadeout(0, trCut),
-            mkSetStatus(stHidden),
+            mkStatus(stHidden),
         ];
     }
 }
@@ -346,11 +378,11 @@ function cJob(name, cSetup, cView) {
 function cLoadText1(text, gs) {
     gs = gs || defaultSlideGeo;
     const gs1 = {...gs, alg: 'fix'};
-    return cLoadText(defaultFrameGeo, [gs1], text);
+    return cLoadText(defaultFrameGS, [gs1], text);
 }
 
 function cLoadImgStd(imgPath, gs) {
-    return cLoadImg(imgPath, defaultFrameGeo, [gs]);
+    return cLoadImg(imgPath, defaultFrameGS, [gs]);
 }
 
 // --------------------
@@ -625,7 +657,8 @@ function execInstr(instr, activeJob) {
     var st;
 
     if ( op === opInit ) {
-        trc(1,`execInstr: op=${op}`);
+        const data = getData(jno);
+        data.name = instr.name;
         advanceReadyJob(activeJob);
         return;
     }
@@ -689,6 +722,27 @@ function execInstr(instr, activeJob) {
         return;
     }
 
+    if ( op === opType ) {
+        const data = getData(jno);
+        data.type  = instr.type;
+        advanceReadyJob(activeJob);
+        return;
+    }
+
+    if ( op === opFrame ) {
+        const data = getData(jno);
+        data.frameGS = instr.gs;
+        advanceReadyJob(activeJob);
+        return;
+    }
+
+    if ( op === opText ) {
+        const data = getData(jno);
+        data.text = instr.text;
+        advanceReadyJob(activeJob);
+        return;
+    }
+
     if ( op === opSetData ) {
         trc(1,`execInstr: op=${op}: key=${instr.key}`);
         const data = getData(jno);
@@ -699,7 +753,7 @@ function execInstr(instr, activeJob) {
     }
 
     // add status to status set and wakeup waiting for status
-    if ( op === opSetStatus ) {
+    if ( op === opStatus ) {
         const st = instr.st;
 
         trc(1,`job ${jno}: add status ${st}`);
@@ -1057,7 +1111,7 @@ function render(activeJob, jobData, gix) {
 }
 
 function renderFrame(jobData, frameId, stageGeo, frameCss) {
-    const frameGO   = placeFrame(stageGeo, jobData.frameGeo);
+    const frameGO   = placeFrame(stageGeo, jobData.frameGS);
     jobData.frameGO = frameGO;  // save frame geo/off
 
     return newFrame(frameId, frameGO, frameCss);
@@ -1193,7 +1247,7 @@ function GeoSpec(alg, scale, dir, shift) {
     };
 }
 
-const defaultFrameGeo = {    // full frame
+const defaultFrameGS = {    // full frame
     alg:   'fitInto',
     scale: V2(1.0,1.0),
     dir:   'center',
@@ -1251,7 +1305,7 @@ var j2 =
 var j3 =
     cJob('Ente1',
          cLoadImg(['/archive/collections/albums/EinPaarBilder',1],
-                  defaultFrameGeo,
+                  defaultFrameGS,
                   [ defaultSlideGeo,
                     {alg: 'fill',    scale: 2.0, dir: 'center',},
                     {alg: 'fitInto', scale: 0.5, dir: 'center',},
@@ -1288,7 +1342,7 @@ var j4 =
 var j6 =
     cJob("arizona",
          cLoadImg(['/archive/collections/clipboard',0],
-                  defaultFrameGeo,
+                  defaultFrameGS,
                   [{alg: 'sameHeight', scale: 1, dir: 'W'},
                    {alg: 'sameHeight', scale: 1, dir: 'E'},
                    {alg: 'sameWidth',  scale: 1, dir: 'center'},
@@ -1354,16 +1408,49 @@ function ppPath(l) {
 }
 
 function ppPathPrefix(p) { return rePathPx + p; }
+
+function ppGS(gs) {
+    return filter((x) => {return x !== "";})([
+        pp.text(gs.alg),
+        pp.scale(gs.scale),
+        (gs.dir === dirDefault) ? "" : pp.text(gs.dir),
+        (eqV2(gs.shift, V2(0,0)) ? "" : pp.off(gs.shift))
+    ]).join(" ");
+}
+
+function ppScale(sc) {
+    if ( eqV2(sc, V2(1,1)) )
+        return "";
+    if ( sc.x === sc.y)
+        return pp.num(sc.x);
+    return pp.geo(sc);
+}
+
 function ppInstr(i) {
     const op = i.op;
     let  res = [fillR(10, op)];
 
     switch ( op ) {
-    case opInit:
     case opLoadpage:
     case opLoadmedia:
     case opWaitInput:
     case opFinish:
+        break;
+
+    case opInit:
+        res.push(i.name);
+        break;
+
+    case opType:
+        res.push(i.type);
+        break;
+
+    case opFrame:
+        res.push(pp.gs(i.gs));
+        break;
+
+    case opText:
+        res.push(JSON.stringify(i.text));
         break;
 
     case opRender:
@@ -1376,7 +1463,7 @@ function ppInstr(i) {
         res.push(i.trans, pp.dur(i.dur));
         break;
 
-    case opSetStatus:
+    case opStatus:
         res.push(i.st);
         break;
 
@@ -1403,7 +1490,7 @@ function ppInstr(i) {
 }
 
 function showCode(is) {
-    return concatS(map(ppInstr)(is));
+    return (map(ppInstr)(is)).join("");
 }
 
 const pp = {
@@ -1415,6 +1502,8 @@ const pp = {
     geo:      showGeo,
     off:      showOff,
     go:       showGO,
+    gs:       ppGS,
+    scale:    ppScale,
     path:     ppPath,
     pathpx:   ppPathPrefix,
     instr:    ppInstr,
@@ -1938,8 +2027,10 @@ function wordToken0(w) {
     return del(wordToken(w));
 }
 
-// number parsers
 
+// regex parsers
+
+const ident      = seqT(satisfy(isAlpha), manyT(satisfy(isAlphaNum)));
 const digit      = oneOf("0123456789");
 const manyDigits = manyT(digit);
 const someDigits = someT(digit);
@@ -1948,6 +2039,11 @@ const fractN     = seqT(someDigits,
                        );
 const fractS     = seqT(oneOf('-+'), fractN);
 const fract      = seqT(opt("", oneOf('-+')) , fractN);
+
+const textLit    = seqT(char("\""),
+                        manyT(alt(word("\\\"" ),noneOf("\"\n"))),
+                        char("\""),
+                       );
 
 // --------------------
 //
@@ -1984,43 +2080,66 @@ const goSy    = token(app(GO, pGeo, opt(V2(0,0),pOff)));
 // duration parser
 const durSy   = fmap(toNum, token(cxR(fractN, char('s'))));
 
-// keyword parser
+// keyword and name parser
+const identSy   = withErr(token(ident),
+                          "identifier expected"
+                         );
+
 const algSy     = opt(resizeDefault, wordTokens(resizeWords));
 const dirSy     = opt(dirDefault,    wordTokens(dirWords));
 const transSy   = opt(trDefault,     wordTokens(trWords));
 const statusSy  = withErr(wordTokens(statiWords),
                           "status expected"
                          );
-
-// compound parsers
-const geoSpec = app(GeoSpec, algSy, scaleSy, dirSy, shiftSy);
-
-const instrInit      = fmap(cnst(mkInit()),     wordToken0(opInit));
-const instrLoadpage  = fmap(cnst(mkLoadpage()), wordToken0(opLoadpage));
-const instrLoadmedia = fmap(cnst(mkLoadpage()), wordToken0(opLoadmedia));
-
-const instrFadein   = app(mkFadein,
-                          wordToken0(opFadein),
-                          durSy,
-                          transSy
-                          );
-
-const instrFadeout  = app(mkFadeout,
-                          wordToken0(opFadeout),
-                          durSy,
-                          transSy
+const typeSy    = withErr(wordTokens(tyWords),
+                          "slide type expected"
+                         );
+const textSy    = withErr(fmap((xs) => {return JSON.parse(xs);},
+                               token(textLit)
+                              ),
+                          "text literal expected"
                          );
 
-const instrSetStatus = app(mkSetStatus,
-                           wordToken0(opSetStatus),
-                           statusSy
+// compound parsers
+const geoSpec   = app(GeoSpec, algSy, scaleSy, dirSy, shiftSy);
+
+const instrInit      = app(mkInit,  wordToken0(opInit),  identSy);
+const instrType      = app(mkType,  wordToken0(opType),  typeSy);
+const instrFrame     = app(mkFrame, wordToken0(opFrame), geoSpec);
+const instrText      = app(mkText,  wordToken0(opText),  textSy);
+
+const instrLoadpage  = fmap(cnst(mkLoadpage()),  wordToken0(opLoadpage));
+const instrLoadmedia = fmap(cnst(mkLoadmedia()), wordToken0(opLoadmedia));
+const instrWaitInput = fmap(cnst(mkWaitInput()), wordToken0(opWaitInput));
+const instrFinish    = fmap(cnst(mkFinish()),    wordToken0(opFinish));
+
+const instrFadein    = app(mkFadein,
+                           wordToken0(opFadein),
+                           durSy,
+                           transSy
                           );
 
+const instrFadeout   = app(mkFadeout,
+                           wordToken0(opFadeout),
+                           durSy,
+                           transSy
+                          );
+
+const instrDelay     = app(mkDelay, wordToken0(opDelay), durSy);
+const instrStatus    = app(mkStatus, wordToken0(opStatus), statusSy);
+
 const instr0   = alts(instrInit,
+                      instrType,
+                      instrFrame,
+                      instrText,
                       instrLoadpage,
+                      instrLoadmedia,
                       instrFadein,
                       instrFadeout,
-                      instrSetStatus,
+                      instrDelay,
+                      instrWaitInput,
+                      instrStatus,
+                      instrFinish,
                       );
 
 const instr1 = cx(manyBlanks,

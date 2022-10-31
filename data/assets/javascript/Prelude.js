@@ -75,6 +75,32 @@ function toNum(x) {
     return 1 * x;
 }
 
+function isUpper(x) {
+    const c = x.charCodeAt(0);
+    return c >= 'A'.charCodeAt(0)
+        && c <= 'Z'.charCodeAt(0);
+}
+
+function isLower(x) {
+    const c = x.charCodeAt(0);
+    return c >= 'a'.charCodeAt(0)
+        && c <= 'z'.charCodeAt(0);
+}
+
+function isAlpha(x) {
+    return isUpper(x) || isLower(x);
+}
+
+function isDigit(x) {
+    const c = x.charCodeAt(0);
+    return c >= '0'.charCodeAt(0)
+        && c <= '9'.charCodeAt(0);
+}
+
+function isAlphaNum(x) {
+    return isAlpha(x) || isDigit(x);
+}
+
 // --------------------
 //
 // string functions
@@ -249,6 +275,20 @@ function map(f) {
 }
 
 const toList = map(id);
+
+// curried filter function
+function filter(p) {
+    function go(xs) {
+        let ys = [];
+        for (const x of xs) {
+            if (p(x)) {
+                ys.push(x);
+            }
+        }
+        return ys;
+    }
+    return go;
+}
 
 // curries zipWith function
 // process all elements of two iterables and
