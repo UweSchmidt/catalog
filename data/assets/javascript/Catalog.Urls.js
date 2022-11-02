@@ -138,5 +138,8 @@ function pathToPathPos(path0) {
 function pathArchive()     { return "/archive"; }
 function pathCollections() { return "/archive/collections"; }
 
+function sPathToPathPos(path0) {
+    return pathToPathPos(pathCollections() + path0);
+}
 
 // ----------------------------------------

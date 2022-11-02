@@ -883,7 +883,7 @@ document.addEventListener("keyup",    keyUp);
 // ----------------------------------------
 // status bar
 
-const statusBar = mkStatus(statusId);
+const statusBar = mkStatusBar(statusId);
 
 // ----------------------------------------
 

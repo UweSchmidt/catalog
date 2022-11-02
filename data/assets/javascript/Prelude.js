@@ -56,11 +56,15 @@ function isString(x) {
 }
 
 function isObject(x) {
-    return typeof x === 'object';
+    // JS is full of warts
+
+    return typeof x === 'object'
+        && ! Array.isArray(x)
+        && x !== null;
 }
 
 function isNumber(x) {
-    return typeof x === 'number';
+    return  typeof x === 'number';
 }
 
 function isPositive(x) {
@@ -104,6 +108,10 @@ function isAlphaNum(x) {
 // --------------------
 //
 // string functions
+
+function fromOrd(...args) {
+    return String.fromCharCode(...args);
+}
 
 // (String, ...) -> String
 function concatS(...args) {

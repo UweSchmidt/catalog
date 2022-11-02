@@ -4,7 +4,7 @@
 // import DOM.Manipulate
 // import DOM.Animation
 
-function mkStatus(id) {
+function mkStatusBar(id) {
     const state = {
         id      : id,
         enabled : true,

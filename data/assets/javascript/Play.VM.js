@@ -48,6 +48,7 @@ const opInit      = "init";
 const opType      = "type";
 const opFrame     = "frame";
 const opText      = "text";
+const opPath      = "path";
 const opLoadpage  = "loadpage";
 const opLoadmedia = "loadmedia";
 const opRender    = "render";
@@ -67,6 +68,7 @@ const opCodes = [
     opType,
     opFrame,
     opText,
+    opPath,
     opLoadpage,
     opLoadmedia,
     opRender,
@@ -123,6 +125,12 @@ function mkFrame(gs) {
            };
 }
 
+function mkPath(path) {
+    return { op:   opPath,
+             path: path,
+           };
+}
+
 function mkText(text) {
     return { op:   opText,
              text: text,
@@ -137,9 +145,14 @@ function mkLoadmedia() {
     return { op: opLoadmedia };
 }
 
-function mkRender(gix) {
-    return { op:  opRender,
-             gix: gix,
+function mkRender(gs) {
+    if ( isNumber(gs) ) {
+        return { op:  opRender,
+                 gix: gs,
+               };
+    }
+    return { op: opRender,
+             gs: gs
            };
 }
 
@@ -170,16 +183,27 @@ function mkSetData(key, data) {
            };
 };
 
-function mkMove(dur, gix) {
+function mkMove(dur, gs) {
+    if ( isNumber(gs) ) {
+        return { op:  opMove,
+                 dur: dur,
+                 gix: gs
+               };
+    }
     return { op:  opMove,
              dur: dur,
-             gix: gix
+             gs:  gs
            };
 };
 
-function mkPlace(gix) {
-    return { op:  opPlace,
-             gix: gix
+function mkPlace(gs) {
+    if ( isNumber(gs) ) {
+        return { op:  opPlace,
+                 gix: gs
+               };
+    }
+    return { op: opPlace,
+             gs: gs
            };
 };
 
@@ -228,10 +252,10 @@ function cTerm() {
     ];
 }
 
-function cLoadImg(imgPathPos, frameGS, geos, gix, jnoWait) {
+function cLoadImg(imgPath, frameGS, geos, gix, jnoWait) {
     return [
         mkType('img'),
-        mkSetData('imgPathPos', imgPathPos),
+        mkPath(imgPath),
         mkFrame(frameGS || defaultFrameGS),
         mkSetData('geos',       geos     || [defaultSlideGeo]),
         mkLoadpage(),
@@ -282,17 +306,6 @@ function cMove(dur, gix) {
         ];
     }
 }
-
-/*
-function wrap(node, c1) {
-    function go(...args) {
-        return {node: node, succ: c1(...args)};
-    }
-    return go;
-}
-
-const cFadein = wrap('cFadein', cFadein1);
-*/
 
 function cFadein(dur, fade0, waitJob) {
     const pj   = waitJob || 1;
@@ -679,7 +692,7 @@ function execInstr(instr, activeJob) {
 
     // render frame and media element
     if ( op === opRender ) {
-        render(activeJob, jobsData.get(jno), instr.gix);
+        render(activeJob, jobsData.get(jno), instr.gs || instr.gix);
         advanceReadyJob(activeJob);
         return;
     }
@@ -710,14 +723,14 @@ function execInstr(instr, activeJob) {
 
     // animated move and/or scaling of media
     if ( op === opMove ) {
-        move(activeJob, jobsData.get(jno), instr.dur, instr.gix);
+        move(activeJob, jobsData.get(jno), instr.dur, instr.gs || instr.gix);
         advanceReadyJob(activeJob);
         return;
     }
 
     // move and/or scale without animation
     if ( op === opPlace ) {
-        place(activeJob, jobsData.get(jno), instr.gix);
+        place(activeJob, jobsData.get(jno), instr.gs || instr.gix);
         advanceReadyJob(activeJob);
         return;
     }
@@ -739,6 +752,13 @@ function execInstr(instr, activeJob) {
     if ( op === opText ) {
         const data = getData(jno);
         data.text = instr.text;
+        advanceReadyJob(activeJob);
+        return;
+    }
+
+    if ( op === opPath ) {
+        const data = getData(jno);
+        data.path = instr.path;
         advanceReadyJob(activeJob);
         return;
     }
@@ -907,7 +927,7 @@ function loadPage(activeJob, jobData) {
     const jno = activeJob.jno;
     const req = { rType:    'json',
                   geo:      'org',
-                  rPathPos: jobData.imgPathPos,
+                  rPathPos: sPathToPathPos(jobData.path),
                 };
     const url = reqToUrl(req);
     trc(1,`loadPage: ${url}`);
@@ -955,7 +975,7 @@ function loadMedia(activeJob, jobData) {
     case 'img':
         jobData.imgCache = new Image();           // image cache
         const req = { rType:    'img',
-                      rPathPos: jobData.imgPathPos
+                      rPathPos: sPathToPathPos(jobData.path),
                     };
         const url = imgReqToUrl(req, jobData.imgReqGeo);
         jobData.imgUrl = url;
@@ -996,32 +1016,43 @@ function mkFrameId(jno) {
     return `frame-${jno}`;
 }
 
-function imgGeoToCSS(jobData, gix) {
+function imgGeoToCSS(jobData, gs) {
+    if ( isNumber(gs) ) {
+        gs = jobData.geos[gs];
+    }
     const frameGeo = jobData.frameGO.geo;
     const imgGeo   = jobData.imgGeo;
-    const go       = placeMedia(frameGeo, imgGeo)(jobData.geos[gix]);
-    jobData.gix    = gix;          // save current geo spec index
+    const go       = placeMedia(frameGeo, imgGeo)(gs);
+    jobData.gs     = gs;           // save current geo spec
     jobData.go     = go;           // save current abs geo/off
     return cssAbsGeo(go);
 }
 
 // --------------------
 
-function place(activeJob, jobData, gix) {
+function place(activeJob, jobData, gs) {
+    if ( isNumber(gs) ) {
+        gs = jobData.geos[gs];
+    }
     const fid  = mkFrameId(activeJob.jno);
-    const ms   = imgGeoToCSS(jobData, gix);
+    const ms   = imgGeoToCSS(jobData, gs);
 
-    trc(1,`place: ${activeJob.jno} gix=${gix}`);
+    trc(1,`place: ${activeJob.jno} gs=${pp.gs(gs)}`);
     setCSS(mkImgId(fid), ms);
 }
 
-function move(activeJob, jobData, dur, gix) {
+let cssAnimCnt = 1;
+
+function move(activeJob, jobData, dur, gs) {
+    if ( isNumber(gs) ) {
+        gs = jobData.geos[gs];
+    }
     const fid   = mkFrameId(activeJob.jno);
-    const cssId = mkCssId(activeJob.jno, gix);
+    const cssId = mkCssId(activeJob.jno, cssAnimCnt++);
     const imgId = mkImgId(fid);
 
     const ms0   = cssAbsGeo(jobData.go);     // transition start
-    const ms1   = imgGeoToCSS(jobData, gix); // transition end
+    const ms1   = imgGeoToCSS(jobData, gs); // transition end
 
     const cssKeyFrames = `
 @keyframes kf-${cssId} {
@@ -1057,7 +1088,7 @@ img.${cssId}, div.${cssId} {
         // c.remove();
     }
 
-    trc(1,`move: ${activeJob.jno} dur=${dur} gix=${gix}`);
+    trc2(`move: ${activeJob.jno} dur=${dur}`, gs);
 
     i.addEventListener('animationend', animEnd);
     i.classList.add(cssId);
@@ -1067,8 +1098,8 @@ function moveCSS(ms) {
     return `width: ${ms.width}; height: ${ms.height}; left: ${ms.left}; top: ${ms.top}`;
 }
 
-function mkCssId(jno, gix) {
-    return `css-job-${jno}-${gix}`;
+function mkCssId(jno, cssCnt) {
+    return `css-job-${jno}-${cssCnt}`;
 }
 
 function newCssNode(cssId) {
@@ -1089,7 +1120,10 @@ function newCssNode(cssId) {
 // --------------------
 // build a new frame containing a media element
 
-function render(activeJob, jobData, gix) {
+function render(activeJob, jobData, gs) {
+    if ( isNumber(gs) ) {
+        gs = jobData.geos[gs];
+    }
     const jno = activeJob.jno;
     const ty  = jobData.type;
     const sg  = stageGeo();
@@ -1097,11 +1131,11 @@ function render(activeJob, jobData, gix) {
 
     switch ( ty ) {
     case 'text':
-        renderText(jobData, fid, sg, stageId, gix);
+        renderText(jobData, fid, sg, stageId, gs);
         break;
 
     case 'img':
-        renderImg(jobData, fid, sg, stageId, gix);
+        renderImg(jobData, fid, sg, stageId, gs);
         break;
 
     default:
@@ -1117,14 +1151,14 @@ function renderFrame(jobData, frameId, stageGeo, frameCss) {
     return newFrame(frameId, frameGO, frameCss);
 }
 
-function renderImg(jobData, frameId, stageGeo, parentId, gix) {
+function renderImg(jobData, frameId, stageGeo, parentId, gs) {
     const frameCss = { opacity: 0,
                        visibility: 'hidden',
                        display:    'block',
                        overflow:   'hidden',
                      };
     const frame    = renderFrame(jobData, frameId, stageGeo, frameCss);
-    const ms       = imgGeoToCSS(jobData, gix);
+    const ms       = imgGeoToCSS(jobData, gs);
     const me       = newImgElem(frameId, ms, 'img');
     me.src         = jobData.imgUrl;
 
@@ -1132,7 +1166,7 @@ function renderImg(jobData, frameId, stageGeo, parentId, gix) {
     getElem(parentId).appendChild(frame);
 }
 
-function renderText(jobData, frameId, stageGeo, parentId, gix) {
+function renderText(jobData, frameId, stageGeo, parentId, gs) {
     const frameCss  = { opacity: 0,
                         visibility: 'hidden',
                         display:    'block',
@@ -1145,7 +1179,6 @@ function renderText(jobData, frameId, stageGeo, parentId, gix) {
     // media geo is rel to frame geo
     // make media geo absolute
 
-    const gs   = jobData.geos[gix];
     const go   = placeFrame(frameGeo, gs);
     jobData.go = go;        // save text element geo/off in job data
 
@@ -1270,7 +1303,7 @@ const rightHalfGeo = {
 
 const defaultSlideGeo = {
     alg:   'fitInto',  // default
-    scale: 1.0,        // default
+    scale:  V2(1.0),   // default
     dir:   'center',   // default
     shift:  V2(0,0),   // default
 };
@@ -1284,7 +1317,7 @@ function mkJob(jno,code) {
 var j1 =
     cJob('HalloWelt',
          cLoadText1("<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
-                    {dir: 'NW', shift: V2(0.10,0.10)},
+                    {alg: 'fix', scale: V2(1), dir: 'NW', shift: V2(0.10,0.10)},
                    ),
          cViewStd(1.0, trFadein, 3.0, 2.0, trCrossfade)
         );
@@ -1292,7 +1325,7 @@ var j1 =
 var j2 =
     cJob('Hallo',
          cLoadText(rightHalfGeo,
-                   [{alg: 'fix', dir: 'SE', shift: V2(-0.20,-0.20)}],
+                   [{alg: 'fix', scale: V2(1), dir: 'SE', shift: V2(-0.20,-0.20)}],
                    "<h2>Hallo Welt</h2>"),
          cViewStd0(0.5, trCrossfade,
                    0.5, trCrossfade,
@@ -1304,13 +1337,13 @@ var j2 =
 
 var j3 =
     cJob('Ente1',
-         cLoadImg(['/archive/collections/albums/EinPaarBilder',1],
+         cLoadImg('/albums/EinPaarBilder/pic-00001',
                   defaultFrameGS,
                   [ defaultSlideGeo,
-                    {alg: 'fill',    scale: 2.0, dir: 'center',},
-                    {alg: 'fitInto', scale: 0.5, dir: 'center',},
-                    {alg: 'fix',},                  // real img size
-                    {alg: 'fitInto', scale: 0.5, dir: 'W',},
+                    {alg: 'fill',    scale: V2(2.0), dir: 'center', shift: V2()},
+                    {alg: 'fitInto', scale: V2(0.5), dir: 'center', shift: V2()},
+                    {alg: 'fix',     scale: V2(1), dir: 'center', shift: V2()},                  // real img size
+                    {alg: 'fitInto', scale: V2(0.5), dir: 'W', shift: V2(),},
                     defaultSlideGeo,
                   ]
                  ),
@@ -1333,19 +1366,19 @@ var j3 =
 
 var j4 =
     cJob("Ente2",
-         cLoadImgStd(['/archive/collections/albums/EinPaarBilder',2],
-                     {alg: 'fill', scale: 1.1, dir: 'center'}
+         cLoadImgStd('/albums/EinPaarBilder/pic-0002',
+                     {alg: 'fill', scale: V2(1.1), dir: 'center', shift: V2()}
                     ),
          cViewCrossfade(5.0,1.0)
         );
 
 var j6 =
     cJob("arizona",
-         cLoadImg(['/archive/collections/clipboard',0],
+         cLoadImg('/clipboard/pic-0000',
                   defaultFrameGS,
-                  [{alg: 'sameHeight', scale: 1, dir: 'W'},
-                   {alg: 'sameHeight', scale: 1, dir: 'E'},
-                   {alg: 'sameWidth',  scale: 1, dir: 'center'},
+                  [{alg: 'sameHeight', scale: V2(1), dir: 'W', shift: V2()},
+                   {alg: 'sameHeight', scale: V2(1), dir: 'E', shift: V2()},
+                   {alg: 'sameWidth',  scale: V2(1), dir: 'center', shift: V2()},
                  ]
                  ),
          cViewStd0(1.5, trCrossfade,
@@ -1370,10 +1403,10 @@ var j5 =
 var jobList = [
 //    j1,
 //    j2,
-//    j3,
+    j3,
 //    j6,
 //    j4,
-    j5,
+//    j5,
 ];
 
 function restartJobs(js) {
@@ -1410,6 +1443,9 @@ function ppPath(l) {
 function ppPathPrefix(p) { return rePathPx + p; }
 
 function ppGS(gs) {
+    if ( isNumber(gs) ) {
+        return `gix-${gs}`;
+    }
     return filter((x) => {return x !== "";})([
         pp.text(gs.alg),
         pp.scale(gs.scale),
@@ -1453,9 +1489,18 @@ function ppInstr(i) {
         res.push(JSON.stringify(i.text));
         break;
 
+    case opPath:
+        res.push(i.path);
+        break;
+
     case opRender:
     case opPlace:
-        res.push(pp.num(i.gix));
+        if ( isNumber(i.gix) ) {
+            res.push(pp.num(i.gix));
+        }
+        else {
+            res.push(pp.gs(i.gs));
+        }
         break;
 
     case opFadein:
@@ -1472,7 +1517,13 @@ function ppInstr(i) {
         break;
 
     case opMove:
-        res.push(pp.dur(i.dur), pp.num(i.gix));
+        res.push(pp.dur(i.dur));
+        if ( isNumber(i.gix) ) {
+            res.push(pp.num(i.gix));
+        }
+        else {
+            res.push(pp.gs(i.gs));
+        }
         break;
 
     case opDelay:
@@ -1925,9 +1976,32 @@ function words(ws) {
     return alts(...ps);
 }
 
+// for not mess up with quoting
+
+function charOrd(n) {
+    return char(fromOrd(n));
+}
+
+function oneOfOrd(...ns) {
+    return oneOf(fromOrd(...ns));
+};
+
+function noneOfOrd(...ns) {
+    return noneOf(fromOrd(...ns));
+};
+
+function wordOrd(...ns) {
+    return word(fromOrd(...ns));
+}
+
 // --------------------
 //
 // whitespace and comment separators
+
+
+const dquote     = charOrd(34);
+const squote     = charOrd(39);
+const bslash     = charOrd(92);
 
 const ws         = oneOf(' \t\n');
 const blank      = oneOf(' \t');
@@ -2040,9 +2114,14 @@ const fractN     = seqT(someDigits,
 const fractS     = seqT(oneOf('-+'), fractN);
 const fract      = seqT(opt("", oneOf('-+')) , fractN);
 
-const textLit    = seqT(char("\""),
-                        manyT(alt(word("\\\"" ),noneOf("\"\n"))),
-                        char("\""),
+const textLit    = seqT(dquote,
+                        pCut,
+                        manyT(alt(noneOfOrd(34, 10),
+                                  seqT(bslash, item)
+                                 )
+                             ),
+                        pCut,
+                        dquote,
                        );
 
 // --------------------
