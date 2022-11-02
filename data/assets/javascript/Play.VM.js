@@ -8,14 +8,13 @@
 // stati
 
 const stCreated    = "created";
-const stReadypage  = "readypage";
-const stReadymedia = "readymedia";
+const stReadypage  = "pageready";
+const stReadymedia = "mediaready";
 const stVisible    = "visible";
 const stShown      = "shown";
 const stHidden     = "hidden";
 const stFinished   = "finished";
 const stAborted    = "aborted";
-const stNothing    = "nothing";
 
 const statiWords = [
     stCreated,
@@ -26,7 +25,6 @@ const statiWords = [
     stHidden,
     stFinished,
     stAborted,
-    stNothing,
 ];
 
 // set of stati
@@ -72,15 +70,15 @@ const opCodes = [
     opLoadpage,
     opLoadmedia,
     opRender,
+    opPlace,
+    opMove,
     opFadeout,
     opFadein,
-    opMove,
-    opPlace,
     opSetData,
-    opStatus,
     opDelay,
     opWait,
     opWaitInput,
+    opStatus,
     opFinish,
 ];
 
@@ -2123,6 +2121,14 @@ const textLit    = seqT(dquote,
                         pCut,
                         dquote,
                        );
+const pathLit    = someT(seqT(char('/'),
+                              pCut,
+                              someT(alt(satisfy(isAlphaNum),
+                                        oneOf('+-._')
+                                       )
+                                   )
+                             )
+                        );
 
 // --------------------
 //
@@ -2152,8 +2158,8 @@ const pOff    = app(toV2, fractS, fractS);                  // +1.5-2.0
 
 const geoSy   = token(pGeo);
 const offSy   = token(pOff);
-const scaleSy = opt(1,             alt(geoSy, token(pFractN)));
-const shiftSy = opt(V2(0,0),       offSy);
+const scaleSy = opt(V2(1,1), alt(geoSy, fmap(V2, token(pFractN))));
+const shiftSy = opt(V2(0,0), offSy);
 const goSy    = token(app(GO, pGeo, opt(V2(0,0),pOff)));
 
 // duration parser
@@ -2178,6 +2184,9 @@ const textSy    = withErr(fmap((xs) => {return JSON.parse(xs);},
                               ),
                           "text literal expected"
                          );
+const pathSy    = withErr(token(pathLit),
+                          "path expected"
+                         );
 
 // compound parsers
 const geoSpec   = app(GeoSpec, algSy, scaleSy, dirSy, shiftSy);
@@ -2186,33 +2195,33 @@ const instrInit      = app(mkInit,  wordToken0(opInit),  identSy);
 const instrType      = app(mkType,  wordToken0(opType),  typeSy);
 const instrFrame     = app(mkFrame, wordToken0(opFrame), geoSpec);
 const instrText      = app(mkText,  wordToken0(opText),  textSy);
+const instrPath      = app(mkPath,  wordToken0(opPath),  pathSy);
 
 const instrLoadpage  = fmap(cnst(mkLoadpage()),  wordToken0(opLoadpage));
 const instrLoadmedia = fmap(cnst(mkLoadmedia()), wordToken0(opLoadmedia));
 const instrWaitInput = fmap(cnst(mkWaitInput()), wordToken0(opWaitInput));
 const instrFinish    = fmap(cnst(mkFinish()),    wordToken0(opFinish));
 
-const instrFadein    = app(mkFadein,
-                           wordToken0(opFadein),
-                           durSy,
-                           transSy
-                          );
+const instrRender    = app(mkRender,  wordToken0(opRender), geoSpec);
+const instrPlace     = app(mkPlace,   wordToken0(opPlace),  geoSpec);
+const instrMove      = app(mkMove,    wordToken0(opMove),   durSy, geoSpec);
 
-const instrFadeout   = app(mkFadeout,
-                           wordToken0(opFadeout),
-                           durSy,
-                           transSy
-                          );
+const instrFadein    = app(mkFadein,  wordToken0(opFadein),  durSy, transSy);
+const instrFadeout   = app(mkFadeout, wordToken0(opFadeout), durSy, transSy);
 
-const instrDelay     = app(mkDelay, wordToken0(opDelay), durSy);
-const instrStatus    = app(mkStatus, wordToken0(opStatus), statusSy);
+const instrDelay     = app(mkDelay,   wordToken0(opDelay),  durSy);
+const instrStatus    = app(mkStatus,  wordToken0(opStatus), statusSy);
 
 const instr0   = alts(instrInit,
                       instrType,
                       instrFrame,
                       instrText,
+                      instrPath,
                       instrLoadpage,
                       instrLoadmedia,
+                      instrRender,
+                      instrPlace,
+                      instrMove,
                       instrFadein,
                       instrFadeout,
                       instrDelay,
