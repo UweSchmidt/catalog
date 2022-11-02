@@ -216,9 +216,15 @@ function mkWaitInput() {
            };
 }
 
-function mkWait(reljno, st) {
+function mkWait(st, job) {
+    if ( isNumber(job) ) {
+        return { op:     opWait,
+                 reljno: job,
+                 status: st,
+               };
+    }
     return { op:     opWait,
-             reljno: reljno,
+             name:   job,
              status: st,
            };
 };
@@ -258,7 +264,7 @@ function cLoadImg(imgPath, frameGS, geos, gix, jnoWait) {
         mkSetData('geos',       geos     || [defaultSlideGeo]),
         mkLoadpage(),
         mkStatus(stReadypage),
-        mkWait(jnoWait || 1, stReadymedia), // wait for prev job loading media
+        mkWait(stReadymedia, jnoWait || -1), // wait for prev job loading media
         mkLoadmedia(),
         mkStatus(stReadymedia),
         mkRender(gix || 0),                 // 1. geo is initial geo
@@ -279,16 +285,14 @@ function cLoadText(frameGS, geos, text, gix) {
 }
 
 function cView(dur) {
+    let is = [];
     if ( isPositive(dur) ) {
-        return [
-            mkDelay(dur),
-        ];
+        is.push(mkDelay(dur));
     }
-    else {
-        return [
-            mkWaitInput(),
-        ];
+    if ( dur === 'click' ) {
+        is.push(mkWaitInput());
     }
+    return is;
 }
 
 function cMove(dur, gix) {
@@ -306,7 +310,7 @@ function cMove(dur, gix) {
 }
 
 function cFadein(dur, fade0, waitJob) {
-    const pj   = waitJob || 1;
+    const prevJob = waitJob || -1;
     const fade =
           isPositive(dur)
           ? fade0
@@ -315,14 +319,14 @@ function cFadein(dur, fade0, waitJob) {
     switch ( fade ) {
     case 'fadein':
         return [
-            mkWait(pj, stHidden),   // wait for previous job
+            mkWait(stHidden, prevJob),   // wait prev image to be hidden
             mkFadein(dur, trFadein),
             mkDelay(dur),
             mkStatus(stVisible),
         ];
     case 'crossfade':
         return [
-            mkWait(pj, stShown),   // crossfade starts earlier
+            mkWait(stShown, prevJob),   // wait prev image starts fading out
             mkFadein(dur, trFadein),
             mkDelay(dur),
             mkStatus(stVisible),
@@ -330,7 +334,7 @@ function cFadein(dur, fade0, waitJob) {
     case trCut:
     default:
         return [
-            mkWait(pj, stShown),
+            mkWait(stShown, prevJob),
             mkFadein(0, trCut),
             mkStatus(stVisible),
         ];
@@ -344,9 +348,10 @@ function cFadeout(dur, fade0) {
           : trCut;
 
     switch ( fade ) {
-    case 'fadeout':
     case 'crossfade':
+    case 'fadeout':
         return [
+            mkStatus(stShown),
             mkFadeout(dur, trFadeout),
             mkDelay(dur),
             mkStatus(stHidden),
@@ -354,6 +359,7 @@ function cFadeout(dur, fade0) {
     case trCut:
     default:
         return [
+            mkStatus(stShown),
             mkFadeout(0, trCut),
             mkStatus(stHidden),
         ];
@@ -625,10 +631,10 @@ function run() {
 function run1() {
     vmRunning = true;
     do {
-        trc(1, `${vmStepCnt}. step started`);
+        // trc(1, `${vmStepCnt}. step started`);
         res = step1();
         if ( res === 'step') {
-            trc(1, `${vmStepCnt}. step finished`);
+            // trc(1, `${vmStepCnt}. step finished`);
         }
         vmStepCnt++;
     }
@@ -803,7 +809,13 @@ function execInstr(instr, activeJob) {
 
     // syncing with previous slides
     if ( op === opWait ) {
-        const jno1 = jno - instr.reljno;
+        let jno1 = jno - 1;
+        if ( isNumber(instr.reljno) ) {
+            jno1 = jno + instr.reljno;    // reljno is usually -1 (prev job)
+        } else {
+            const jname = instr.name;
+            trc(1, `wait: job names not yet implemented`);
+        }
         const st1  = instr.status;
 
         trc(1, `wait: ${jno} requires (${jno1}, ${st1})`);
@@ -1399,12 +1411,9 @@ var j5 =
         );
 
 var jobList = [
-//    j1,
-//    j2,
-    j3,
-//    j6,
-//    j4,
-//    j5,
+    // j1, j2, j3,
+    j6, // j4,
+    j5,
 ];
 
 function restartJobs(js) {
@@ -1529,7 +1538,14 @@ function ppInstr(i) {
         break;
 
     case opWait:
-        res.push(pp.num(i.reljno), i.status);
+        res.push(i.status);
+        if ( isNumber(i.reljno) ) {
+            if ( i.reljno !== -1 ) {
+                res.push(pp.num(i.reljno));
+            }
+        } else {
+            res.push(i.name);
+        }
         break;
 
     default:
@@ -2106,11 +2122,15 @@ const ident      = seqT(satisfy(isAlpha), manyT(satisfy(isAlphaNum)));
 const digit      = oneOf("0123456789");
 const manyDigits = manyT(digit);
 const someDigits = someT(digit);
+const sign       = oneOf('-+');
+const optSign    = opt("", sign);
+const intS       = seqT(sign, someDigits);
+const intOS      = seqT(optSign, someDigits);
 const fractN     = seqT(someDigits,
                         opt("", seqT(char('.'), someDigits))
                        );
-const fractS     = seqT(oneOf('-+'), fractN);
-const fract      = seqT(opt("", oneOf('-+')) , fractN);
+const fractS     = seqT(sign, fractN);
+const fract      = seqT(optSign, fractN);
 
 const textLit    = seqT(dquote,
                         pCut,
@@ -2152,6 +2172,9 @@ const geoS       = seq(fractN,              // 12.3x4.5
 // by the token parser variable
 
 // geo parser
+const pNat    = fmap(toNum, someDigits);
+const pInt    = fmap(toNum, intOS);
+const pIntS   = fmap(toNum, intS);
 const pFractN = fmap(toNum, fractN);
 const pGeo    = app(toV2, fractN, del(char('x')), fractN);  // 12.3x4.5
 const pOff    = app(toV2, fractS, fractS);                  // +1.5-2.0
@@ -2187,6 +2210,11 @@ const textSy    = withErr(fmap((xs) => {return JSON.parse(xs);},
 const pathSy    = withErr(token(pathLit),
                           "path expected"
                          );
+const jobSy     = withErr(alt(opt(-1, pIntS),
+                              identSy
+                             ),
+                          "rel. job num or job name expected"
+                         );
 
 // compound parsers
 const geoSpec   = app(GeoSpec, algSy, scaleSy, dirSy, shiftSy);
@@ -2209,6 +2237,7 @@ const instrMove      = app(mkMove,    wordToken0(opMove),   durSy, geoSpec);
 const instrFadein    = app(mkFadein,  wordToken0(opFadein),  durSy, transSy);
 const instrFadeout   = app(mkFadeout, wordToken0(opFadeout), durSy, transSy);
 
+const instrWait      = app(mkWait,    wordToken0(opWait), statusSy, jobSy);
 const instrDelay     = app(mkDelay,   wordToken0(opDelay),  durSy);
 const instrStatus    = app(mkStatus,  wordToken0(opStatus), statusSy);
 
@@ -2226,6 +2255,7 @@ const instr0   = alts(instrInit,
                       instrFadeout,
                       instrDelay,
                       instrWaitInput,
+                      instrWait,
                       instrStatus,
                       instrFinish,
                       );
