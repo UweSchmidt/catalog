@@ -54,7 +54,6 @@ const opFadeout   = "fadeout";
 const opFadein    = "fadein";
 const opMove      = "move";
 const opPlace     = "place";    // move without animation
-const opSetData   = "setdata";
 const opStatus    = "status";
 const opDelay     = "delay";
 const opWait      = "wait";
@@ -74,7 +73,6 @@ const opCodes = [
     opMove,
     opFadeout,
     opFadein,
-    opSetData,
     opDelay,
     opWait,
     opWaitInput,
@@ -174,13 +172,6 @@ function mkStatus(st) {
            };
 };
 
-function mkSetData(key, data) {
-    return { op:   opSetData,
-             key:  key,
-             data: data,
-           };
-};
-
 function mkMove(dur, gs) {
     if ( isNumber(gs) ) {
         return { op:  opMove,
@@ -256,12 +247,11 @@ function cTerm() {
     ];
 }
 
-function cLoadImg(imgPath, frameGS, geos, gs, jnoWait) {
+function cLoadImg(imgPath, frameGS, gs, jnoWait) {
     return [
         mkType('img'),
         mkPath(imgPath),
         mkFrame(frameGS || defaultFrameGS),
-        mkSetData('geos',       geos     || [defaultSlideGeo]),
         mkLoadpage(),
         mkStatus(stReadypage),
         mkWait(stReadymedia, jnoWait || -1), // wait for prev job loading media
@@ -271,11 +261,10 @@ function cLoadImg(imgPath, frameGS, geos, gs, jnoWait) {
     ];
 }
 
-function cLoadText(frameGS, geos, text, gs) {
+function cLoadText(frameGS, text, gs) {
     return [
         mkType('text'),
         mkFrame(frameGS || defaultFrameGS),
-        mkSetData('geos',         geos     || [defaultSlideGeo]),
         mkStatus(stReadypage),
         mkStatus(stReadymedia),
         mkText(text || "???"),
@@ -393,13 +382,13 @@ function cJob(name, cSetup, cView) {
 //   and 20% of stage height as padding at the top of the stage
 
 function cLoadText1(text, gs) {
-    gs = gs || defaultSlideGeo;
+    gs = gs || defaultGS;
     const gs1 = {...gs, alg: 'fix'};
-    return cLoadText(defaultFrameGS, [gs1], text, gs1);
+    return cLoadText(defaultFrameGS, text, gs1);
 }
 
 function cLoadImgStd(imgPath, gs) {
-    return cLoadImg(imgPath, defaultFrameGS, [gs]);
+    return cLoadImg(imgPath, defaultFrameGS);
 }
 
 // --------------------
@@ -767,15 +756,6 @@ function execInstr(instr, activeJob) {
         return;
     }
 
-    if ( op === opSetData ) {
-        trc(1,`execInstr: op=${op}: key=${instr.key}`);
-        const data = getData(jno);
-        // data[instr.key] = instr.data;
-
-        advanceReadyJob(activeJob);
-        return;
-    }
-
     // add status to status set and wakeup waiting for status
     if ( op === opStatus ) {
         const st = instr.st;
@@ -1028,9 +1008,6 @@ function mkFrameId(jno) {
 }
 
 function imgGeoToCSS(jobData, gs) {
-    if ( isNumber(gs) ) {
-        gs = jobData.geos[gs];
-    }
     const frameGeo = jobData.frameGO.geo;
     const imgGeo   = jobData.imgGeo;
     const go       = placeMedia(frameGeo, imgGeo)(gs);
@@ -1042,10 +1019,6 @@ function imgGeoToCSS(jobData, gs) {
 // --------------------
 
 function place(activeJob, jobData, gs) {
-    if ( isNumber(gs) ) {
-        gs = jobData.geos[gs];
-    }
-    const fid  = mkFrameId(activeJob.jno);
     const ms   = imgGeoToCSS(jobData, gs);
 
     trc(1,`place: ${activeJob.jno} gs=${pp.gs(gs)}`);
@@ -1055,9 +1028,6 @@ function place(activeJob, jobData, gs) {
 let cssAnimCnt = 1;
 
 function move(activeJob, jobData, dur, gs) {
-    if ( isNumber(gs) ) {
-        gs = jobData.geos[gs];
-    }
     const fid   = mkFrameId(activeJob.jno);
     const cssId = mkCssId(activeJob.jno, cssAnimCnt++);
     const imgId = mkImgId(fid);
@@ -1132,9 +1102,6 @@ function newCssNode(cssId) {
 // build a new frame containing a media element
 
 function render(activeJob, jobData, gs) {
-    if ( isNumber(gs) ) {
-        gs = jobData.geos[gs];
-    }
     const jno = activeJob.jno;
     const ty  = jobData.type;
     const sg  = stageGeo();
@@ -1297,8 +1264,8 @@ function instrGS(code) {
 
 var newJobNo = 0;
 
-// constructor
-function GeoSpec(alg, scale, dir, shift) {
+// geo spec constructor
+function GS(alg, scale, dir, shift) {
     return {
         alg:   alg,
         scale: scale,
@@ -1328,7 +1295,7 @@ const rightHalfGeo = {
     shift: V2(0,0),
 };
 
-const defaultSlideGeo = {
+const defaultGS = {
     alg:   'fitInto',  // default
     scale:  V2(1.0),   // default
     dir:   'center',   // default
@@ -1344,7 +1311,7 @@ function mkJob(jno,code) {
 var j1 =
     cJob('HalloWelt',
          cLoadText1("<h1>Hallo Welt</h1><p>Hier bin ich!</p>",
-                    {alg: 'fix', scale: V2(1), dir: 'NW', shift: V2(0.10,0.10)},
+                    GS('fix', V2(1), 'NW', V2(0.10,0.10)),
                    ),
          cViewStd(1.0, trFadein, 3.0, 2.0, trCrossfade)
         );
@@ -1352,10 +1319,8 @@ var j1 =
 var j2 =
     cJob('Hallo',
          cLoadText(rightHalfGeo,
-                   [{alg: 'fix', scale: V2(1),
-                     dir: 'SE', shift: V2(-0.20,-0.20)}],
                    "<h2>Hallo Welt</h2>",
-                   {alg: 'fix', scale: V2(1), dir: 'SE', shift: V2(-0.20,-0.20)}
+                   GS('fix', V2(1), 'SE', V2(-0.20,-0.20)),
                   ),
          cViewStd0(0.5, trCrossfade,
                    0.5, trCrossfade,
@@ -1369,13 +1334,7 @@ var j3 =
     cJob('Ente1',
          cLoadImg('/albums/EinPaarBilder/pic-00001',
                   defaultFrameGS,
-                  [ defaultSlideGeo,
-                    {alg: 'fill',    scale: V2(2.0), dir: 'center', shift: V2()},
-                    {alg: 'fitInto', scale: V2(0.5), dir: 'center', shift: V2()},
-                    {alg: 'fix',     scale: V2(1), dir: 'center', shift: V2()},                  // real img size
-                    {alg: 'fitInto', scale: V2(0.5), dir: 'W', shift: V2(),},
-                    defaultSlideGeo,
-                  ]
+                  defaultGS,
                  ),
          cViewStd0(2.0, trCrossfade,
                    2.0, trCrossfade,
@@ -1397,7 +1356,7 @@ var j3 =
 var j4 =
     cJob("Ente2",
          cLoadImgStd('/albums/EinPaarBilder/pic-0002',
-                     {alg: 'fill', scale: V2(1.1), dir: 'center', shift: V2()}
+                     {alg: 'fill', scale: V2(1.1), dir: 'center', shift: V2()},
                     ),
          cViewCrossfade(5.0,1.0)
         );
@@ -1406,10 +1365,6 @@ var j6 =
     cJob("arizona",
          cLoadImg('/clipboard/pic-0000',
                   defaultFrameGS,
-                  [{alg: 'sameHeight', scale: V2(1), dir: 'W', shift: V2()},
-                   {alg: 'sameHeight', scale: V2(1), dir: 'E', shift: V2()},
-                   {alg: 'sameWidth',  scale: V2(1),
-                    dir: 'center', shift: V2()},                  ],
                   {alg: 'sameHeight', scale: V2(1), dir: 'W', shift: V2()},
                  ),
          cViewStd0(1.5, trCrossfade,
@@ -1431,7 +1386,7 @@ var j5 =
     cJob('Ende',
          cLoadText1(`<h1 class='text-center'>The End</h1>
                      <div>This is the end, my friend.</div>`,
-                    defaultSlideGeo,
+                    defaultGS,
                    ),
          cViewStd(1.0, trFadein, 'click', 5.0, trFadeout)
         );
@@ -1543,10 +1498,6 @@ function ppInstr(i) {
 
     case opStatus:
         res.push(i.st);
-        break;
-
-    case opSetData:
-        res.push(i.key, JSON.stringify(i.data));
         break;
 
     case opMove:
@@ -2243,7 +2194,7 @@ const jobSy     = withErr(alt(opt(-1, pIntS),
                          );
 
 // compound parsers
-const geoSpec   = app(GeoSpec, algSy, scaleSy, dirSy, shiftSy);
+const geoSpec        = app(GS, algSy, scaleSy, dirSy, shiftSy);
 
 const instrInit      = app(mkInit,  wordToken0(opInit),  identSy);
 const instrType      = app(mkType,  wordToken0(opType),  typeSy);
