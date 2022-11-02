@@ -256,7 +256,7 @@ function cTerm() {
     ];
 }
 
-function cLoadImg(imgPath, frameGS, geos, gix, jnoWait) {
+function cLoadImg(imgPath, frameGS, geos, gs, jnoWait) {
     return [
         mkType('img'),
         mkPath(imgPath),
@@ -267,11 +267,11 @@ function cLoadImg(imgPath, frameGS, geos, gix, jnoWait) {
         mkWait(stReadymedia, jnoWait || -1), // wait for prev job loading media
         mkLoadmedia(),
         mkStatus(stReadymedia),
-        mkRender(gix || 0),                 // 1. geo is initial geo
+        mkRender(gs),                 // 1. geo is initial geo
     ];
 }
 
-function cLoadText(frameGS, geos, text, gix) {
+function cLoadText(frameGS, geos, text, gs) {
     return [
         mkType('text'),
         mkFrame(frameGS || defaultFrameGS),
@@ -279,7 +279,7 @@ function cLoadText(frameGS, geos, text, gix) {
         mkStatus(stReadypage),
         mkStatus(stReadymedia),
         mkText(text || "???"),
-        mkRender(gix || 0),
+        mkRender(gs),
 
     ];
 }
@@ -395,7 +395,7 @@ function cJob(name, cSetup, cView) {
 function cLoadText1(text, gs) {
     gs = gs || defaultSlideGeo;
     const gs1 = {...gs, alg: 'fix'};
-    return cLoadText(defaultFrameGS, [gs1], text);
+    return cLoadText(defaultFrameGS, [gs1], text, gs1);
 }
 
 function cLoadImgStd(imgPath, gs) {
@@ -770,7 +770,7 @@ function execInstr(instr, activeJob) {
     if ( op === opSetData ) {
         trc(1,`execInstr: op=${op}: key=${instr.key}`);
         const data = getData(jno);
-        data[instr.key] = instr.data;
+        // data[instr.key] = instr.data;
 
         advanceReadyJob(activeJob);
         return;
@@ -949,7 +949,8 @@ function loadPage(activeJob, jobData) {
         case 'img':
             const frameGeo      = stageGeo();
             const imgGeo        = readGeo(page.oirGeo[0]);
-            const mxGeo         = maxGeo(frameGeo, imgGeo, jobData.geos);
+            const gss           = instrGS(jobsCode.get(jno));
+            const mxGeo         = maxGeo(frameGeo, imgGeo, gss);
 
             jobData.imgMetaData = getPageMeta(page);
             jobData.imgGeo      = imgGeo;
@@ -1276,6 +1277,22 @@ function removeFrame(jno) {
 
 // ----------------------------------------
 //
+// code selection and modification
+
+// list of geo specs in a job
+
+function instrGS(code) {
+    let gss = [];
+    for (i of code) {
+        if ( i.gs !== undefined ) {
+            gss.push(i.gs);
+        }
+    }
+    return gss;
+}
+
+// ----------------------------------------
+//
 // job creation
 
 var newJobNo = 0;
@@ -1335,8 +1352,11 @@ var j1 =
 var j2 =
     cJob('Hallo',
          cLoadText(rightHalfGeo,
-                   [{alg: 'fix', scale: V2(1), dir: 'SE', shift: V2(-0.20,-0.20)}],
-                   "<h2>Hallo Welt</h2>"),
+                   [{alg: 'fix', scale: V2(1),
+                     dir: 'SE', shift: V2(-0.20,-0.20)}],
+                   "<h2>Hallo Welt</h2>",
+                   {alg: 'fix', scale: V2(1), dir: 'SE', shift: V2(-0.20,-0.20)}
+                  ),
          cViewStd0(0.5, trCrossfade,
                    0.5, trCrossfade,
                    [...cView(3.0),
@@ -1388,15 +1408,20 @@ var j6 =
                   defaultFrameGS,
                   [{alg: 'sameHeight', scale: V2(1), dir: 'W', shift: V2()},
                    {alg: 'sameHeight', scale: V2(1), dir: 'E', shift: V2()},
-                   {alg: 'sameWidth',  scale: V2(1), dir: 'center', shift: V2()},
-                 ]
+                   {alg: 'sameWidth',  scale: V2(1),
+                    dir: 'center', shift: V2()},                  ],
+                  {alg: 'sameHeight', scale: V2(1), dir: 'W', shift: V2()},
                  ),
          cViewStd0(1.5, trCrossfade,
                    1.5, trCrossfade,
                    [...cView(2.0),
-                    ...cMove(10.0,1),
-                    ...cView(-1),
-                    ...cMove(4.0,2),
+                    ...cMove(10.0,
+                             {alg: 'sameHeight', scale: V2(1),
+                              dir: 'E', shift: V2()}),
+                    ...cView('click'),
+                    ...cMove(4.0,
+                             {alg: 'sameWidth',  scale: V2(1),
+                              dir: 'center', shift: V2()}),
                     ...cView(3.0),
                    ]
                   )
@@ -1405,7 +1430,8 @@ var j6 =
 var j5 =
     cJob('Ende',
          cLoadText1(`<h1 class='text-center'>The End</h1>
-                     <div>This is the end, my friend.</div>`
+                     <div>This is the end, my friend.</div>`,
+                    defaultSlideGeo,
                    ),
          cViewStd(1.0, trFadein, 'click', 5.0, trFadeout)
         );
