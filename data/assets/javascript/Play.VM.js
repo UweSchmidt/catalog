@@ -233,7 +233,7 @@ function cLoadImg(imgPath, frameGS, gs, jnoWait) {
     return [
         mkType('img'),
         mkPath(imgPath),
-        mkFrame(frameGS || defaultFrameGS),
+        mkFrame(frameGS || defaultFrameGS()),
         mkLoadpage(),
         mkWait(stReadymedia, jnoWait || -1), // wait for prev job loading media
         mkLoadmedia(),
@@ -244,7 +244,7 @@ function cLoadImg(imgPath, frameGS, gs, jnoWait) {
 function cLoadText(frameGS, text, gs) {
     return [
         mkType('text'),
-        mkFrame(frameGS || defaultFrameGS),
+        mkFrame(frameGS || defaultFrameGS()),
         mkText(text || "???"),
         mkRender(gs),
     ];
@@ -350,13 +350,13 @@ function cJob(name, cSetup, cView) {
 //   and 20% of stage height as padding at the top of the stage
 
 function cLoadText1(text, gs) {
-    gs = gs || defaultGS;
+    gs = gs || defaultGS();
     const gs1 = {...gs, alg: 'fix'};
-    return cLoadText(defaultFrameGS, text, gs1);
+    return cLoadText(defaultFrameGS(), text, gs1);
 }
 
 function cLoadImgStd(imgPath, gs) {
-    return cLoadImg(imgPath, defaultFrameGS,gs);
+    return cLoadImg(imgPath, defaultFrameGS(),gs);
 }
 
 // --------------------
@@ -410,6 +410,7 @@ function mkWaitJob(jno, jstatus) {
 
 var vmRunning;
 var vmStepCnt;
+var vmActiveJob;   // last job executed
 var jobsCode;
 var jobsData;
 var jobsAll;
@@ -421,6 +422,7 @@ var jobsRunning;
 function initVM() {
     vmRunning   = false;
     vmStepCnt   = 0;
+    vmActiveJob = null;
     jobsCode    = new Map();  // Map Jno [Instr]
     jobsData    = new Map();  // Map Jno JobData
     jobsAll     = new Map();  // Map Jno ActiveJob
@@ -628,7 +630,9 @@ function step1() {
 function execInstr(instr, activeJob) {
     const jno = activeJob.jno;
     const op  = instr.op;
-    var st;
+
+    // store job no, instr cnt and status for inspection
+    vmActiveJob = activeJob;
 
     if ( op === opInit ) {
         getData(jno).name = instr.name;
@@ -654,7 +658,9 @@ function execInstr(instr, activeJob) {
 
     // render frame and media element
     if ( op === opRender ) {
-        render(activeJob, jobsData.get(jno), instr.gs || instr.gix);
+        getData(jno).lastInstrGS = activeJob.jpc;
+
+        render(activeJob, jobsData.get(jno), instr.gs);
         advanceReadyJob(activeJob);
         return;
     }
@@ -685,13 +691,17 @@ function execInstr(instr, activeJob) {
 
     // animated move and/or scaling of media, async exec
     if ( op === opMove ) {
+        getData(jno).lastInstrGS = activeJob.jpc;
+
         move(activeJob, jobsData.get(jno), instr.dur, instr.gs);
         return;
     }
 
     // move and/or scale without animation
     if ( op === opPlace ) {
-        place(activeJob, jobsData.get(jno), instr.gs || instr.gix);
+        getData(jno).lastInstrGS = activeJob.jpc;
+
+        place(activeJob, jobsData.get(jno), instr.gs);
         advanceReadyJob(activeJob);
         return;
     }
@@ -704,8 +714,8 @@ function execInstr(instr, activeJob) {
     }
 
     if ( op === opFrame ) {
-        const data = getData(jno);
-        data.frameGS = instr.gs;
+        getData(jno).frameGS = instr.gs;
+
         advanceReadyJob(activeJob);
         return;
     }
@@ -998,6 +1008,7 @@ function imgGeoToCSS(jobData, gs) {
 // --------------------
 
 function place(activeJob, jobData, gs) {
+    const fid  = mkFrameId(activeJob.jno);
     const ms   = imgGeoToCSS(jobData, gs);
 
     trc(1,`place: ${activeJob.jno} gs=${pp.gs(gs)}`);
@@ -1257,13 +1268,75 @@ function instrGS(code) {
     return gss;
 }
 
+function activeJobData() {
+    const aj  = vmActiveJob;
+    const jno = aj.jno;
+    return jobsData.get(jno);
+}
+
+function activeJobCode() {
+    const aj  = vmActiveJob;
+    const jno = aj.jno;
+    return jobsCode.get(jno);
+}
+
+function getLastGS() {
+    const ajc = activeJobCode();
+    const ajd = activeJobData();
+
+    const gs  = ajc[ajd.lastInstrGS].gs;
+    return gs;
+}
+
+// this is a destructive op
+// the new scale value is inserted into the existing GS object
+
+function scaleGS(sc) {
+    function go(gs) {
+        gs.scale = mulV2(gs.scale, sc);
+        return gs;
+    }
+    return go;
+}
+function shiftGS(sh) {
+    function go(gs) {
+        gs.shift = addV2(gs.shift, sh);
+        return gs;
+    }
+    return go;
+}
+
+const shiftrGS10 = shiftGS(V2(0.1,0));
+const shiftlGS10 = shiftGS(V2(-0.1,0));
+
+const scaleGS1 = (gs) => { gs.scale = V2(1); return gs; };
+const scaleGS105 = scaleGS(V2(1.05));
+const scaleGS95  = scaleGS(V2(1/1.05));
+const fixGS   = (gs) => { gs.alg = 'fix'; return gs; };
+const fillGS  = (gs) => { gs.alg = 'fill'; return gs; };
+const fitIntoGS = (gs) => { gs.alg = 'fitInto'; return gs; };
+const resetGS = (gs) => { gs.alg = 'fitInto';
+                            gs.scale = V2(1);
+                            gs.dir = 'center';
+                            gs.shift = V2(0);
+                            return gs; };
+
+function replaceImg(gs) {
+    const aj  = vmActiveJob;
+    const jd  = activeJobData();
+    place(aj, jd, gs);
+}
+
+function editGS(f) {
+    const gs  = getLastGS();
+    const gs1 = f(gs);
+    replaceImg(gs);
+}
+
 // ----------------------------------------
 //
-// job creation
-
-var newJobNo = 0;
-
 // geo spec constructor
+
 function GS(alg, scale, dir, shift) {
     return {
         alg:   alg,
@@ -1273,35 +1346,31 @@ function GS(alg, scale, dir, shift) {
     };
 }
 
-const defaultFrameGS = {    // full frame
-    alg:   'fitInto',
-    scale: V2(1.0,1.0),
-    dir:   'center',
-    shift: V2(0,0),
-}
-;
-const leftHalfGeo = {
-    alg:   'fitInto',
-    scale: V2(0.5,1.0),
-    dir:   'W',
-    shift: V2(0,0),
+// sharing the default object with others is
+// prevented by turning the default geo spec into a function
+//
+// geo spec modifications come up during code editing
+// when images are scaled and shifted
+
+const defaultFrameGS = () => {
+    return GS('fitInto', V2(1.0,1.0), 'center', V2(0,0));
 };
 
-const rightHalfGeo = {
-    alg:   'fitInto',
-    scale: V2(0.5,1.0),
-    dir:   'E',
-    shift: V2(0,0),
+const defaultGS = defaultFrameGS;
+
+const leftHalfGeo = () => {
+    return GS('fitInto', V2(0.5,1.0), 'W', V2(0,0));
 };
 
-const defaultGS = {
-    alg:   'fitInto',  // default
-    scale:  V2(1.0),   // default
-    dir:   'center',   // default
-    shift:  V2(0,0),   // default
+const rightHalfGeo = () => {
+    return GS('fitInto', V2(0.5,1.0), 'E', V2(0,0));
 };
 
 // --------------------
+//
+// job creation
+
+var newJobNo = 0;
 
 function mkJob(jno,code) {
     return {jno: jno, jcode: code};
@@ -1332,12 +1401,12 @@ var j2 =
 var j3 =
     cJob('Ente1',
          cLoadImg('/albums/EinPaarBilder/pic-00001',
-                  defaultFrameGS,
-                  defaultGS,
+                  defaultFrameGS(),
+                  defaultGS(),
                  ),
          cViewStd0(2.0, trCrossfade,
                    2.0, trCrossfade,
-                   [...cView(2.0),
+                   [...cView('click'),
                     ...cMove(3.0,GS('fill',V2(2),'ceter',V2())),
                     ...cView(3.0),
                     ...cMove(5.0,GS('fitInto',V2(0.5),'center',V2())),
@@ -1346,7 +1415,7 @@ var j3 =
                     ...cView(3.0),
                     ...cMove(1.0,GS('fitInto',V2(0.5),'W',V2())),
                     ...cView(3.0),
-                    ...cMove(1.0,defaultGS),
+                    ...cMove(1.0,defaultGS()),
                     ...cView(3.0),
                    ]
                   )
@@ -1363,7 +1432,7 @@ var j4 =
 var j6 =
     cJob("arizona",
          cLoadImg('/clipboard/pic-0000',
-                  defaultFrameGS,
+                  defaultFrameGS(),
                   {alg: 'sameHeight', scale: V2(1), dir: 'W', shift: V2()},
                  ),
          cViewStd0(1.5, trCrossfade,
@@ -1385,16 +1454,16 @@ var j5 =
     cJob('Ende',
          cLoadText1(`<h1 class='text-center'>The End</h1>
                      <div>This is the end, my friend.</div>`,
-                    defaultGS,
+                    defaultGS(),
                    ),
          cViewStd(1.0, trFadein, 'click', 5.0, trFadeout)
         );
 
 var jobList = [
-    j3, j1, j2,
-    j6,
-    j4,
-    j5,
+    j3, // j1, j2,
+//    j6,
+//    j4,
+//    j5,
 ];
 
 function restartJobs(js) {
