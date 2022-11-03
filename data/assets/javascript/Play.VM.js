@@ -173,12 +173,6 @@ function mkStatus(st) {
 };
 
 function mkMove(dur, gs) {
-    if ( isNumber(gs) ) {
-        return { op:  opMove,
-                 dur: dur,
-                 gix: gs
-               };
-    }
     return { op:  opMove,
              dur: dur,
              gs:  gs
@@ -277,16 +271,15 @@ function cView(dur) {
     return is;
 }
 
-function cMove(dur, gix) {
+function cMove(dur, gs) {
     if ( isPositive(dur) ) {
         return [
-            mkMove(dur, gix),
-            ...cView(dur)
+            mkMove(dur, gs),
         ];
     }
     else {
         return [
-            mkPlace(gix),
+            mkPlace(gs),
         ];
     }
 }
@@ -373,7 +366,7 @@ function cLoadText1(text, gs) {
 }
 
 function cLoadImgStd(imgPath, gs) {
-    return cLoadImg(imgPath, defaultFrameGS);
+    return cLoadImg(imgPath, defaultFrameGS,gs);
 }
 
 // --------------------
@@ -700,10 +693,9 @@ function execInstr(instr, activeJob) {
         return;
     }
 
-    // animated move and/or scaling of media
+    // animated move and/or scaling of media, async exec
     if ( op === opMove ) {
-        move(activeJob, jobsData.get(jno), instr.dur, instr.gs || instr.gix);
-        advanceReadyJob(activeJob);
+        move(activeJob, jobsData.get(jno), instr.dur, instr.gs);
         return;
     }
 
@@ -1025,8 +1017,9 @@ function place(activeJob, jobData, gs) {
 let cssAnimCnt = 1;
 
 function move(activeJob, jobData, dur, gs) {
-    const fid   = mkFrameId(activeJob.jno);
-    const cssId = mkCssId(activeJob.jno, cssAnimCnt++);
+    const jno   = activeJob.jno;
+    const fid   = mkFrameId(jno);
+    const cssId = mkCssId(jno, cssAnimCnt++);
     const imgId = mkImgId(fid);
 
     const ms0   = cssAbsGeo(jobData.go);     // transition start
@@ -1061,15 +1054,18 @@ img.${cssId}, div.${cssId} {
         ev.stopPropagation();
         i.classList.remove(cssId);
         i.removeEventListener("animationend", animEnd);
+
         setCSS(imgId, ms1);
         // // for debugging
         // c.remove();
+        termAsyncInstr(jno);
     }
 
-    trc2(`move: ${activeJob.jno} dur=${dur}`, gs);
+    trc2(`move: ${jno} dur=${dur}`, gs);
 
     i.addEventListener('animationend', animEnd);
     i.classList.add(cssId);
+    addAsyncRunning(jno);
 }
 
 function moveCSS(ms) {
@@ -1229,8 +1225,8 @@ function fadeAnim(frameId, activeJob, dur, fade) { // fadein/fadeout
     }
 
     fadeCut(frameId, 'visible', opacity);
-    e.classList.add(cls);
     e.addEventListener('animationend', handleFadeEnd);
+    e.classList.add(cls);
 
     addAsyncRunning(jno);   // add job to async jobs
     // start animation
@@ -1352,15 +1348,15 @@ var j3 =
          cViewStd0(2.0, trCrossfade,
                    2.0, trCrossfade,
                    [...cView(2.0),
-                    ...cMove(3.0,1),
+                    ...cMove(3.0,GS('fill',V2(2),'ceter',V2())),
                     ...cView(3.0),
-                    ...cMove(5.0,2),
+                    ...cMove(5.0,GS('fitInto',V2(0.5),'center',V2())),
                     ...cView(3.0),
-                    ...cMove(2.0,3),
+                    ...cMove(2.0,GS('fix',V2(1),'center',V2())),
                     ...cView(3.0),
-                    ...cMove(1.0,4),
+                    ...cMove(1.0,GS('fitInto',V2(0.5),'W',V2())),
                     ...cView(3.0),
-                    ...cMove(1.0,5),
+                    ...cMove(1.0,defaultGS),
                     ...cView(3.0),
                    ]
                   )
@@ -1369,7 +1365,7 @@ var j3 =
 var j4 =
     cJob("Ente2",
          cLoadImgStd('/albums/EinPaarBilder/pic-0002',
-                     {alg: 'fill', scale: V2(1.1), dir: 'center', shift: V2()},
+                     GS('fill', V2(1.1), 'center', V2()),
                     ),
          cViewCrossfade(5.0,1.0)
         );
@@ -1405,8 +1401,9 @@ var j5 =
         );
 
 var jobList = [
-    // j1, j2, j3,
-    j6, // j4,
+    j3, j1, j2,
+    j6,
+    j4,
     j5,
 ];
 
