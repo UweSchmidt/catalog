@@ -310,14 +310,14 @@ function cFadein(dur, fade0, waitJob) {
         return [
             mkWait(stHidden, prevJob),   // wait prev image to be hidden
             mkFadein(dur, trFadein),
-            mkDelay(dur),
+            // mkDelay(dur),             // delay done in animation
             mkStatus(stVisible),
         ];
     case 'crossfade':
         return [
             mkWait(stShown, prevJob),   // wait prev image starts fading out
             mkFadein(dur, trFadein),
-            mkDelay(dur),
+            // mkDelay(dur),             // delay done in animation
             mkStatus(stVisible),
         ];
     case trCut:
@@ -342,7 +342,7 @@ function cFadeout(dur, fade0) {
         return [
             mkStatus(stShown),
             mkFadeout(dur, trFadeout),
-            mkDelay(dur),
+            // mkDelay(dur),             // delay done in animation
             mkStatus(stHidden),
         ];
     case trCut:
@@ -692,13 +692,13 @@ function execInstr(instr, activeJob) {
 
     // fadein
     if ( op === opFadein ) {
-        if ( instr.trans === trCut) {
+        if ( instr.trans === trCut) {    // sync exec
             fadeinCut(jno);
+            advanceReadyJob(activeJob);
         }
         else {
-            fadeinAnim(jno, instr.dur);
+            fadeinAnim(jno, instr.dur);  // async exec
         }
-        advanceReadyJob(activeJob);
         return;
     }
 
@@ -706,11 +706,11 @@ function execInstr(instr, activeJob) {
     if ( op === opFadeout ) {
         if ( instr.trans === trCut) {
             fadeoutCut(jno);
+            advanceReadyJob(activeJob);
         }
         else {
             fadeoutAnim(jno, instr.dur);
         }
-        advanceReadyJob(activeJob);
         return;
     }
 
@@ -889,7 +889,7 @@ function termAsyncInstr(jno) {
             clearTimeout(aj.jtimeout);     // when interrupted by input events
             aj.timeout = null;
         }
-        remAsyncRunning(jno);                   // remove from set of async jobs
+        remAsyncRunning(jno);              // remove from set of async jobs
         advanceReadyJob(aj);
     }
 }
@@ -1204,7 +1204,7 @@ function fadeCut(frameId, visibility, opacity) {
 function fadeinCut (jno) { fadeCut(mkFrameId(jno), 'visible', 1.0); }
 function fadeoutCut(jno) { fadeCut(mkFrameId(jno), 'hidden',  0.0); }
 
-function fadeAnim(frameId, dur, fade) { // fade = 'fadein' or 'fadeout'
+function fadeAnim(frameId, jno, dur, fade) { // fade = 'fadein' or 'fadeout'
     const e       = getElem(frameId);
     const cls     = `${fade}-image`;
     const opacity = (fade === 'fadein' ) ? 0.0 : 1.0;
@@ -1219,18 +1219,20 @@ function fadeAnim(frameId, dur, fade) { // fade = 'fadein' or 'fadeout'
         } else {
             fadeCut(frameId, 'visible', 1.0);
         }
+        termAsyncInstr(jno);
     }
 
     fadeCut(frameId, 'visible', opacity);
     e.classList.add(cls);
     e.addEventListener('animationend', handleFadeEnd);
 
+    addAsyncRunning(jno);   // add job to async jobs
     // start animation
     setAnimDur(e, dur);
 }
 
-function fadeinAnim (jno, dur) { fadeAnim(mkFrameId(jno), dur, 'fadein'); }
-function fadeoutAnim(jno, dur) { fadeAnim(mkFrameId(jno), dur, 'fadeout'); }
+function fadeinAnim (jno, dur) {fadeAnim(mkFrameId(jno), jno, dur, 'fadein'); }
+function fadeoutAnim(jno, dur) {fadeAnim(mkFrameId(jno), jno, dur, 'fadeout');}
 
 // ----------------------------------------
 // cleanup
