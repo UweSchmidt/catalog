@@ -236,13 +236,11 @@ function noop() {}
 function cInit(name) {
     return [
         mkInit(name),
-        mkStatus(stCreated),
     ];
 }
 
 function cTerm() {
     return [
-        mkStatus(stFinished),
         mkFinish(),
     ];
 }
@@ -253,10 +251,8 @@ function cLoadImg(imgPath, frameGS, gs, jnoWait) {
         mkPath(imgPath),
         mkFrame(frameGS || defaultFrameGS),
         mkLoadpage(),
-        mkStatus(stReadypage),
         mkWait(stReadymedia, jnoWait || -1), // wait for prev job loading media
         mkLoadmedia(),
-        mkStatus(stReadymedia),
         mkRender(gs),                 // 1. geo is initial geo
     ];
 }
@@ -265,11 +261,8 @@ function cLoadText(frameGS, text, gs) {
     return [
         mkType('text'),
         mkFrame(frameGS || defaultFrameGS),
-        mkStatus(stReadypage),
-        mkStatus(stReadymedia),
         mkText(text || "???"),
         mkRender(gs),
-
     ];
 }
 
@@ -310,22 +303,17 @@ function cFadein(dur, fade0, waitJob) {
         return [
             mkWait(stHidden, prevJob),   // wait prev image to be hidden
             mkFadein(dur, trFadein),
-            // mkDelay(dur),             // delay done in animation
-            mkStatus(stVisible),
         ];
     case 'crossfade':
         return [
             mkWait(stShown, prevJob),   // wait prev image starts fading out
             mkFadein(dur, trFadein),
-            // mkDelay(dur),             // delay done in animation
-            mkStatus(stVisible),
         ];
     case trCut:
     default:
         return [
             mkWait(stShown, prevJob),
             mkFadein(0, trCut),
-            mkStatus(stVisible),
         ];
     }
 }
@@ -342,15 +330,12 @@ function cFadeout(dur, fade0) {
         return [
             mkStatus(stShown),
             mkFadeout(dur, trFadeout),
-            // mkDelay(dur),             // delay done in animation
-            mkStatus(stHidden),
         ];
     case trCut:
     default:
         return [
             mkStatus(stShown),
             mkFadeout(0, trCut),
-            mkStatus(stHidden),
         ];
     }
 }
@@ -663,8 +648,9 @@ function execInstr(instr, activeJob) {
     var st;
 
     if ( op === opInit ) {
-        const data = getData(jno);
-        data.name = instr.name;
+        getData(jno).name = instr.name;
+        setStatus(activeJob, stCreated);
+
         advanceReadyJob(activeJob);
         return;
     }
@@ -693,11 +679,11 @@ function execInstr(instr, activeJob) {
     // fadein
     if ( op === opFadein ) {
         if ( instr.trans === trCut) {    // sync exec
-            fadeinCut(jno);
+            fadeinCut(activeJob);
             advanceReadyJob(activeJob);
         }
         else {
-            fadeinAnim(jno, instr.dur);  // async exec
+            fadeinAnim(activeJob, instr.dur);  // async exec
         }
         return;
     }
@@ -705,11 +691,11 @@ function execInstr(instr, activeJob) {
     // fadeout
     if ( op === opFadeout ) {
         if ( instr.trans === trCut) {
-            fadeoutCut(jno);
+            fadeoutCut(activeJob);
             advanceReadyJob(activeJob);
         }
         else {
-            fadeoutAnim(jno, instr.dur);
+            fadeoutAnim(activeJob, instr.dur);
         }
         return;
     }
@@ -743,8 +729,10 @@ function execInstr(instr, activeJob) {
     }
 
     if ( op === opText ) {
-        const data = getData(jno);
-        data.text = instr.text;
+        getData(jno).text = instr.text;
+
+        setStatus(activeJob, stReadypage);
+        setStatus(activeJob, stReadymedia);
         advanceReadyJob(activeJob);
         return;
     }
@@ -756,16 +744,8 @@ function execInstr(instr, activeJob) {
         return;
     }
 
-    // add status to status set and wakeup waiting for status
     if ( op === opStatus ) {
-        const st = instr.st;
-
-        trc(1,`job ${jno}: add status ${st}`);
-
-        // wakeup jobs waiting for this job to reach status
-        activeJob.jstatus.add(st);
-        wakeupWaiting(mkWaitJob(jno, st));
-
+        setStatus(activeJob, instr.st);
         advanceReadyJob(activeJob);
         return;
     }
@@ -827,7 +807,7 @@ function execInstr(instr, activeJob) {
 
     // cleanup
     if ( op === opFinish ) {
-        trc(1, `exit: normal job termination: ${jno}`);
+        setStatus(activeJob, stFinished);
         terminateJob(activeJob);
         return;
     }
@@ -853,6 +833,18 @@ function execDelay(instr, aj) {
     addAsyncRunning(jno);
     // set timeout
     aj.jtimeout = setTimeout(aj.jterm, instr.dur * 1000); // sec -> msec
+}
+
+// --------------------
+
+// add status to status set and wakeup waiting for status
+
+function setStatus(activeJob, st) {
+    activeJob.jstatus.add(st);
+    trc2('setStatus: job', activeJob);
+
+    // wakeup jobs waiting for this job to reach status
+    wakeupWaiting(mkWaitJob(activeJob.jno, st));
 }
 
 // --------------------
@@ -924,6 +916,7 @@ function loadPage(activeJob, jobData) {
 
     function processRes(page) {
         remAsyncRunning(jno);
+
         const ty = getPageType(page);
         switch ( ty ) {
         case 'img':
@@ -943,6 +936,8 @@ function loadPage(activeJob, jobData) {
             abortJob(activeJob);
             return;
         }
+
+        setStatus(activeJob, stReadypage);
         advanceReadyJob(activeJob);
     }
     function processErr(errno, url, msg) {
@@ -978,13 +973,15 @@ function loadMedia(activeJob, jobData) {
             const img = jobData.imgCache;
             jobData.imgResGeo = V2(img.naturalWidth, img.naturalHeight);
 
-            remAsyncRunning(jno);            // remove job from async jobs
-            advanceReadyJob(activeJob); // next step(s)
+            remAsyncRunning(jno);               // remove job from async jobs
+            setStatus(activeJob, stReadymedia);
+            advanceReadyJob(activeJob);         // next step(s)
         };
         jobData.imgCache.src = url;     // triggers loading of image into cache
         return;
 
     case 'text':                        // no request required for type 'text'
+        setStatus(activeJob, stReadymedia);
         advanceReadyJob(activeJob);
         return;
 
@@ -1201,10 +1198,17 @@ function fadeCut(frameId, visibility, opacity) {
           );
 }
 
-function fadeinCut (jno) { fadeCut(mkFrameId(jno), 'visible', 1.0); }
-function fadeoutCut(jno) { fadeCut(mkFrameId(jno), 'hidden',  0.0); }
+function fadeinCut (activeJob) {
+    fadeCut(mkFrameId(activeJob.jno), 'visible', 1.0);
+    setStatus(activeJob, stVisible);
+}
+function fadeoutCut(activeJob) {
+    fadeCut(mkFrameId(activeJob.jno), 'hidden',  0.0);
+    setStatus(activeJob, stHidden);
+}
 
-function fadeAnim(frameId, jno, dur, fade) { // fade = 'fadein' or 'fadeout'
+function fadeAnim(frameId, activeJob, dur, fade) { // fadein/fadeout
+    const jno     = activeJob.jno;
     const e       = getElem(frameId);
     const cls     = `${fade}-image`;
     const opacity = (fade === 'fadein' ) ? 0.0 : 1.0;
@@ -1216,8 +1220,10 @@ function fadeAnim(frameId, jno, dur, fade) { // fade = 'fadein' or 'fadeout'
         e.removeEventListener('animationend', handleFadeEnd);
         if ( fade === 'fadeout' ) {
             fadeCut(frameId, 'hidden', 0.0);
+            setStatus(activeJob, stHidden);
         } else {
             fadeCut(frameId, 'visible', 1.0);
+            setStatus(activeJob, stVisible);
         }
         termAsyncInstr(jno);
     }
@@ -1231,8 +1237,13 @@ function fadeAnim(frameId, jno, dur, fade) { // fade = 'fadein' or 'fadeout'
     setAnimDur(e, dur);
 }
 
-function fadeinAnim (jno, dur) {fadeAnim(mkFrameId(jno), jno, dur, 'fadein'); }
-function fadeoutAnim(jno, dur) {fadeAnim(mkFrameId(jno), jno, dur, 'fadeout');}
+function fadeinAnim (activeJob, dur) {
+    fadeAnim(mkFrameId(activeJob.jno), activeJob, dur, 'fadein');
+}
+
+function fadeoutAnim(activeJob, dur) {
+    fadeAnim(mkFrameId(activeJob.jno), activeJob, dur, 'fadeout');
+}
 
 // ----------------------------------------
 // cleanup
