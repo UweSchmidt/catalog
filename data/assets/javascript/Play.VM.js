@@ -142,11 +142,6 @@ function mkLoadmedia() {
 }
 
 function mkRender(gs) {
-    if ( isNumber(gs) ) {
-        return { op:  opRender,
-                 gix: gs,
-               };
-    }
     return { op: opRender,
              gs: gs
            };
@@ -180,11 +175,6 @@ function mkMove(dur, gs) {
 };
 
 function mkPlace(gs) {
-    if ( isNumber(gs) ) {
-        return { op:  opPlace,
-                 gix: gs
-               };
-    }
     return { op: opPlace,
              gs: gs
            };
@@ -1441,9 +1431,6 @@ function ppPath(l) {
 function ppPathPrefix(p) { return rePathPx + p; }
 
 function ppGS(gs) {
-    if ( isNumber(gs) ) {
-        return `gix-${gs}`;
-    }
     return filter((x) => {return x !== "";})([
         pp.text(gs.alg),
         pp.scale(gs.scale),
@@ -1493,12 +1480,7 @@ function ppInstr(i) {
 
     case opRender:
     case opPlace:
-        if ( isNumber(i.gix) ) {
-            res.push(pp.num(i.gix));
-        }
-        else {
-            res.push(pp.gs(i.gs));
-        }
+        res.push(pp.gs(i.gs));
         break;
 
     case opFadein:
@@ -1512,12 +1494,7 @@ function ppInstr(i) {
 
     case opMove:
         res.push(pp.dur(i.dur));
-        if ( isNumber(i.gix) ) {
-            res.push(pp.num(i.gix));
-        }
-        else {
-            res.push(pp.gs(i.gs));
-        }
+        res.push(pp.gs(i.gs));
         break;
 
     case opDelay:
