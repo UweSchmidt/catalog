@@ -57,7 +57,7 @@ const opPlace     = "place";    // move without animation
 const opStatus    = "status";
 const opDelay     = "delay";
 const opWait      = "wait";
-const opWaitInput = "waitinput";
+const opWaitclick = "waitclick";
 const opFinish    = "finish";
 
 const opCodes = [
@@ -75,7 +75,7 @@ const opCodes = [
     opFadein,
     opDelay,
     opWait,
-    opWaitInput,
+    opWaitclick,
     opStatus,
     opFinish,
 ];
@@ -186,8 +186,8 @@ function mkDelay(dur) {
            };
 }
 
-function mkWaitInput() {
-    return { op: opWaitInput
+function mkWaitclick() {
+    return { op: opWaitclick
            };
 }
 
@@ -256,7 +256,7 @@ function cView(dur) {
         is.push(mkDelay(dur));
     }
     if ( dur === 'click' ) {
-        is.push(mkWaitInput());
+        is.push(mkWaitclick());
     }
     return is;
 }
@@ -753,7 +753,7 @@ function execInstr(instr, activeJob) {
     }
 
     // put job into queue of jobs waiting for click
-    if ( op === opWaitInput ) {
+    if ( op === opWaitclick ) {
         addInputJob(jno);
         advanceJob(activeJob);
         return;
@@ -1517,13 +1517,18 @@ function ppScale(sc) {
 }
 
 function ppInstr(i) {
+    return ppInstr1("", i);
+}
+
+function ppInstr1(ind, i) {
     const op = i.op;
     let  res = [fillR(10, op)];
+    let ind1 = (op !== opInit && op !== opFinish) ? ind + "    " : ind;
 
     switch ( op ) {
     case opLoadpage:
     case opLoadmedia:
-    case opWaitInput:
+    case opWaitclick:
     case opFinish:
         break;
 
@@ -1584,7 +1589,7 @@ function ppInstr(i) {
     default:
         res.push('unknown op');
     }
-    return nl(unwords(res));
+    return nl(ind1 + unwords(res));
 }
 
 function showCode(is) {
@@ -2260,7 +2265,7 @@ const instrPath      = app(mkPath,  wordToken0(opPath),  pathSy);
 
 const instrLoadpage  = fmap(cnst(mkLoadpage()),  wordToken0(opLoadpage));
 const instrLoadmedia = fmap(cnst(mkLoadmedia()), wordToken0(opLoadmedia));
-const instrWaitInput = fmap(cnst(mkWaitInput()), wordToken0(opWaitInput));
+const instrWaitclick = fmap(cnst(mkWaitclick()), wordToken0(opWaitclick));
 const instrFinish    = fmap(cnst(mkFinish()),    wordToken0(opFinish));
 
 const instrRender    = app(mkRender,  wordToken0(opRender), geoSpec);
@@ -2287,7 +2292,7 @@ const instr0   = alts(instrInit,
                       instrFadein,
                       instrFadeout,
                       instrDelay,
-                      instrWaitInput,
+                      instrWaitclick,
                       instrWait,
                       instrStatus,
                       instrFinish,
