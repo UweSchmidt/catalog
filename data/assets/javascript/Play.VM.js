@@ -301,26 +301,8 @@ function cFadein(dur, fade0, waitJob) {
     }
 }
 
-function cFadeout(dur, fade0) {
-    const fade =
-          isPositive(dur)
-          ? fade0
-          : trCut;
-
-    switch ( fade ) {
-    case 'crossfade':
-    case 'fadeout':
-        return [
-            mkStatus(stShown),
-            mkFadeout(dur, trFadeout),
-        ];
-    case trCut:
-    default:
-        return [
-            mkStatus(stShown),
-            mkFadeout(0, trCut),
-        ];
-    }
+function cFadeout(dur, fade) {
+    return [mkFadeout(dur, fade)];
 }
 
 // --------------------
@@ -679,12 +661,30 @@ function execInstr(instr, activeJob) {
 
     // fadeout
     if ( op === opFadeout ) {
-        if ( instr.trans === trCut) {
+        const dur = instr.dur;
+        let trans = instr.trans;
+
+        if ( ! isPositive(dur) ) {
+            // no fadeout animation
+            trans = trCut;
+        }
+        else {
+            if ( trans === trCrossfade ) {
+                // animation for corssfade and fadeout are the same
+                trans = trFadeout;
+            }
+        }
+
+        setStatus(activeJob, stShown);
+        // slide has been shown, next jobs waiting
+        // for this job to be shown are restarted
+
+        if ( trans === trCut) {                 // sync job
             fadeoutCut(activeJob);
             advanceReadyJob(activeJob);
         }
         else {
-            fadeoutAnim(activeJob, instr.dur);
+            fadeoutAnim(activeJob, instr.dur);  // async job
         }
         return;
     }
@@ -1386,7 +1386,7 @@ var j1 =
 
 var j2 =
     cJob('Hallo',
-         cLoadText(rightHalfGeo,
+         cLoadText(rightHalfGeo(),
                    "<h2>Hallo Welt</h2>",
                    GS('fix', V2(1), 'SE', V2(-0.20,-0.20)),
                   ),
@@ -1460,8 +1460,8 @@ var j5 =
         );
 
 var jobList = [
-    j3, // j1, j2,
-//    j6,
+    j3, j1, j2,
+    j6,
 //    j4,
 //    j5,
 ];
