@@ -364,3 +364,41 @@ a:focus {
 }
 
 /* -------------------- */
+
+#edit {
+  border-width: 2px;
+  border-color: red;
+  padding: 5px;
+  background-color: rgb(102 102 102);
+  visibility: visible;
+  opacity: 0.7;
+  z-index: 10;
+}
+
+div.edit-label {
+  font-size: 1.0em;
+  font-weight: bold;
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+}
+
+div.align-buttons {
+  display: grid;
+  grid-template-columns: 1.8em 1.8em 1.8em;
+  grid-gap: 5px;
+}
+
+div.scale-buttons {
+  display: grid;
+  grid-template-columns: 1.8em 1.8em 1.8em 1.8em 1.8em;
+  grid-gap: 5px;
+}
+
+input.edit-button {
+  padding: 2px;
+  border: 1px solid black;
+  width: 2.2em;
+  height: 2.2em;
+}
+
+/* -------------------- */

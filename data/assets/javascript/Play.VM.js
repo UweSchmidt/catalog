@@ -1291,6 +1291,13 @@ function getLastGS() {
 // this is a destructive op
 // the new scale value is inserted into the existing GS object
 
+function dirGS(dir) {
+    function go(gs) {
+        gs.dir = dir;
+        return gs;
+    }
+    return go;
+}
 function scaleGS(sc) {
     function go(gs) {
         gs.scale = mulV2(gs.scale, sc);
@@ -2304,5 +2311,47 @@ const instr1 = cx(manyBlanks,
                  );
 
 const code = cxR(many(instr1), eof);
+
+// --------------------
+
+const editId        = 'edit';
+const alignButtonId = 'align';
+const scaleButtonId = 'scale';
+const lrButtonId    = 'lr';
+const udButtonId    = 'ud';
+const algButtonId   = 'radio';
+
+function setEditEventHandler() {
+    setAlignEH(dirWords);
+    setScaleEH();
+}
+
+function setAlignEH(xs) {
+    for (let i = 1; i <= xs.length; i++) {
+        const ide = alignButtonId + (-i);
+        addEvent(getElem(ide), 'click', editGSDir);
+    }
+}
+
+function setScaleEH() {
+    for (let i = 1; i <= 5; i++) {
+        const ide = scaleButtonId + (-i);
+        addEvent(getElem(ide), 'click', editGSScale);
+    }
+}
+
+function editGSDir(ev) {
+    const dir = ev.target.getAttribute('data-dir');
+    const df  = dirGS(dir);
+    trc(1, `editGSDir: dir=${dir}`);
+    editGS(df);
+}
+
+function editGSScale(ev) {
+    const sc = toNum(ev.target.getAttribute('data-scale'));
+    let   sf = (sc === 0) ? scaleGS1 : scaleGS(V2((100 + sc)/100));
+    trc(1, `editGSScale: sc=${sc}`);
+    editGS(sf);
+}
 
 // --------------------

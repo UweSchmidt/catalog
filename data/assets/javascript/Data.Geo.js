@@ -235,7 +235,7 @@ function resizeAlg(name) {
     }
 }
 
-const dirWords   = ['NE','SE','SW','NW','N','W','E','S','C'];
+const dirWords   = ['NW','N','NE','W','center','E','SW','S','SE'];
 const dirDefault = 'center';
 
 function offsetAlg(name) {
@@ -248,7 +248,6 @@ function offsetAlg(name) {
     case 'SE': return offsetSE;
     case 'E' : return offsetE;
     case 'NE': return offsetNE;
-    case 'C' :
     case 'center':
     default: return offsetC;
     }

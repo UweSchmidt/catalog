@@ -46,6 +46,7 @@
            display: block and display: hidden styles
         -->
 
+
       <!-- image metadata -->
       <div id="info" title="Bilddaten" class="hidden-info">
         <h1>Bilddaten</h1>
@@ -57,6 +58,67 @@
       <!-- status line -->
       <div id="status" title="Status-Zeile" class="hidden-info">
         Status-Meldung
+      </div>
+
+      <!-- edit panel -->
+      <div id="edit" title="Edit"
+           style="diplay:block; position:absolute; right:20px; top:20px;">
+        <div class="edit-label">align</div>
+        <div class="align-buttons">
+          <input type="button" id="align-1" data-dir="NW" value="NW" class="edit-button">
+          <input type="button" id="align-2" data-dir="N"  value="N"  class="edit-button">
+          <input type="button" id="align-3" data-dir="NE" value="NE" class="edit-button">
+          <input type="button" id="align-4" data-dir="W"  value="W"  class="edit-button">
+          <input type="button" id="align-5" data-dir="center" value="C" class="edit-button">
+          <input type="button" id="align-6" data-dir="E"  value="E"  class="edit-button">
+          <input type="button" id="align-7" data-dir="SW" value="SW" class="edit-button">
+          <input type="button" id="align-8" data-dir="S"  value="S"  class="edit-button">
+          <input type="button" id="align-9" data-dir="SE" value="SE" class="edit-button">
+        </div>
+        <div class="edit-label">scale</div>
+        <div class="scale-buttons">
+          <input type="button" id="scale-1" data-scale="-10" value="&lt;&lt;" class="edit-button">
+          <input type="button" id="scale-2" data-scale="-1"  value="&lt;" class="edit-button">
+          <input type="button" id="scale-3" data-scale="0"   value="0" class="edit-button">
+          <input type="button" id="scale-4" data-scale="1"   value="&gt;" class="edit-button">
+          <input type="button" id="scale-5" data-scale="10"  value="&gt;&gt;" class="edit-button">
+        </div>
+        <div class="edit-label">move l/r</div>
+        <div class="scale-buttons">
+          <input type="button" id="lr-1" value="&lt;&lt;" class="edit-button">
+          <input type="button" id="lr-2" value="&lt;" class="edit-button">
+          <input type="button" id="lr-3" value="0" class="edit-button">
+          <input type="button" id="lr-4" value="&gt;" class="edit-button">
+          <input type="button" id="lr-5" value="&gt;&gt;" class="edit-button">
+        </div>
+        <div class="edit-label">move u/d</div>
+        <div class="scale-buttons">
+          <input type="button" id="ud-1" value="&lt;&lt;" class="edit-button">
+          <input type="button" id="ud-2" value="&lt;" class="edit-button">
+          <input type="button" id="ud-3" value="0" class="edit-button">
+          <input type="button" id="ud-4" value="&gt;" class="edit-button">
+          <input type="button" id="ud-5" value="&gt;&gt;" class="edit-button">
+        </div>
+        <div class="edit-label">algorithm</div>
+        <div class="alg-buttons">
+          <input type="radio"
+                 checked="checked"
+                 id="radio-fitInto" name="algorithm" value="fitInto">
+          <label>fit into</label><br>
+          <input type="radio"
+                 onclick="trc(1,'fill clicked')"
+                 id="radio-fill" name="algorithm" value="fill">
+          <label>fill</label><br>
+          <input type="radio"
+                 id="radio-sameWidth" name="algorithm" value="sameWidth">
+          <label>fill width</label><br>
+          <input type="radio"
+                 id="radio-sameHeight" name="algorithm" value="sameHeight">
+          <label>fill height</label><br>
+          <input type="radio"
+                 id="radio-fix" name="algorithm" value="fix">
+          <label>pixel</label><br>
+        </div>
       </div>
 
       <!-- help: keyboard shortcuts, TODO: not yet completly implemented -->
