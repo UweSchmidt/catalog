@@ -1291,6 +1291,13 @@ function getLastGS() {
 // this is a destructive op
 // the new scale value is inserted into the existing GS object
 
+function algGS(alg) {
+    function go(gs) {
+        gs.alg = alg;
+        return gs;
+    }
+    return go;
+}
 function dirGS(dir) {
     function go(gs) {
         gs.dir = dir;
@@ -1313,20 +1320,14 @@ function shiftGS(sh) {
     return go;
 }
 
-const shiftrGS10 = shiftGS(V2(0.1,0));
-const shiftlGS10 = shiftGS(V2(-0.1,0));
-
+const shiftGS0 = (gs) => { gs.shift = V2(0); return gs; };
 const scaleGS1 = (gs) => { gs.scale = V2(1); return gs; };
-const scaleGS105 = scaleGS(V2(1.05));
-const scaleGS95  = scaleGS(V2(1/1.05));
-const fixGS   = (gs) => { gs.alg = 'fix'; return gs; };
-const fillGS  = (gs) => { gs.alg = 'fill'; return gs; };
-const fitIntoGS = (gs) => { gs.alg = 'fitInto'; return gs; };
-const resetGS = (gs) => { gs.alg = 'fitInto';
-                            gs.scale = V2(1);
-                            gs.dir = 'center';
-                            gs.shift = V2(0);
-                            return gs; };
+const resetGS  = (gs) => { gs.alg   = 'fitInto';
+                           gs.scale = V2(1);
+                           gs.dir   = 'center';
+                           gs.shift = V2(0);
+                           return gs;
+                         };
 
 function replaceImg(gs) {
     const aj  = vmActiveJob;
@@ -2319,39 +2320,90 @@ const alignButtonId = 'align';
 const scaleButtonId = 'scale';
 const lrButtonId    = 'lr';
 const udButtonId    = 'ud';
+const shiftButtonId = 'shift';
 const algButtonId   = 'radio';
 
 function setEditEventHandler() {
-    setAlignEH(dirWords);
+    setAlignEH();
     setScaleEH();
+    setShiftEH();
+    setAlgEH();
 }
 
-function setAlignEH(xs) {
-    for (let i = 1; i <= xs.length; i++) {
+
+function setAlgEH() {
+    for (let i = 1; i <= 5; i++) {
+        const ide = algButtonId + (-i);
+        addEvent(getElem(ide), 'click', editGSAlg);
+    }
+}
+function setAlignEH() {
+    for (let i = 1; i <= 9; i++) {
         const ide = alignButtonId + (-i);
         addEvent(getElem(ide), 'click', editGSDir);
     }
 }
-
 function setScaleEH() {
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 3; i++) {
         const ide = scaleButtonId + (-i);
         addEvent(getElem(ide), 'click', editGSScale);
     }
 }
+function setShiftEH() {
+    for (let i = 1; i <= 9; i++) {
+        const ide = shiftButtonId + (-i);
+        addEvent(getElem(ide), 'click', editGSShift);
+    }
+}
 
+function editGSAlg(ev) {
+    const alg = ev.target.getAttribute('data-alg');
+    const df  = algGS(alg);
+    trc(1, `editGSAlg: alg=${alg}`);
+    editGS(df);
+}
 function editGSDir(ev) {
     const dir = ev.target.getAttribute('data-dir');
     const df  = dirGS(dir);
     trc(1, `editGSDir: dir=${dir}`);
     editGS(df);
 }
-
 function editGSScale(ev) {
-    const sc = toNum(ev.target.getAttribute('data-scale'));
-    let   sf = (sc === 0) ? scaleGS1 : scaleGS(V2((100 + sc)/100));
+    let   sc = toNum(ev.target.getAttribute('data-scale'));
+    let   sf = scaleGS1;
+    if ( sc !== 0 ) {
+        if ( ! ev.altKey ) {
+            sc = 10 * sc;
+        }
+        sc = (100 + sc)/100;
+        sf = scaleGS(V2(sc));
+    }
     trc(1, `editGSScale: sc=${sc}`);
     editGS(sf);
+}
+function editGSShift(ev) {
+    const st = ev.target.getAttribute('data-shift');
+    let   sh = parse1(offSy, st);
+    let   sf = shiftGS0;
+    if ( ! nullV2(sh) ) {
+        if ( ! ev.altKey ) {          // alt key => small steps
+            sh = mulV2(sh, 10);
+        }
+        sh = mulV2(sh, 0.75);
+        sh = divV2(sh, 100);          // 7.5% (or 0.75%) shift step
+        sf = shiftGS(sh);
+    }
+    trc(1, `editGSShift: sh=${showGeo(sh)}`);
+    editGS(sf);
+}
+
+function showEdit() {
+    const e = getElem(editId);
+    setCSS(e, 'display', 'block');
+}
+function hideEdit() {
+    const e = getElem(editId);
+    setCSS(e, 'display', 'none');
 }
 
 // --------------------
