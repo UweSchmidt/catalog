@@ -64,62 +64,62 @@
 
       <!-- edit panel for image place/resize -->
       <div id="edit-geo" title="Geo Edit"
-           style="display:none; position:absolute; right:20px; top:20px;">
+           style="display:none">
         <div class="edit-label">align</div>
-        <div class="align-buttons">
-          <input type="button" id="align-1" data-dir="NW"     value="&#x21D6;" class="edit-button">
-          <input type="button" id="align-2" data-dir="N"      value="&#x21D1;" class="edit-button">
-          <input type="button" id="align-3" data-dir="NE"     value="&#x21D7;" class="edit-button">
+        <div class="align-buttons" title="align image">
+          <input type="button" id="align-1" data-dir="NW"     value="&#x2196;" class="edit-button" title="align with top left corner">
+          <input type="button" id="align-2" data-dir="N"      value="&#x2191;" class="edit-button" title="align with top border">
+          <input type="button" id="align-3" data-dir="NE"     value="&#x2197;" class="edit-button" title="align with top right corner">
 
-          <input type="button" id="align-4" data-dir="W"      value="&#x21D0;" class="edit-button">
-          <input type="button" id="align-5" data-dir="center" value="&#x2299;" class="edit-button">
-          <input type="button" id="align-6" data-dir="E"      value="&#x21D2;" class="edit-button">
+          <input type="button" id="align-4" data-dir="W"      value="&#x2190;" class="edit-button" title="align with left border">
+          <input type="button" id="align-5" data-dir="center" value="&#x2299;" class="edit-button" title="center image">
+          <input type="button" id="align-6" data-dir="E"      value="&#x2192;" class="edit-button" title="align with right border">
 
-          <input type="button" id="align-7" data-dir="SW"     value="&#x21D9;" class="edit-button">
-          <input type="button" id="align-8" data-dir="S"      value="&#x21D3;" class="edit-button">
-          <input type="button" id="align-9" data-dir="SE"     value="&#x21D8;" class="edit-button">
+          <input type="button" id="align-7" data-dir="SW"     value="&#x2199;" class="edit-button" title="align with bottom left corner">
+          <input type="button" id="align-8" data-dir="S"      value="&#x2193;" class="edit-button" title="align with bottom border">
+          <input type="button" id="align-9" data-dir="SE"     value="&#x2198;" class="edit-button" title="align with bottom right corner">
         </div>
 
         <div class="edit-label">scale</div>
-        <div class="align-buttons">
-          <input type="button" id="scale-1" data-scale="-1" value="&#x21D0;" class="edit-button">
-          <input type="button" id="scale-2" data-scale="0"  value="&#x2299;" class="edit-button">
-          <input type="button" id="scale-3" data-scale="1"  value="&#x21D2;" class="edit-button">
+        <div class="align-buttons" title="resize image">
+          <input type="button" id="scale-1" data-scale="-1" value="&#x2190;" class="edit-button" title="shrink image">
+          <input type="button" id="scale-2" data-scale="0"  value="&#x2299;" class="edit-button" title="reset scaling">
+          <input type="button" id="scale-3" data-scale="1"  value="&#x2192;" class="edit-button" title="enlarge image">
         </div>
 
         <div class="edit-label">shift</div>
-        <div class="align-buttons">
-          <input type="button" id="shift-1" data-shift="-1-1" value="&#x21D6;" class="edit-button">
-          <input type="button" id="shift-2" data-shift="+0-1" value="&#x21D1;" class="edit-button">
-          <input type="button" id="shift-3" data-shift="+1-1" value="&#x21D7;" class="edit-button">
+        <div class="align-buttons" title="move image">
+          <input type="button" id="shift-1" data-shift="-1-1" value="&#x2196;" class="edit-button" title="move left and up">
+          <input type="button" id="shift-2" data-shift="+0-1" value="&#x2191;" class="edit-button" title="move up">
+          <input type="button" id="shift-3" data-shift="+1-1" value="&#x2197;" class="edit-button" title="move right and up">
 
-          <input type="button" id="shift-4" data-shift="-1+0" value="&#x21D0;" class="edit-button">
-          <input type="button" id="shift-5" data-shift="+0+0" value="&#x2299;" class="edit-button">
-          <input type="button" id="shift-6" data-shift="+1+0" value="&#x21D2;" class="edit-button">
+          <input type="button" id="shift-4" data-shift="-1+0" value="&#x2190;" class="edit-button" title="move left">
+          <input type="button" id="shift-5" data-shift="+0+0" value="&#x2299;" class="edit-button" title="reset move">
+          <input type="button" id="shift-6" data-shift="+1+0" value="&#x2192;" class="edit-button" title="move right">
 
-          <input type="button" id="shift-7" data-shift="-1+1" value="&#x21D9;" class="edit-button">
-          <input type="button" id="shift-8" data-shift="+0+1" value="&#x21D3;" class="edit-button">
-          <input type="button" id="shift-9" data-shift="+1+1" value="&#x21D8;" class="edit-button">
+          <input type="button" id="shift-7" data-shift="-1+1" value="&#x2199;" class="edit-button" title="move left and down">
+          <input type="button" id="shift-8" data-shift="+0+1" value="&#x2193;" class="edit-button" title="move down">
+          <input type="button" id="shift-9" data-shift="+1+1" value="&#x2198;" class="edit-button" title="move right and down">
         </div>
 
         <div class="edit-label">algorithm</div>
-        <div class="alg-buttons">
+        <div class="alg-buttons" title="algorithm to fill stage">
           <input type="radio"
                  checked="checked"
                  id="radio-1" name="algorithm" data-alg="fitInto">
-          <label>fit into</label><br>
+          <label title="show whole image">fit into</label><br>
           <input type="radio"
                  id="radio-2" name="algorithm" data-alg="fill">
-          <label>fill</label><br>
+          <label title="fill whole stage with image">fill</label><br>
           <input type="radio"
                  id="radio-3" name="algorithm" data-alg="sameWidth">
-          <label>fill width</label><br>
+          <label title="scale image to fit stage width">fill width</label><br>
           <input type="radio"
                  id="radio-4" name="algorithm" data-alg="sameHeight">
-          <label>fill height</label><br>
+          <label title="scale image to fit stage height">fill height</label><br>
           <input type="radio"
                  id="radio-5" name="algorithm" data-alg="fix">
-          <label>pixel</label><br>
+          <label title="show (part of) image in original resolution">100%</label><br>
         </div>
       </div>
 

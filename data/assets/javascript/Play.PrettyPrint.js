@@ -34,7 +34,7 @@ function mkPrettyPrint() {
             pp.text(gs.alg),
             pp.scale(gs.scale),
             (gs.dir === dirDefault) ? "" : pp.text(gs.dir),
-            (eqV2(gs.shift, V2(0,0)) ? "" : pp.off(gs.shift))
+            (nullV2(gs.shift) ? "" : pp.off(gs.shift))
         ]).join(" ");
     }
 
