@@ -54,20 +54,22 @@ function screenGeo() { return layout.screenGeo; }
 //
 // id's for DOM elements
 
-const title     = "head-title";
-const imgTab    = "imageTab";
-const info      = "info";
-const infoTab   = "info-table";
-const help      = "help";
-const panoCss   = "panorama-css";
-const statusId  = "status";
-const stageId   = imgTab;
-const editGeoId = "edit-geo";
+const title      = "head-title";
+const imgTab     = "imageTab";
+const info       = "info";
+const infoTab    = "info-table";
+const help       = "help";
+const panoCss    = "panorama-css";
+const statusId   = "status";
+const stageId    = imgTab;
+const editGeoId  = "edit-geo";
+const editTextId = "edit-text";
 
 // statusbar object
 
-const statusBar    = mkStatusBar(statusId);
-const editGeoPanel = mkEditGeoPanel(editGeoId);
+const statusBar     = mkStatusBar(statusId);
+const editGeoPanel  = mkEditGeoPanel(editGeoId);
+const editTextPanel = mkEditTextPanel(editTextId);
 
 // ----------------------------------------
 
@@ -81,6 +83,7 @@ function initHandlers() {
     ];
     initAnimHandlers(imageShowAnims);
     editGeoPanel.initHandlers();
+    editTextPanel.initHandlers();
 }
 
 // ----------------------------------------

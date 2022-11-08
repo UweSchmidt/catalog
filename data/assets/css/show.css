@@ -379,7 +379,7 @@ a:focus {
   z-index:          10;
 
 }
-#edit-textarea {
+#edit-text-area {
   margin-top:       0.5rem;
   padding: 0.3rem;
   border:           1px solid black;
@@ -400,7 +400,7 @@ a:focus {
   margin-top: 0.4em;
   margin-bottom: 0.4em;
 }
-#edit-text-headline > input {
+#edit-text-cancel, #edit-text-ok {
   float: right;
   font-size: 1.0em;
   font-weight: bold;

@@ -27,6 +27,7 @@
     <script type="text/javascript" src="/assets/javascript/Play.PrettyPrint.js"></script>
     <script type="text/javascript" src="/assets/javascript/Play.VM.js"></script>
     <script type="text/javascript" src="/assets/javascript/Play.EditGeo.js"></script>
+    <script type="text/javascript" src="/assets/javascript/Play.EditText.js"></script>
 
     <!-- the application .js -->
     <script type="text/javascript" src="/assets/javascript/Play.js"></script>
@@ -63,13 +64,20 @@
       </div>
 
       <!-- edit panel for text and code editing -->
-      <div id="edit-text" title="text/code edit" style="display:block">
+      <div id="edit-text" title="text/code edit" style="display: none">
         <div id="edit-text-headline">
-          <label for="edit-textarea">edit code/text</label>
-          <input type="button" id="edit-text-button"
-                 value="&#x2715;">
+          <label for="edit-text-area">edit code/text</label>
+          <input type="button"
+                 id="edit-text-cancel"
+                 value="&#x2715;"
+                 title="cancel edit">
+          <input type="button"
+                 id="edit-text-ok"
+                 value="o.k."
+                 title="submit edited text">
         </div>
-        <textarea id="edit-textarea" autocorrect="off" spellcheck="off"></textarea>
+        <textarea id="edit-text-area"
+                  autocorrect="off" spellcheck="off"></textarea>
       </div>
 
       <!-- edit panel for image place/resize -->
