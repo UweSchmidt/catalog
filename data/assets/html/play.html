@@ -62,8 +62,18 @@
         Status-Meldung
       </div>
 
+      <!-- edit panel for text and code editing -->
+      <div id="edit-text" title="text/code edit" style="display:block">
+        <div id="edit-text-headline">
+          <label for="edit-textarea">edit code/text</label>
+          <input type="button" id="edit-text-button"
+                 value="&#x2715;">
+        </div>
+        <textarea id="edit-textarea" autocorrect="off" spellcheck="off"></textarea>
+      </div>
+
       <!-- edit panel for image place/resize -->
-      <div id="edit-geo" title="Geo Edit"
+      <div id="edit-geo" title="geometry spec edit"
            style="display:none">
         <div class="edit-label">align</div>
         <div class="align-buttons" title="align image">

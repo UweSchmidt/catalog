@@ -365,6 +365,47 @@ a:focus {
 
 /* -------------------- */
 
+#edit-text {
+  position:         absolute;
+  width:            60%;
+  height:           90%;
+  top:              4%;
+  left:             4%;
+  border-radius:    5px;
+  padding:          0.5rem;
+  background-color: rgb(102 102 102);
+  visibility:       visible;
+  opacity:          0.7;
+  z-index:          10;
+
+}
+#edit-textarea {
+  margin-top:       0.5rem;
+  padding: 0.3rem;
+  border:           1px solid black;
+  border-radius:    5px;
+  background-color: rgb(200 200 200);
+  width:            -webkit-fill-available;
+  height:           calc(100% - 2.5em);
+  font-size:        1.2rem;
+  overflow:         auto;
+}
+#edit-text-headline {
+  width:            98%;
+}
+#edit-text-headline > label {
+  left: 1.0rem;
+  font-size: 1.0em;
+  font-weight: bold;
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+}
+#edit-text-headline > input {
+  float: right;
+  font-size: 1.0em;
+  font-weight: bold;
+}
+
 #edit-geo {
   position:         absolute;
   top:              4%;
