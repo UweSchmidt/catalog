@@ -75,6 +75,10 @@ function setCSS(e, attrs, val) {
     }
 }
 
+function setDisplay(id, visible) {
+    setCSS(id, 'display', visible ? 'block' : 'none');
+}
+
 // set the size of an element and the position in parent element
 // relative to left top corner
 

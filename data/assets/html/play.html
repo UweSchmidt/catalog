@@ -98,11 +98,13 @@
           <input type="button" id="align-9" data-dir="SE"     value="&#x2198;" class="edit-button" title="align with bottom right corner">
         </div>
 
-        <div class="edit-label">scale</div>
-        <div class="align-buttons" title="resize image">
-          <input type="button" id="scale-1" data-scale="-1" value="&#x2190;" class="edit-button" title="shrink image">
-          <input type="button" id="scale-2" data-scale="0"  value="&#x2299;" class="edit-button" title="reset scaling">
-          <input type="button" id="scale-3" data-scale="1"  value="&#x2192;" class="edit-button" title="enlarge image">
+        <div id="edit-scale-panel">
+          <div class="edit-label">scale</div>
+          <div class="align-buttons" title="resize image">
+            <input type="button" id="scale-1" data-scale="-1" value="&#x2190;" class="edit-button" title="shrink image">
+            <input type="button" id="scale-2" data-scale="0"  value="&#x2299;" class="edit-button" title="reset scaling">
+            <input type="button" id="scale-3" data-scale="1"  value="&#x2192;" class="edit-button" title="enlarge image">
+          </div>
         </div>
 
         <div class="edit-label">shift</div>
@@ -120,24 +122,26 @@
           <input type="button" id="shift-9" data-shift="+1+1" value="&#x2198;" class="edit-button" title="move right and down">
         </div>
 
-        <div class="edit-label">algorithm</div>
-        <div class="alg-buttons" title="algorithm to fill stage">
-          <input type="radio"
-                 checked="checked"
-                 id="radio-1" name="algorithm" data-alg="fitInto">
-          <label title="show whole image">fit into</label><br>
-          <input type="radio"
-                 id="radio-2" name="algorithm" data-alg="fill">
-          <label title="fill whole stage with image">fill</label><br>
-          <input type="radio"
-                 id="radio-3" name="algorithm" data-alg="sameWidth">
-          <label title="scale image to fit stage width">fill width</label><br>
-          <input type="radio"
-                 id="radio-4" name="algorithm" data-alg="sameHeight">
-          <label title="scale image to fit stage height">fill height</label><br>
-          <input type="radio"
-                 id="radio-5" name="algorithm" data-alg="fix">
-          <label title="show (part of) image in original resolution">100%</label><br>
+        <div id="edit-alg-panel">
+          <div class="edit-label">algorithm</div>
+          <div class="alg-buttons" title="algorithm to fill stage">
+            <input type="radio"
+                   checked="checked"
+                   id="radio-1" name="algorithm" data-alg="fitInto">
+            <label title="show whole image">fit into</label><br>
+            <input type="radio"
+                   id="radio-2" name="algorithm" data-alg="fill">
+            <label title="fill whole stage with image">fill</label><br>
+            <input type="radio"
+                   id="radio-3" name="algorithm" data-alg="sameWidth">
+            <label title="scale image to fit stage width">fill width</label><br>
+            <input type="radio"
+                   id="radio-4" name="algorithm" data-alg="sameHeight">
+            <label title="scale image to fit stage height">fill height</label><br>
+            <input type="radio"
+                   id="radio-5" name="algorithm" data-alg="fix">
+            <label title="show (part of) image in original resolution">100%</label><br>
+          </div>
         </div>
       </div>
 

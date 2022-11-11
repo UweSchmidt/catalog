@@ -1176,7 +1176,9 @@ function renderText(jobData, frameId, stageGeo, parentId, gs) {
     // and insert it and the frame into DOM
 
     const me     = newBlogElem(frameId, ms, 'text');
-    me.innerHTML = jobData.text;
+    const me3    = newBlogElem(frameId, {width: '100%'}, 'text-body' );
+    me3.innerHTML = jobData.text;
+    me.appendChild(me3);
     frame.appendChild(me);
     getElem(parentId).appendChild(frame);
 
@@ -1292,11 +1294,24 @@ function activeJobCode() {
 }
 
 function getLastGS() {
+    try {
     const ajc = activeJobCode();
     const ajd = activeJobData();
 
     const gs  = ajc[ajd.lastInstrGS].gs;
-    return gs;
+        return gs;
+    }
+    catch {
+        return defaultGS();
+    }
+}
+
+function getLastType() {
+    try {
+        return activeJobData().type;
+    } catch {
+        return "img";
+    }
 }
 
 // this is a destructive op

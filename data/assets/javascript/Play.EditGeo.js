@@ -8,12 +8,29 @@ function mkEditGeoPanel(editId) {
     const scaleButtonId = 'scale';
     const shiftButtonId = 'shift';
     const algButtonId   = 'radio';
+    const algPanelId    = 'edit-alg-panel';
 
     function initEditGeoHandlers() {
         setAlignEH();
         setScaleEH();
         setShiftEH();
         setAlgEH();
+    }
+
+    function setDefaultChecked(alg) {
+        for (let i = 1; i <= 5; i++) {
+            const ide  = algButtonId + (-i);
+            const e    = getElem(ide);
+            const alg1 = e.getAttribute('data-alg');
+            if ( alg === alg1 ) {
+                e.setAttribute('checked', 'checked');
+            }
+            else {
+                if ( e.hasAttribute('checked') ) {
+                    e.removeAttribute('checked');
+                }
+            }
+        }
     }
 
     function setAlgEH() {
@@ -82,19 +99,37 @@ function mkEditGeoPanel(editId) {
         editGS(sf);
     }
 
-    function showEditGeo() {
-        const e = getElem(editId);
-        setCSS(e, 'display', 'block');
-    }
-    function hideEditGeo() {
-        const e = getElem(editId);
-        setCSS(e, 'display', 'none');
+    function configEditGeo() {
+        const ty = getLastType();
+        const gs = getLastGS();
+
+        switch ( ty ) {
+        case 'text':
+            setDisplay(algPanelId, false);
+            return ;
+
+        case 'img':
+        default:
+            setDisplay(algPanelId, true);
+            setDefaultChecked(gs.alg);
+            return;
+        }
     }
 
-    return { id:           editId,
-             show:         showEditGeo,
-             hide:         hideEditGeo,
-             initHandlers: initEditGeoHandlers,
+    function showEditGeo() {
+        configEditGeo();
+        setDisplay(editId, true);
+    }
+
+    function hideEditGeo() {
+        setDisplay(editId, false);
+    }
+
+    return { id:             editId,
+             show:           showEditGeo,
+             hide:           hideEditGeo,
+             defaultchecked: setDefaultChecked,
+             initHandlers:   initEditGeoHandlers,
            };
 }
 
