@@ -4,6 +4,7 @@
 
 function mkPrettyPrint() {
     const pp = {
+        align:    ppAlign,
         clickdur: ppSimple,
         code:     showCode,
         dir:      ppSimple,
@@ -36,6 +37,13 @@ function mkPrettyPrint() {
             (gs.dir === dirDefault) ? "" : pp.text(gs.dir),
             (nullV2(gs.shift) ? "" : pp.off(gs.shift))
         ]).join(" ");
+    }
+
+    function ppAlign(aln) {
+        if ( aln === alnDefault ) {
+            return "";
+        }
+        return aln;
     }
 
     function ppScale(sc) {
@@ -75,7 +83,7 @@ function mkPrettyPrint() {
             break;
 
         case opText:
-            res.push(JSON.stringify(i.text));
+            res.push(pp.align(i.align), JSON.stringify(i.text));
             break;
 
         case opPath:

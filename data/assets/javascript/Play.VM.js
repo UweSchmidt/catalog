@@ -100,6 +100,16 @@ const trWords     = [ trCut, trFadein, trFadeout, trCrossfade ];
 const trDefault   = trCut;
 
 // ----------------------------------------
+// text align
+
+const alnLeft     = 'left';
+const alnCenter   = 'center';
+const alnRight    = 'right';
+
+const alnWords    = [ alnLeft, alnCenter, alnRight ];
+const alnDefault  = alnLeft;
+
+// ----------------------------------------
 
 // build instructions
 
@@ -127,9 +137,10 @@ function mkPath(path) {
            };
 }
 
-function mkText(text) {
-    return { op:   opText,
-             text: text,
+function mkText(align, text) {
+    return { op:    opText,
+             align: align,
+             text:  text,
            };
 }
 
@@ -241,11 +252,11 @@ function cLoadImg(imgPath, frameGS, gs, jnoWait) {
     ];
 }
 
-function cLoadText(frameGS, text, gs) {
+function cLoadText(frameGS, text, gs, align) {
     return [
         mkType('text'),
         mkFrame(frameGS || defaultFrameGS()),
-        mkText(text || "???"),
+        mkText(align || 'center' , text || "???"),
         mkRender(gs),
     ];
 }
@@ -645,7 +656,7 @@ function execInstr(instr, activeJob) {
 
     // render frame and media element
     if ( op === opRender ) {
-        getData(jno).lastInstrGS = activeJob.jpc;
+        getData(jno).lastGSInstr = instr;
 
         render(activeJob, jobsData.get(jno), instr.gs);
         advanceReadyJob(activeJob);
@@ -696,7 +707,7 @@ function execInstr(instr, activeJob) {
 
     // animated move and/or scaling of media, async exec
     if ( op === opMove ) {
-        getData(jno).lastInstrGS = activeJob.jpc;
+        getData(jno).lastGSInstr = instr;
 
         move(activeJob, jobsData.get(jno), instr.dur, instr.gs);
         return;
@@ -704,7 +715,7 @@ function execInstr(instr, activeJob) {
 
     // move and/or scale without animation
     if ( op === opPlace ) {
-        getData(jno).lastInstrGS = activeJob.jpc;
+        getData(jno).lastGSInstr = instr;
 
         place(activeJob, jobsData.get(jno), instr.gs);
         advanceReadyJob(activeJob);
@@ -712,8 +723,7 @@ function execInstr(instr, activeJob) {
     }
 
     if ( op === opType ) {
-        const data = getData(jno);
-        data.type  = instr.type;
+        getData(jno).type  = instr.type;
         advanceReadyJob(activeJob);
         return;
     }
@@ -726,7 +736,8 @@ function execInstr(instr, activeJob) {
     }
 
     if ( op === opText ) {
-        getData(jno).text = instr.text;
+        // remember last text instr for text rendering and editing the text
+        getData(jno).lastTextInstr = instr;
 
         setStatus(activeJob, stReadypage);
         setStatus(activeJob, stReadymedia);
@@ -735,8 +746,7 @@ function execInstr(instr, activeJob) {
     }
 
     if ( op === opPath ) {
-        const data = getData(jno);
-        data.path = instr.path;
+        getData(jno).path = instr.path;
         advanceReadyJob(activeJob);
         return;
     }
@@ -1017,12 +1027,25 @@ function imgGeoToCSS(jobData, gs) {
 
 // --------------------
 
+function alignText(activeJob, jobData, aln) {
+    const fid  = mkFrameId(activeJob.jno);
+    const iid  = mkImgId(fid);
+    const iid2 = mkImgId(iid);
+    trc(1,`alignText: ${activeJob.jno} aln=${aln}`);
+    setTextAlignCSS(iid2, aln);
+}
+
 function place(activeJob, jobData, gs) {
     const fid  = mkFrameId(activeJob.jno);
+    const iid  = mkImgId(fid);
+    const iid2 = mkImgId(iid);
     const ms   = imgGeoToCSS(jobData, gs);
 
-    trc(1,`place: ${activeJob.jno} gs=${PP.gs(gs)}`);
-    setCSS(mkImgId(fid), ms);
+    trc(1,`place: ${activeJob.jno} gs=${PP.gs(gs)} type=${jobData.type}`);
+    setCSS(iid, ms);
+    if ( jobData.type === 'text' ) {
+        setTextScaleCSS(iid2, gs.scale);
+    }
 }
 
 let cssAnimCnt = 1;
@@ -1033,7 +1056,7 @@ function move(activeJob, jobData, dur, gs) {
     const cssId = mkCssId(jno, cssAnimCnt++);
     const imgId = mkImgId(fid);
 
-    const ms0   = cssAbsGeo(jobData.go);     // transition start
+    const ms0   = cssAbsGeo(jobData.go);    // transition start
     const ms1   = imgGeoToCSS(jobData, gs); // transition end
 
     const cssKeyFrames = `
@@ -1176,9 +1199,14 @@ function renderText(jobData, frameId, stageGeo, parentId, gs) {
     // and insert it and the frame into DOM
 
     const me     = newBlogElem(frameId, ms, 'text');
-    const me3    = newBlogElem(frameId, {width: '100%'}, 'text-body' );
-    me3.innerHTML = jobData.text;
+    const textId = mkImgId(frameId);
+
+    const me3    = newBlogElem(textId, {width: '100%'}, 'text-body' );
+    setTextAlignCSS(me3, jobData.lastTextInstr.align);
+    setTextScaleCSS(me3, gs.scale);
+    me3.innerHTML = jobData.lastTextInstr.text;
     me.appendChild(me3);
+
     frame.appendChild(me);
     getElem(parentId).appendChild(frame);
 
@@ -1191,9 +1219,10 @@ function renderText(jobData, frameId, stageGeo, parentId, gs) {
     // round up geo, else unwanted linebreaks are added during rendering
     const textGeo = ceilV2(V2(rect.width, rect.height));
     jobData.imgGeo = textGeo;
-    const go3     = placeMedia(frameGeo, textGeo)(gs);
-    const ms3     = cssAbsGeo(go3);
-    setCSS(me, ms3);
+    const go4     = placeMedia(frameGeo, textGeo)(gs);
+    const ms4     = cssAbsGeo(go4);
+    setCSS(me, ms4);
+
 }
 
 // --------------------
@@ -1294,12 +1323,8 @@ function activeJobCode() {
 }
 
 function getLastGS() {
-    try {
-    const ajc = activeJobCode();
-    const ajd = activeJobData();
-
-    const gs  = ajc[ajd.lastInstrGS].gs;
-        return gs;
+    try {                         // just for testing
+        return activeJobData().lastGSInstr.gs;
     }
     catch {
         return defaultGS();
@@ -1312,6 +1337,10 @@ function getLastType() {
     } catch {
         return "img";
     }
+}
+
+function getLastTextInstr() {
+    return activeJobData().lastTextInstr;
 }
 
 // this is a destructive op
@@ -1367,6 +1396,27 @@ function editGS(f) {
     replaceImg(gs);
 }
 
+// --------------------
+
+function alnText(aln) {
+    function go(i) {
+        i.align = aln;
+        return i;
+    }
+    return go;
+}
+
+function realignText(aln) {
+    const aj = vmActiveJob;
+    const jd = activeJobData();
+    alignText(aj, jd, aln);
+}
+
+function editTextAlign(f) {
+    const i  = getLastTextInstr();
+    const i1 = f(i);
+    realignText(i1.align);
+}
 // ----------------------------------------
 //
 // geo spec constructor
@@ -2021,6 +2071,7 @@ const identSy   = withErr(token(ident),
 const algSy     = opt(resizeDefault, wordTokens(resizeWords));
 const dirSy     = opt(dirDefault,    wordTokens(dirWords));
 const transSy   = opt(trDefault,     wordTokens(trWords));
+const alnSy     = opt(alnDefault,    wordTokens(alnWords));
 const statusSy  = withErr(wordTokens(statiWords),
                           "status expected"
                          );
@@ -2047,7 +2098,7 @@ const geoSpec        = app(GS, algSy, scaleSy, dirSy, shiftSy);
 const instrInit      = app(mkInit,  wordToken0(opInit),  identSy);
 const instrType      = app(mkType,  wordToken0(opType),  typeSy);
 const instrFrame     = app(mkFrame, wordToken0(opFrame), geoSpec);
-const instrText      = app(mkText,  wordToken0(opText),  textSy);
+const instrText      = app(mkText,  wordToken0(opText),  alnSy, textSy);
 const instrPath      = app(mkPath,  wordToken0(opPath),  pathSy);
 
 const instrLoadpage  = fmap(cnst(mkLoadpage()),  wordToken0(opLoadpage));

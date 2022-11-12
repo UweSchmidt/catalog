@@ -96,6 +96,34 @@ function setGeoCSS(id, p, o) {
 
 // ----------------------------------------
 
+function setTextAlignCSS(id, aln) {
+    let trOrg = "center";
+    let txAln = "center";
+    switch ( aln ) {
+    case 'left':
+        trOrg = "left";
+        txAln = "left";
+        break;
+    case 'right':
+        trOrg = 'right';
+        txAln = 'right';
+        break;
+    default:
+        break;
+    }
+    const css = {
+        'transform-origin': trOrg,
+        'text-align':       txAln,
+    };
+    setCSS(id, css);
+}
+
+function setTextScaleCSS(id, sc) {
+    setCSS(id, 'transform', `scale(${sc.x},${sc.y})`);
+}
+
+// ----------------------------------------
+
 function setAnimDur(e, dur, delay) {
     const del = delay || 0;
     setCSS(e, {"animation-duration": dur + "s",

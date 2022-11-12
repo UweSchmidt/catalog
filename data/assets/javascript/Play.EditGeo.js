@@ -9,12 +9,15 @@ function mkEditGeoPanel(editId) {
     const shiftButtonId = 'shift';
     const algButtonId   = 'radio';
     const algPanelId    = 'edit-alg-panel';
+    const textAlignBId  = 'text-align';
+    const textAlignId   = 'text-align-panel';
 
     function initEditGeoHandlers() {
         setAlignEH();
         setScaleEH();
         setShiftEH();
         setAlgEH();
+        setAlignTextEH();
     }
 
     function setDefaultChecked(alg) {
@@ -57,7 +60,19 @@ function mkEditGeoPanel(editId) {
             addEvent(getElem(ide), 'click', editGSShift);
         }
     }
+    function setAlignTextEH() {
+        for (let i = 1; i <= 3; i++) {
+            const ide = textAlignBId + (-i);
+            addEvent(getElem(ide), 'click', editTextAln);
+        }
+    }
 
+    function editTextAln(ev) {
+        const aln = ev.target.getAttribute('data-text-align');
+        const df  = alnText(aln);
+        trc(1, `editTextAln: aln=${aln}`);
+        editTextAlign(df);
+    }
     function editGSAlg(ev) {
         const alg = ev.target.getAttribute('data-alg');
         const df  = algGS(alg);
@@ -105,12 +120,14 @@ function mkEditGeoPanel(editId) {
 
         switch ( ty ) {
         case 'text':
-            setDisplay(algPanelId, false);
+            setDisplay(textAlignId, true);
+            setDisplay(algPanelId,  false);
             return ;
 
         case 'img':
         default:
-            setDisplay(algPanelId, true);
+            setDisplay(textAlignId, false);
+            setDisplay(algPanelId,  true);
             setDefaultChecked(gs.alg);
             return;
         }
