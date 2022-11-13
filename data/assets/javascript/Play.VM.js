@@ -455,6 +455,14 @@ function noMoreJobs() {
     return ! readyJobs() && ! runningJobs() && ! waitingForInputJobs();
 }
 
+function restartJob(jno, jcode) {
+    removeFrame(jno);
+    remJob(jno);
+    addJob(jno, jcode);
+    vmInterrupted = false;
+    addReady(jno);
+}
+
 // --------------------
 // jobsRunning:
 
@@ -1440,9 +1448,23 @@ function editTextInstr() {
     // display it in the text edit panel
     // and set callback after edit
     editTextPanel.edit(i.text, restoreCont);
-
-
 }
+
+function editCode() {
+    const aj  = vmActiveJob;
+    const jno = aj.jno;
+    const ppc = PP.code(jobsCode.get(jno));
+
+    function restoreCode(ppc1) {
+        trc(1, `restoreCode: new code:\n${ppc1}`);
+        const newCode = parse1(code, ppc1);
+        trc(1, PP.code(newCode));
+        trc(1, `restart job ${jno} with new code`);
+        restartJob(jno, newCode);
+    }
+    editTextPanel.edit(ppc, restoreCode);
+}
+
 // ----------------------------------------
 //
 // geo spec constructor
