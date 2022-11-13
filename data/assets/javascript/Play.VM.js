@@ -1228,21 +1228,20 @@ function renderText(jobData, frameId, stageGeo, parentId, gs) {
 // --------------------
 // transitions
 
-function fadeCut(frameId, visibility, opacity) {
-    setCSS(frameId,
-           { // display: display,
-             opacity: opacity,
+function fadeCut(jno, visibility, opacity) {
+    setCSS(mkFrameId(jno),
+           { opacity:    opacity,
              visibility: visibility,
            }
           );
 }
 
 function fadeinCut (activeJob) {
-    fadeCut(mkFrameId(activeJob.jno), 'visible', 1.0);
+    fadeCut(activeJob.jno, 'visible', 1.0);
     setStatus(activeJob, stVisible);
 }
 function fadeoutCut(activeJob) {
-    fadeCut(mkFrameId(activeJob.jno), 'hidden',  0.0);
+    fadeCut(activeJob.jno, 'hidden',  0.0);
     setStatus(activeJob, stHidden);
 }
 
@@ -1258,16 +1257,14 @@ function fadeAnim(frameId, activeJob, dur, fade) { // fadein/fadeout
         e.classList.remove(cls);
         e.removeEventListener('animationend', handleFadeEnd);
         if ( fade === 'fadeout' ) {
-            fadeCut(frameId, 'hidden', 0.0);
-            setStatus(activeJob, stHidden);
+            fadeoutCut(activeJob);
         } else {
-            fadeCut(frameId, 'visible', 1.0);
-            setStatus(activeJob, stVisible);
+            fadeinCut(activeJob);
         }
         termAsyncInstr(jno);
     }
 
-    fadeCut(frameId, 'visible', opacity);
+    fadeCut(jno, 'visible', opacity);
     e.addEventListener('animationend', handleFadeEnd);
     e.classList.add(cls);
 
@@ -1416,6 +1413,35 @@ function editTextAlign(f) {
     const i  = getLastTextInstr();
     const i1 = f(i);
     realignText(i1.align);
+}
+
+function editTextInstr() {
+    const i  = getLastTextInstr();  // last text instr
+
+    // callback when edit is finished
+    //
+    // store new text into last text instr
+    // and rerender the text frame and contents
+
+    function restoreCont(text) {
+        const aj  = vmActiveJob;
+        const jno = aj.jno;
+        const jd  = activeJobData();
+        const gs  = jd.lastGSInstr.gs;
+
+        i.text = text;
+
+        removeFrame(jno);     // remove old frame
+        render(aj, jd, gs);   // and rebuild it with new text content
+        fadeCut(jno, 'visible', 1.0);
+
+    }
+    // get text content of last text instr
+    // display it in the text edit panel
+    // and set callback after edit
+    editTextPanel.edit(i.text, restoreCont);
+
+
 }
 // ----------------------------------------
 //

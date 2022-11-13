@@ -11,12 +11,14 @@ function mkEditGeoPanel(editId) {
     const algPanelId    = 'edit-alg-panel';
     const textAlignBId  = 'text-align';
     const textAlignId   = 'text-align-panel';
+    const textEditBId   = 'text-edit';
 
     function initEditGeoHandlers() {
         setAlignEH();
         setScaleEH();
         setShiftEH();
         setAlgEH();
+        setEditTextEH();
         setAlignTextEH();
     }
 
@@ -59,6 +61,9 @@ function mkEditGeoPanel(editId) {
             const ide = shiftButtonId + (-i);
             addEvent(getElem(ide), 'click', editGSShift);
         }
+    }
+    function setEditTextEH() {
+        addEvent(getElem(textEditBId), 'click', editTextInstr);
     }
     function setAlignTextEH() {
         for (let i = 1; i <= 3; i++) {
