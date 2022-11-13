@@ -4,6 +4,7 @@
 
 function mkEditGeoPanel(editId) {
 
+    const editGeoDisId  = 'edit-geo-cancel';
     const alignButtonId = 'align';
     const scaleButtonId = 'scale';
     const shiftButtonId = 'shift';
@@ -14,6 +15,7 @@ function mkEditGeoPanel(editId) {
     const textEditBId   = 'text-edit';
 
     function initEditGeoHandlers() {
+        setDismissEH();
         setAlignEH();
         setScaleEH();
         setShiftEH();
@@ -38,6 +40,10 @@ function mkEditGeoPanel(editId) {
         }
     }
 
+    function setDismissEH() {
+        addEvent(getElem(editGeoDisId), 'click', hideEditGeo);
+
+    }
     function setAlgEH() {
         for (let i = 1; i <= 5; i++) {
             const ide = algButtonId + (-i);

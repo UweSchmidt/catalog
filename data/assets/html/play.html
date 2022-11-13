@@ -83,7 +83,13 @@
       <!-- edit panel for image place/resize -->
       <div id="edit-geo" title="geometry spec edit"
            style="display:none">
-        <div class="edit-label">align</div>
+        <div id="edit-geo-headline">
+          <label class="edit-label">align</label>
+          <input type="button"
+                 id="edit-geo-cancel"
+                 value="&#x2715;"
+                 title="dismiss">
+        </div>
         <div class="align-buttons" title="align image">
           <input type="button" id="align-1" data-dir="NW"     value="&#x2196;" class="edit-button" title="align with top left corner">
           <input type="button" id="align-2" data-dir="N"      value="&#x2191;" class="edit-button" title="align with top border">

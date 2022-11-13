@@ -375,7 +375,7 @@ a:focus {
   padding:          0.5rem;
   background-color: rgb(102 102 102);
   visibility:       visible;
-  opacity:          0.7;
+  opacity:          0.9;
   z-index:          10;
 
 }
@@ -384,26 +384,34 @@ a:focus {
   padding: 0.3rem;
   border:           1px solid black;
   border-radius:    5px;
-  background-color: rgb(200 200 200);
+  color:            rgb(40 40 40);
+  background-color: rgb(204 204 204);
   width:            -webkit-fill-available;
   height:           calc(100% - 2.5em);
-  font-size:        1.2rem;
+  font-size:        1.0rem;
   overflow:         auto;
 }
-#edit-text-headline {
+#edit-text-headline, #edit-geo-headline {
   width:            98%;
 }
-#edit-text-headline > label {
+#edit-text-headline > label, #edit-geo-headline > label {
   left: 1.0rem;
   font-size: 1.0em;
   font-weight: bold;
   margin-top: 0.4em;
   margin-bottom: 0.4em;
 }
-#edit-text-cancel, #edit-text-ok {
+#edit-text-cancel, #edit-text-ok, #edit-geo-cancel {
   float: right;
   font-size: 1.0em;
   font-weight: bold;
+  border: 1px solid black;
+  border-radius: 5px;
+  marging-left: 2px;
+}
+
+#edit-geo-headline {
+  padding-bottom: 5px;
 }
 
 #edit-geo {
