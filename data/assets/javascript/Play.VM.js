@@ -509,7 +509,7 @@ function initVMCode(prog0) {
     go(prog0, jno0);           // flatten nested jobs and init jobs
 }
 
-function startVM() {
+function restartVM() {
     vmInterrupted = false;
     run();
 }
@@ -563,8 +563,24 @@ function remJob(jno) {
     jobsAll.delete(jno);
 };
 
+function replaceJob(jno, jcode) {
+    replaceCode(jno, jcode);
+    jobsData.set(jno, {});
+    jobsAll.set(jno, mkActiveJob(jno, 0, new Set()));
+}
+
 function getCode(jno) {
     return jobsCode.get(jno);
+}
+
+function replaceCode(jno, code) {  // the array in jobsCode is modified
+    if ( jobsCode.has(jno) ) {     // not replaced by a a new array
+        let c = jobsCode.get(jno);
+        c.splice(0, c.length, ...code);
+    }
+    else {
+        jobsCode.set(jno, code);
+    }
 }
 
 function getData(jno) {
@@ -577,10 +593,10 @@ function noMoreJobs() {
 
 function restartJob(jno, jcode) {
     removeFrame(jno);
-    remJob(jno);
-    addJob(jno, jcode);
-    vmInterrupted = false;
+    replaceJob(jno, jcode);
+
     addReady(jno);
+    restartVM();
 }
 
 // --------------------

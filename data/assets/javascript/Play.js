@@ -226,8 +226,8 @@ function ttt() {
     setAspectRatio(V2(4,3));
 
     resetVM();
-    initVMCode(mkVMProg0(j1,j3,j2,j6));
-    startVM();
+    initVMCode(mkVMProg0(j1,j3));
+    restartVM();
 }
 
 
