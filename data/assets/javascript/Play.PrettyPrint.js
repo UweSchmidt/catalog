@@ -17,7 +17,9 @@ function mkPrettyPrint() {
         off:      showOff,
         path:     ppPath,
         pathpx:   ppPathPrefix,
+        prog:     ppProg,
         scale:    ppScale,
+        status:   ppStatusSet,
         text:     ppSimple,
     };
 
@@ -54,6 +56,16 @@ function mkPrettyPrint() {
         return pp.geo(sc);
     }
 
+    function ppStatusSet(ss) {
+        let del = '{';
+        let res = '';
+        for (let e of ss) {
+            res += del + e;
+            del = ',';
+        }
+        return res + '}';
+    }
+
     function ppInstr(i) {
         return ppInstr1("", i);
     }
@@ -61,7 +73,6 @@ function mkPrettyPrint() {
     function ppInstr1(ind, i) {
         const op = i.op;
         let  res = [fillR(10, op)];
-        let ind1 = (op !== opInit && op !== opFinish) ? ind + "    " : ind;
 
         switch ( op ) {
         case opLoadpage:
@@ -127,11 +138,25 @@ function mkPrettyPrint() {
         default:
             res.push('unknown op');
         }
-        return nl(ind1 + unwords(res));
+        return nl(ind + unwords(res));
     }
 
     function showCode(is) {
         return (map(ppInstr)(is)).join("");
+    }
+
+    function ppProg(prog0) {
+        function go(prog, ind) {
+            const ind1  = ind + '  ';
+            return [
+                nl(ind + 'begin'),
+                map((p) => {return go(p, ind1);})(prog.blocks).join(''),
+                map((i) => {return ppInstr1(ind1, i);})(prog.code).join(''),
+                nl(ind + 'end'),
+                nl(''),
+            ].join('');
+        }
+        return go(prog0, '');
     }
 
     return pp;

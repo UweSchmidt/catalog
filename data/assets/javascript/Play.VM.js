@@ -111,6 +111,25 @@ const alnDefault  = alnLeft;
 
 // ----------------------------------------
 
+// build a whole progam with jobs and nested
+// subprograms
+
+function mkVMCode(localBlocks, code) {
+    return { code:   code,         // list of simple instructions
+             blocks: localBlocks,  // list of local blocks
+           };
+};
+
+function mkVMProg0(...jobs) {
+    const blocks = [];
+    for (let b of jobs) {
+        blocks.push(mkVMCode([], b));
+    }
+    return mkVMCode(blocks, [mkInit('main'), mkFinish()]);
+}
+
+// ----------------------------------------
+//
 // build instructions
 
 function mkInit(name) {
@@ -118,6 +137,10 @@ function mkInit(name) {
              name: name,
            };
 }
+
+function mkFinish() {
+    return { op: opFinish };
+};
 
 function mkType(type) {
     return { op:   opType,
@@ -215,9 +238,6 @@ function mkWait(st, job) {
            };
 };
 
-function mkFinish() {
-    return { op: opFinish };
-};
 // type Job = [Instr]
 // type Jobno = Int
 // type activeJob = { jno: n, jpc: n, }
@@ -399,34 +419,134 @@ function mkWaitJob(jno, jstatus) {
            };
 };
 
-// machine state: global
+// ----------------------------------------
+//
+// Jno ops
 
-var vmInterrupted;
-var vmRunning;
-var vmStepCnt;
-var vmActiveJob;   // last job executed
-var jobsCode;
-var jobsData;
-var jobsAll;
-var jobsWaiting;
-var jobsInput;
-var jobsReady;
-var jobsRunning;
+const jno0 ='';
 
-function initVM() {
-    vmRunning   = false;
-    vmStepCnt   = 0;
-    vmActiveJob = null;
-    jobsCode    = new Map();  // Map Jno [Instr]
-    jobsData    = new Map();  // Map Jno JobData
-    jobsAll     = new Map();  // Map Jno ActiveJob
-    jobsWaiting = new Map();  // Map Jno (Map Status (Set Jno))
-    jobsInput   = [];         // Queue Jno
-    jobsReady   = [];         // Queue Jno
-    jobsRunning = new Set();  // Set Jno
+function mkJno(jno, i) {
+    return jno +'.' + i;
 }
 
-initVM();
+function jnoToIntList(jno) {
+    let l = jno.split('.');
+    l.shift();
+    return map(toNum)(l);
+}
+
+function jnoFromIntList(l) {
+    const m = map((i) => {return "." + i;})(l);
+    return intercalate('', m);
+}
+
+function jnoPrev(jno) {
+    let l = jnoToIntList(jno);
+    let i = l.pop();
+    if ( i > 1 ) {
+        l.push(i - 1);
+    }
+    return jnoFromIntList(l);
+}
+
+function jnoPar(jno) {
+    let l = jnoToIntList(jno);
+    l.pop();
+    return l;
+}
+
+function jnoPrevN(jno, n) {
+    if ( isNumber(n) ) {
+        for (i = 0; i < n; i++) {
+            jno = jnoPrev(jno);
+        }
+        return jno;
+    }
+    // if ( isString(n) ) {
+        trc(1, `jnoPrevN: job names (${n}) not yet implemented`);
+        return jno0;
+    // }
+
+}
+
+function jnoToId(jno) {
+    return jno.replace(/[.]/g,'-');
+}
+
+function jnoFromRelJno(jno, n) {
+    if ( n === 'prev' ) {
+        return jnoPrev(jno);
+    }
+    if ( n === 'par' ) {
+        return jnoPar(jno);
+    }
+    if ( isNegative(n) ) {
+        return jnoPrevN(jno, 0 - n);
+    }
+    if ( isString(n) ) {
+        for (const kv of jobsData) {
+            if ( kv[1] === n ) {
+                return kv[0];
+            }
+        }
+    }
+    return jno0;
+}
+
+// ----------------------------------------
+
+function initVMCode(prog0) {
+    function go(prog, jno) {
+        addJob(jno, prog.code);
+        addReady(jno);
+        const subprogs = prog.blocks;
+        for (let i = 0; i < subprogs.length; i++) {
+            go(subprogs[i], mkJno(jno, i+1));   // job # run from 1
+        }
+    }
+    // vmInterrupted = true;   // addReady does not start jobs immediatly
+    vmProg = prog0;            // store job hierachy
+    go(prog0, jno0);           // flatten nested jobs and init jobs
+}
+
+function startVM() {
+    vmInterrupted = false;
+    run();
+}
+
+// machine state: global
+
+var vmInterrupted; // :: Bool
+var vmRunning;     // :: Bool
+var vmStepCnt;     // :: Int
+var vmActiveJob;   // :: (Jno, Jpc, Set Status)
+var vmProg;        // :: VMCode
+                   //    VMCode = ([VMCode], [Instr])
+                   //    Jno = [Nat]
+
+var jobsCode;      // :: Map Jno [Instr]
+var jobsData;      // :: Map Jno JobLocalData
+var jobsAll;       // :: Map Jno ActiveJob
+var jobsWaiting;   // :: Map Jno (Map Status (Set Jno))
+var jobsInput;     // :: Queue Jno
+var jobsReady;     // :: Queue Jno
+var jobsRunning;   // :: Set Jno
+
+function resetVM() {
+    vmInterrupted = true;
+    vmRunning     = false;
+    vmStepCnt     = 0;
+    vmActiveJob   = null;
+    jobsCode      = new Map();  // Map Jno [Instr]
+    jobsData      = new Map();  // Map Jno JobData
+    jobsAll       = new Map();  // Map Jno ActiveJob
+    jobsWaiting   = new Map();  // Map Jno (Map Status (Set Jno))
+    jobsInput     = [];         // Queue Jno
+    jobsReady     = [];         // Queue Jno
+    jobsRunning   = new Set();  // Set Jno
+}
+
+resetVM();
 
 // --------------------
 // jobs:
@@ -789,6 +909,7 @@ function execInstr(instr, activeJob) {
 
     // syncing with previous slides
     if ( op === opWait ) {
+        /*
         let jno1 = jno - 1;
         if ( isNumber(instr.reljno) ) {
             jno1 = jno + instr.reljno;    // reljno is usually -1 (prev job)
@@ -796,6 +917,8 @@ function execInstr(instr, activeJob) {
             const jname = instr.name;
             trc(1, `wait: job names not yet implemented`);
         }
+        */
+        const jno1 = jnoFromRelJno(jno, instr.reljno);
         const st1  = instr.status;
 
         trc(1, `wait: ${jno} requires (${jno1}, ${st1})`);
@@ -809,7 +932,7 @@ function execInstr(instr, activeJob) {
                  )
              )
            ) {
-                // jno1 is too slow
+                // job jno1 is too slow
                 // put job into wait queue
                 // and setup syncronizing
 
@@ -861,7 +984,7 @@ function execDelay(instr, aj) {
 
 function setStatus(activeJob, st) {
     activeJob.jstatus.add(st);
-    trc2('setStatus: job', activeJob);
+    trc(1, `setStatus: job=${activeJob.jno} ${PP.status(activeJob.jstatus)}`);
 
     // wakeup jobs waiting for this job to reach status
     wakeupWaiting(mkWaitJob(activeJob.jno, st));
@@ -1021,7 +1144,7 @@ function newFrame(id, go, css) {
 }
 
 function mkFrameId(jno) {
-    return `frame-${jno}`;
+    return `frame${jnoToId(jno)}`;
 }
 
 function imgGeoToCSS(jobData, gs) {
@@ -1115,7 +1238,7 @@ function moveCSS(ms) {
 }
 
 function mkCssId(jno, cssCnt) {
-    return `css-job-${jno}-${cssCnt}`;
+    return `css-job${jnoToId(jno)}-${cssCnt}`;
 }
 
 function newCssNode(cssId) {

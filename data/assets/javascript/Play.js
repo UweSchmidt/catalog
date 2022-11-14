@@ -206,6 +206,8 @@ var jobList = [
 //    j5,
 ];
 
+
+
 function restartJobs(js) {
     for (let i = 0; i < js.length; ++i) {
         // remove comments in terminateJob to cleanup on the fly
@@ -222,8 +224,11 @@ function restartJobs(js) {
 
 function ttt() {
     setAspectRatio(V2(4,3));
-    initVM();
-    restartJobs(jobList);
+
+    resetVM();
+    initVMCode(mkVMProg0(j1,j3,j2,j6));
+    startVM();
 }
+
 
 // ----------------------------------------
