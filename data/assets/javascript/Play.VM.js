@@ -1712,701 +1712,115 @@ const rightHalfGeo = () => {
 };
 
 // ----------------------------------------
-
-function initParserState(inp) {
-    let s0 = {
-        inp : inp,
-        ix  : 0,
-        cc  : 0,
-        lc  : 0,
-        backtrack: false,
-    };
-
-    // save the variable parts of the parser state
-    function saveState() {
-        return [s0.ix, s0.cc, s0.lc, s0.backtrack];
-    }
-
-    // restore saved parser state
-    // for backtracking in alt and followedBy parsers
-    function resetState(cs) {
-        s0.ix = cs[0];
-        s0.cc = cs[1];
-        s0.lc = cs[2];
-        s0.backtrack = cs[3];
-    }
-
-    function resetBacktrack(cs) {
-        s0.backtrack = cs[3];
-    }
-    // prepare error message with source line and position
-    function showErr(msg) {
-        const ls  = lines(s0.inp);
-        const lc1 = s0.lc;
-        const lc0 = Math.max(0, lc1 - 3);
-        let   ls1 = take(lc1 - lc0 + 1, drop(lc0, ls));
-        const l2  = replicate(s0.cc, " ") + "^^^^^";
-        const l3  = `line ${s0.lc + 1}: ${msg}`;
-        ls1.push(l2,l3,"");
-        trc(1, unlines(ls1));
-    }
-
-    function rest() {
-        return s0.inp.slice(s0.ix);
-    }
-
-    s0.save   = saveState;
-    s0.reset  = resetState;
-    s0.resetBacktrack = resetBacktrack;
-    s0.errmsg = showErr;
-    s0.rest   = rest;
-    return s0;
-}
-
-// object used as module
-
-function parse(p1, inp) {
-    const s0 = initParserState(inp);
-    trc(1,JSON.stringify(s0));
-
-    const res = p1(s0);
-    trc(1,JSON.stringify(res));
-
-    return res;
-}
-
-function parse1(p1, inp) {
-    const res = parse(p1, inp);
-
-    if ( res.err ) {
-        const msg = res.state.errmsg(res.err);
-        trc(1, msg);
-        return "";
-    }
-    else {
-        return res.res;
-    }
-}
-
-function succ(res, state) { return {res: res, state: state}; };
-function fail(err, state) { return {err: err, state: state}; };
-//                                            ^^^^^^^^^^^^
-//                                            for better error reporting
-
-// (a -> Bool) -> Parser a
-function satisfy(pred) {
-    return (state) => {
-        const c = state.inp[state.ix];
-        if ( c ) {
-            if ( pred(c) ) {
-                state.ix++;
-                if ( c === "\n" ) {
-                    state.lc += 1;
-                    state.cc  = 0;
-                }
-                else {
-                    state.cc += 1;
-                }
-                return succ(c,state);
-            }
-            else {
-                return fail(`unexpected char '${c}'`, state);
-            }
-        }
-        else {
-            return fail("end of input", state);
-        }
-    };
-}
-
-// Parser a
-const item = satisfy(cnst(true));
-
-// Char -> Parser String
-function char(c) {
-    return satisfy((c1) => { return (c === c1)});
-}
-
-// Set Char -> Parser Char
-function oneOf(s) {
-    return satisfy((c1) => {
-        return s.indexOf(c1) >= 0;
-    });
-}
-
-// Set Char -> Parser Char
-function noneOf(s) {
-    return satisfy((c1) => {
-        return s.indexOf(c1) < 0;
-    });
-}
-
-// a -> Parser a
-function unit(res) {
-    return (state) => { return succ(res, state); };
-}
-
-// mark state to not backtrack in an alt parser
-// but fail instead
 //
-// Parser ()
-function pCut(state) {
-    state.backtrack = false;
-    return succ(Void, state);
-}
+// VM instr parsers
 
-// String -> Parser a
-function failure(msg) {
-    return (state) => { return fail(msg, state); };
-}
-
-function withErr(p, msg) {
-    return (state) => {
-        const res = p(state);
-        if ( res.err ) {
-            res.err = msg;
-        }
-        return res;
-    };
-}
-
-// Parser ()
-function eof(state) {
-    // trc(1,`eof: ${state.inp} ${state.ix}`);
-    const c = state.inp[state.ix];
-    if ( ! c ) {
-        return succ(Void, state);
-    }
-    else {
-        const rest = state.inp.slice(state.ix, state.ix + 40);
-        return fail(`end of input expected, but seen: '${rest}...'`, state);
-    }
-}
-
-// Parser a -> Parser ()
-const del = (p) => {
-    return fmap(cnst(Void), p);      // discard result, e.g. for separators
-};
-
-// Parser String -> Parser ()        // Void = ()
-function followedBy(p) {
-    function go(state) {
-        const s1 = state.save();
-        const r1 = p(state);
-        state.reset(s1);
-        if ( r1.err ) {
-            return fail("followed context not matched", state);
-        }
-        else {
-            return succ(Void, state);
-        }
-     }
-    return go;
-}
-
-// Parser String -> Parser ()
-function notFollowedBy(p) {
-    return alt(seqT(followedBy(p),
-                    failure("wrong context followed")
-                   ),
-               unit(Void)
-              );
-}
-
-// (a -> b) -> Parser a -> Parser b
-function fmap(f, p) {
-        return (st0) => {
-            const r1 = p(st0);
-            // trc2('fmap: r1=', r1);
-            if ( r1.err ) {
-                return r1;
-            }
-            else {
-                r1.res = f(r1.res);
-                // trc2("fmap: rs=", r1);
-                return r1;
-            }
-        };
-    }
-
-// generalisation of <$> and <*>
-// f <$> Parser a <*> Parser b <*> ...
-//
-// ((a, b, ...) -> r) -> Parser a -> Parser b -> ... -> Parser r
-function app(f, ...ps) {
-    function f1(xs) {
-        if ( xs === Void ) {
-           return xs;
-        }
-        return f(...xs);
-    }
-    return fmap(f1, seq(...ps));
-}
-
-// Parser a -> Parser b -> Parser a                // <*  from Applicative
-function cxR(p, cx) {
-    return app(id, p, del(cx));                  // discard right context
-}
-
-// Parser b -> Parser a -> Parser a                // *>  from Applicative
-function cxL(cx, p) {
-    return app(id, del(cx), p);                  // discard left context
-}
-
-// Parser b -> Parser a -> Parser c -> Parser a    // *>  <* from Applicative
-function cx(cx1, p, cx2) {
-    return app(id, del(cx1), p, del(cx2));     // discard context
-}
-
-// Parser a -> (a -> Parser b) -> Parser b    // >>=
-function bind(p1, f) {
-        return (state) => {
-            const r1 = p1(state);
-            if ( r1.err ) {
-                return r1;
-            }
-            else {
-                const p2 = f(r1.res);
-                return p2(r1.state);
-            }
-        };
-    }
-
-// [Parser a]                           -> Parser [a]
-// (Parser a, Parser b, ...)            -> Parser (a, b, ...)
-// (Parser a, Parser (), Parser b, ...) -> Parser (a, b, ...)
-
-function seq(...ps) {
-    function go(state) {
-        let   st = state;
-        let   xs = [];
-        const l  = ps.length;
-        if ( l === 0 ) {
-            return succ(xs, state);
-        }
-        for (let i = 0; i < ps.length; i++) {
-            const rs = ps[i](st);
-            if ( rs.err )
-                return rs;
-            if ( rs.res !== Void ) {
-                xs.push(rs.res);
-            }
-            // trc(1,`seq: ${JSON.stringify(rs.res)} ${JSON.stringify(xs)}`);
-            st = rs.state;
-        }
-        return succ(xs.length === 0 ? Void : xs, st);
-    }
-    return go;
-}
-
-// Parser a -> Parser a -> Parser a
-function alt(p1, p2) {
-        return (state) => {
-            const s1 = state.save();
-
-            // allow backtracking, as long as not cut parser is reached
-            state.backtrack = true;
-            // trc2("alt: state=", state);
-
-            const r1 = p1(state);
-            // trc2("alt: r1=", r1);
-
-            if ( r1.err ) {                     // p1 failed
-                if ( r1.state.backtrack ) {     // backtracking allowed
-                    state.reset(s1);            // reset state and
-                    const r2 = p2(state);       // run p2
-                    // trc2("alt: r2=", r2);
-                    return r2;
-                }
-                else {                          // no backtracking
-                    // r1.state.resetBacktrack(s1);// restore backtracking flag
-                    trc(1, "alt: no backtracking");
-                    return r1;                  // and report error
-                }
-            }
-            else {                              // p1 succeded
-                r1.state.resetBacktrack(s1);    // restore backtracking flag
-                return r1;                      // and return result
-            }
-        };
-    }
-
-// (Parser a, ...) -> Parser a
-function alts(...ps) {
-    let res = failure("no alternatve matched");
-    for (let i = ps.length; i > 0; i--) {
-        res = alt(ps[i-1], res);
-    }
-    return res;
-}
-
-// a -> Parser a -> Parser a
-function opt(defVal, p) {
-    return alt(p, unit(defVal));
-}
-
-// many and some parsers always return a list
-// if parser p is of type 'Parser ()', the result
-// will be always the empty list
-
-// Parser a  -> Parser [a]
-// Parser () -> Parser []  (res: empty list)
-
-function many(p) {
-    function go(state) {
-        let   st = state;
-        let   xs = [];                       // result accumulator
-
-        while ( true ) {
-            const s1 = st.save();
-            st.backtrack = true;
-            let rs = p(st);
-
-            if ( rs.err ) {
-                if ( rs.state.backtrack ) {  // terminate loop
-                    st.reset(s1);            // reset state
-                    const res = succ(xs, st);
-                    // trc2('many: res:', res);
-                    return res;              // and return xs
-                }
-                else {                       // error when running p
-                    // trc2("many: failed:", rs);
-                    return rs;               // propagate error
-                }
-            }
-                                             // one more item parsed
-            if ( rs.res !== Void ) {
-                xs.push(rs.res);             // update xs
-            }
-            st = rs.state;                   // update st
-        }
-    }
-    return go;
-}
-
-// Parser a  -> Parser [a]
-// Parser () -> Parser []  (res: empty list)
-function some(p) {
-    function cons1(...args) {
-        // trc(1,`cons1: ${JSON.stringify(args)}`);
-        if ( args.length === 1 ) {
-            return id(...args);           // return args[0];
-        }
-        if ( args.length === 2 ) {
-            return cons(...args);
-        }
-        throw "some: cons1: wrong args";
-    }
-    return app(cons1, p, many(p));
-}
-
-// Parser [String] -> Parser String
-function joinT(p) {
-    return fmap((xs)  => { return concatS(...xs); }, p);
-}
-
-// Parser String -> Parser String
-const manyT = (p)     => { return joinT(many(p)); };
-const someT = (p)     => { return joinT(some(p)); };
-
-// (Parser String, ...) -> ParserString
-const seqT  = (...ps) => { return joinT(seq(...ps)); };
-
-// String -> Parser String
-function word(w) {
-    const ps = map((c) => {return char(c);})(w);
-    return seqT(...ps);
-}
-
-// CAUTION: if a word w1 is prefix of a word w2
-// w1 must be put into the list behind w2
-// else tokenising does not word properly
-// right: ['fixandfoxi, fix']
-// wrong: ['fix', 'fixandfoxi']
-// see 'wordToken'
-
-function words(ws) {
-    const ps = map(word)(ws);
-    return alts(...ps);
-}
-
-// for not mess up with quoting
-
-function charOrd(n) {
-    return char(fromOrd(n));
-}
-
-function oneOfOrd(...ns) {
-    return oneOf(fromOrd(...ns));
-};
-
-function noneOfOrd(...ns) {
-    return noneOf(fromOrd(...ns));
-};
-
-function wordOrd(...ns) {
-    return word(fromOrd(...ns));
-}
-
-// --------------------
-//
-// whitespace and comment separators
+// load parser interface
+const PS = mkParsec();
 
 
-const dquote     = charOrd(34);
-const squote     = charOrd(39);
-const bslash     = charOrd(92);
+const pNat    = PS.map(toNum, PS.someDigits);
+const pInt    = PS.map(toNum, PS.intOS);
+const pIntS   = PS.map(toNum, PS.intS);
+const pFractN = PS.map(toNum, PS.fractN);
+const pGeo    = PS.app(toV2,
+                       PS.fractN,
+                       PS.void(PS.char('x')),
+                       PS.fractN
+                      );                             // 12.3x4.5
+const pOff    = PS.app(toV2, PS.fractS, PS.fractS);  // +1.5-2.0
 
-const ws         = oneOf(' \t\n');
-const blank      = oneOf(' \t');
-const newline    = char('\n');
-const newlines   = someT(newline);
-
-const lineCmtJS  = lineCmtP('//');
-const lineCmtHS  = lineCmtP('--');
-
-const multiCmtJS = failure("multiCmtJS parser not yet implemented");
-const multiCmtHS = failure("multiCmtHS parser not yet implemented");
-
-const noCmt      = failure("no comment");
-
-let   lineCmt    = lineCmtJS;
-let   multiCmt   = multiCmtJS;
-
-// whitespace parsing for line oriented parsers
-function lineSep1(cmt) {
-    return alts(some(del(alts(blank, cmt))),
-                followedBy(newline),
-                eof
-               );
-};
-
-function textSep1(lcmt, tcmt) {
-    return alts(some(del(alts(ws,
-                              newline,
-                              lcmt,
-                              tcmt
+const geoSy   = PS.token(pGeo);
+const offSy   = PS.token(pOff);
+const scaleSy = PS.opt(V2(1,1),
+                       PS.alt(geoSy,
+                              PS.map(V2, PS.token(pFractN))
                              )
-                        )
-                    ),
-                eof
-               );
-};
-
-// String -> Parser ()
-function lineCmtP(w) {
-    return seq(word(w), manyT(noneOf('\n')));
-};
-
-const lineSep   = lineSep1(noCmt);
-const lineSepJS = lineSep1(lineCmtJS);
-const lineSepHS = lineSep1(lineCmtHS);
-
-const textSep   = textSep1(noCmt, noCmt);
-const textSepJS = textSep1(lineCmtJS, multiCmtJS);
-
-
-// --------------------
-//
-// token parsers
-
-// Parser String
-
-// whitespace parsers
-
-const ws0        = manyT(ws);
-const ws1        = someT(ws);
-
-const someBlanks = someT(blank);
-const manyBlanks = manyT(blank);
-
-// token parsers discard trailing whitespace
-// and stop backtracking, due to successfully parse a token
-//
-// tokenBL discard whitespace only on current line
-// tokenWS discards whitespace and newlines
-
-// Parser a -> Parser a
-
-function tokenL  (p) { return cxR(p, lineSep);   };  // space and tabs
-function tokenLJS(p) { return cxR(p, lineSepJS); };  // space, tabs, //...
-function tokenT  (p) { return cxR(p, textSep);   };    // space, tab, nl
-function tokenC  (p) { return cxR(p, pCut);      };
-
-// if token parser succeds,
-// backtracking is disabled
-
-let token = (p) => { return tokenC(tokenL(p)); };
-
-// the seq of words does not matter with this parser
-// even if a word w1 is prefix of a word w2, and
-// w2 occurs behind w1 the parser works
-
-function wordTokens(ws) {
-    const ps = map(wordToken)(ws);
-    return alts(...ps);
-}
-
-// String -> Parser ()
-function wordToken(w) {
-    return token(word(w));
-}
-
-function wordToken0(w) {
-    return del(wordToken(w));
-}
-
-
-// regex parsers
-
-const ident      = seqT(satisfy(isAlpha), manyT(satisfy(isAlphaNum)));
-const digit      = oneOf("0123456789");
-const manyDigits = manyT(digit);
-const someDigits = someT(digit);
-const sign       = oneOf('-+');
-const optSign    = opt("", sign);
-const intS       = seqT(sign, someDigits);
-const intOS      = seqT(optSign, someDigits);
-const fractN     = seqT(someDigits,
-                        opt("", seqT(char('.'), someDigits))
-                       );
-const fractS     = seqT(sign, fractN);
-const fract      = seqT(optSign, fractN);
-
-const textLit    = seqT(dquote,
-                        pCut,
-                        manyT(alt(noneOfOrd(34, 10),
-                                  seqT(bslash, item)
-                                 )
-                             ),
-                        pCut,
-                        dquote,
-                       );
-const pathLit    = someT(seqT(char('/'),
-                              pCut,
-                              someT(alt(satisfy(isAlphaNum),
-                                        oneOf('+-._')
-                                       )
-                                   )
-                             )
-                        );
-
-// --------------------
-//
-// geo and offset Parser String
-
-const geoS       = seq(fractN,              // 12.3x4.5
-                       del(char('x')),
-                       fractN
                       );
-
-
-// --------------------
-//
-// object parsers
-
-// whitespace parsing maybe configured here
-// a token parser parses a token, converts the string(s)
-// into values
-// removes trailing whitespace
-// whitespace and comment parsing can be configured
-// by the token parser variable
-
-// geo parser
-const pNat    = fmap(toNum, someDigits);
-const pInt    = fmap(toNum, intOS);
-const pIntS   = fmap(toNum, intS);
-const pFractN = fmap(toNum, fractN);
-const pGeo    = app(toV2, fractN, del(char('x')), fractN);  // 12.3x4.5
-const pOff    = app(toV2, fractS, fractS);                  // +1.5-2.0
-
-const geoSy   = token(pGeo);
-const offSy   = token(pOff);
-const scaleSy = opt(V2(1,1), alt(geoSy, fmap(V2, token(pFractN))));
-const shiftSy = opt(V2(0,0), offSy);
-const goSy    = token(app(GO, pGeo, opt(V2(0,0),pOff)));
+const shiftSy = PS.opt(V2(0,0), offSy);
+const goSy    = PS.token(PS.app(GO, pGeo, PS.opt(V2(0,0), pOff)));
 
 // duration parser
-const durSy   = fmap(toNum, token(cxR(fractN, char('s'))));
+const durSy   = PS.map(toNum, PS.token(PS.cxR(PS.fractN, PS.char('s'))));
 
 // keyword and name parser
-const identSy   = withErr(token(ident),
-                          "identifier expected"
-                         );
+const identSy   = PS.withErr(PS.token(PS.ident),
+                             "identifier expected"
+                            );
 
-const algSy     = opt(resizeDefault, wordTokens(resizeWords));
-const dirSy     = opt(dirDefault,    wordTokens(dirWords));
-const transSy   = opt(trDefault,     wordTokens(trWords));
-const alnSy     = opt(alnDefault,    wordTokens(alnWords));
-const statusSy  = withErr(wordTokens(statiWords),
-                          "status expected"
-                         );
-const typeSy    = withErr(wordTokens(tyWords),
-                          "slide type expected"
-                         );
-const textSy    = withErr(fmap((xs) => {return JSON.parse(xs);},
-                               token(textLit)
-                              ),
-                          "text literal expected"
-                         );
-const pathSy    = withErr(token(pathLit),
-                          "path expected"
-                         );
-const jobSy     = withErr(alt(opt(-1, pIntS),
-                              identSy
-                             ),
-                          "rel. job num or job name expected"
-                         );
+const algSy     = PS.opt(resizeDefault, PS.wordTokens(resizeWords));
+const dirSy     = PS.opt(dirDefault,    PS.wordTokens(dirWords));
+const transSy   = PS.opt(trDefault,     PS.wordTokens(trWords));
+const alnSy     = PS.opt(alnDefault,    PS.wordTokens(alnWords));
+const statusSy  = PS.withErr(PS.wordTokens(statiWords),
+                             "status expected"
+                            );
+const typeSy    = PS.withErr(PS.wordTokens(tyWords),
+                             "slide type expected"
+                            );
+const textSy    = PS.withErr(PS.map((xs) => {return JSON.parse(xs);},
+                                    PS.token(PS.textLit)
+                                   ),
+                             "text literal expected"
+                            );
+const pathSy    = PS.withErr(PS.token(PS.pathLit),
+                             "path expected"
+                            );
+const jobSy     = PS.withErr(PS.alt(PS.opt(-1, pIntS),
+                                    identSy
+                                   ),
+                             "rel. job num or job name expected"
+                            );
 
 // compound parsers
-const geoSpec        = app(GS, algSy, scaleSy, dirSy, shiftSy);
+const geoSpec        = PS.app(GS, algSy, scaleSy, dirSy, shiftSy);
 
-const instrInit      = app(mkInit,  wordToken0(opInit),  identSy);
-const instrType      = app(mkType,  wordToken0(opType),  typeSy);
-const instrFrame     = app(mkFrame, wordToken0(opFrame), geoSpec);
-const instrText      = app(mkText,  wordToken0(opText),  alnSy, textSy);
-const instrPath      = app(mkPath,  wordToken0(opPath),  pathSy);
+const instrInit      = PS.app(mkInit,  PS.wordToken0(opInit),  identSy);
+const instrType      = PS.app(mkType,  PS.wordToken0(opType),  typeSy);
+const instrFrame     = PS.app(mkFrame, PS.wordToken0(opFrame), geoSpec);
+const instrText      = PS.app(mkText,  PS.wordToken0(opText),  alnSy, textSy);
+const instrPath      = PS.app(mkPath,  PS.wordToken0(opPath),  pathSy);
 
-const instrLoadpage  = fmap(cnst(mkLoadpage()),  wordToken0(opLoadpage));
-const instrLoadmedia = fmap(cnst(mkLoadmedia()), wordToken0(opLoadmedia));
-const instrWaitclick = fmap(cnst(mkWaitclick()), wordToken0(opWaitclick));
-const instrFinish    = fmap(cnst(mkFinish()),    wordToken0(opFinish));
+const instrLoadpage  = PS.map(cnst(mkLoadpage()),  PS.wordToken0(opLoadpage));
+const instrLoadmedia = PS.map(cnst(mkLoadmedia()), PS.wordToken0(opLoadmedia));
+const instrWaitclick = PS.map(cnst(mkWaitclick()), PS.wordToken0(opWaitclick));
+const instrFinish    = PS.map(cnst(mkFinish()),    PS.wordToken0(opFinish));
 
-const instrRender    = app(mkRender,  wordToken0(opRender), geoSpec);
-const instrPlace     = app(mkPlace,   wordToken0(opPlace),  geoSpec);
-const instrMove      = app(mkMove,    wordToken0(opMove),   durSy, geoSpec);
+const instrRender    = PS.app(mkRender,  PS.wordToken0(opRender), geoSpec);
+const instrPlace     = PS.app(mkPlace,   PS.wordToken0(opPlace),  geoSpec);
+const instrMove      = PS.app(mkMove,    PS.wordToken0(opMove),   durSy, geoSpec);
 
-const instrFadein    = app(mkFadein,  wordToken0(opFadein),  durSy, transSy);
-const instrFadeout   = app(mkFadeout, wordToken0(opFadeout), durSy, transSy);
+const instrFadein    = PS.app(mkFadein,  PS.wordToken0(opFadein),  durSy, transSy);
+const instrFadeout   = PS.app(mkFadeout, PS.wordToken0(opFadeout), durSy, transSy);
 
-const instrWait      = app(mkWait,    wordToken0(opWait), statusSy, jobSy);
-const instrDelay     = app(mkDelay,   wordToken0(opDelay),  durSy);
-const instrStatus    = app(mkStatus,  wordToken0(opStatus), statusSy);
+const instrWait      = PS.app(mkWait,    PS.wordToken0(opWait), statusSy, jobSy);
+const instrDelay     = PS.app(mkDelay,   PS.wordToken0(opDelay),  durSy);
+const instrStatus    = PS.app(mkStatus,  PS.wordToken0(opStatus), statusSy);
 
-const instr0   = alts(instrInit,
-                      instrType,
-                      instrFrame,
-                      instrText,
-                      instrPath,
-                      instrLoadpage,
-                      instrLoadmedia,
-                      instrRender,
-                      instrPlace,
-                      instrMove,
-                      instrFadein,
-                      instrFadeout,
-                      instrDelay,
-                      instrWaitclick,
-                      instrWait,
-                      instrStatus,
-                      instrFinish,
-                      );
+const instr0   = PS.alts(instrInit,
+                         instrType,
+                         instrFrame,
+                         instrText,
+                         instrPath,
+                         instrLoadpage,
+                         instrLoadmedia,
+                         instrRender,
+                         instrPlace,
+                         instrMove,
+                         instrFadein,
+                         instrFadeout,
+                         instrDelay,
+                         instrWaitclick,
+                         instrWait,
+                         instrStatus,
+                         instrFinish,
+                        );
 
-function linep(p) {return cx(manyBlanks, p, seq(pCut, newlines));}
+function linep(p) {return PS.cx(PS.manyBlanks, p, PS.seq(PS.cut, PS.newlines));}
 
 const instr1 = linep(instr0);
 
-const code   = cxR(many(instr1), eof);
+const code   = PS.cxR(PS.many(instr1), PS.eof);
 
 // howto build a recursive parser in js?
 // e.g. for parsing nested blocks
@@ -2414,14 +1828,14 @@ const code   = cxR(many(instr1), eof);
 //const vmblock = ... vmblock ... doesn't work
 
 function vmblock(state) {
-    return app(mkVMProg,
-               linep(wordToken0('begin')),
-               many((state1) => {return vmblock(state1);}),
-               many(instr1),
-               linep(wordToken0('end')),
-              )(state);
+    return PS.app(mkVMProg,
+                  linep(PS.wordToken0('begin')),
+                  PS.many((state1) => {return vmblock(state1);}),
+                  PS.many(instr1),
+                  linep(PS.wordToken0('end')),
+                 )(state);
 }
 
-const vmprogp = cxR(vmblock, eof);
+const vmprogp = PS.cxR(vmblock, PS.eof);
 
 // --------------------
