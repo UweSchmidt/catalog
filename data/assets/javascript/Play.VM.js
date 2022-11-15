@@ -114,7 +114,7 @@ const alnDefault  = alnLeft;
 // build a whole progam with jobs and nested
 // subprograms
 
-function mkVMCode(localBlocks, code) {
+function mkVMProg(localBlocks, code) {
     return { code:   code,         // list of simple instructions
              blocks: localBlocks,  // list of local blocks
            };
@@ -123,9 +123,109 @@ function mkVMCode(localBlocks, code) {
 function mkVMProg0(...jobs) {
     const blocks = [];
     for (let b of jobs) {
-        blocks.push(mkVMCode([], b));
+        blocks.push(mkVMProg([], b));
     }
-    return mkVMCode(blocks, [mkInit('main'), mkFinish()]);
+    return mkVMProg(blocks, [mkInit('main'), mkFinish()]);
+}
+
+function getVMProg(jno) {
+    let xs  = jnoToIntList(jno);
+    let res = vmProg;                     // acces global vmProg variable
+    while ( xs.length > 0 ) {
+        const ix = xs.shift();
+        res = res.blocks[ix - 1];
+    }
+    return res;
+}
+
+function getVMCode(jno)   {return getVMProg(jno).code;}
+function getVMBlocks(jno) {return getVMProg(jno).blocks;}
+
+function getLastInstr(predicate) {
+
+    function get1(aj) {
+        const jno = aj.jno;
+        const jpc = aj.jpc;
+        const c   = getVMCode(jno);
+
+        for (let i = jpc; i >= 0; i--) {
+            const instr = c[i];
+            if ( predicate(instr) ) {
+                trc(1, `getLastInstr: jpc: ${i} instr=${PP.instr(instr)}`);
+                return instr;
+            }
+        }
+        trc(1, `getLastInstr: no instr found`);
+        return null;
+    }
+    return get1;
+}
+
+const getTextInstr   = getLastInstr((i) => {return i.op === opText;});
+const getTypeInstr   = getLastInstr((i) => {return i.op === opType;});
+const getLastGSInstr = getLastInstr((i) => {return isDefined(i.gs);});
+
+function getLastGS() {
+    const i = getLastGSInstr(vmActiveJob);
+    return i ? i.gs : defaultGS();
+}
+
+function getLastTextInstr() {
+    return getTextInstr(vmActiveJob);
+}
+
+function getLastType() {
+    return getTypeInstr(vmActiveJob).type;
+}
+
+function getGeoSpecs(jno) {
+    const code = getVMCode(jno);
+    let   gss  = [];
+    for (i of code) {
+        if ( isDefined(i.gs) ) {
+            gss.push(i.gs);
+        }
+    }
+    return gss;
+}
+
+// ----------------------------------------
+//
+// code edit ops
+
+// replace the code part of a job with a new instr sequence
+// without destroying the object reference of the code array
+
+function replaceVMCode(jno, code) {
+    const c = getVMCode(jno);
+    c.splice(0, c.length, ...code);
+}
+
+// reload the code for given jno and all sub jobs
+// reset local jpc and add jobs to ready queue
+// works on global vmProg variable
+
+function reloadVMCode(jno0) {
+    function readyJobs(prog, jno) {
+        addJob(jno, prog.code);
+        addReady(jno);
+
+        const subprogs = prog.blocks;
+        for (let i = 0; i < subprogs.length; i++) {
+            readyJobs(subprogs[i],
+                      mkJno(jno, i + 1)    // job # run from 1
+                     );
+        }
+    }
+    // set VM state to interrupted
+    const irupt = vmInterrupted;
+    vmInterrupted = true;
+
+    const prog0 = getVMProg(jno0);
+    readyJobs(prog0, jno0);
+
+    // restore VM interrupted flag
+    vmInterrupted = irupt;
 }
 
 // ----------------------------------------
@@ -496,17 +596,9 @@ function jnoFromRelJno(jno, n) {
 // ----------------------------------------
 
 function initVMCode(prog0) {
-    function go(prog, jno) {
-        addJob(jno, prog.code);
-        addReady(jno);
-        const subprogs = prog.blocks;
-        for (let i = 0; i < subprogs.length; i++) {
-            go(subprogs[i], mkJno(jno, i+1));   // job # run from 1
-        }
-    }
-    // vmInterrupted = true;   // addReady does not start jobs immediatly
-    vmProg = prog0;            // store job hierachy
-    go(prog0, jno0);           // flatten nested jobs and init jobs
+    // vmInterrupted = true;    // addReady does not start jobs immediatly
+    vmProg = prog0;             // store job hierachy in global VM variable
+    reloadVMCode(jno0);         // flatten nested jobs and init jobs
 }
 
 function restartVM() {
@@ -520,18 +612,34 @@ var vmInterrupted; // :: Bool
 var vmRunning;     // :: Bool
 var vmStepCnt;     // :: Int
 var vmActiveJob;   // :: (Jno, Jpc, Set Status)
-var vmProg;        // :: VMCode
-                   //    VMCode = ([VMCode], [Instr])
-                   //    Jno = [Nat]
 
-var jobsCode;      // :: Map Jno [Instr]
-var jobsData;      // :: Map Jno JobLocalData
-var jobsAll;       // :: Map Jno ActiveJob
+// the hierachically structured job numbers
+// type Jno    = [Nat]
+
+// the hierachically organized set of jobs
+// type VMCode = ([VMCode], [Instr])
+
+
+var vmProg;        // :: VMCode
+var jobsCode;      // :: Map Jno [Instr]        // instruction cache
+var jobsData;      // :: Map Jno JobLocalData   // local job data
+var jobsAll;       // :: Map Jno ActiveJob      // the control vars of a job
+
+// job sync map: every job has an associated table
+// with the job stati to be reached to wakeup other jobs
 var jobsWaiting;   // :: Map Jno (Map Status (Set Jno))
+
+// the jobs waiting for IO, e.g. clicks to continue
 var jobsInput;     // :: Queue Jno
+
+// the jobs ready to be executed
 var jobsReady;     // :: Queue Jno
+
+// the jobs running currently in a Javascript asyn functions
+// and will be terminated and put back into the ready queue by a callback
 var jobsRunning;   // :: Set Jno
 
+// initialize al VM variables
 function resetVM() {
     vmInterrupted = true;
     vmRunning     = false;
@@ -563,12 +671,6 @@ function remJob(jno) {
     jobsAll.delete(jno);
 };
 
-function replaceJob(jno, jcode) {
-    replaceCode(jno, jcode);
-    jobsData.set(jno, {});
-    jobsAll.set(jno, mkActiveJob(jno, 0, new Set()));
-}
-
 function getCode(jno) {
     return jobsCode.get(jno);
 }
@@ -593,9 +695,8 @@ function noMoreJobs() {
 
 function restartJob(jno, jcode) {
     removeFrame(jno);
-    replaceJob(jno, jcode);
-
-    addReady(jno);
+    replaceVMCode(jno, jcode);
+    reloadVMCode(jno);
     restartVM();
 }
 
@@ -1081,7 +1182,7 @@ function loadPage(activeJob, jobData) {
         case 'img':
             const frameGeo      = stageGeo();
             const imgGeo        = readGeo(page.oirGeo[0]);
-            const gss           = instrGS(jobsCode.get(jno));
+            const gss           = getGeoSpecs(jno);
             const mxGeo         = maxGeo(frameGeo, imgGeo, gss);
 
             jobData.imgMetaData = getPageMeta(page);
@@ -1458,33 +1559,6 @@ function activeJobData() {
     const aj  = vmActiveJob;
     const jno = aj.jno;
     return jobsData.get(jno);
-}
-
-function activeJobCode() {
-    const aj  = vmActiveJob;
-    const jno = aj.jno;
-    return jobsCode.get(jno);
-}
-
-function getLastGS() {
-    try {                         // just for testing
-        return activeJobData().lastGSInstr.gs;
-    }
-    catch {
-        return defaultGS();
-    }
-}
-
-function getLastType() {
-    try {
-        return activeJobData().type;
-    } catch {
-        return "img";
-    }
-}
-
-function getLastTextInstr() {
-    return activeJobData().lastTextInstr;
 }
 
 // this is a destructive op

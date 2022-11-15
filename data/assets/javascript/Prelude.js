@@ -47,6 +47,10 @@ function lt(x, y) { return x <  y; }
 //
 // type checks
 
+function isDefined(x) {
+    return x !== undefined;
+}
+
 function isEmpty(x) {
     return x === undefined || x === null || x === "";
 }
