@@ -111,7 +111,7 @@ function mkEditGeoPanel(editId) {
     }
     function editGSShift(ev) {
         const st = ev.target.getAttribute('data-shift');
-        let   sh = parse1(offSy, st);
+        let   sh = PVM.parseOff(st);    // offset parser from Play.Parsec
         let   sf = shiftGS0;
         if ( ! nullV2(sh) ) {
             if ( ! ev.altKey ) {          // alt key => small steps
