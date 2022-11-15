@@ -1872,7 +1872,7 @@ function withErr(p, msg) {
 
 // Parser ()
 function eof(state) {
-    trc(1,`eof: ${state.inp} ${state.ix}`);
+    // trc(1,`eof: ${state.inp} ${state.ix}`);
     const c = state.inp[state.ix];
     if ( ! c ) {
         return succ(Void, state);
@@ -1934,9 +1934,13 @@ function fmap(f, p) {
 //
 // ((a, b, ...) -> r) -> Parser a -> Parser b -> ... -> Parser r
 function app(f, ...ps) {
-    return fmap((xs) => { return f(...xs); },
-                seq(...ps)
-               );
+    function f1(xs) {
+        if ( xs === Void ) {
+           return xs;
+        }
+        return f(...xs);
+    }
+    return fmap(f1, seq(...ps));
 }
 
 // Parser a -> Parser b -> Parser a                // <*  from Applicative
@@ -1987,7 +1991,7 @@ function seq(...ps) {
             if ( rs.res !== Void ) {
                 xs.push(rs.res);
             }
-            trc(1,`seq: ${JSON.stringify(rs.res)} ${JSON.stringify(xs)}`);
+            // trc(1,`seq: ${JSON.stringify(rs.res)} ${JSON.stringify(xs)}`);
             st = rs.state;
         }
         return succ(xs.length === 0 ? Void : xs, st);
@@ -2005,7 +2009,7 @@ function alt(p1, p2) {
             // trc2("alt: state=", state);
 
             const r1 = p1(state);
-            trc2("alt: r1=", r1);
+            // trc2("alt: r1=", r1);
 
             if ( r1.err ) {                     // p1 failed
                 if ( r1.state.backtrack ) {     // backtracking allowed
@@ -2062,11 +2066,11 @@ function many(p) {
                 if ( rs.state.backtrack ) {  // terminate loop
                     st.reset(s1);            // reset state
                     const res = succ(xs, st);
-                    trc2('many: res:', res);
+                    // trc2('many: res:', res);
                     return res;              // and return xs
                 }
                 else {                       // error when running p
-                    trc2("many: failed:", rs);
+                    // trc2("many: failed:", rs);
                     return rs;               // propagate error
                 }
             }
@@ -2156,6 +2160,7 @@ const bslash     = charOrd(92);
 const ws         = oneOf(' \t\n');
 const blank      = oneOf(' \t');
 const newline    = char('\n');
+const newlines   = someT(newline);
 
 const lineCmtJS  = lineCmtP('//');
 const lineCmtHS  = lineCmtP('--');
@@ -2397,11 +2402,26 @@ const instr0   = alts(instrInit,
                       instrFinish,
                       );
 
-const instr1 = cx(manyBlanks,
-                  instr0,
-                  seq(pCut, newline),
-                 );
+function linep(p) {return cx(manyBlanks, p, seq(pCut, newlines));}
 
-const code = cxR(many(instr1), eof);
+const instr1 = linep(instr0);
+
+const code   = cxR(many(instr1), eof);
+
+// howto build a recursive parser in js?
+// e.g. for parsing nested blocks
+//
+//const vmblock = ... vmblock ... doesn't work
+
+function vmblock(state) {
+    return app(mkVMProg,
+               linep(wordToken0('begin')),
+               many((state1) => {return vmblock(state1);}),
+               many(instr1),
+               linep(wordToken0('end')),
+              )(state);
+}
+
+const vmprogp = cxR(vmblock, eof);
 
 // --------------------
