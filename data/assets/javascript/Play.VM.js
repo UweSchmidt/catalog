@@ -1694,8 +1694,10 @@ function editTextInstr() {
 }
 
 function editCode() {
-    const aj  = vmActiveJob;
-    const jno = aj.jno;
+    return editCode1(vmActiveJob.jno);
+}
+
+function editCode1(jno) {
     const ppc = PP.code(jobsCode.get(jno));
 
     // callback
@@ -1712,6 +1714,7 @@ function editCode() {
             restartJob(jno, newCode);
         }
     }
+
     // open edit code panel
     editTextPanel.edit(ppc, restoreCode);
 }

@@ -25,19 +25,26 @@ function mkEditGeoPanel(editId) {
     }
 
     function setDefaultChecked(alg) {
+        // first remove checked attribute(s)
+        for (let i = 1; i <= 5; i++) {
+            const ide  = algButtonId + (-i);
+            getElem(ide).removeAttribute('checked');
+        }
+
+        // then set the right checked attribute
+        //
+        // doing this in one loop showed wrong or no defaults
+
         for (let i = 1; i <= 5; i++) {
             const ide  = algButtonId + (-i);
             const e    = getElem(ide);
             const alg1 = e.getAttribute('data-alg');
+            //trc(1,`setChecked: id=${ide} alg=${alg} data-alg=${alg1}`);
             if ( alg === alg1 ) {
                 e.setAttribute('checked', 'checked');
             }
-            else {
-                if ( e.hasAttribute('checked') ) {
-                    e.removeAttribute('checked');
-                }
-            }
         }
+
     }
 
     function setDismissEH() {
