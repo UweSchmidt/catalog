@@ -101,7 +101,6 @@ addEvent(window, 'resize', resizedScreen);
 addEvent(window, 'load', initPlay);
 
 // ----------------------------------------
-// --------------------
 //
 // job creation
 

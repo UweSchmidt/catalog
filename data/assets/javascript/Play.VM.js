@@ -7,19 +7,21 @@
 // ----------------------------------------
 // stati
 
-const stCreated    = "created";
-const stReadypage  = "pageready";
-const stReadymedia = "mediaready";
-const stVisible    = "visible";
-const stShown      = "shown";
-const stHidden     = "hidden";
-const stFinished   = "finished";
-const stAborted    = "aborted";
+const stCreated    = "created";     // job ready to run
+const stReadypage  = "pageready";   // Json page for img loaded
+const stReadymedia = "mediaready";  // img loaded
+const stRendered   = "rendered";    // DOM element created
+const stVisible    = "visible";     // DOM element visible
+const stShown      = "shown";       // end of showing img
+const stHidden     = "hidden";      // DOM element no longer visible
+const stFinished   = "finished";    // job terminated
+const stAborted    = "aborted";     // job terminated by abortion
 
 const statiWords = [
     stCreated,
     stReadypage,
     stReadymedia,
+    stRendered,
     stVisible,
     stShown,
     stHidden,
@@ -32,6 +34,9 @@ const statiWords = [
 function emptySt() {
     return new Set();
 };
+function allSt() {
+    return new Set(statiWords);
+}
 function addSt(st, stats) {
     return stats.add(st);
 };
@@ -375,6 +380,7 @@ function cLoadImg(imgPath, frameGS, gs, jnoWait) {
 function cLoadText(frameGS, text, gs, align) {
     return [
         mkType('text'),
+        mkWait(stRendered, 'par'),
         mkFrame(frameGS || defaultFrameGS()),
         mkText(align || 'center' , text || "???"),
         mkRender(gs),
@@ -904,6 +910,7 @@ function execInstr(instr, activeJob) {
         getData(jno).lastGSInstr = instr;
 
         render(activeJob, jobsData.get(jno), instr.gs);
+        setStatus(activeJob, stRendered);
         advanceReadyJob(activeJob);
         return;
     }
@@ -1026,26 +1033,17 @@ function execInstr(instr, activeJob) {
 
     // syncing with previous slides
     if ( op === opWait ) {
-        /*
-        let jno1 = jno - 1;
-        if ( isNumber(instr.reljno) ) {
-            jno1 = jno + instr.reljno;    // reljno is usually -1 (prev job)
-        } else {
-            const jname = instr.name;
-            trc(1, `wait: job names not yet implemented`);
-        }
-        */
         const jno1 = jnoFromRelJno(jno, instr.reljno);
         const st1  = instr.status;
 
         trc(1, `wait: ${jno} requires (${jno1}, ${st1})`);
 
         const aj1  = jobsAll.get(jno1);
-        if ( aj1                                // job j1 exists
+        if ( aj1                              // job j1 exists
              &&
-             ( ! (aj1.jstatus.has(st1)          // job j1 already has reached st1
+             ( ! (aj1.jstatus.has(st1)        // job j1 already has reached st1
                   ||
-                  aj1.jstatus.has(stFinished)   // job j1 already finished
+                  aj1.jstatus.has(stFinished) // job j1 already finished
                  )
              )
            ) {
@@ -1100,11 +1098,18 @@ function execDelay(instr, aj) {
 // add status to status set and wakeup waiting for status
 
 function setStatus(activeJob, st) {
+    const jno = activeJob.jno;
+
     activeJob.jstatus.add(st);
-    trc(1, `setStatus: job=${activeJob.jno} ${PP.status(activeJob.jstatus)}`);
+    trc(1, `setStatus: job=${jno} ${PP.status(activeJob.jstatus)}`);
 
     // wakeup jobs waiting for this job to reach status
-    wakeupWaiting(mkWaitJob(activeJob.jno, st));
+    if ( st === stFinished ) {
+        wakeupAllWaiting(jno);
+    }
+    else {
+        wakeupWaiting(mkWaitJob(jno, st));
+    }
 }
 
 // --------------------
