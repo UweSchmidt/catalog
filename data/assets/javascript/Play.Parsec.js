@@ -56,10 +56,8 @@ function mkVMParser() {
     const pathSy    = PS.withErr(PS.token(PS.pathLit),
                                  "path expected"
                                 );
-    const jobSy     = PS.withErr(PS.alt(PS.opt(-1, pIntS),
-                                        identSy
-                                       ),
-                                 "rel. job num or job name expected"
+    const jobSy     = PS.withErr(identSy,
+                                 "'prev', 'par' or job name expected"
                                 );
 
     // compound parsers
@@ -128,16 +126,20 @@ function mkVMParser() {
 
     const vmprogp = PS.cxR(vmblock, PS.eof);
 
-    function parseProg(inp) {return PS.parse1(vmprogp, inp);}
-    function parseCode(inp) {return PS.parse1(code,    inp);}
-    function parseOff (inp) {return PS.parse1(PS.cxR(offSy, PS.eof), inp);}
+    function parseProg (inp) {return PS.parseEither(vmprogp, inp);}
+    function parseCode (inp) {return PS.parseEither(code,    inp);}
+
+    function parseInstr(inp) {return PS.parse1(instr1,  inp);}
+    function parseOff  (inp) {return PS.parse1(PS.cxR(offSy, PS.eof), inp);}
 
     return {
         vmProg: vmprogp,
         vmCode: code,
-        parseProg: parseProg,
-        parseCode: parseCode,
-        parseOff:  parseOff,
+
+        parseProg:  parseProg,
+        parseCode:  parseCode,
+        parseInstr: parseInstr,
+        parseOff:   parseOff,
     };
 }
 

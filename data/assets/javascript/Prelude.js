@@ -143,7 +143,6 @@ function fillL(n, xs) {
     return replicate(n - xs.length, " ") + xs;
 }
 
-
 // simple quoting
 // works only if s doen't contain double quotes
 
@@ -178,6 +177,13 @@ function unwords(xs) {
 }
 
 function nl(s) { return s + "\n"; }
+
+function line1(xs) {
+    const ix = xs.search("\n");
+    if ( ix === -1 )
+        return xs;
+    return xs.substr(0, ix);
+}
 
 // --------------------
 //
@@ -333,6 +339,24 @@ function conc(xs, ys) {
 function cons(x, xs) {
     xs.unshift(x);
     return xs;
+}
+
+// --------------------
+//
+// data Either a b = Left a | Right b
+
+function Left (x) {return {left:  x};}
+function Right(y) {return {right: y};}
+
+function isLeft (e) {return isDefined(e.left );}
+function isRight(e) {return isDefined(e.right);}
+
+// curried version
+function either(fl, fr) {
+    function go(e) {
+        return isLeft(e) ? fl(e.left) : fr(e.r);
+    }
+    return go;
 }
 
 // --------------------

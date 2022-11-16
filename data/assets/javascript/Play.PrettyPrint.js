@@ -126,13 +126,7 @@ function mkPrettyPrint() {
 
         case opWait:
             res.push(i.status);
-            if ( isNumber(i.reljno) ) {
-                if ( i.reljno !== -1 ) {
-                    res.push(pp.num(i.reljno));
-                }
-            } else {
-                res.push(i.name);
-            }
+            res.push(ppSimple(i.job));
             break;
 
         default:

@@ -125,12 +125,12 @@ function mkVMProg(localBlocks, code) {
            };
 };
 
-function mkVMProg0(...jobs) {
-    const blocks = [];
-    for (let b of jobs) {
-        blocks.push(mkVMProg([], b));
-    }
-    return mkVMProg(blocks, [mkInit('main'), mkFinish()]);
+function mkVMProg0(code) {
+    return mkVMProg([], code);
+};
+
+function mkVMMain(...jobs) {
+    return mkVMProg([...jobs], [mkInit('main'), mkFinish()]);
 }
 
 function getVMProg(jno) {
@@ -211,17 +211,20 @@ function replaceVMCode(jno, code) {
 // works on global vmProg variable
 
 function reloadVMCode(jno0) {
+
     function readyJobs(prog, jno) {
+        // trc2(`readyJobs: ${jno}`, prog);
         addJob(jno, prog.code);
         addReady(jno);
 
         const subprogs = prog.blocks;
         for (let i = 0; i < subprogs.length; i++) {
             readyJobs(subprogs[i],
-                      mkJno(jno, i + 1)    // job # run from 1
+                      mkJno(jno, i + 1),    // job # run from 1
                      );
         }
     }
+
     // set VM state to interrupted
     const irupt = vmInterrupted;
     vmInterrupted = true;
@@ -331,14 +334,8 @@ function mkWaitclick() {
 }
 
 function mkWait(st, job) {
-    if ( isNumber(job) ) {
-        return { op:     opWait,
-                 reljno: job,
-                 status: st,
-               };
-    }
     return { op:     opWait,
-             name:   job,
+             job:    job,
              status: st,
            };
 };
@@ -371,7 +368,7 @@ function cLoadImg(imgPath, frameGS, gs, jnoWait) {
         mkPath(imgPath),
         mkFrame(frameGS || defaultFrameGS()),
         mkLoadpage(),
-        mkWait(stReadymedia, jnoWait || -1), // wait for prev job loading media
+        mkWait(stReadymedia, jnoWait || 'prev'), // wait for prev job loading media
         mkLoadmedia(),
         mkRender(gs),                 // 1. geo is initial geo
     ];
@@ -384,6 +381,7 @@ function cLoadText(frameGS, text, gs, align) {
         mkFrame(frameGS || defaultFrameGS()),
         mkText(align || 'center' , text || "???"),
         mkRender(gs),
+        mkWait(stVisible, 'par'),
     ];
 }
 
@@ -412,7 +410,6 @@ function cMove(dur, gs) {
 }
 
 function cFadein(dur, fade0, waitJob) {
-    const prevJob = waitJob || -1;
     const fade =
           isPositive(dur)
           ? fade0
@@ -421,21 +418,30 @@ function cFadein(dur, fade0, waitJob) {
     switch ( fade ) {
     case 'fadein':
         return [
-            mkWait(stHidden, prevJob),   // wait prev image to be hidden
+            ...cWait(stHidden, waitJob),   // wait prev image to be hidden
             mkFadein(dur, trFadein),
         ];
     case 'crossfade':
         return [
-            mkWait(stShown, prevJob),   // wait prev image starts fading out
+            ...cWait(stShown, waitJob),   // wait prev image starts fading out
             mkFadein(dur, trFadein),
         ];
     case trCut:
     default:
         return [
-            mkWait(stShown, prevJob),
+            ...cWait(stShown, waitJob),
             mkFadein(0, trCut),
         ];
     }
+}
+
+function cWait(st, waitJob) {
+    if ( waitJob === 'nowait' )
+        return [];
+    const prevJob = waitJob || 'prev';
+    return [
+        mkWait(st, waitJob || 'prev')
+    ];
 }
 
 function cFadeout(dur, fade) {
@@ -484,9 +490,9 @@ function cLoadImgStd(imgPath, gs) {
 
 // a slide view: fadein, fadeout and view steps
 
-function cViewStd0(fadeinDur, fadeinTr, fadeoutDur, fadeoutTr, cView) {
+function cViewStd0(fadeinDur, fadeinTr, fadeoutDur, fadeoutTr, cView, waitJob) {
     return [
-        ...cFadein(fadeinDur, fadeinTr),
+        ...cFadein(fadeinDur, fadeinTr, waitJob),
         ...cView,
         ...cFadeout(fadeoutDur, fadeoutTr)
     ];
@@ -494,10 +500,10 @@ function cViewStd0(fadeinDur, fadeinTr, fadeoutDur, fadeoutTr, cView) {
 
 // a standard slide view: fadein, view, fadeout
 
-function cViewStd(fadeinDur, fadeinTr, dur, fadeoutDur, fadeoutTr) {
+function cViewStd(fadeinDur, fadeinTr, dur, fadeoutDur, fadeoutTr, waitJob) {
     return cViewStd0(fadeinDur, fadeinTr,
                      fadeoutDur, fadeoutTr,
-                     cView(dur)
+                     cView(dur), waitJob,
                     );
 }
 
@@ -558,7 +564,7 @@ function jnoPrev(jno) {
 function jnoPar(jno) {
     let l = jnoToIntList(jno);
     l.pop();
-    return l;
+    return jnoFromIntList(l);
 }
 
 function jnoPrevN(jno, n) {
@@ -579,7 +585,7 @@ function jnoToId(jno) {
     return jno.replace(/[.]/g,'-');
 }
 
-function jnoFromRelJno(jno, n) {
+function jnoFromJobName(jno, n) {
     if ( n === 'prev' ) {
         return jnoPrev(jno);
     }
@@ -725,12 +731,15 @@ function runningJobs() {
 
 function addReady(jno) {
     if (! jobsAll.get(jno).jstatus.has(stFinished)) {
-        jobsReady.push(jno);           // add at end of job queue
-        trc(1, `addReady: ${jno}`);
 
-        // if ( jobsReady.length === 1) {
-            run();                         // new ready job, (re)start VM
-        // }
+        // in restart after code edit
+        // jno maybe already in queue
+        if ( ! jobsReady.includes(jno) ) {
+            jobsReady.push(jno);           // add at end of job queue
+            trc(1, `addReady: ${jno}`);
+
+        }
+        run();                         // new ready job, (re)start VM
     }
 }
 
@@ -1033,7 +1042,7 @@ function execInstr(instr, activeJob) {
 
     // syncing with previous slides
     if ( op === opWait ) {
-        const jno1 = jnoFromRelJno(jno, instr.reljno);
+        const jno1 = jnoFromJobName(jno, instr.job);
         const st1  = instr.status;
 
         trc(1, `wait: ${jno} requires (${jno1}, ${st1})`);
@@ -1381,19 +1390,35 @@ function newCssNode(cssId) {
 // --------------------
 // build a new frame containing a media element
 
+function parFrameGeoId(jno) {
+    const jnoParent = jnoPar(jno);
+    if ( jnoParent === jno0 ) {
+        return { sg:  stageGeo(),
+                 sid: stageId,
+               };
+    }
+    else {
+        return { sg:  jobsData.get(jnoParent).frameGO.geo,
+                 sid: mkFrameId(jnoParent),
+               } ;
+    }
+}
+
 function render(activeJob, jobData, gs) {
     const jno = activeJob.jno;
     const ty  = jobData.type;
-    const sg  = stageGeo();
+    const pfg = parFrameGeoId(jno);
+    const sg  = pfg.sg;
+    const sid = pfg.sid;
     const fid = mkFrameId(jno);
 
     switch ( ty ) {
     case 'text':
-        renderText(jobData, fid, sg, stageId, gs);
+        renderText(jobData, fid, sg, sid, gs);
         break;
 
     case 'img':
-        renderImg(jobData, fid, sg, stageId, gs);
+        renderImg( jobData, fid, sg, sid, gs);
         break;
 
     default:
@@ -1673,13 +1698,21 @@ function editCode() {
     const jno = aj.jno;
     const ppc = PP.code(jobsCode.get(jno));
 
+    // callback
     function restoreCode(ppc1) {
-        trc(1, `restoreCode: new code:\n${ppc1}`);
-        const newCode = PVM.parseCode(ppc1);
-        trc(1, PP.code(newCode));
-        trc(1, `restart job ${jno} with new code`);
-        restartJob(jno, newCode);
+        trc(1, `restoreCode: parser result:\n${ppc1}`);
+        const res = PVM.parseCode(ppc1);
+        if ( isLeft(res) ) {
+            editTextPanel.edit(res.left, restoreCode);
+        }
+        else {
+            const newCode = res.right;
+            trc(1, PP.code(newCode));
+            trc(1, `restart job ${jno} with new code`);
+            restartJob(jno, newCode);
+        }
     }
+    // open edit code panel
     editTextPanel.edit(ppc, restoreCode);
 }
 

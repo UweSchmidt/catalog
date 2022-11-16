@@ -89,8 +89,9 @@ function mkParsec() {
 
     const ps = {
         // main entry points
-        parse:  parse,
-        parse1: parse1,
+        parse:       parse,
+        parse1:      parse1,
+        parseEither: parseEither,
 
         // char parser
         item:    item,
@@ -232,15 +233,24 @@ function mkParsec() {
             trc(1, unlines(ls1));
         }
 
+        function insErr(msg) {
+            const ls  = lines(s0.inp);
+            const l2  = replicate(s0.cc, " ") + "^^^^^";
+            const l3  = `error: ${msg}`;
+            ls.splice(s0.lc + 1, 0, l2, l3);
+            return unlines(ls);
+        }
+
         function rest() {
             return s0.inp.slice(s0.ix);
         }
 
-        s0.save   = saveState;
-        s0.reset  = resetState;
+        s0.save           = saveState;
+        s0.reset          = resetState;
         s0.resetBacktrack = resetBacktrack;
-        s0.errmsg = showErr;
-        s0.rest   = rest;
+        s0.errmsg         = showErr;
+        s0.insertErrmsg   = insErr;
+        s0.rest           = rest;
         return s0;
     }
 
@@ -256,6 +266,15 @@ function mkParsec() {
         return res;
     }
 
+    function parseEither(p1, inp) {
+        const res = parse(p1, inp);
+
+        if ( res.err ) {
+            return Left(res.state.insertErrmsg(res.err));
+        }
+        return Right(res.res);
+    }
+
     function parse1(p1, inp) {
         const res = parse(p1, inp);
 
@@ -264,9 +283,7 @@ function mkParsec() {
             trc(1, msg);
             return "";
         }
-        else {
-            return res.res;
-        }
+        return res.res;
     }
 
     function succ(res, state) { return {res: res, state: state}; };
@@ -357,7 +374,7 @@ function mkParsec() {
         }
         else {
             const rest = state.inp.slice(state.ix, state.ix + 40);
-            return fail(`end of input expected, but seen: '${rest}...'`, state);
+            return fail(`end of input expected, but seen: ${line1(rest)}`, state);
         }
     }
 

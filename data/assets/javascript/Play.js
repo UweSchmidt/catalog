@@ -111,92 +111,115 @@ function mkJob(jno,code) {
 }
 
 var j1 =
-    cJob('HalloWelt',
-         cLoadText1("<div style='width: 100%'><h1>Hallo Welt</h1><p>Hier bin ich!</p></div>",
-                    GS('fix', V2(1), 'NW', V2(0.10,0.10)),
-                   ),
-         cViewStd0(1.0, trFadein,
-                   2.0, trCrossfade,
-                   [...cView('click'),
-                    ...cView(3.0),
-                   ],
-                  )
-        );
+    mkVMProg([],
+             cJob('HalloWelt',
+                  cLoadText1("<div style='width: 100%'><h1>Hallo Welt</h1><p>Hier bin ich!</p></div>",
+                             GS('fix', V2(1), 'NW', V2(0.10,0.10)),
+                            ),
+                  cViewStd0(1.0, trFadein,
+                            2.0, trCrossfade,
+                            [...cView('click'),
+                             ...cView(3.0),
+                            ],
+                           )
+                 )
+            );
 
 var j2 =
-    cJob('Hallo',
-         cLoadText(rightHalfGeo(),
-                   "<h2>Hallo Welt</h2>",
-                   GS('fix', V2(1), 'SE', V2(-0.20,-0.20)),
-                  ),
-         cViewStd0(0.5, trCrossfade,
-                   0.5, trCrossfade,
-                   [...cView(3.0),
-                    // more view steps
-                   ]
-                  )
-        );
+    mkVMProg([],
+             cJob('Hallo',
+                  cLoadText(rightHalfGeo(),
+                            "<h2>Hallo Welt</h2>",
+                            GS('fix', V2(1), 'SE', V2(-0.20,-0.20)),
+                           ),
+                  cViewStd0(0.5, trCrossfade,
+                            0.5, trCrossfade,
+                            [...cView(3.0),
+                             // more view steps
+                            ]
+                           )
+                 )
+            );
 
+var j31 =
+    mkVMProg([],
+             cJob('EnteText',
+                  cLoadText(leftHalfGeo(),
+                            `<h1 class='text-center'>Eine Ente</h1><div>Genauer, eine Stockente</div>`,
+                             defaultGS(),
+                            ),
+                  cViewStd(1.0, trFadein, 10, 5.0, trFadeout, 'nowait')
+                 )
+            );
 var j3 =
-    cJob('Ente1',
-         cLoadImg('/albums/EinPaarBilder/pic-00001',
-                  defaultFrameGS(),
-                  defaultGS(),
-                 ),
-         cViewStd0(2.0, trCrossfade,
-                   2.0, trCrossfade,
-                   [...cView('click'),
-                    ...cMove(3.0,GS('fill',V2(2),'center',V2())),
-                    ...cView(3.0),
-                    ...cMove(5.0,GS('fitInto',V2(0.5),'center',V2())),
-                    ...cView(3.0),
-                    ...cMove(2.0,GS('fix',V2(1),'center',V2())),
-                    ...cView(3.0),
-                    ...cMove(1.0,GS('fitInto',V2(0.5),'W',V2())),
-                    ...cView(3.0),
-                    ...cMove(1.0,defaultGS()),
-                    ...cView(3.0),
-                   ]
-                  )
-        );
+    mkVMProg([j31],
+             cJob('Ente1',
+                  cLoadImg('/albums/EinPaarBilder/pic-00001',
+                           defaultFrameGS(),
+                           defaultGS(),
+                          ),
+                  cViewStd0(2.0, trCrossfade,
+                            2.0, trCrossfade,
+                            [...cView('click'),
+                             ...cMove(3.0,GS('fill',V2(2),'center',V2())),
+                             ...cView(3.0),
+                             ...cMove(5.0,GS('fitInto',V2(0.5),'center',V2())),
+                             ...cView(3.0),
+                             ...cMove(2.0,GS('fix',V2(1),'center',V2())),
+                             ...cView(3.0),
+                             ...cMove(1.0,GS('fitInto',V2(0.5),'W',V2())),
+                             ...cView(3.0),
+                             ...cMove(1.0,defaultGS()),
+                             ...cView(3.0),
+                            ]
+                           )
+                 )
+            );
+
 
 var j4 =
-    cJob("Ente2",
-         cLoadImgStd('/albums/EinPaarBilder/pic-0002',
-                     GS('fill', V2(1.1), 'center', V2()),
-                    ),
-         cViewCrossfade(5.0,1.0)
-        );
+    mkVMProg([],
+             cJob("Ente2",
+                  cLoadImgStd('/albums/EinPaarBilder/pic-0002',
+                              GS('fill', V2(1.1), 'center', V2()),
+                             ),
+                  cViewCrossfade(5.0,1.0)
+                 )
+            );
 
 var j6 =
-    cJob("arizona",
-         cLoadImg('/clipboard/pic-0000',
-                  defaultFrameGS(),
-                  {alg: 'sameHeight', scale: V2(1), dir: 'W', shift: V2()},
-                 ),
-         cViewStd0(1.5, trCrossfade,
-                   1.5, trCrossfade,
-                   [...cView(2.0),
-                    ...cMove(10.0,
-                             {alg: 'sameHeight', scale: V2(1),
-                              dir: 'E', shift: V2()}),
-                    ...cView('click'),
-                    ...cMove(4.0,
-                             {alg: 'sameWidth',  scale: V2(1),
-                              dir: 'center', shift: V2()}),
-                    ...cView(3.0),
-                   ]
-                  )
-        );
+    mkVMProg([],
+             cJob("arizona",
+                  cLoadImg('/clipboard/pic-0000',
+                           defaultFrameGS(),
+                           {alg: 'sameHeight', scale: V2(1), dir: 'W', shift: V2()},
+                          ),
+                  cViewStd0(1.5, trCrossfade,
+                            1.5, trCrossfade,
+                            [...cView(2.0),
+                             ...cMove(10.0,
+                                      {alg: 'sameHeight', scale: V2(1),
+                                       dir: 'E', shift: V2()}),
+                             ...cView('click'),
+                             ...cMove(4.0,
+                                      {alg: 'sameWidth',  scale: V2(1),
+                                       dir: 'center', shift: V2()}),
+                             ...cView(3.0),
+                            ]
+                           )
+                 )
+            );
 
 var j5 =
-    cJob('Ende',
-         cLoadText1(`<h1 class='text-center'>The End</h1>
+    mkVMProg([],
+             cJob('Ende',
+                  cLoadText1(`<h1 class='text-center'>The End</h1>
                      <div>This is the end, my friend.</div>`,
-                    defaultGS(),
-                   ),
-         cViewStd(1.0, trFadein, 'click', 5.0, trFadeout)
-        );
+                             defaultGS(),
+                            ),
+                  cViewStd(1.0, trFadein, 'click', 5.0, trFadeout)
+                 )
+            );
 
 var jobList = [
     j1, j3, j2,
@@ -225,7 +248,7 @@ function ttt() {
     setAspectRatio(V2(4,3));
 
     resetVM();
-    initVMCode(mkVMProg0(j1,j3));
+    initVMCode(mkVMMain(j3,j1));
     restartVM();
 }
 
