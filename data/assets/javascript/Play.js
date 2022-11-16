@@ -146,7 +146,7 @@ var j31 =
              cJob('EnteText',
                   cLoadText(leftHalfGeo(),
                             `<h1 class='text-center'>Eine Ente</h1><div>Genauer, eine Stockente</div>`,
-                             defaultGS(),
+                            GS('fix', V2(1), 'SW', V2(+0.20-0.20)),
                             ),
                   cViewStd(1.0, trFadein, 10, 5.0, trFadeout, 'nowait')
                  )

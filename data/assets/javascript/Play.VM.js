@@ -213,7 +213,7 @@ function replaceVMCode(jno, code) {
 function reloadVMCode(jno0) {
 
     function readyJobs(prog, jno) {
-        // trc2(`readyJobs: ${jno}`, prog);
+        trc(1,`readyJobs: ${jno} ${prog.code.length} ${prog.blocks.length}`);
         addJob(jno, prog.code);
         addReady(jno);
 
@@ -375,12 +375,13 @@ function cLoadImg(imgPath, frameGS, gs, jnoWait) {
 }
 
 function cLoadText(frameGS, text, gs, align) {
+    const gs1 = {...gs, alg: 'fix'};
     return [
         mkType('text'),
         mkWait(stRendered, 'par'),
         mkFrame(frameGS || defaultFrameGS()),
         mkText(align || 'center' , text || "???"),
-        mkRender(gs),
+        mkRender(gs1),
         mkWait(stVisible, 'par'),
     ];
 }
@@ -538,7 +539,7 @@ function mkWaitJob(jno, jstatus) {
 const jno0 ='';
 
 function mkJno(jno, i) {
-    return jno +'.' + i;
+    return jno + '.' + i;
 }
 
 function jnoToIntList(jno) {
@@ -712,6 +713,23 @@ function restartJob(jno, jcode) {
     restartVM();
 }
 
+function restartProg(jno, jprog) {
+
+    // whole VM code is changed, new init
+    if ( jno === jno0 ) {
+        resetVM();
+        initVMCode(jprog);
+        restartVM();
+    }
+                                  // a single job is replaced
+    const p  = getVMProg(jno);    // get the program block
+    p.code   = jprog.code;        // update code
+    p.blocks = jprog.blocks;      // replace local jobs
+
+    removeFrame(jno);             // remove DOM stuff for job and subjobs
+    reloadVMCode(jno);            // reload and reinit job and subjobs
+    restartVM();                  // push the red button
+}
 // --------------------
 // jobsRunning:
 
@@ -1693,12 +1711,11 @@ function editTextInstr() {
     editTextPanel.edit(i.text, restoreCont);
 }
 
-function editCode() {
-    return editCode1(vmActiveJob.jno);
-}
+function editCode() {return editCode1(vmActiveJob.jno);}
+function editProg() {return editProg1(vmActiveJob.jno);}
 
 function editCode1(jno) {
-    const ppc = PP.code(jobsCode.get(jno));
+    const ppc = PP.code(getVMCode(jno));
 
     // callback
     function restoreCode(ppc1) {
@@ -1717,6 +1734,28 @@ function editCode1(jno) {
 
     // open edit code panel
     editTextPanel.edit(ppc, restoreCode);
+}
+
+function editProg1(jno) {
+    const ppc = PP.prog(getVMProg(jno));
+
+    // callback
+    function restoreProg(ppc1) {
+        trc(1, `restoreProg: parser result:\n${ppc1}`);
+        const res = PVM.parseProg(ppc1);
+        if ( isLeft(res) ) {
+            editTextPanel.edit(res.left, restoreProg);
+        }
+        else {
+            const newProg = res.right;
+            trc(1, PP.prog(newProg));
+            trc(1, `restart job ${jno} and subjobs with new code`);
+            restartProg(jno, newProg);
+        }
+    }
+
+    // open edit prog panel
+    editTextPanel.edit(ppc, restoreProg);
 }
 
 // ----------------------------------------
