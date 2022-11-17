@@ -1176,9 +1176,12 @@ function termAsyncInstr(jno) {
 // and put back the job into queue of running jobs
 
 function advanceJob(aj) {
+    aj.jpc++;
+/*
     const jno = aj.jno;
     const aj1 = mkActiveJob(jno, aj.jpc + 1, aj.jstatus);
     jobsAll.set(jno, aj1);
+*/
 }
 
 function advanceReadyJob(aj) {
