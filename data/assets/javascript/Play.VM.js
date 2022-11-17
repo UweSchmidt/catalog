@@ -289,17 +289,18 @@ function mkRender(gs) {
            };
 }
 
-function mkFadein(dur, trans) {
+function mkFadein(dur, trans, job) {
     return { op:    opFadein,
-             trans: trans,
              dur:   dur,
+             trans: trans,
+             job: job || 'prev',
            };
 };
 
 function mkFadeout(dur, trans) {
     return { op:    opFadeout,
-             trans: trans,
              dur:   dur,
+             trans: trans,
            };
 };
 
@@ -339,6 +340,15 @@ function mkWait(st, job) {
              status: st,
            };
 };
+
+function mkSet(name, value) {return {op: 'set', name:  name, value: value};}
+function mkErrmsg(msg)      {return {op: 'errmsg', msg: msg};}
+function mkAbort()          {return {op: 'abort'} ;}
+function mkTerminate()      {return {op: 'terminate'};}
+function mkFadeinCut()      {return {op: 'fadeincut'};}
+function mkFadeoutCut()     {return {op: 'fadeincut'};}
+function mkFadeinAnim(dur)  {return {op: 'fadeinanim',  dur: dur};}
+function mkFadeoutAnim(dur) {return {op: 'fadeoutanim', dur: dur};}
 
 // type Job = [Instr]
 // type Jobno = Int
@@ -607,6 +617,10 @@ function jnoPar(jno) {
     return jnoFromIntList(l);
 }
 
+function jnoChildren(jno) {
+
+}
+
 function jnoPrevN(jno, n) {
     if ( isNumber(n) ) {
         for (i = 0; i < n; i++) {
@@ -644,6 +658,9 @@ function jnoFromJobName(jno, n) {
     }
     return jno0;
 }
+
+function isTopLevelJno(jno) {return jnoToIntList(jno).length <= 1;}
+function isRootJno    (jno) {return jno === jno0;}
 
 // ----------------------------------------
 
@@ -926,7 +943,7 @@ function step1() {
         let aj = nextReady();
         let mi = nextMicroInstr(aj);
 
-        trc(1, `(${aj.jno}, ${aj.jpc}): mi: ${JSON.stringify(mi)}`);
+        // trc(1, `(${aj.jno}, ${aj.jpc}): mi: ${JSON.stringify(mi)}`);
 
         execInstr(mi, aj);
         return 'step';
@@ -945,9 +962,168 @@ function step1() {
     }
 }
 
+function execMicroInstr(mi, aj) {
+    const jno = aj.jno;
+    const op  = mi.op;
+    const ms  = aj.jmicros;
+
+    trc(1, `(${jno}, ${aj.jpc}): ${JSON.stringify(mi)} ${JSON.stringify(ms)}}`);
+
+    switch ( op ) {
+
+    // --------------------
+    // micro instructions
+    case 'set':
+        getData(jno)[mi.name] = mi.value;
+        break;
+
+    case 'errmsg':
+        statusBar.show(mi.msg);
+        break;
+
+    case opStatus:
+        setStatus(aj, mi.st);
+        break;
+
+    case 'terminate':
+        terminateJob(aj);
+        break;
+
+    case 'fadeincut':
+        fadeinCut(aj);
+        break;
+
+    case 'fadeinanim':
+        fadeinAnim(aj, mi.dur);
+        break;
+
+    case 'fadeoutcut':
+        fadeinCut(aj);
+        break;
+
+    case 'fadeoutanim':
+        fadeoutAnim(aj, mi.dur);
+        break;
+
+
+    // --------------------
+    // macro instructions
+
+    case 'abort':
+        ms.push(
+            mkTerminate(),
+            mkStatus(stAborted),
+        );
+        break;
+
+    case opFadein:
+        ms.push(mkStatus(stVisible));
+        if (mi.trans === trCut || ! isPositive(mi.dur)) {
+            ms.push(mkFadeinCut(),
+                    mkWait(stShown, mi.job),
+                   );
+        }
+        else if (mi.trans === trFadein) {
+            ms.push(mkFadeinAnim(mi.dur),
+                    mkWait(stHidden, mi.job),
+                   );
+        }
+        else if (mi.trans === trCrossfade) {
+            ms.push(mkFadeinAnim(mi.dur),
+                    mkWait(stShown, mi.job),
+                   );
+        }
+        break;
+
+    case opFadeout:
+        ms.push(mkStatus(stHidden));
+        if (mi.trans === trCut || ! isPositive(mi.dur)) {
+            ms.push(mkFadeoutCut());
+        }
+        else if (mi.trans === trFadeout || mi.trans === trCrossfade) {
+            ms.push(mkFadeoutAnim(mi.dur));
+        }
+        ms.push(mkStatus(stShown));
+        break;
+
+    case opFinish:
+        const nb = getVMBlocks(jno).length;
+        // cleanup
+        ms.push(mkTerminate());
+
+        // wait for children to be finished
+        for (i = nb; i > 0; i--) {
+           ms.push(mkWait(stFinished, mkJno(jno, i)));
+        }
+        // set status, so no job will wait for any status to be reached
+        ms.push(mkStatus(stFinished));
+        break;
+
+    case opFrame:
+        ms.push(mkSet('frameGS', mi.gs));
+        break;
+
+    case opInit:
+        ms.push(
+            mkStatus(stCreated),
+            mkSet('name', mi.name),
+        );
+        // local jobs wait until parent job is created
+        if (! isTopLevelJno(jno)) {
+            ms.push(mkWait(stCreated, 'par'));
+        }
+        break;
+
+    case opPath:
+        ms.push(mkSet('path', mi.path));
+        break;
+
+    case opText:
+        ms.push(
+            mkSet('lastTextInstr', mi),
+            mkStatus(stReadypage),
+            mkStatus(stReadymedia),
+        );
+        break;
+
+    case opType:
+        ms.push(mkSet('type', mi.type));
+        break;
+
+    default:
+        trc(1,`execMicroInstr: op=${op} not yet implemented !!!`);
+        break;
+    }
+    addReady(jno);
+}
+
 function execInstr(instr, activeJob) {
     const jno = activeJob.jno;
     const op  = instr.op;
+
+    if ( [ opInit,
+           'set',
+           'errmsg',
+           opStatus,
+           'terminate',
+           'fadeincut',
+           'fadeinanim',
+           'fadeoutcut',
+           'fadeoutanim',
+
+           'abort',
+           opFadein,
+           opFadeout,
+           opFinish,
+           opFrame,
+           opPath,
+           opText,
+           opType,
+         ].includes(op)
+       ) {
+        execMicroInstr(instr, activeJob);
+        return;
+    }
 
     if ( op === opInit ) {
         getData(jno).name = instr.name;

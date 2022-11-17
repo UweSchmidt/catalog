@@ -108,7 +108,7 @@ function mkPrettyPrint() {
 
         case opFadein:
         case opFadeout:
-            res.push(pp.dur(i.dur), i.trans);
+            res.push(pp.dur(i.dur), i.trans, i.job);
             break;
 
         case opStatus:

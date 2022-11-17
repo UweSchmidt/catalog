@@ -78,7 +78,7 @@ function mkVMParser() {
     const instrPlace     = PS.app(mkPlace,   PS.wordToken0(opPlace),  geoSpec);
     const instrMove      = PS.app(mkMove,    PS.wordToken0(opMove),   durSy, geoSpec);
 
-    const instrFadein    = PS.app(mkFadein,  PS.wordToken0(opFadein),  durSy, transSy);
+    const instrFadein    = PS.app(mkFadein,  PS.wordToken0(opFadein),  durSy, transSy, PS.opt('prev', jobSy));
     const instrFadeout   = PS.app(mkFadeout, PS.wordToken0(opFadeout), durSy, transSy);
 
     const instrWait      = PS.app(mkWait,    PS.wordToken0(opWait), statusSy, jobSy);

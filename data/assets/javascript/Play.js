@@ -117,7 +117,7 @@ var j1 =
                              GS('fix', V2(1), 'NW', V2(0.10,0.10)),
                             ),
                   cViewStd0(1.0, trFadein,
-                            2.0, trCrossfade,
+                            3.0, trCrossfade,
                             [...cView('click'),
                              ...cView(3.0),
                             ],
@@ -183,7 +183,7 @@ var j4 =
                   cLoadImgStd('/albums/EinPaarBilder/pic-0002',
                               GS('fill', V2(1.1), 'center', V2()),
                              ),
-                  cViewCrossfade(5.0,1.0)
+                  cViewCrossfade(5.0,3.0)
                  )
             );
 
@@ -248,7 +248,9 @@ function ttt() {
     setAspectRatio(V2(4,3));
 
     resetVM();
-    initVMCode(mkVMMain(j3,j1));
+    initVMCode(mkVMMain(
+        // j3,
+        j1, j4));
     restartVM();
 }
 
