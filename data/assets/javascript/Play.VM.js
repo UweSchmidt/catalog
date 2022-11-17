@@ -532,8 +532,25 @@ function mkActiveJob(jno) {
     };
 }
 
-function advanceJob(aj) {
-    aj.jpc++;
+function nextMicroInstr(aj) {
+    if ( isEmptyList(aj.jmicros) ) {
+        // stack of micro instructions is empty
+        // expand current instr into a sequence of
+        // micro instructions and push them
+        // onto .jmicros stack
+
+        const instr = jobsCode.get(aj.jno)[aj.jpc++];
+        trc(1, `(${aj.jno}, ${aj.jpc}): ${instr.op}`);
+
+        expandToMicros(instr, aj.jmicros);
+    }
+    // .jmicros is not empty
+    return aj.jmicros.pop();
+}
+
+// dummy expandToMicros
+function expandToMicros(instr, micros) {
+    micros.push(instr);
 }
 
 function addStatus(aj, st) {
@@ -907,11 +924,11 @@ function run1() {
 function step1() {
     if ( readyJobs() ) {
         let aj = nextReady();
-        let ci = getCode(aj.jno)[aj.jpc];
+        let mi = nextMicroInstr(aj);
 
-        trc(1, `(${aj.jno}, ${aj.jpc}): ${ci.op}`);
+        trc(1, `(${aj.jno}, ${aj.jpc}): mi: ${JSON.stringify(mi)}`);
 
-        execInstr(ci, aj);
+        execInstr(mi, aj);
         return 'step';
     }
     else if ( runningJobs() ) {
@@ -936,7 +953,7 @@ function execInstr(instr, activeJob) {
         getData(jno).name = instr.name;
         setStatus(activeJob, stCreated);
 
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
@@ -960,7 +977,7 @@ function execInstr(instr, activeJob) {
 
         render(activeJob, jobsData.get(jno), instr.gs);
         setStatus(activeJob, stRendered);
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
@@ -968,7 +985,7 @@ function execInstr(instr, activeJob) {
     if ( op === opFadein ) {
         if ( instr.trans === trCut) {    // sync exec
             fadeinCut(activeJob);
-            advanceReadyJob(activeJob);
+            addReady(jno);
         }
         else {
             fadeinAnim(activeJob, instr.dur);  // async exec
@@ -998,7 +1015,7 @@ function execInstr(instr, activeJob) {
 
         if ( trans === trCut) {                 // sync job
             fadeoutCut(activeJob);
-            advanceReadyJob(activeJob);
+            addReady(jno);
         }
         else {
             fadeoutAnim(activeJob, instr.dur);  // async job
@@ -1019,20 +1036,20 @@ function execInstr(instr, activeJob) {
         getData(jno).lastGSInstr = instr;
 
         place(activeJob, jobsData.get(jno), instr.gs);
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
     if ( op === opType ) {
         getData(jno).type  = instr.type;
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
     if ( op === opFrame ) {
         getData(jno).frameGS = instr.gs;
 
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
@@ -1042,19 +1059,19 @@ function execInstr(instr, activeJob) {
 
         setStatus(activeJob, stReadypage);
         setStatus(activeJob, stReadymedia);
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
     if ( op === opPath ) {
         getData(jno).path = instr.path;
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
     if ( op === opStatus ) {
         setStatus(activeJob, instr.st);
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
@@ -1064,7 +1081,7 @@ function execInstr(instr, activeJob) {
             execDelay(instr, activeJob); // async
             return;
         }
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
@@ -1076,7 +1093,6 @@ function execInstr(instr, activeJob) {
         vmInterrupted = true;
         vmRunning     = false;
         addInputJob(jno);
-        advanceJob(activeJob);
         return;
     }
 
@@ -1097,14 +1113,13 @@ function execInstr(instr, activeJob) {
                 // and setup syncronizing
 
                 trc(1, `wait: add to waiting jobs: jno=${jno1}, status=${st1}`);
-                const aj = advanceJob(activeJob);        // finish wait instr
                 addWaiting(jno, mkWaitJob(jno1, st1));
                 return;
         }
 
         // job not blocked, instr becomes a noop
         trc(1, `wait: job ${jno1} already has status ${st1}, continue`);
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
     }
 
@@ -1119,7 +1134,7 @@ function execInstr(instr, activeJob) {
     // for instructions executed syncronized
 
     trc(1,`execInstr: op=${op} not yet implemented !!!`);
-    advanceReadyJob(activeJob, st);
+    addReady(jno);
 }
 
 // --------------------
@@ -1175,7 +1190,7 @@ function terminateJob(activeJob) {
 
     addStatus(activeJob, stFinished);
     wakeupAllWaiting(jno);
-    advanceReadyJob(activeJob);
+    addReady(jno);
 
 }
 
@@ -1187,19 +1202,8 @@ function termAsyncInstr(jno) {
     trc(1, `termAsyncInstr: finalize instr (${jno}, ${aj.jpc})`);
     if ( aj ) {
         remAsyncRunning(jno);              // remove from set of async jobs
-        advanceReadyJob(aj);
+        addReady(jno);
     }
-}
-
-// instr exec terminated,
-// advance job PC, add status to status set
-// and put back the job into queue of running jobs
-
-function advanceReadyJob(aj) {
-    const jno = aj.jno;
-    advanceJob(aj);
-    // trc(1, `advanceReadyJob: (${jno}, ${aj.jpc + 1}): status: ${st}`);
-    addReady(jno);
 }
 
 // --------------------
@@ -1237,7 +1241,7 @@ function loadPage(activeJob, jobData) {
         }
 
         setStatus(activeJob, stReadypage);
-        advanceReadyJob(activeJob);
+        addReady(jno);
     }
     function processErr(errno, url, msg) {
         remAsyncRunning(jno);
@@ -1274,14 +1278,14 @@ function loadMedia(activeJob, jobData) {
 
             remAsyncRunning(jno);               // remove job from async jobs
             setStatus(activeJob, stReadymedia);
-            advanceReadyJob(activeJob);         // next step(s)
+            addReady(jno);         // next step(s)
         };
         jobData.imgCache.src = url;     // triggers loading of image into cache
         return;
 
     case 'text':                        // no request required for type 'text'
         setStatus(activeJob, stReadymedia);
-        advanceReadyJob(activeJob);
+        addReady(jno);
         return;
 
     default:

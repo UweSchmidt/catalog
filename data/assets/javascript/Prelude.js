@@ -55,6 +55,10 @@ function isEmpty(x) {
     return x === undefined || x === null || x === "";
 }
 
+function isEmptyList(x) {
+    return x.length === 0;
+}
+
 function isString(x) {
     return typeof x === 'string';
 }
