@@ -517,11 +517,35 @@ function cViewCrossfade(dur, fadeDur) {
 // ----------------------------------------
 // virtual machine code interpretation
 
-function mkActiveJob(jno, jpc, jstatus) {
+// create active job control object
+//
+// jno:     hierachical job number
+// jpc:     instruction counter pointing into code array
+// jstatus: set of status values representing the progress of the job
+//          used for synchronizing jobs
+
+function mkActiveJob(jno) {
     return { jno     : jno,
-             jpc     : jpc,
-             jstatus : jstatus,
+             jpc     : 0,
+             jstatus : new Set(),
+             jmicros : [],
     };
+}
+
+function advanceJob(aj) {
+    aj.jpc++;
+}
+
+function addStatus(aj, st) {
+    aj.jstatus.add(st);
+}
+
+function hasStatus(aj, st) {
+    return aj.jstatus.has(st)
+        || aj.jstatus.has(stFinished);
+
+    // stFinished is the super status
+    // finished jobs don't block any other jobs
 }
 
 function mkWaitJob(jno, jstatus) {
@@ -673,7 +697,7 @@ resetVM();
 function addJob(jno, jcode) {
     jobsCode.set(jno, jcode);
     jobsData.set(jno, {});
-    jobsAll.set(jno, mkActiveJob(jno, 0, new Set()));
+    jobsAll.set(jno, mkActiveJob(jno));
 }
 
 function remJob(jno) {
@@ -746,7 +770,7 @@ function runningJobs() {
 // jobsReady:
 
 function addReady(jno) {
-    if (! jobsAll.get(jno).jstatus.has(stFinished)) {
+    if ( ! hasStatus(jobsAll.get(jno), stFinished) ) {
 
         // in restart after code edit
         // jno maybe already in queue
@@ -1064,13 +1088,9 @@ function execInstr(instr, activeJob) {
         trc(1, `wait: ${jno} requires (${jno1}, ${st1})`);
 
         const aj1  = jobsAll.get(jno1);
-        if ( aj1                              // job j1 exists
+        if ( aj1                            // job j1 exists
              &&
-             ( ! (aj1.jstatus.has(st1)        // job j1 already has reached st1
-                  ||
-                  aj1.jstatus.has(stFinished) // job j1 already finished
-                 )
-             )
+             ! hasStatus(aj1, st1)          // job j1 already has reached st1
            ) {
                 // job jno1 is too slow
                 // put job into wait queue
@@ -1124,7 +1144,7 @@ function execDelay(instr, aj) {
 function setStatus(activeJob, st) {
     const jno = activeJob.jno;
 
-    activeJob.jstatus.add(st);
+    addStatus(activeJob, st);
     trc(1, `setStatus: job=${jno} ${PP.status(activeJob.jstatus)}`);
 
     // wakeup jobs waiting for this job to reach status
@@ -1140,7 +1160,7 @@ function setStatus(activeJob, st) {
 
 function abortJob(activeJob) {
     trc(1, `abortJob: job abborted: ${activeJob.jno}`);
-    activeJob.jstatus.add(stAborted);
+    addStatus(activeJob, stAborted);
     terminateJob(activeJob);
 }
 
@@ -1153,7 +1173,7 @@ function terminateJob(activeJob) {
     // removeFrame(jno);
     // remJob(jno);
 
-    activeJob.jstatus.add(stFinished);
+    addStatus(activeJob, stFinished);
     wakeupAllWaiting(jno);
     advanceReadyJob(activeJob);
 
@@ -1174,15 +1194,6 @@ function termAsyncInstr(jno) {
 // instr exec terminated,
 // advance job PC, add status to status set
 // and put back the job into queue of running jobs
-
-function advanceJob(aj) {
-    aj.jpc++;
-/*
-    const jno = aj.jno;
-    const aj1 = mkActiveJob(jno, aj.jpc + 1, aj.jstatus);
-    jobsAll.set(jno, aj1);
-*/
-}
 
 function advanceReadyJob(aj) {
     const jno = aj.jno;
