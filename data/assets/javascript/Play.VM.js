@@ -521,8 +521,6 @@ function mkActiveJob(jno, jpc, jstatus) {
     return { jno     : jno,
              jpc     : jpc,
              jstatus : jstatus,
-             jterm   : noop,        // finalizer func
-             jtimeout: null
     };
 }
 
@@ -1110,14 +1108,13 @@ function execDelay(instr, aj) {
     const jno = aj.jno;
 
     // set termination action
-    aj.jterm = function () {
+    function endDelay () {
         trc(1, `finish delay instr: (${jno}, ${aj.jpc})`);
         termAsyncInstr(jno);
     };
 
     addAsyncRunning(jno);
-    // set timeout
-    aj.jtimeout = setTimeout(aj.jterm, instr.dur * 1000); // sec -> msec
+    setTimeout(endDelay, instr.dur * 1000); // sec -> msec
 }
 
 // --------------------
@@ -1169,10 +1166,6 @@ function termAsyncInstr(jno) {
     const aj = jobsAll.get(jno);
     trc(1, `termAsyncInstr: finalize instr (${jno}, ${aj.jpc})`);
     if ( aj ) {
-        if ( aj.jtimeout ) {               // clear timeouts
-            clearTimeout(aj.jtimeout);     // when interrupted by input events
-            aj.timeout = null;
-        }
         remAsyncRunning(jno);              // remove from set of async jobs
         advanceReadyJob(aj);
     }
