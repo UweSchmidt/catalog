@@ -1045,6 +1045,13 @@ function execMicroInstr(mi, aj) {
         move1(aj, mi.dur, mi.gs);
         return;
 
+    case opWaitclick:
+        vmActiveJob   = aj;      // store active job
+        vmInterrupted = true;    // interrupt VM
+        vmRunning     = false;
+        addInputJob(jno);        // mark job as waiting for input
+        return;
+
     // --------------------
     // macro instructions
 
@@ -1260,6 +1267,7 @@ function execInstr(instr, activeJob) {
            opRender,
            opText,
            opType,
+           opWaitclick,
          ].includes(op)
        ) {
         execMicroInstr(instr, activeJob);
@@ -1404,7 +1412,7 @@ function execInstr(instr, activeJob) {
         return;
     }
 
-    // put job into queue of jobs waiting for click
+    // put job into queue of jobs waiting for user interaction
     if ( op === opWaitclick ) {
 
         // store job no, instr cnt and status for inspection
