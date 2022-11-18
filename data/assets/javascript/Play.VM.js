@@ -345,6 +345,7 @@ function mkSet(name, value) {return {op: 'set', name:  name, value: value};}
 function mkErrmsg(msg)      {return {op: 'errmsg', msg: msg};}
 function mkAbort()          {return {op: 'abort'} ;}
 function mkTerminate()      {return {op: 'terminate'};}
+function mkExit()           {return {op: 'exit'};}
 function mkFadeinCut()      {return {op: 'fadeincut'};}
 function mkFadeoutCut()     {return {op: 'fadeincut'};}
 function mkFadeinAnim(dur)  {return {op: 'fadeinanim',  dur: dur};}
@@ -542,6 +543,15 @@ function mkActiveJob(jno) {
     };
 }
 
+function abortActiveJob(aj) {
+    // jpc points behind last instr
+    // and stack of micros is empty
+    // --> nextMicroInstr will return Void
+
+    aj.jpc     = jobsCode.get(aj.jno).length;
+    aj.jmicros = [];
+}
+
 function nextMicroInstr(aj) {
     if ( isEmptyList(aj.jmicros) ) {
         // stack of micro instructions is empty
@@ -550,6 +560,11 @@ function nextMicroInstr(aj) {
         // onto .jmicros stack
 
         const instr = jobsCode.get(aj.jno)[aj.jpc++];
+        if ( ! instr ) {
+            // no more instruction
+            trc(1,`(${aj.jno}, ${aj.jpc}): job finished`);
+            return Void;
+        }
         trc(1, `(${aj.jno}, ${aj.jpc}): ${instr.op}`);
 
         expandToMicros(instr, aj.jmicros);
@@ -804,17 +819,13 @@ function runningJobs() {
 // jobsReady:
 
 function addReady(jno) {
-    if ( ! hasStatus(jobsAll.get(jno), stFinished) ) {
-
-        // in restart after code edit
-        // jno maybe already in queue
-        if ( ! jobsReady.includes(jno) ) {
-            jobsReady.push(jno);           // add at end of job queue
-            trc(1, `addReady: ${jno}`);
-
-        }
-        run();                         // new ready job, (re)start VM
+    // in restart after code edit
+    // jno maybe already in queue
+    if ( ! jobsReady.includes(jno) ) {
+        jobsReady.push(jno);           // add at end of job queue
+        trc(1, `addReady: ${jno}`);
     }
+    run();                             // new ready job, (re)start VM
 }
 
 function nextReady() {
@@ -944,8 +955,9 @@ function step1() {
         let mi = nextMicroInstr(aj);
 
         // trc(1, `(${aj.jno}, ${aj.jpc}): mi: ${JSON.stringify(mi)}`);
-
-        execInstr(mi, aj);
+        if ( ! isVoid(mi) ) {
+            execInstr(mi, aj);
+        }                        // else job is finished
         return 'step';
     }
     else if ( runningJobs() ) {
@@ -985,10 +997,6 @@ function execMicroInstr(mi, aj) {
         setStatus(aj, mi.st);
         break;
 
-    case 'terminate':
-        terminateJob(aj);
-        break;
-
     case 'fadeincut':
         fadeinCut(aj);
         break;
@@ -1005,14 +1013,25 @@ function execMicroInstr(mi, aj) {
         fadeoutAnim(aj, mi.dur);
         break;
 
+    case 'exit':
+        abortActiveJob(aj);
+        break;
 
     // --------------------
     // macro instructions
+
+    case 'terminate':
+        ms.push(
+            mkExit(),
+            mkStatus(stFinished),
+        );
+        break;
 
     case 'abort':
         ms.push(
             mkTerminate(),
             mkStatus(stAborted),
+            mkErrmsg(`job ${jno} is aborted`),
         );
         break;
 
@@ -1124,7 +1143,7 @@ function execInstr(instr, activeJob) {
         execMicroInstr(instr, activeJob);
         return;
     }
-
+    /*
     if ( op === opInit ) {
         getData(jno).name = instr.name;
         setStatus(activeJob, stCreated);
@@ -1132,7 +1151,7 @@ function execInstr(instr, activeJob) {
         addReady(jno);
         return;
     }
-
+    */
     if ( op === opLoadpage ) {
         trc(1,`execInstr: op=${op}`);
 
@@ -1156,7 +1175,7 @@ function execInstr(instr, activeJob) {
         addReady(jno);
         return;
     }
-
+    /*
     // fadein
     if ( op === opFadein ) {
         if ( instr.trans === trCut) {    // sync exec
@@ -1198,6 +1217,7 @@ function execInstr(instr, activeJob) {
         }
         return;
     }
+    */
 
     // animated move and/or scaling of media, async exec
     if ( op === opMove ) {
@@ -1216,6 +1236,7 @@ function execInstr(instr, activeJob) {
         return;
     }
 
+    /*
     if ( op === opType ) {
         getData(jno).type  = instr.type;
         addReady(jno);
@@ -1250,6 +1271,7 @@ function execInstr(instr, activeJob) {
         addReady(jno);
         return;
     }
+    */
 
     // sleep a given time
     if ( op === opDelay ) {
@@ -1299,12 +1321,14 @@ function execInstr(instr, activeJob) {
         return;
     }
 
+    /*
     // cleanup
     if ( op === opFinish ) {
         setStatus(activeJob, stFinished);
         terminateJob(activeJob);
         return;
     }
+    */
 
     // default instr end
     // for instructions executed syncronized
@@ -1336,7 +1360,7 @@ function setStatus(activeJob, st) {
     const jno = activeJob.jno;
 
     addStatus(activeJob, st);
-    trc(1, `setStatus: job=${jno} ${PP.status(activeJob.jstatus)}`);
+    trc(1, `setStatus: job=${jno} add ${st}`);
 
     // wakeup jobs waiting for this job to reach status
     if ( st === stFinished ) {
@@ -1373,13 +1397,12 @@ function terminateJob(activeJob) {
 // --------------------
 
 function termAsyncInstr(jno) {
-    trc(1, `termAsyncInstr: jno=${jno}`);
     const aj = jobsAll.get(jno);
-    trc(1, `termAsyncInstr: finalize instr (${jno}, ${aj.jpc})`);
-    if ( aj ) {
-        remAsyncRunning(jno);              // remove from set of async jobs
-        addReady(jno);
-    }
+    trc(1, `termAsyncInstr: instr terminated: (${jno}, ${aj.jpc})`);
+
+    // move job from async set to ready queue
+    remAsyncRunning(jno);
+    addReady(jno);
 }
 
 // --------------------

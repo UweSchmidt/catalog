@@ -55,6 +55,10 @@ function isEmpty(x) {
     return x === undefined || x === null || x === "";
 }
 
+function isVoid(x) {
+    return x === null;
+}
+
 function isEmptyList(x) {
     return x.length === 0;
 }
