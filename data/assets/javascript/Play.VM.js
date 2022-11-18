@@ -359,6 +359,7 @@ function mkLoadpage1()      {return {op: 'loadpage1'};}
 function mkLoadpage1CB()    {return {op: 'loadpageCallback'};}
 function mkProcesspage()    {return {op: 'processpage'};}
 function mkLoadimage()      {return {op: 'loadimage'};}
+function mkWaitInput()      {return {op: 'waitinput'};}
 
 // type Job = [Instr]
 // type Jobno = Int
@@ -562,15 +563,10 @@ function nextMicroInstr(aj) {
         }
         trc(1, `(${aj.jno}, ${aj.jpc}): ${instr.op}`);
 
-        expandToMicros(instr, aj.jmicros);
+        aj.jmicros.push(instr);
     }
     // .jmicros is not empty
     return aj.jmicros.pop();
-}
-
-// dummy expandToMicros
-function expandToMicros(instr, micros) {
-    micros.push(instr);
 }
 
 function addStatus(aj, st) {
@@ -813,14 +809,17 @@ function runningJobs() {
 // --------------------
 // jobsReady:
 
-function addReady(jno) {
+function addReady(...jnos) {
     // in restart after code edit
     // jno maybe already in queue
-    if ( ! jobsReady.includes(jno) ) {
-        jobsReady.push(jno);           // add at end of job queue
-        trc(1, `addReady: ${jno}`);
+
+    for (const jno of jnos) {
+        if ( ! jobsReady.includes(jno) ) {
+            jobsReady.push(jno);           // add at end of job queue
+            trc(1, `addReady: ${jno}`);
+        }
     }
-    run();                             // new ready job, (re)start VM
+    run();                             // new ready jobs, (re)start VM
 }
 
 function nextReady() {
@@ -897,11 +896,11 @@ function addInputJob(jno) {
 }
 
 function wakeupInputJobs() {
-    jobsInput.forEach((jno) => {
-        trc(1,`wakeupInputJobs: job ${jno} moved to ready jobs`);
-        addReady(jno);
-    });
-    jobsInput = [];
+    const jobs = [...jobsInput];
+    jobsInput.splice(0, jobs.length);   // don't build a new array object
+
+    trc(1, `wakeupInput: ${JSON.stringify(jobs)} ${JSON.stringify(jobsInput)}`);
+    addReady(...jobs);                  // only change the elements
 }
 
 function waitingForInputJobs() {
@@ -951,7 +950,7 @@ function step1() {
 
         // trc(1, `(${aj.jno}, ${aj.jpc}): mi: ${JSON.stringify(mi)}`);
         if ( ! isNothing(mi) ) {
-            execInstr(mi, aj);
+            execMicroInstr(mi, aj);
         }                        // else job is finished
         return 'step';
     }
@@ -1067,7 +1066,7 @@ function execMicroInstr(mi, aj) {
         trc(1, `wait: job ${jno1} already has status ${st1}, continue`);
         break;                                     // not async
 
-    case opWaitclick:
+    case 'waitinput':
         vmActiveJob   = aj;      // store active job
         vmInterrupted = true;    // interrupt VM
         vmRunning     = false;
@@ -1245,6 +1244,13 @@ function execMicroInstr(mi, aj) {
 
     case opType:
         ms.push(mkSet('type', mi.type));
+        break;
+
+    case opWaitclick:
+        ms.push(
+            mkWaitInput(),
+            mkErrmsg('waiting for input'),
+        );
         break;
 
     default:
