@@ -12,6 +12,7 @@ const stReadypage  = "pageready";   // Json page for img loaded
 const stReadymedia = "mediaready";  // img loaded
 const stRendered   = "rendered";    // DOM element created
 const stVisible    = "visible";     // DOM element visible
+const stMoved      = "moved";       // img has been redrawn (move, place)
 const stShown      = "shown";       // end of showing img
 const stHidden     = "hidden";      // DOM element no longer visible
 const stFinished   = "finished";    // job terminated
@@ -23,6 +24,7 @@ const statiWords = [
     stReadymedia,
     stRendered,
     stVisible,
+    stMoved,
     stShown,
     stHidden,
     stFinished,
@@ -350,6 +352,12 @@ function mkFadeinCut()      {return {op: 'fadeincut'};}
 function mkFadeoutCut()     {return {op: 'fadeincut'};}
 function mkFadeinAnim(dur)  {return {op: 'fadeinanim',  dur: dur};}
 function mkFadeoutAnim(dur) {return {op: 'fadeoutanim', dur: dur};}
+function mkRender1(gs)      {return {op: 'render1', gs: gs};}
+function mkMove1(dur, gs)   {return {op: 'move1', dur: dur, gs: gs};}
+function mkLoadpage1()      {return {op: 'loadpage1'};}
+function mkLoadpage1CB()    {return {op: 'loadpageCallback'};}
+function mkProcesspage()    {return {op: 'processpage'};}
+function mkLoadimage()      {return {op: 'loadimage'};}
 
 // type Job = [Instr]
 // type Jobno = Int
@@ -422,29 +430,15 @@ function cMove(dur, gs) {
 }
 
 function cFadein(dur, fade0, waitJob) {
+    const wj = waitJob || 'prev';
     const fade =
           isPositive(dur)
           ? fade0
           : trCut;
 
-    switch ( fade ) {
-    case 'fadein':
-        return [
-            ...cWait(stHidden, waitJob),   // wait prev image to be hidden
-            mkFadein(dur, trFadein),
-        ];
-    case 'crossfade':
-        return [
-            ...cWait(stShown, waitJob),   // wait prev image starts fading out
-            mkFadein(dur, trFadein),
-        ];
-    case trCut:
-    default:
-        return [
-            ...cWait(stShown, waitJob),
-            mkFadein(0, trCut),
-        ];
-    }
+    return [
+        mkFadein(dur, fade, wj),
+    ];
 }
 
 function cWait(st, waitJob) {
@@ -521,8 +515,8 @@ function cViewStd(fadeinDur, fadeinTr, dur, fadeoutDur, fadeoutTr, waitJob) {
 
 // a standard view with crossfade in/out
 
-function cViewCrossfade(dur, fadeDur) {
-    return cViewStd(fadeDur, trCrossfade, dur, fadeDur, trCrossfade);
+function cViewCrossfade(dur, fadeDur, waitJob) {
+    return cViewStd(fadeDur, trCrossfade, dur, fadeDur, trCrossfade, waitJob);
 }
 
 // ----------------------------------------
@@ -985,37 +979,63 @@ function execMicroInstr(mi, aj) {
 
     // --------------------
     // micro instructions
-    case 'set':
-        getData(jno)[mi.name] = mi.value;
-        break;
 
     case 'errmsg':
+        trc(1, mi.msg);
         statusBar.show(mi.msg);
         break;
 
-    case opStatus:
-        setStatus(aj, mi.st);
-        break;
-
-    case 'fadeincut':
-        fadeinCut(aj);
-        break;
-
-    case 'fadeinanim':
-        fadeinAnim(aj, mi.dur);
+    case 'exit':
+        abortActiveJob(aj);
         break;
 
     case 'fadeoutcut':
         fadeinCut(aj);
         break;
 
-    case 'fadeoutanim':
-        fadeoutAnim(aj, mi.dur);
+    case 'processpage':
+        processPage(aj);
         break;
 
-    case 'exit':
-        abortActiveJob(aj);
+    case 'render1':
+        render1(aj, mi.gs);
         break;
+
+    case 'set':
+        getData(jno)[mi.name] = mi.value;
+        break;
+
+    case opStatus:
+        setStatus(aj, mi.st);
+        break;
+
+        // --------------------
+        // basic async operations (don't exec addReady)
+
+    case 'fadeincut':
+        fadeinCut(aj);
+        return;
+
+    case 'fadeinanim':
+        fadeinAnim(aj, mi.dur);
+        return;
+
+    case 'fadeoutanim':
+        fadeoutAnim(aj, mi.dur);
+        return;
+
+    case 'loadpage1':
+        loadPage1(aj);
+        return;
+
+    case 'loadimage':
+        loadImage(aj);
+        return;
+
+    case 'move1':
+        move1(aj, mi.dur, mi.gs);
+        return;
+
 
     // --------------------
     // macro instructions
@@ -1036,21 +1056,30 @@ function execMicroInstr(mi, aj) {
         break;
 
     case opFadein:
+        const syncJob = mi.job;
+
+        // if job to be synced with is set to 'nowait'
+        // no syncronisation is done,
+        // so fadein can start immediately
+
+        function mkWait1(st) {
+            if ( syncJob !== 'nowait' ) {
+                ms.push(mkWait(st, syncJob));
+            }
+        }
+
         ms.push(mkStatus(stVisible));
         if (mi.trans === trCut || ! isPositive(mi.dur)) {
-            ms.push(mkFadeinCut(),
-                    mkWait(stShown, mi.job),
-                   );
+            ms.push(mkFadeinCut());
+            mkWait1(stShown);
         }
         else if (mi.trans === trFadein) {
-            ms.push(mkFadeinAnim(mi.dur),
-                    mkWait(stHidden, mi.job),
-                   );
+            ms.push(mkFadeinAnim(mi.dur));
+            mkWait1(stHidden);
         }
         else if (mi.trans === trCrossfade) {
-            ms.push(mkFadeinAnim(mi.dur),
-                    mkWait(stShown, mi.job),
-                   );
+            ms.push(mkFadeinAnim(mi.dur));
+            mkWait1(stShown);
         }
         break;
 
@@ -1093,15 +1122,79 @@ function execMicroInstr(mi, aj) {
         }
         break;
 
+    case opLoadmedia:
+        const jobData = jobsData.get(jno);
+        switch ( jobData.type ) {
+        case 'img':
+            ms.push(
+                mkStatus(stReadymedia),
+                mkLoadimage(),
+            );
+            break;
+
+        case 'text':
+            ms.push(
+                mkStatus(stReadymedia),
+            );
+            break;
+
+        default:
+            ms.push(
+                mkAbort(),
+                mkErrmsg(`loadMedia: wrong type ${jobData.type}`),
+            );
+            break;
+        }
+        break;
+
+    case opLoadpage:
+        ms.push(
+            mkLoadpage1CB(),
+            mkLoadpage1(),   // async (HTTP request)
+        );
+        break;
+
+    case 'loadpageCallback':
+        const d = jobsData.get(jno);
+        if ( d.page ) {
+            ms.push(
+                mkStatus(stReadypage),
+                mkProcesspage(),
+            );
+        }
+        else {
+            ms.push(
+                mkAbort(),
+                mkErrmsg(d.callbackError),
+            );
+        }
+        break;
+
+    case opMove:
+        ms.push(
+            mkStatus(stMoved),
+            mkMove1(mi.dur, mi.gs),
+            mkSet('lastGSInstr', mi),
+        );
+        break;
+
     case opPath:
         ms.push(mkSet('path', mi.path));
         break;
 
+    case opRender:
+        ms.push(
+            mkStatus(stRendered),
+            mkRender1(mi.gs),
+            mkSet('lastGSInstr', mi),
+        );
+        break;
+
     case opText:
         ms.push(
-            mkSet('lastTextInstr', mi),
-            mkStatus(stReadypage),
             mkStatus(stReadymedia),
+            mkStatus(stReadypage),
+            mkSet('lastTextInstr', mi),
         );
         break;
 
@@ -1123,19 +1216,29 @@ function execInstr(instr, activeJob) {
     if ( [ opInit,
            'set',
            'errmsg',
+           'exit',
            opStatus,
            'terminate',
            'fadeincut',
            'fadeinanim',
            'fadeoutcut',
            'fadeoutanim',
-
+           'loadimage',
+           'loadpage1',
+           'loadpageCallback',
+           'move1',
+           'render1',
+           'processpage',
            'abort',
            opFadein,
-           opFadeout,
+           //           opFadeout,
            opFinish,
            opFrame,
+           opLoadpage,
+           opLoadmedia,
+           opMove,
            opPath,
+           opRender,
            opText,
            opType,
          ].includes(op)
@@ -1144,13 +1247,13 @@ function execInstr(instr, activeJob) {
         return;
     }
     /*
-    if ( op === opInit ) {
-        getData(jno).name = instr.name;
-        setStatus(activeJob, stCreated);
+      if ( op === opInit ) {
+      getData(jno).name = instr.name;
+      setStatus(activeJob, stCreated);
 
-        addReady(jno);
-        return;
-    }
+      addReady(jno);
+      return;
+      }
     */
     if ( op === opLoadpage ) {
         trc(1,`execInstr: op=${op}`);
@@ -1175,7 +1278,7 @@ function execInstr(instr, activeJob) {
         addReady(jno);
         return;
     }
-    /*
+
     // fadein
     if ( op === opFadein ) {
         if ( instr.trans === trCut) {    // sync exec
@@ -1217,7 +1320,6 @@ function execInstr(instr, activeJob) {
         }
         return;
     }
-    */
 
     // animated move and/or scaling of media, async exec
     if ( op === opMove ) {
@@ -1237,40 +1339,40 @@ function execInstr(instr, activeJob) {
     }
 
     /*
-    if ( op === opType ) {
-        getData(jno).type  = instr.type;
-        addReady(jno);
-        return;
-    }
+      if ( op === opType ) {
+      getData(jno).type  = instr.type;
+      addReady(jno);
+      return;
+      }
 
-    if ( op === opFrame ) {
-        getData(jno).frameGS = instr.gs;
+      if ( op === opFrame ) {
+      getData(jno).frameGS = instr.gs;
 
-        addReady(jno);
-        return;
-    }
+      addReady(jno);
+      return;
+      }
 
-    if ( op === opText ) {
-        // remember last text instr for text rendering and editing the text
-        getData(jno).lastTextInstr = instr;
+      if ( op === opText ) {
+      // remember last text instr for text rendering and editing the text
+      getData(jno).lastTextInstr = instr;
 
-        setStatus(activeJob, stReadypage);
-        setStatus(activeJob, stReadymedia);
-        addReady(jno);
-        return;
-    }
+      setStatus(activeJob, stReadypage);
+      setStatus(activeJob, stReadymedia);
+      addReady(jno);
+      return;
+      }
 
-    if ( op === opPath ) {
-        getData(jno).path = instr.path;
-        addReady(jno);
-        return;
-    }
+      if ( op === opPath ) {
+      getData(jno).path = instr.path;
+      addReady(jno);
+      return;
+      }
 
-    if ( op === opStatus ) {
-        setStatus(activeJob, instr.st);
-        addReady(jno);
-        return;
-    }
+      if ( op === opStatus ) {
+      setStatus(activeJob, instr.st);
+      addReady(jno);
+      return;
+      }
     */
 
     // sleep a given time
@@ -1306,13 +1408,13 @@ function execInstr(instr, activeJob) {
              &&
              ! hasStatus(aj1, st1)          // job j1 already has reached st1
            ) {
-                // job jno1 is too slow
-                // put job into wait queue
-                // and setup syncronizing
+            // job jno1 is too slow
+            // put job into wait queue
+            // and setup syncronizing
 
-                trc(1, `wait: add to waiting jobs: jno=${jno1}, status=${st1}`);
-                addWaiting(jno, mkWaitJob(jno1, st1));
-                return;
+            trc(1, `wait: add to waiting jobs: jno=${jno1}, status=${st1}`);
+            addWaiting(jno, mkWaitJob(jno1, st1));
+            return;
         }
 
         // job not blocked, instr becomes a noop
@@ -1324,9 +1426,9 @@ function execInstr(instr, activeJob) {
     /*
     // cleanup
     if ( op === opFinish ) {
-        setStatus(activeJob, stFinished);
-        terminateJob(activeJob);
-        return;
+    setStatus(activeJob, stFinished);
+    terminateJob(activeJob);
+    return;
     }
     */
 
@@ -1407,6 +1509,59 @@ function termAsyncInstr(jno) {
 
 // --------------------
 
+function loadPage1(aj) {
+    const jobData = jobsData.get(aj.jno);
+    const jno = aj.jno;
+    const req = { rType:    'json',
+                  geo:      'org',
+                  rPathPos: sPathToPathPos(jobData.path),
+                };
+    const url = reqToUrl(req);
+    trc(1,`loadPage1: ${url}`);
+
+    function processRes(page) {
+        jobData.page = page;
+        termAsyncInstr(jno);
+    }
+
+    function processErr(errno, url, msg) {
+        const txt = showErrText(errno, url, msg);
+        jobData.callbackError = txt;
+        termAsyncInstr(jno);
+    }
+
+    addAsyncRunning(jno);
+    getJsonPage(url, processRes, processErr, noop);
+}
+
+function processPage(aj) {
+    const jno     = aj.jno;
+    const jobData = jobsData.get(jno);
+    const page    = jobData.page;
+    const ty      = getPageType(page);
+
+    switch ( ty ) {
+    case 'img':
+        const frameGeo      = stageGeo();   // TODO par frame geo
+        const imgGeo        = readGeo(page.oirGeo[0]);
+        const gss           = getGeoSpecs(jno);
+        const mxGeo         = maxGeo(frameGeo, imgGeo, gss);
+
+        jobData.imgMetaData = getPageMeta(page);
+        jobData.imgGeo      = imgGeo;
+        jobData.imgMaxGeo   = mxGeo;
+        jobData.imgReqGeo   = bestFitToGeo(mxGeo, imgGeo);
+        break;
+
+    default:
+        trc(1,`processPage: unsupported page type ${ty}`);
+        // abortJob(activeJob);
+        return;
+    }
+}
+
+// TODO old stuff
+
 function loadPage(activeJob, jobData) {
     const jno = activeJob.jno;
     const req = { rType:    'json',
@@ -1454,6 +1609,33 @@ function loadPage(activeJob, jobData) {
 }
 
 // --------------------
+
+function loadImage(activeJob) {
+    const jno   = activeJob.jno;
+    const jdata = jobsData.get(jno);
+    const req   = { rType:    'img',
+                    rPathPos: sPathToPathPos(jdata.path),
+                  };
+    const url   = imgReqToUrl(req, jdata.imgReqGeo);
+
+    jdata.imgUrl   = url;
+    jdata.imgCache = new Image();           // image cache
+
+    trc(1, `loadImage: ${url}`);
+
+    // install event handler on image cache
+    jdata.imgCache.onload = function () {
+        const img       = jdata.imgCache;
+        jdata.imgResGeo = V2(img.naturalWidth, img.naturalHeight);
+        termAsyncInstr(jno);
+    };
+
+    addAsyncRunning(jno);
+    jdata.imgCache.src = url;     // triggers loading of image into cache
+    return;
+}
+
+// TODO old stuff
 
 function loadMedia(activeJob, jobData) {
     const jno = activeJob.jno;
@@ -1539,6 +1721,10 @@ function place(activeJob, jobData, gs) {
 }
 
 let cssAnimCnt = 1;
+
+function move1(aj, dur, gs) {
+    move(aj, jobsData.get(aj.jno), dur, gs);
+}
 
 function move(activeJob, jobData, dur, gs) {
     const jno   = activeJob.jno;
@@ -1632,6 +1818,10 @@ function parFrameGeoId(jno) {
     }
 }
 
+function render1(aj, gs) {
+    render(aj, jobsData.get(aj.jno), gs);
+}
+
 function render(activeJob, jobData, gs) {
     const jno = activeJob.jno;
     const ty  = jobData.type;
@@ -1650,8 +1840,8 @@ function render(activeJob, jobData, gs) {
         break;
 
     default:
-        abortJob(activeJob);
-        // throw `render: unsupported media type: ${ty}`;
+        // abortJob(activeJob);
+        throw `render: unsupported media type: ${ty}`;
     }
 }
 

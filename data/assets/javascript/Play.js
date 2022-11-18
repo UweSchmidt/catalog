@@ -148,28 +148,31 @@ var j31 =
                             `<h1 class='text-center'>Eine Ente</h1><div>Genauer, eine Stockente</div>`,
                             GS('fix', V2(1), 'SW', V2(+0.20-0.20)),
                             ),
-                  cViewStd(1.0, trFadein, 10, 5.0, trFadeout, 'nowait')
+                  cViewStd(3.0, trFadein, 10, 5.0, trFadeout, 'nowait')
                  )
             );
 var j3 =
-    mkVMProg([j31],
+    mkVMProg([], // [j31],
              cJob('Ente1',
                   cLoadImg('/albums/EinPaarBilder/pic-00001',
                            defaultFrameGS(),
                            defaultGS(),
                           ),
-                  cViewStd0(2.0, trCrossfade,
-                            2.0, trCrossfade,
-                            [...cView('click'),
-                             ...cMove(3.0,GS('fill',V2(2),'center',V2())),
+                  cViewStd0(5.0, trCrossfade,
+                            5.0, trCrossfade,
+                            [// ...cView('click'),
+                             ...cMove(10.0,GS('fill',V2(2),'center',V2())),
+                             // ...cView('click'),
+                             ...cView(5.0),
+                             // ...cView('click'),
+                             ...cMove(10.0,GS('fitInto',V2(0.5),'center',V2())),
+                             // ...cView('click'),
+                             ...cView(5.0),
+                             ...cMove(5.0,GS('fix',V2(1),'center',V2())),
+                             ...cView(5.0),
+                             ...cMove(5.0,GS('fitInto',V2(0.5),'W',V2())),
                              ...cView(3.0),
-                             ...cMove(5.0,GS('fitInto',V2(0.5),'center',V2())),
-                             ...cView(3.0),
-                             ...cMove(2.0,GS('fix',V2(1),'center',V2())),
-                             ...cView(3.0),
-                             ...cMove(1.0,GS('fitInto',V2(0.5),'W',V2())),
-                             ...cView(3.0),
-                             ...cMove(1.0,defaultGS()),
+                             ...cMove(5.0,defaultGS()),
                              ...cView(3.0),
                             ]
                            )
@@ -201,6 +204,7 @@ var j6 =
                                       {alg: 'sameHeight', scale: V2(1),
                                        dir: 'E', shift: V2()}),
                              ...cView('click'),
+//                             ...cView(2.0),
                              ...cMove(4.0,
                                       {alg: 'sameWidth',  scale: V2(1),
                                        dir: 'center', shift: V2()}),
@@ -249,8 +253,10 @@ function ttt() {
 
     resetVM();
     initVMCode(mkVMMain(
-        // j3,
-        j1, j4));
+//        j1,
+        j3,
+//        j4,
+    ));
     restartVM();
 }
 
