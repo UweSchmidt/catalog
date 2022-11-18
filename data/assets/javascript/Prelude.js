@@ -14,9 +14,25 @@ function trc2(txt, x) {
     console.log(`${txt} ${x ? JSON.stringify(x) : ""}`);
 }
 
-// null represents the empty tuple ()
-// Void :: ()                           // void is a keyword
-const Void = null;
+
+// --------------------
+
+// data Maybe a = Nothing | Just a
+//
+// null represents Nothing
+// other values are implicitly Just values
+//
+// undefined is neither a Just nor a Nothing
+
+const Nothing = null;
+
+function isNothing(x) {
+    return x === null;
+}
+
+function isJust(x) {
+    return x !== null && x !== undefined;
+}
 
 // --------------------
 //
@@ -53,10 +69,6 @@ function isDefined(x) {
 
 function isEmpty(x) {
     return x === undefined || x === null || x === "";
-}
-
-function isVoid(x) {
-    return x === null;
 }
 
 function isEmptyList(x) {

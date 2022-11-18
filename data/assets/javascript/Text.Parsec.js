@@ -11,7 +11,7 @@ function mkParsec() {
 
     // Parser a -> Parser ()
     const del = (p) => {
-        return fmap(cnst(Void), p);      // discard result, e.g. for separators
+        return fmap(cnst(Nothing), p);      // discard result, e.g. for separators
     };
 
     // Parser String -> Parser String
@@ -347,7 +347,7 @@ function mkParsec() {
     // Parser ()
     function pCut(state) {
         state.backtrack = false;
-        return succ(Void, state);
+        return succ(Nothing, state);
     }
 
     // String -> Parser a
@@ -370,7 +370,7 @@ function mkParsec() {
         // trc(1,`eof: ${state.inp} ${state.ix}`);
         const c = state.inp[state.ix];
         if ( ! c ) {
-            return succ(Void, state);
+            return succ(Nothing, state);
         }
         else {
             const rest = state.inp.slice(state.ix, state.ix + 40);
@@ -378,7 +378,7 @@ function mkParsec() {
         }
     }
 
-    // Parser String -> Parser ()        // Void = ()
+    // Parser String -> Parser ()        // here Nothing = ()
     function followedBy(p) {
         function go(state) {
             const s1 = state.save();
@@ -388,7 +388,7 @@ function mkParsec() {
                 return fail("followed context not matched", state);
             }
             else {
-                return succ(Void, state);
+                return succ(Nothing, state);
             }
         }
         return go;
@@ -399,7 +399,7 @@ function mkParsec() {
         return alt(seqT(followedBy(p),
                         failure("wrong context followed")
                        ),
-                   unit(Void)
+                   unit(Nothing)
                   );
     }
 
@@ -425,7 +425,7 @@ function mkParsec() {
     // ((a, b, ...) -> r) -> Parser a -> Parser b -> ... -> Parser r
     function app(f, ...ps) {
         function f1(xs) {
-            if ( xs === Void ) {
+            if ( xs === Nothing ) {
                 return xs;
             }
             return f(...xs);
@@ -478,13 +478,13 @@ function mkParsec() {
                 const rs = ps[i](st);
                 if ( rs.err )
                     return rs;
-                if ( rs.res !== Void ) {
+                if ( rs.res !== Nothing ) {
                     xs.push(rs.res);
                 }
                 // trc(1,`seq: ${JSON.stringify(rs.res)} ${JSON.stringify(xs)}`);
                 st = rs.state;
             }
-            return succ(xs.length === 0 ? Void : xs, st);
+            return succ(xs.length === 0 ? Nothing : xs, st);
         }
         return go;
     }
@@ -565,7 +565,7 @@ function mkParsec() {
                     }
                 }
                 // one more item parsed
-                if ( rs.res !== Void ) {
+                if ( rs.res !== Nothing ) {
                     xs.push(rs.res);             // update xs
                 }
                 st = rs.state;                   // update st

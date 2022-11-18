@@ -546,7 +546,7 @@ function mkActiveJob(jno) {
 function abortActiveJob(aj) {
     // jpc points behind last instr
     // and stack of micros is empty
-    // --> nextMicroInstr will return Void
+    // --> nextMicroInstr will return Nothing
 
     aj.jpc     = jobsCode.get(aj.jno).length;
     aj.jmicros = [];
@@ -563,7 +563,7 @@ function nextMicroInstr(aj) {
         if ( ! instr ) {
             // no more instruction
             trc(1,`(${aj.jno}, ${aj.jpc}): job finished`);
-            return Void;
+            return Nothing;
         }
         trc(1, `(${aj.jno}, ${aj.jpc}): ${instr.op}`);
 
@@ -955,7 +955,7 @@ function step1() {
         let mi = nextMicroInstr(aj);
 
         // trc(1, `(${aj.jno}, ${aj.jpc}): mi: ${JSON.stringify(mi)}`);
-        if ( ! isVoid(mi) ) {
+        if ( ! isNothing(mi) ) {
             execInstr(mi, aj);
         }                        // else job is finished
         return 'step';
