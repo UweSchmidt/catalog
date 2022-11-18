@@ -354,6 +354,7 @@ function mkFadeinAnim(dur)  {return {op: 'fadeinanim',  dur: dur};}
 function mkFadeoutAnim(dur) {return {op: 'fadeoutanim', dur: dur};}
 function mkRender1(gs)      {return {op: 'render1', gs: gs};}
 function mkMove1(dur, gs)   {return {op: 'move1', dur: dur, gs: gs};}
+function mkPlace1(gs)       {return {op: 'place1', gs: gs};}
 function mkLoadpage1()      {return {op: 'loadpage1'};}
 function mkLoadpage1CB()    {return {op: 'loadpageCallback'};}
 function mkProcesspage()    {return {op: 'processpage'};}
@@ -993,6 +994,10 @@ function execMicroInstr(mi, aj) {
         fadeinCut(aj);
         break;
 
+    case 'place1':
+        place1(aj, mi.gs);
+        break;
+
     case 'processpage':
         processPage(aj);
         break;
@@ -1011,6 +1016,10 @@ function execMicroInstr(mi, aj) {
 
         // --------------------
         // basic async operations (don't exec addReady)
+
+    case opDelay:
+        sleep(aj, mi.dur);
+        return;
 
     case 'fadeincut':
         fadeinCut(aj);
@@ -1035,7 +1044,6 @@ function execMicroInstr(mi, aj) {
     case 'move1':
         move1(aj, mi.dur, mi.gs);
         return;
-
 
     // --------------------
     // macro instructions
@@ -1182,6 +1190,14 @@ function execMicroInstr(mi, aj) {
         ms.push(mkSet('path', mi.path));
         break;
 
+    case opPlace:
+        ms.push(
+            mkStatus(stMoved),
+            mkPlace1(mi.gs),
+            mkSet('lastGSInstr', mi),
+        );
+        break;
+
     case opRender:
         ms.push(
             mkStatus(stRendered),
@@ -1227,16 +1243,19 @@ function execInstr(instr, activeJob) {
            'loadpage1',
            'loadpageCallback',
            'move1',
+           'place1',
            'render1',
            'processpage',
            'abort',
+           opDelay,
            opFadein,
-           //           opFadeout,
+           opFadeout,
            opFinish,
            opFrame,
            opLoadpage,
            opLoadmedia,
            opMove,
+           opPlace,
            opPath,
            opRender,
            opText,
@@ -1441,6 +1460,19 @@ function execInstr(instr, activeJob) {
 
 // --------------------
 
+function sleep(aj, dur) {
+    const jno = aj.jno;
+
+    function wakeup () {
+        trc(1, `sleep: wakeup (${jno}, ${aj.jpc})`);
+        termAsyncInstr(jno);
+    };
+
+    addAsyncRunning(jno);
+    setTimeout(wakeup, dur * 1000); // sec -> msec
+}
+
+// TODO old stuff
 function execDelay(instr, aj) {
     const jno = aj.jno;
 
@@ -1705,6 +1737,10 @@ function alignText(activeJob, jobData, aln) {
     const iid2 = mkImgId(iid);
     trc(1,`alignText: ${activeJob.jno} aln=${aln}`);
     setTextAlignCSS(iid2, aln);
+}
+
+function place1(aj, gs) {
+    place(aj, jobsData.get(aj.jno), gs);
 }
 
 function place(activeJob, jobData, gs) {
