@@ -36,7 +36,7 @@ function initAnimHandler(id, cls) {
 
 function handleAnim(id, cls, ev) {
     const n = ev.animationName;
-    trc(1, `handleAnim: ${id}-${cls} anim-name: ${n}`);
+    // trc(1, `handleAnim: ${id}-${cls} anim-name: ${n}`);
     if ( n === `kf-fadein-${cls}` || n === `kf-fadeout-${cls}` ) {
         ev.stopPropagation();
         const e = getElem(id);
@@ -50,28 +50,28 @@ function nextAnimClass(e, cur, nxt) {
     if (cs.contains(cur)) {
         cs.remove(cur);
         cs.add(nxt);
-        trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
+        // trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
         return true;
     }
     return false;
 }
 
 function hideAnim(id, cls) {
-    trc(1, `hideAnim: ${id} ${cls}`);
+    // trc(1, `hideAnim: ${id} ${cls}`);
     const e = getElem(id);
     nextAnimClass(e, `fadein-${cls}`,  `fadeout-${cls}`);
     nextAnimClass(e, `visible-${cls}`, `fadeout-${cls}`);
 }
 
 function showAnim(id, cls) {
-    trc(1, `showAnim: ${id} ${cls}`);
+    // trc(1, `showAnim: ${id} ${cls}`);
     const e = getElem(id);
     nextAnimClass(e, `fadeout-${cls}`, `fadein-${cls}`);
     nextAnimClass(e, `hidden-${cls}`,  `fadein-${cls}`);
 }
 
 function isHiddenAnim(id, cls) {
-    trc(1, `isHiddenAnim: ${id} ${cls}`);
+    // trc(1, `isHiddenAnim: ${id} ${cls}`);
     const cs = getElem(id).classList;
     return cs.contains(`hidden-${cls}`) || cs.contains(`fadeout-${cls}`);
 }
@@ -114,7 +114,7 @@ function fadeOutIn(id1, id2, dur, cls) {
     const e1 = getElem(id1);
     const e2 = getElem(id2);
     cls = cls || 'image';
-    trc(1, `fadeOutIn: ${id1}, ${dur}sec`);
+    // trc(1, `fadeOutIn: ${id1}, ${dur}sec`);
 
     setAnimDur(e2, dur);
     nextAnimClass(e2, `visible-${cls}`, `fadeout-${cls}`)
