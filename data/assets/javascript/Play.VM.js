@@ -1045,6 +1045,28 @@ function execMicroInstr(mi, aj) {
         move1(aj, mi.dur, mi.gs);
         return;
 
+    case opWait:
+        const jno1 = jnoFromJobName(jno, mi.job);
+        const st1  = mi.status;
+
+        // trc(1, `wait: ${jno} requires (${jno1}, ${st1})`);
+
+        const aj1  = jobsAll.get(jno1);
+        if ( ! hasStatus(aj1, st1) ) {
+            // job jno1 is too slow
+            // put job into wait queue
+            // and setup syncronizing
+
+            trc(1, `wait: ${jno} waits for job ${jno1} reaching status=${st1}`);
+            addWaiting(jno, mkWaitJob(jno1, st1));
+            return;                                 // async
+        }
+
+        // job j1 already has reached st1
+        // job not blocked, instr becomes a noop
+        trc(1, `wait: job ${jno1} already has status ${st1}, continue`);
+        break;                                     // not async
+
     case opWaitclick:
         vmActiveJob   = aj;      // store active job
         vmInterrupted = true;    // interrupt VM
@@ -1267,6 +1289,7 @@ function execInstr(instr, activeJob) {
            opRender,
            opText,
            opType,
+           opWait,
            opWaitclick,
          ].includes(op)
        ) {
