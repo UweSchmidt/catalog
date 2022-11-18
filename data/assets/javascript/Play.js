@@ -152,7 +152,7 @@ var j31 =
                  )
             );
 var j3 =
-    mkVMProg([], // [j31],
+    mkVMProg([j31],
              cJob('Ente1',
                   cLoadImg('/albums/EinPaarBilder/pic-00001',
                            defaultFrameGS(),
