@@ -847,31 +847,40 @@ function addWaiting(jno, waitFor) {
     trc(1, `addWaiting: job ${jno} waits for (${jno1},${status1})`);
 }
 
-function wakeupWaiting(waitFor) {
+function getWaiting(waitFor) {
     const jno1    = waitFor.jno;
     const status1 = waitFor.jstatus;
-    // trc(1,`wakeupWaiting: (${jno1},${status1})`);
+    const res     = [];
 
     const stmap   = jobsWaiting.get(jno1);    // lookup waiting jobs for jno1
     if ( stmap ) {
         const jnos = stmap.get(status1);      // lookup waiting jobs for status1
         if ( jnos ) {                         // jobs found
-            trc(1,`wakeupWaiting: (${jno1},${status1})`);
+            // trc(1,`wakeupWaiting: (${jno1},${status1})`);
             stmap.delete(status1);            // cleanup map of waiting jobs
             if ( stmap.size === 0) {
                 jobsWaiting.delete(jno1);
             }
-            jnos.forEach((jno) => {           // wakeup all jobs
-                trc(1,`wakup: job ${jno}`);   // waiting for jno1 reaching
-                addReady(jno);                // status1
+            jnos.forEach((jno) => {           // collect all jobs
+                // trc(1,`wakup: job ${jno}`);   // waiting for jno1 reaching
+                res.push(jno);                // status1
             });
         }
     }
+    return res;
 }
 
-function wakeupAllWaiting(jno1) {
-    trc(1,`wakeupAllWaiting: ${jno1}`);
+function wakeupWaiting(waitFor) {
+    // all jobs are added at once before execution continues
+    const res = getWaiting(waitFor);
+    if ( res.length > 0 ) {
+        trc2(`wakeupWaiting: (${waitFor.jno},${waitFor.jstatus}):`, res);
+        addReady(...res);
+    }
+}
 
+function getAllWaiting(jno1) {
+    const res   = [];
     const stmap = jobsWaiting.get(jno1);
     if ( stmap ) {
         let sts = [];
@@ -879,8 +888,18 @@ function wakeupAllWaiting(jno1) {
             sts.push(s);
         }
         for (const s1 of sts) {
-            wakeupWaiting(mkWaitJob(jno1, s1));
+            res.push(...getWaiting(mkWaitJob(jno1, s1)));
         }
+    }
+    return res;
+}
+
+function wakeupAllWaiting(jno) {
+    // all jobs are added at once before execution continues
+    const res = getAllWaiting(jno);
+    if ( res.length > 0 ) {
+        trc2(`wakeupAllWaiting: (${jno},*):`, res);
+        addReady(...res);
     }
 }
 

@@ -256,9 +256,9 @@ function ttt() {
 
     resetVM();
     initVMCode(mkVMMain(
-//        j1,
+        j1,
         j3,
-//        j4,
+        j4,
     ));
     restartVM();
 }
