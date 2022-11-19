@@ -188,11 +188,12 @@ function getLastType() {
 function getGeoSpecs(jno) {
     const code = getVMCode(jno);
     let   gss  = [];
-    for (i of code) {
+    for (const i of code) {
         if ( isDefined(i.gs) ) {
             gss.push(i.gs);
         }
     }
+    trc2(`getGeoSpecs: ${jno}`, gss);
     return gss;
 }
 
@@ -528,6 +529,7 @@ function cViewCrossfade(dur, fadeDur, waitJob) {
 //          used for synchronizing jobs
 // jmicros: stack of micro instructions to be executed
 // jcode:   array of instructions to be executed
+// jdata:   job local data store
 
 function mkActiveJob(jno) {
     return { jno     : jno,
@@ -535,6 +537,7 @@ function mkActiveJob(jno) {
              jstatus : new Set(),
              jmicros : [],
              jcode   : [],
+             jdata   : {},
     };
 }
 
@@ -655,9 +658,9 @@ function jnoFromJobName(jno, n) {
         return jnoPrevN(jno, 0 - n);
     }
     if ( isString(n) ) {
-        for (const kv of jobsData) {
-            if ( kv[1] === n ) {
-                return kv[0];
+        for (const aj of jobsAll.values()) {
+            if ( aj.jdata.name === n ) {
+                return aj.jno;
             }
         }
     }
@@ -697,7 +700,6 @@ var vmActiveJob;   // :: (Jno, Jpc, Set Status, Jcode)
 
 
 var vmProg;        // :: VMCode
-var jobsData;      // :: Map Jno JobLocalData   // local job data
 var jobsAll;       // :: Map Jno ActiveJob      // the control vars of a job
 
 // job sync map: every job has an associated table
@@ -720,7 +722,6 @@ function resetVM() {
     vmRunning     = false;
     vmStepCnt     = 0;
     vmActiveJob   = null;
-    jobsData      = new Map();  // Map Jno JobData
     jobsAll       = new Map();  // Map Jno ActiveJob
     jobsWaiting   = new Map();  // Map Jno (Map Status (Set Jno))
     jobsInput     = [];         // Queue Jno
@@ -737,11 +738,9 @@ function addJob(jno, jcode) {
     const aj = mkActiveJob(jno);  // create new job
     aj.jcode = jcode;             // and set jcode array
     jobsAll.set(jno, aj);         // insert job into job table
-    jobsData.set(jno, {});
 }
 
 function remJob(jno) {
-    jobsData.delete(jno);
     jobsAll.delete(jno);
 };
 
@@ -754,10 +753,6 @@ function replaceCode(jno, jcode) {
         const aj = jobsAll.get(jno);
         aj.jcode.splice(0, aj.jcode.length, ...code);
     }
-}
-
-function getData(jno) {
-    return jobsData.get(jno);
 }
 
 function noMoreJobs() {
@@ -1021,7 +1016,7 @@ function execMicroInstr(mi, aj) {
         break;
 
     case 'set':
-        getData(jno)[mi.name] = mi.value;
+        aj.jdata[mi.name] = mi.value;
         break;
 
     case opStatus:
@@ -1174,8 +1169,8 @@ function execMicroInstr(mi, aj) {
         break;
 
     case opLoadmedia:
-        const jobData = jobsData.get(jno);
-        switch ( jobData.type ) {
+        const ty = aj.jdata.type;
+        switch ( ty ) {
         case 'img':
             ms.push(
                 mkStatus(stReadymedia),
@@ -1192,7 +1187,7 @@ function execMicroInstr(mi, aj) {
         default:
             ms.push(
                 mkAbort(),
-                mkErrmsg(`loadMedia: wrong type ${jobData.type}`),
+                mkErrmsg(`loadMedia: wrong type ${ty}`),
             );
             break;
         }
@@ -1206,8 +1201,8 @@ function execMicroInstr(mi, aj) {
         break;
 
     case 'loadpageCallback':
-        const d = jobsData.get(jno);
-        if ( d.page ) {
+        const jdata = aj.jdata;
+        if ( jdata.page ) {
             ms.push(
                 mkStatus(stReadypage),
                 mkProcesspage(),
@@ -1346,23 +1341,23 @@ function termAsyncInstr(aj) {
 // --------------------
 
 function loadPage1(aj) {
-    const jobData = jobsData.get(aj.jno);
-    const jno = aj.jno;
-    const req = { rType:    'json',
-                  geo:      'org',
-                  rPathPos: sPathToPathPos(jobData.path),
-                };
+    const jdata = aj.jdata;
+    const jno   = aj.jno;
+    const req   = { rType:    'json',
+                    geo:      'org',
+                    rPathPos: sPathToPathPos(jdata.path),
+                  };
     const url = reqToUrl(req);
     trc(1,`loadPage1: ${url}`);
 
     function processRes(page) {
-        jobData.page = page;
+        jdata.page = page;
         termAsyncInstr(aj);
     }
 
     function processErr(errno, url, msg) {
         const txt = showErrText(errno, url, msg);
-        jobData.callbackError = txt;
+        jdata.callbackError = txt;
         termAsyncInstr(aj);
     }
 
@@ -1371,22 +1366,22 @@ function loadPage1(aj) {
 }
 
 function processPage(aj) {
-    const jno     = aj.jno;
-    const jobData = jobsData.get(jno);
-    const page    = jobData.page;
-    const ty      = getPageType(page);
+    const jno   = aj.jno;
+    const jdata = aj.jdata;
+    const page  = jdata.page;
+    const ty    = getPageType(page);
 
     switch ( ty ) {
     case 'img':
-        const frameGeo      = parFrameGeoId(jno);
+        const frameGeo      = parFrameGeoId(jno).sg;
         const imgGeo        = readGeo(page.oirGeo[0]);
         const gss           = getGeoSpecs(jno);
         const mxGeo         = maxGeo(frameGeo, imgGeo, gss);
 
-        jobData.imgMetaData = getPageMeta(page);
-        jobData.imgGeo      = imgGeo;
-        jobData.imgMaxGeo   = mxGeo;
-        jobData.imgReqGeo   = bestFitToGeo(mxGeo, imgGeo);
+        jdata.imgMetaData = getPageMeta(page);
+        jdata.imgGeo      = imgGeo;
+        jdata.imgMaxGeo   = mxGeo;
+        jdata.imgReqGeo   = bestFitToGeo(mxGeo, imgGeo);
         break;
 
     default:
@@ -1400,7 +1395,7 @@ function processPage(aj) {
 
 function loadImage(aj) {
     const jno   = aj.jno;
-    const jdata = jobsData.get(jno);
+    const jdata = aj.jdata;
     const req   = { rType:    'img',
                     rPathPos: sPathToPathPos(jdata.path),
                   };
@@ -1435,12 +1430,12 @@ function mkFrameId(jno) {
     return `frame${jnoToId(jno)}`;
 }
 
-function imgGeoToCSS(jobData, gs) {
-    const frameGeo = jobData.frameGO.geo;
-    const imgGeo   = jobData.imgGeo;
+function imgGeoToCSS(jdata, gs) {
+    const frameGeo = jdata.frameGO.geo;
+    const imgGeo   = jdata.imgGeo;
     const go       = placeMedia(frameGeo, imgGeo)(gs);
-    jobData.gs     = gs;           // save current geo spec
-    jobData.go     = go;           // save current abs geo/off
+    jdata.gs       = gs;           // save current geo spec
+    jdata.go       = go;           // save current abs geo/off
     return cssAbsGeo(go);
 }
 
@@ -1455,18 +1450,15 @@ function alignText(aj, jobData, aln) {
 }
 
 function place1(aj, gs) {
-    place(aj, jobsData.get(aj.jno), gs);
-}
+    const jdata = aj.jdata;
+    const fid   = mkFrameId(aj.jno);
+    const iid   = mkImgId(fid);
+    const iid2  = mkImgId(iid);
+    const ms    = imgGeoToCSS(jdata, gs);
 
-function place(aj, jobData, gs) {
-    const fid  = mkFrameId(aj.jno);
-    const iid  = mkImgId(fid);
-    const iid2 = mkImgId(iid);
-    const ms   = imgGeoToCSS(jobData, gs);
-
-    trc(1,`place: ${aj.jno} gs=${PP.gs(gs)} type=${jobData.type}`);
+    trc(1,`place: ${aj.jno} gs=${PP.gs(gs)} type=${jdata.type}`);
     setCSS(iid, ms);
-    if ( jobData.type === 'text' ) {
+    if ( jdata.type === 'text' ) {
         setTextScaleCSS(iid2, gs.scale);
     }
 }
@@ -1474,17 +1466,14 @@ function place(aj, jobData, gs) {
 let cssAnimCnt = 1;
 
 function move1(aj, dur, gs) {
-    move(aj, jobsData.get(aj.jno), dur, gs);
-}
-
-function move(aj, jobData, dur, gs) {
     const jno   = aj.jno;
+    const jdata = aj.jdata;
     const fid   = mkFrameId(jno);
     const cssId = mkCssId(jno, cssAnimCnt++);
     const imgId = mkImgId(fid);
 
-    const ms0   = cssAbsGeo(jobData.go);    // transition start
-    const ms1   = imgGeoToCSS(jobData, gs); // transition end
+    const ms0   = cssAbsGeo(jdata.go);    // transition start
+    const ms1   = imgGeoToCSS(jdata, gs); // transition end
 
     const cssKeyFrames = `
 @keyframes kf-${cssId} {
@@ -1563,31 +1552,28 @@ function parFrameGeoId(jno) {
                };
     }
     else {
-        return { sg:  jobsData.get(jnoParent).frameGO.geo,
+        return { sg:  jobsAll.get(jnoParent).jdata.frameGO.geo,
                  sid: mkFrameId(jnoParent),
                } ;
     }
 }
 
 function render1(aj, gs) {
-    render(aj, jobsData.get(aj.jno), gs);
-}
-
-function render(aj, jobData, gs) {
-    const jno = aj.jno;
-    const ty  = jobData.type;
-    const pfg = parFrameGeoId(jno);
-    const sg  = pfg.sg;
-    const sid = pfg.sid;
-    const fid = mkFrameId(jno);
+    const jno   = aj.jno;
+    const jdata = aj.jdata;
+    const ty    = jdata.type;
+    const pfg   = parFrameGeoId(jno);
+    const sg    = pfg.sg;
+    const sid   = pfg.sid;
+    const fid   = mkFrameId(jno);
 
     switch ( ty ) {
     case 'text':
-        renderText(jobData, fid, sg, sid, gs);
+        renderText(jdata, fid, sg, sid, gs);
         break;
 
     case 'img':
-        renderImg( jobData, fid, sg, sid, gs);
+        renderImg(jdata, fid, sg, sid, gs);
         break;
 
     default:
@@ -1596,43 +1582,43 @@ function render(aj, jobData, gs) {
     }
 }
 
-function renderFrame(jobData, frameId, stageGeo, frameCss) {
-    const frameGO   = placeFrame(stageGeo, jobData.frameGS);
-    jobData.frameGO = frameGO;  // save frame geo/off
+function renderFrame(jdata, frameId, stageGeo, frameCss) {
+    const frameGO   = placeFrame(stageGeo, jdata.frameGS);
+    jdata.frameGO = frameGO;  // save frame geo/off
 
     return newFrame(frameId, frameGO, frameCss);
 }
 
-function renderImg(jobData, frameId, stageGeo, parentId, gs) {
+function renderImg(jdata, frameId, stageGeo, parentId, gs) {
     const frameCss = { opacity: 0,
                        visibility: 'hidden',
                        display:    'block',
                        overflow:   'hidden',
                      };
-    const frame    = renderFrame(jobData, frameId, stageGeo, frameCss);
-    const ms       = imgGeoToCSS(jobData, gs);
+    const frame    = renderFrame(jdata, frameId, stageGeo, frameCss);
+    const ms       = imgGeoToCSS(jdata, gs);
     const me       = newImgElem(frameId, ms, 'img');
-    me.src         = jobData.imgUrl;
+    me.src         = jdata.imgUrl;
 
     frame.appendChild(me);
     getElem(parentId).appendChild(frame);
 }
 
-function renderText(jobData, frameId, stageGeo, parentId, gs) {
+function renderText(jdata, frameId, stageGeo, parentId, gs) {
     const frameCss  = { opacity: 0,
                         visibility: 'hidden',
                         display:    'block',
                         overflow:   'hidden',
                       };
-    const frame     = renderFrame(jobData, frameId, stageGeo, frameCss);
-    const frameGeo  = jobData.frameGO.geo;
+    const frame     = renderFrame(jdata, frameId, stageGeo, frameCss);
+    const frameGeo  = jdata.frameGO.geo;
 
     // compute geomety of 'div' element containing the text
     // media geo is rel to frame geo
     // make media geo absolute
 
     const go   = placeFrame(frameGeo, gs);
-    jobData.go = go;        // save text element geo/off in job data
+    jdata.go = go;        // save text element geo/off in job data
 
     const ms1 = cssAbsGeo(go);
     const ms2 = { height:             'auto',
@@ -1649,9 +1635,9 @@ function renderText(jobData, frameId, stageGeo, parentId, gs) {
     const textId = mkImgId(frameId);
 
     const me3    = newBlogElem(textId, {width: '100%'}, 'text-body' );
-    setTextAlignCSS(me3, jobData.lastTextInstr.align);
+    setTextAlignCSS(me3, jdata.lastTextInstr.align);
     setTextScaleCSS(me3, gs.scale);
-    me3.innerHTML = jobData.lastTextInstr.text;
+    me3.innerHTML = jdata.lastTextInstr.text;
     me.appendChild(me3);
 
     frame.appendChild(me);
@@ -1665,7 +1651,7 @@ function renderText(jobData, frameId, stageGeo, parentId, gs) {
 
     // round up geo, else unwanted linebreaks are added during rendering
     const textGeo = ceilV2(V2(rect.width, rect.height));
-    jobData.imgGeo = textGeo;
+    jdata.imgGeo = textGeo;
     const go4     = placeMedia(frameGeo, textGeo)(gs);
     const ms4     = cssAbsGeo(go4);
     setCSS(me, ms4);
@@ -1755,9 +1741,7 @@ function instrGS(code) {
 }
 
 function activeJobData() {
-    const aj  = vmActiveJob;
-    const jno = aj.jno;
-    return jobsData.get(jno);
+    return vmActiveJob.jdata;
 }
 
 // this is a destructive op
