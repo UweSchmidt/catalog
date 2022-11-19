@@ -361,10 +361,6 @@ function mkProcesspage()    {return {op: 'processpage'};}
 function mkLoadimage()      {return {op: 'loadimage'};}
 function mkWaitInput()      {return {op: 'waitinput'};}
 
-// type Job = [Instr]
-// type Jobno = Int
-// type activeJob = { jno: n, jpc: n, }
-
 function noop() {}
 
 // ----------------------------------------
@@ -1297,10 +1293,10 @@ function sleep(aj, dur) {
 
 // add status to status set and wakeup waiting for status
 
-function setStatus(activeJob, st) {
-    const jno = activeJob.jno;
+function setStatus(aj, st) {
+    const jno = aj.jno;
 
-    addStatus(activeJob, st);
+    addStatus(aj, st);
     trc(1, `setStatus: job=${jno} add ${st}`);
 
     // wakeup jobs waiting for this job to reach status
@@ -1314,14 +1310,14 @@ function setStatus(activeJob, st) {
 
 // --------------------
 
-function abortJob(activeJob) {
-    trc(1, `abortJob: job abborted: ${activeJob.jno}`);
-    addStatus(activeJob, stAborted);
-    terminateJob(activeJob);
+function abortJob(aj) {
+    trc(1, `abortJob: job abborted: ${aj.jno}`);
+    addStatus(aj, stAborted);
+    terminateJob(aj);
 }
 
-function terminateJob(activeJob) {
-    const jno = activeJob.jno;
+function terminateJob(aj) {
+    const jno = aj.jno;
 
     trc(1, `terminateJob: job terminated, delete job: ${jno}`);
 
@@ -1329,7 +1325,7 @@ function terminateJob(activeJob) {
     // removeFrame(jno);
     // remJob(jno);
 
-    addStatus(activeJob, stFinished);
+    addStatus(aj, stFinished);
     wakeupAllWaiting(jno);
     addReady(jno);
 
@@ -1395,15 +1391,15 @@ function processPage(aj) {
 
     default:
         trc(1,`processPage: unsupported page type ${ty}`);
-        // abortJob(activeJob);
+        // abortJob(aj);
         return;
     }
 }
 
 // --------------------
 
-function loadImage(activeJob) {
-    const jno   = activeJob.jno;
+function loadImage(aj) {
+    const jno   = aj.jno;
     const jdata = jobsData.get(jno);
     const req   = { rType:    'img',
                     rPathPos: sPathToPathPos(jdata.path),
@@ -1419,7 +1415,7 @@ function loadImage(activeJob) {
     jdata.imgCache.onload = function () {
         const img       = jdata.imgCache;
         jdata.imgResGeo = V2(img.naturalWidth, img.naturalHeight);
-        termAsyncInstr(activeJob);
+        termAsyncInstr(aj);
     };
 
     addAsyncRunning(jno);
@@ -1450,11 +1446,11 @@ function imgGeoToCSS(jobData, gs) {
 
 // --------------------
 
-function alignText(activeJob, jobData, aln) {
-    const fid  = mkFrameId(activeJob.jno);
+function alignText(aj, jobData, aln) {
+    const fid  = mkFrameId(aj.jno);
     const iid  = mkImgId(fid);
     const iid2 = mkImgId(iid);
-    trc(1,`alignText: ${activeJob.jno} aln=${aln}`);
+    trc(1,`alignText: ${aj.jno} aln=${aln}`);
     setTextAlignCSS(iid2, aln);
 }
 
@@ -1462,13 +1458,13 @@ function place1(aj, gs) {
     place(aj, jobsData.get(aj.jno), gs);
 }
 
-function place(activeJob, jobData, gs) {
-    const fid  = mkFrameId(activeJob.jno);
+function place(aj, jobData, gs) {
+    const fid  = mkFrameId(aj.jno);
     const iid  = mkImgId(fid);
     const iid2 = mkImgId(iid);
     const ms   = imgGeoToCSS(jobData, gs);
 
-    trc(1,`place: ${activeJob.jno} gs=${PP.gs(gs)} type=${jobData.type}`);
+    trc(1,`place: ${aj.jno} gs=${PP.gs(gs)} type=${jobData.type}`);
     setCSS(iid, ms);
     if ( jobData.type === 'text' ) {
         setTextScaleCSS(iid2, gs.scale);
@@ -1481,8 +1477,8 @@ function move1(aj, dur, gs) {
     move(aj, jobsData.get(aj.jno), dur, gs);
 }
 
-function move(activeJob, jobData, dur, gs) {
-    const jno   = activeJob.jno;
+function move(aj, jobData, dur, gs) {
+    const jno   = aj.jno;
     const fid   = mkFrameId(jno);
     const cssId = mkCssId(jno, cssAnimCnt++);
     const imgId = mkImgId(fid);
@@ -1523,7 +1519,7 @@ img.${cssId}, div.${cssId} {
         setCSS(imgId, ms1);
         // // for debugging
         // c.remove();
-        termAsyncInstr(activeJob);
+        termAsyncInstr(aj);
     }
 
     trc2(`move: ${jno} dur=${dur}`, gs);
@@ -1577,8 +1573,8 @@ function render1(aj, gs) {
     render(aj, jobsData.get(aj.jno), gs);
 }
 
-function render(activeJob, jobData, gs) {
-    const jno = activeJob.jno;
+function render(aj, jobData, gs) {
+    const jno = aj.jno;
     const ty  = jobData.type;
     const pfg = parFrameGeoId(jno);
     const sg  = pfg.sg;
@@ -1595,7 +1591,7 @@ function render(activeJob, jobData, gs) {
         break;
 
     default:
-        // abortJob(activeJob);
+        // abortJob(aj);
         throw `render: unsupported media type: ${ty}`;
     }
 }
@@ -1687,17 +1683,17 @@ function fadeCut(jno, visibility, opacity) {
           );
 }
 
-function fadeinCut (activeJob) {
-    fadeCut(activeJob.jno, 'visible', 1.0);
-    setStatus(activeJob, stVisible);
+function fadeinCut (aj) {
+    fadeCut(aj.jno, 'visible', 1.0);
+    setStatus(aj, stVisible);
 }
-function fadeoutCut(activeJob) {
-    fadeCut(activeJob.jno, 'hidden',  0.0);
-    setStatus(activeJob, stHidden);
+function fadeoutCut(aj) {
+    fadeCut(aj.jno, 'hidden',  0.0);
+    setStatus(aj, stHidden);
 }
 
-function fadeAnim(frameId, activeJob, dur, fade) { // fadein/fadeout
-    const jno     = activeJob.jno;
+function fadeAnim(frameId, aj, dur, fade) { // fadein/fadeout
+    const jno     = aj.jno;
     const e       = getElem(frameId);
     const cls     = `${fade}-image`;
     const opacity = (fade === 'fadein' ) ? 0.0 : 1.0;
@@ -1708,11 +1704,11 @@ function fadeAnim(frameId, activeJob, dur, fade) { // fadein/fadeout
         e.classList.remove(cls);
         e.removeEventListener('animationend', handleFadeEnd);
         if ( fade === 'fadeout' ) {
-            fadeoutCut(activeJob);
+            fadeoutCut(aj);
         } else {
-            fadeinCut(activeJob);
+            fadeinCut(aj);
         }
-        termAsyncInstr(activeJob);
+        termAsyncInstr(aj);
     }
 
     fadeCut(jno, 'visible', opacity);
@@ -1724,12 +1720,12 @@ function fadeAnim(frameId, activeJob, dur, fade) { // fadein/fadeout
     setAnimDur(e, dur);
 }
 
-function fadeinAnim (activeJob, dur) {
-    fadeAnim(mkFrameId(activeJob.jno), activeJob, dur, 'fadein');
+function fadeinAnim (aj, dur) {
+    fadeAnim(mkFrameId(aj.jno), aj, dur, 'fadein');
 }
 
-function fadeoutAnim(activeJob, dur) {
-    fadeAnim(mkFrameId(activeJob.jno), activeJob, dur, 'fadeout');
+function fadeoutAnim(aj, dur) {
+    fadeAnim(mkFrameId(aj.jno), aj, dur, 'fadeout');
 }
 
 // ----------------------------------------
