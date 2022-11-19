@@ -527,15 +527,18 @@ function cViewCrossfade(dur, fadeDur, waitJob) {
 // create active job control object
 //
 // jno:     hierachical job number
-// jpc:     instruction counter pointing into code array
+// jpc:     instruction counter pointing into jcode array
 // jstatus: set of status values representing the progress of the job
 //          used for synchronizing jobs
+// jmicros: stack of micro instructions to be executed
+// jcode:   array of instructions to be executed
 
 function mkActiveJob(jno) {
     return { jno     : jno,
              jpc     : 0,
              jstatus : new Set(),
              jmicros : [],
+             jcode   : [],
     };
 }
 
@@ -544,7 +547,7 @@ function abortActiveJob(aj) {
     // and stack of micros is empty
     // --> nextMicroInstr will return Nothing
 
-    aj.jpc     = jobsCode.get(aj.jno).length;
+    aj.jpc     = aj.jcode.length;
     aj.jmicros = [];
 }
 
@@ -555,7 +558,7 @@ function nextMicroInstr(aj) {
         // micro instructions and push them
         // onto .jmicros stack
 
-        const instr = jobsCode.get(aj.jno)[aj.jpc++];
+        const instr = aj.jcode[aj.jpc++];
         if ( ! instr ) {
             // no more instruction
             trc(1,`(${aj.jno}, ${aj.jpc}): job finished`);
@@ -686,17 +689,18 @@ function restartVM() {
 var vmInterrupted; // :: Bool
 var vmRunning;     // :: Bool
 var vmStepCnt;     // :: Int
-var vmActiveJob;   // :: (Jno, Jpc, Set Status)
+var vmActiveJob;   // :: (Jno, Jpc, Set Status, Jcode)
 
 // the hierachically structured job numbers
 // type Jno    = [Nat]
+// type Jpc    = Nat
+// type Jcode  = [Instr]
 
 // the hierachically organized set of jobs
-// type VMCode = ([VMCode], [Instr])
+// type VMCode = ([VMCode], Jcode)
 
 
 var vmProg;        // :: VMCode
-var jobsCode;      // :: Map Jno [Instr]        // instruction cache
 var jobsData;      // :: Map Jno JobLocalData   // local job data
 var jobsAll;       // :: Map Jno ActiveJob      // the control vars of a job
 
@@ -720,7 +724,6 @@ function resetVM() {
     vmRunning     = false;
     vmStepCnt     = 0;
     vmActiveJob   = null;
-    jobsCode      = new Map();  // Map Jno [Instr]
     jobsData      = new Map();  // Map Jno JobData
     jobsAll       = new Map();  // Map Jno ActiveJob
     jobsWaiting   = new Map();  // Map Jno (Map Status (Set Jno))
@@ -735,28 +738,25 @@ resetVM();
 // jobs:
 
 function addJob(jno, jcode) {
-    jobsCode.set(jno, jcode);
+    const aj = mkActiveJob(jno);  // create new job
+    aj.jcode = jcode;             // and set jcode array
+    jobsAll.set(jno, aj);         // insert job into job table
     jobsData.set(jno, {});
-    jobsAll.set(jno, mkActiveJob(jno));
 }
 
 function remJob(jno) {
-    jobsCode.delete(jno);
     jobsData.delete(jno);
     jobsAll.delete(jno);
 };
 
-function getCode(jno) {
-    return jobsCode.get(jno);
-}
-
-function replaceCode(jno, code) {  // the array in jobsCode is modified
-    if ( jobsCode.has(jno) ) {     // not replaced by a a new array
-        let c = jobsCode.get(jno);
-        c.splice(0, c.length, ...code);
+function replaceCode(jno, jcode) {
+    // if job isn't already there it is created
+    if ( ! jobsAll.has(jno) ) {
+        addJob(jno, jcode);
     }
     else {
-        jobsCode.set(jno, code);
+        const aj = jobsAll.get(jno);
+        aj.jcode.splice(0, aj.jcode.length, ...code);
     }
 }
 
@@ -1286,7 +1286,7 @@ function sleep(aj, dur) {
 
     function wakeup () {
         trc(1, `sleep: wakeup (${jno}, ${aj.jpc})`);
-        termAsyncInstr(jno);
+        termAsyncInstr(aj);
     };
 
     addAsyncRunning(jno);
@@ -1337,8 +1337,9 @@ function terminateJob(activeJob) {
 
 // --------------------
 
-function termAsyncInstr(jno) {
-    const aj = jobsAll.get(jno);
+function termAsyncInstr(aj) {
+    const jno = aj.jno;
+
     trc(1, `termAsyncInstr: instr terminated: (${jno}, ${aj.jpc})`);
 
     // move job from async set to ready queue
@@ -1360,13 +1361,13 @@ function loadPage1(aj) {
 
     function processRes(page) {
         jobData.page = page;
-        termAsyncInstr(jno);
+        termAsyncInstr(aj);
     }
 
     function processErr(errno, url, msg) {
         const txt = showErrText(errno, url, msg);
         jobData.callbackError = txt;
-        termAsyncInstr(jno);
+        termAsyncInstr(aj);
     }
 
     addAsyncRunning(jno);
@@ -1418,7 +1419,7 @@ function loadImage(activeJob) {
     jdata.imgCache.onload = function () {
         const img       = jdata.imgCache;
         jdata.imgResGeo = V2(img.naturalWidth, img.naturalHeight);
-        termAsyncInstr(jno);
+        termAsyncInstr(activeJob);
     };
 
     addAsyncRunning(jno);
@@ -1522,7 +1523,7 @@ img.${cssId}, div.${cssId} {
         setCSS(imgId, ms1);
         // // for debugging
         // c.remove();
-        termAsyncInstr(jno);
+        termAsyncInstr(activeJob);
     }
 
     trc2(`move: ${jno} dur=${dur}`, gs);
@@ -1711,7 +1712,7 @@ function fadeAnim(frameId, activeJob, dur, fade) { // fadein/fadeout
         } else {
             fadeinCut(activeJob);
         }
-        termAsyncInstr(jno);
+        termAsyncInstr(activeJob);
     }
 
     fadeCut(jno, 'visible', opacity);
