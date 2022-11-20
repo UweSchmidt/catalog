@@ -593,13 +593,15 @@ function mkWaitJob(jno, jstatus) {
 //
 // Jno ops
 
-const jno0 ='';
+const jno0 ='.0';   // howto see an empty string?
 
 function mkJno(jno, i) {
+    if ( jno === jno0 ) {jno = '';}
     return jno + '.' + i;
 }
 
 function jnoToIntList(jno) {
+    if ( jno === jno0 ) {jno = '';}
     let l = jno.split('.');
     l.shift();
     return map(toNum)(l);
@@ -607,7 +609,9 @@ function jnoToIntList(jno) {
 
 function jnoFromIntList(l) {
     const m = map((i) => {return "." + i;})(l);
-    return intercalate('', m);
+    return (m.length === 0)
+        ? jno0
+        : intercalate('', m);
 }
 
 function jnoPrev(jno) {
@@ -630,21 +634,18 @@ function jnoChildren(jno) {
 }
 
 function jnoPrevN(jno, n) {
-    if ( isNumber(n) ) {
-        for (i = 0; i < n; i++) {
-            jno = jnoPrev(jno);
-        }
-        return jno;
+    for (i = 0; i < n; i++) {
+        jno = jnoPrev(jno);
     }
-    // if ( isString(n) ) {
-        trc(1, `jnoPrevN: job names (${n}) not yet implemented`);
-        return jno0;
-    // }
-
+    return jno;
 }
 
 function jnoToId(jno) {
     return jno.replace(/[.]/g,'-');
+}
+
+function jnoToFrameId(jno) {
+    return `frame${jnoToId(jno)}`;
 }
 
 function jnoFromJobName(jno, n) {
@@ -1428,10 +1429,6 @@ function newFrame(id, go, css) {
     return newElem('div', id, s2, 'frame');
 }
 
-function mkFrameId(jno) {
-    return `frame${jnoToId(jno)}`;
-}
-
 function imgGeoToCSS(jdata, gs) {
     const frameGeo = jdata.frameGO.geo;
     const imgGeo   = jdata.imgGeo;
@@ -1444,7 +1441,7 @@ function imgGeoToCSS(jdata, gs) {
 // --------------------
 
 function alignText(aj, aln) {
-    const fid  = mkFrameId(aj.jno);
+    const fid  = jnoToFrameId(aj.jno);
     const iid  = mkImgId(fid);
     const iid2 = mkImgId(iid);
     trc(1,`alignText: ${aj.jno} aln=${aln}`);
@@ -1453,7 +1450,7 @@ function alignText(aj, aln) {
 
 function place1(aj, gs) {
     const jdata = aj.jdata;
-    const fid   = mkFrameId(aj.jno);
+    const fid   = jnoToFrameId(aj.jno);
     const iid   = mkImgId(fid);
     const iid2  = mkImgId(iid);
     const ms    = imgGeoToCSS(jdata, gs);
@@ -1470,7 +1467,7 @@ let cssAnimCnt = 1;
 function move1(aj, dur, gs) {
     const jno   = aj.jno;
     const jdata = aj.jdata;
-    const fid   = mkFrameId(jno);
+    const fid   = jnoToFrameId(jno);
     const cssId = mkCssId(jno, cssAnimCnt++);
     const imgId = mkImgId(fid);
 
@@ -1555,7 +1552,7 @@ function parFrameGeoId(jno) {
     }
     else {
         return { sg:  jobsAll.get(jnoParent).jdata.frameGO.geo,
-                 sid: mkFrameId(jnoParent),
+                 sid: jnoToFrameId(jnoParent),
                } ;
     }
 }
@@ -1567,7 +1564,7 @@ function render1(aj, gs) {
     const pfg   = parFrameGeoId(jno);
     const sg    = pfg.sg;
     const sid   = pfg.sid;
-    const fid   = mkFrameId(jno);
+    const fid   = jnoToFrameId(jno);
 
     switch ( ty ) {
     case 'text':
@@ -1664,7 +1661,7 @@ function renderText(jdata, frameId, stageGeo, parentId, gs) {
 // transitions
 
 function fadeCut(jno, visibility, opacity) {
-    setCSS(mkFrameId(jno),
+    setCSS(jnoToFrameId(jno),
            { opacity:    opacity,
              visibility: visibility,
            }
@@ -1709,18 +1706,18 @@ function fadeAnim(frameId, aj, dur, fade) { // fadein/fadeout
 }
 
 function fadeinAnim (aj, dur) {
-    fadeAnim(mkFrameId(aj.jno), aj, dur, 'fadein');
+    fadeAnim(jnoToFrameId(aj.jno), aj, dur, 'fadein');
 }
 
 function fadeoutAnim(aj, dur) {
-    fadeAnim(mkFrameId(aj.jno), aj, dur, 'fadeout');
+    fadeAnim(jnoToFrameId(aj.jno), aj, dur, 'fadeout');
 }
 
 // ----------------------------------------
 // cleanup
 
 function removeFrame(jno) {
-    const frameId  = mkFrameId(jno);
+    const frameId  = jnoToFrameId(jno);
     const e = getElem(frameId);
 
     e && e.remove();
