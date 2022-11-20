@@ -173,16 +173,16 @@ const getTypeInstr   = getLastInstr((i) => {return i.op === opType;});
 const getLastGSInstr = getLastInstr((i) => {return isDefined(i.gs);});
 
 function getLastGS() {
-    const i = getLastGSInstr(vmActiveJob);
+    const i = getLastGSInstr(curJob);
     return i ? i.gs : defaultGS();
 }
 
 function getLastTextInstr() {
-    return getTextInstr(vmActiveJob);
+    return getTextInstr(curJob);
 }
 
 function getLastType() {
-    return getTypeInstr(vmActiveJob).type;
+    return getTypeInstr(curJob).type;
 }
 
 function getGeoSpecs(jno) {
@@ -531,7 +531,7 @@ function cViewCrossfade(dur, fadeDur, waitJob) {
 // jcode:   array of instructions to be executed
 // jdata:   job local data store
 
-function mkActiveJob(jno) {
+function VMJob(jno) {
     return { jno     : jno,
              jpc     : 0,
              jstatus : new Set(),
@@ -541,7 +541,7 @@ function mkActiveJob(jno) {
     };
 }
 
-function abortActiveJob(aj) {
+function abortCurJob(aj) {
     // jpc points behind last instr
     // and stack of micros is empty
     // --> nextMicroInstr will return Nothing
@@ -688,7 +688,7 @@ function restartVM() {
 var vmInterrupted; // :: Bool
 var vmRunning;     // :: Bool
 var vmStepCnt;     // :: Int
-var vmActiveJob;   // :: (Jno, Jpc, Set Status, Jcode)
+var curJob;        // :: VMJob
 
 // the hierachically structured job numbers
 // type Jno    = [Nat]
@@ -698,9 +698,11 @@ var vmActiveJob;   // :: (Jno, Jpc, Set Status, Jcode)
 // the hierachically organized set of jobs
 // type VMCode = ([VMCode], Jcode)
 
+// all components of a job
+// type VMJob  = (Jno, Jpc, Set Status, Jcode, Jdata)
 
 var vmProg;        // :: VMCode
-var jobsAll;       // :: Map Jno ActiveJob      // the control vars of a job
+var jobsAll;       // :: Map Jno VMJob      // the table of all jobs
 
 // job sync map: every job has an associated table
 // with the job stati to be reached to wakeup other jobs
@@ -721,8 +723,8 @@ function resetVM() {
     vmInterrupted = true;
     vmRunning     = false;
     vmStepCnt     = 0;
-    vmActiveJob   = null;
-    jobsAll       = new Map();  // Map Jno ActiveJob
+    curJob   = null;
+    jobsAll       = new Map();  // Map Jno VMJob
     jobsWaiting   = new Map();  // Map Jno (Map Status (Set Jno))
     jobsInput     = [];         // Queue Jno
     jobsReady     = [];         // Queue Jno
@@ -735,7 +737,7 @@ resetVM();
 // jobs:
 
 function addJob(jno, jcode) {
-    const aj = mkActiveJob(jno);  // create new job
+    const aj = VMJob(jno);  // create new job
     aj.jcode = jcode;             // and set jcode array
     jobsAll.set(jno, aj);         // insert job into job table
 }
@@ -996,7 +998,7 @@ function execMicroInstr(mi, aj) {
         break;
 
     case 'exit':
-        abortActiveJob(aj);
+        abortCurJob(aj);
         break;
 
     case 'fadeoutcut':
@@ -1077,7 +1079,7 @@ function execMicroInstr(mi, aj) {
         break;                                     // not async
 
     case 'waitinput':
-        vmActiveJob   = aj;      // store active job
+        curJob   = aj;      // store active job
         vmInterrupted = true;    // interrupt VM
         vmRunning     = false;
         addInputJob(jno);        // mark job as waiting for input
@@ -1441,7 +1443,7 @@ function imgGeoToCSS(jdata, gs) {
 
 // --------------------
 
-function alignText(aj, jobData, aln) {
+function alignText(aj, aln) {
     const fid  = mkFrameId(aj.jno);
     const iid  = mkImgId(fid);
     const iid2 = mkImgId(iid);
@@ -1740,10 +1742,6 @@ function instrGS(code) {
     return gss;
 }
 
-function activeJobData() {
-    return vmActiveJob.jdata;
-}
-
 // this is a destructive op
 // the new scale value is inserted into the existing GS object
 
@@ -1785,16 +1783,10 @@ const resetGS  = (gs) => { gs.alg   = 'fitInto';
                            return gs;
                          };
 
-function replaceImg(gs) {
-    const aj  = vmActiveJob;
-    const jd  = activeJobData();
-    place(aj, jd, gs);
-}
-
 function editGS(f) {
     const gs  = getLastGS();
     const gs1 = f(gs);
-    replaceImg(gs);
+    place1(curJob, gs);
 }
 
 // --------------------
@@ -1807,20 +1799,14 @@ function alnText(aln) {
     return go;
 }
 
-function realignText(aln) {
-    const aj = vmActiveJob;
-    const jd = activeJobData();
-    alignText(aj, jd, aln);
-}
-
 function editTextAlign(f) {
     const i  = getLastTextInstr();
     const i1 = f(i);
-    realignText(i1.align);
+    alignText(curJob, i1.align);
 }
 
 function editTextInstr() {
-    const i  = getLastTextInstr();  // last text instr
+    const textInstr  = getLastTextInstr();  // last text instr
 
     // callback when edit is finished
     //
@@ -1828,26 +1814,25 @@ function editTextInstr() {
     // and rerender the text frame and contents
 
     function restoreCont(text) {
-        const aj  = vmActiveJob;
+        const aj  = curJob;
         const jno = aj.jno;
-        const jd  = activeJobData();
-        const gs  = jd.lastGSInstr.gs;
+        const gs  = aj.jdata.lastGSInstr.gs;
 
-        i.text = text;
+        textInstr.text = text;        // change the text instr
 
         removeFrame(jno);     // remove old frame
-        render(aj, jd, gs);   // and rebuild it with new text content
+        render1(aj, gs);      // and rebuild it with new text content
         fadeCut(jno, 'visible', 1.0);
 
     }
     // get text content of last text instr
     // display it in the text edit panel
     // and set callback after edit
-    editTextPanel.edit(i.text, restoreCont);
+    editTextPanel.edit(textInstr.text, restoreCont);
 }
 
-function editCode() {return editCode1(vmActiveJob.jno);}
-function editProg() {return editProg1(vmActiveJob.jno);}
+function editCode() {return editCode1(curJob.jno);}
+function editProg() {return editProg1(curJob.jno);}
 
 function editCode1(jno) {
     const ppc = PP.code(getVMCode(jno));
