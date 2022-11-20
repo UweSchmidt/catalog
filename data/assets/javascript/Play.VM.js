@@ -132,12 +132,20 @@ function mkVMProg0(code) {
 };
 
 function mkVMMain(...jobs) {
-    return mkVMProg([...jobs], [mkInit('main'), mkFinish()]);
+    return mkVMProg(
+        [...jobs],
+        [ mkInit('main'),
+          mkType('container'),
+          mkFrame(defaultFrameGS),
+          mkRender(defaultGS),
+          mkFinish()
+        ]
+    );
 }
 
 function getVMProg(jno) {
     let xs  = jnoToIntList(jno);
-    let res = vmProg;                     // acces global vmProg variable
+    let res = vmProg;                     // access global vmProg variable
     while ( xs.length > 0 ) {
         const ix = xs.shift();
         res = res.blocks[ix - 1];
@@ -308,8 +316,8 @@ function mkFadeout(dur, trans) {
 };
 
 function mkStatus(st) {
-    return { op: opStatus,
-             st: st,
+    return { op:     opStatus,
+             status: st,
            };
 };
 
@@ -337,10 +345,11 @@ function mkWaitclick() {
            };
 }
 
-function mkWait(st, job) {
+// job values: 'par', 'prev', 'children' or -1, -2, ... (rel. jnos)
+function mkWait(status, job) {
     return { op:     opWait,
              job:    job,
-             status: st,
+             status: status,
            };
 };
 
@@ -361,6 +370,7 @@ function mkLoadpage1CB()    {return {op: 'loadpageCallback'};}
 function mkProcesspage()    {return {op: 'processpage'};}
 function mkLoadimage()      {return {op: 'loadimage'};}
 function mkWaitInput()      {return {op: 'waitinput'};}
+function mkWait1(status, jno) {return {op: 'wait1', jno: jno, status: status};};
 
 function noop() {}
 
@@ -396,7 +406,6 @@ function cLoadText(frameGS, text, gs, align) {
     const gs1 = {...gs, alg: 'fix'};
     return [
         mkType('text'),
-        mkWait(stRendered, 'par'),
         mkFrame(frameGS || defaultFrameGS()),
         mkText(align || 'center' , text || "???"),
         mkRender(gs1),
@@ -615,6 +624,9 @@ function jnoFromIntList(l) {
 }
 
 function jnoPrev(jno) {
+    if ( isRootJno(jno) ) {
+        return Nothing;
+    }
     let l = jnoToIntList(jno);
     let i = l.pop();
     if ( i > 1 ) {
@@ -624,18 +636,18 @@ function jnoPrev(jno) {
 }
 
 function jnoPar(jno) {
+    if ( isRootJno(jno) ) {
+        return Nothing;
+    }
     let l = jnoToIntList(jno);
     l.pop();
     return jnoFromIntList(l);
 }
 
-function jnoChildren(jno) {
-
-}
-
 function jnoPrevN(jno, n) {
     for (i = 0; i < n; i++) {
         jno = jnoPrev(jno);
+        if (isNothing(jno)) break;
     }
     return jno;
 }
@@ -648,24 +660,36 @@ function jnoToFrameId(jno) {
     return `frame${jnoToId(jno)}`;
 }
 
-function jnoFromJobName(jno, n) {
+function jnosFromJobName(jno, n) {
+    const res = [];
+
     if ( n === 'prev' ) {
-        return jnoPrev(jno);
+        const r = jnoPrev(jno);
+        if (isJust(r)) res.push(r);
+
     }
-    if ( n === 'par' ) {
-        return jnoPar(jno);
+    else if ( n === 'par' ) {
+        const r = jnoPar(jno);
+        if (isJust(r)) res.push(r);
     }
-    if ( isNegative(n) ) {
-        return jnoPrevN(jno, 0 - n);
+    else if ( n === 'children' ) {
+        const p = getVMProg(jno);
+        for (let j = 1; j <= p.blocks.length; j++) {
+            res.push(mkJno(jno, j));
+        }
+    }
+    else if ( isNegative(n) ) {
+        const r = jnoPrevN(jno, 0 - n);
+        if (isJust(r)) res.push(r);
     }
     if ( isString(n) ) {
         for (const aj of jobsAll.values()) {
             if ( aj.jdata.name === n ) {
-                return aj.jno;
+                res.push(aj.jno);
             }
         }
     }
-    return jno0;
+    return res;
 }
 
 function isTopLevelJno(jno) {return jnoToIntList(jno).length <= 1;}
@@ -1023,7 +1047,7 @@ function execMicroInstr(mi, aj) {
         break;
 
     case opStatus:
-        setStatus(aj, mi.st);
+        setStatus(aj, mi.status);
         break;
 
         // --------------------
@@ -1057,8 +1081,8 @@ function execMicroInstr(mi, aj) {
         move1(aj, mi.dur, mi.gs);
         return;
 
-    case opWait:
-        const jno1 = jnoFromJobName(jno, mi.job);
+    case 'wait1':
+        const jno1 = mi.jno;
         const st1  = mi.status;
 
         // trc(1, `wait: ${jno} requires (${jno1}, ${st1})`);
@@ -1111,7 +1135,7 @@ function execMicroInstr(mi, aj) {
         // no syncronisation is done,
         // so fadein can start immediately
 
-        function mkWait1(st) {
+        function mkFadeWait(st) {
             if ( syncJob !== 'nowait' ) {
                 ms.push(mkWait(st, syncJob));
             }
@@ -1120,15 +1144,15 @@ function execMicroInstr(mi, aj) {
         ms.push(mkStatus(stVisible));
         if (mi.trans === trCut || ! isPositive(mi.dur)) {
             ms.push(mkFadeinCut());
-            mkWait1(stShown);
+            mkFadeWait(stShown);
         }
         else if (mi.trans === trFadein) {
             ms.push(mkFadeinAnim(mi.dur));
-            mkWait1(stHidden);
+            mkFadeWait(stHidden);
         }
         else if (mi.trans === trCrossfade) {
             ms.push(mkFadeinAnim(mi.dur));
-            mkWait1(stShown);
+            mkFadeWait(stShown);
         }
         break;
 
@@ -1144,14 +1168,16 @@ function execMicroInstr(mi, aj) {
         break;
 
     case opFinish:
-        const nb = getVMBlocks(jno).length;
+        // const nb = getVMBlocks(jno).length;
         // cleanup
         ms.push(mkTerminate());
 
         // wait for children to be finished
-        for (i = nb; i > 0; i--) {
-           ms.push(mkWait(stFinished, mkJno(jno, i)));
-        }
+        ms.push(mkWait(stFinished, 'children'));
+
+        // for (i = nb; i > 0; i--) {
+        //    ms.push(mkWait(stFinished, mkJno(jno, i)));
+        // }
         // set status, so no job will wait for any status to be reached
         ms.push(mkStatus(stFinished));
         break;
@@ -1242,9 +1268,15 @@ function execMicroInstr(mi, aj) {
     case opRender:
         ms.push(
             mkStatus(stRendered),
-            mkRender1(mi.gs),
-            mkSet('lastGSInstr', mi),
+            mkRender1(mi.gs)
         );
+        // all jobs, except '.0', must wait for parent job
+        // to create a frame (DOM div element) as the parent
+        // element for this frame
+        if ( ! isRootJno(jno) ) {
+            ms.push(mkWait(stRendered, 'par'));
+        }
+        ms.push(mkSet('lastGSInstr', mi));
         break;
 
     case opText:
@@ -1257,6 +1289,14 @@ function execMicroInstr(mi, aj) {
 
     case opType:
         ms.push(mkSet('type', mi.type));
+        break;
+
+    case opWait:
+        // symbolic jnos --> real jnos
+        const jnos = jnosFromJobName(jno, mi.job);
+        for (const jno1 of jnos) {
+            ms.push(mkWait1(mi.status, jno1));
+        }
         break;
 
     case opWaitclick:
@@ -1544,13 +1584,13 @@ function newCssNode(cssId) {
 // build a new frame containing a media element
 
 function parFrameGeoId(jno) {
-    const jnoParent = jnoPar(jno);
-    if ( jnoParent === jno0 ) {
+    if ( isRootJno(jno) ) {
         return { sg:  stageGeo(),
                  sid: stageId,
                };
     }
     else {
+        const jnoParent = jnoPar(jno);
         return { sg:  jobsAll.get(jnoParent).jdata.frameGO.geo,
                  sid: jnoToFrameId(jnoParent),
                } ;
@@ -1575,11 +1615,29 @@ function render1(aj, gs) {
         renderImg(jdata, fid, sg, sid, gs);
         break;
 
+    case 'container':
+        renderContainer(jdata, fid, sg, sid);
+        break;
+
     default:
         // abortJob(aj);
         throw `render: unsupported media type: ${ty}`;
     }
 }
+
+const visibleCSS = {
+    opacity:    1,
+    visibility: 'visible',
+    display:    'block',
+    overflow:   'hidden',
+};
+
+const hiddenCSS = {
+    opacity:    0,
+    visibility: 'hidden',
+    display:    'block',
+    overflow:   'hidden',
+};
 
 function renderFrame(jdata, frameId, stageGeo, frameCss) {
     const frameGO   = placeFrame(stageGeo, jdata.frameGS);
@@ -1588,13 +1646,13 @@ function renderFrame(jdata, frameId, stageGeo, frameCss) {
     return newFrame(frameId, frameGO, frameCss);
 }
 
+function renderContainer(jdata, frameId, stageGeo, parentId) {
+    const frame = renderFrame(jdata, frameId, stageGeo, visibleCSS);
+    getElem(parentId).appendChild(frame);
+}
+
 function renderImg(jdata, frameId, stageGeo, parentId, gs) {
-    const frameCss = { opacity: 0,
-                       visibility: 'hidden',
-                       display:    'block',
-                       overflow:   'hidden',
-                     };
-    const frame    = renderFrame(jdata, frameId, stageGeo, frameCss);
+    const frame    = renderFrame(jdata, frameId, stageGeo, hiddenCSS);
     const ms       = imgGeoToCSS(jdata, gs);
     const me       = newImgElem(frameId, ms, 'img');
     me.src         = jdata.imgUrl;
@@ -1604,12 +1662,7 @@ function renderImg(jdata, frameId, stageGeo, parentId, gs) {
 }
 
 function renderText(jdata, frameId, stageGeo, parentId, gs) {
-    const frameCss  = { opacity: 0,
-                        visibility: 'hidden',
-                        display:    'block',
-                        overflow:   'hidden',
-                      };
-    const frame     = renderFrame(jdata, frameId, stageGeo, frameCss);
+    const frame     = renderFrame(jdata, frameId, stageGeo, hiddenCSS);
     const frameGeo  = jdata.frameGO.geo;
 
     // compute geomety of 'div' element containing the text

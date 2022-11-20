@@ -112,7 +112,7 @@ function mkPrettyPrint() {
             break;
 
         case opStatus:
-            res.push(i.st);
+            res.push(i.status);
             break;
 
         case opMove:
