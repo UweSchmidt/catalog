@@ -116,7 +116,7 @@ function mkVMParser() {
     //const vmblock = ... vmblock ... doesn't work
 
     function vmblock(state) {
-        return PS.app(mkVMProg,
+        return PS.app(VMProg,
                       linep(PS.wordToken0('begin')),
                       PS.many((state1) => {return vmblock(state1);}),
                       PS.many(instr1),

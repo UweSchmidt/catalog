@@ -102,6 +102,159 @@ addEvent(window, 'load', initPlay);
 
 // ----------------------------------------
 //
+// basic compile macros
+
+function cInit(name) {
+    return [
+        mkInit(name),
+    ];
+}
+
+function cTerm() {
+    return [
+        mkFinish(),
+    ];
+}
+
+function cLoadImg(imgPath, frameGS, gs, jnoWait) {
+    return [
+        mkType('img'),
+        mkPath(imgPath),
+        mkFrame(frameGS || defaultFrameGS()),
+        mkLoadpage(),
+        mkWait(stReadymedia, jnoWait || 'prev'), // wait for prev job loading media
+        mkLoadmedia(),
+        mkRender(gs),                 // 1. geo is initial geo
+    ];
+}
+
+function cLoadText(frameGS, text, gs, align) {
+    const gs1 = {...gs, alg: 'fix'};
+    return [
+        mkType('text'),
+        mkFrame(frameGS || defaultFrameGS()),
+        mkText(align || 'center' , text || "???"),
+        mkRender(gs1),
+        mkWait(stVisible, 'par'),
+    ];
+}
+
+function cView(dur) {
+    let is = [];
+    if ( isPositive(dur) ) {
+        is.push(mkDelay(dur));
+    }
+    if ( dur === 'click' ) {
+        is.push(mkWaitclick());
+    }
+    return is;
+}
+
+function cMove(dur, gs) {
+    if ( isPositive(dur) ) {
+        return [
+            mkMove(dur, gs),
+        ];
+    }
+    else {
+        return [
+            mkPlace(gs),
+        ];
+    }
+}
+
+function cFadein(dur, fade0, waitJob) {
+    const wj = waitJob || 'prev';
+    const fade =
+          isPositive(dur)
+          ? fade0
+          : trCut;
+
+    return [
+        mkFadein(dur, fade, wj),
+    ];
+}
+
+function cWait(st, waitJob) {
+    if ( waitJob === 'nowait' )
+        return [];
+    const prevJob = waitJob || 'prev';
+    return [
+        mkWait(st, waitJob || 'prev')
+    ];
+}
+
+function cFadeout(dur, fade) {
+    return [mkFadeout(dur, fade)];
+}
+
+// --------------------
+//
+// structured compile macros
+
+// frame a job with setup and view into a complete job
+
+function cJob(name, cSetup, cView) {
+    return [
+        ...cInit(name),
+        ...cSetup,
+        ...cView,
+        ...cTerm()
+    ];
+}
+
+// --------------------
+//
+// setup macros
+
+// text slide with align/offset spec and text
+//
+// example: cLoadText({dir: 'NW', shift: V2(0.1,0.2)}, '<h1>Hello</h1>')
+//   places the text 'Hello' redered as a 'H1' elem
+//   with 10% of stage width as padding to the left
+//   and 20% of stage height as padding at the top of the stage
+
+function cLoadText1(text, gs) {
+    gs = gs || defaultGS();
+    const gs1 = {...gs, alg: 'fix'};
+    return cLoadText(defaultFrameGS(), text, gs1);
+}
+
+function cLoadImgStd(imgPath, gs) {
+    return cLoadImg(imgPath, defaultFrameGS(),gs);
+}
+
+// --------------------
+//
+// view macros
+
+// a slide view: fadein, fadeout and view steps
+
+function cViewStd0(fadeinDur, fadeinTr, fadeoutDur, fadeoutTr, cView, waitJob) {
+    return [
+        ...cFadein(fadeinDur, fadeinTr, waitJob),
+        ...cView,
+        ...cFadeout(fadeoutDur, fadeoutTr)
+    ];
+}
+
+// a standard slide view: fadein, view, fadeout
+
+function cViewStd(fadeinDur, fadeinTr, dur, fadeoutDur, fadeoutTr, waitJob) {
+    return cViewStd0(fadeinDur, fadeinTr,
+                     fadeoutDur, fadeoutTr,
+                     cView(dur), waitJob,
+                    );
+}
+
+// a standard view with crossfade in/out
+
+function cViewCrossfade(dur, fadeDur, waitJob) {
+    return cViewStd(fadeDur, trCrossfade, dur, fadeDur, trCrossfade, waitJob);
+}
+
+// ----------------------------------------
+//
 // job creation
 
 var newJobNo = 0;
@@ -111,7 +264,7 @@ function mkJob(jno,code) {
 }
 
 var j1 =
-    mkVMProg([],
+    VMProg([],
              cJob('HalloWelt',
                   cLoadText1("<div style='width: 100%'><h1>Hallo Welt</h1><p>Hier bin ich!</p></div>",
                              GS('fix', V2(1), 'NW', V2(0.10,0.10)),
@@ -126,7 +279,7 @@ var j1 =
             );
 
 var j2 =
-    mkVMProg([],
+    VMProg([],
              cJob('Hallo',
                   cLoadText(rightHalfGeo(),
                             "<h2>Hallo Welt</h2>",
@@ -142,7 +295,7 @@ var j2 =
             );
 
 var j31 =
-    mkVMProg([],
+    VMProg([],
              cJob('EnteText',
                   cLoadText(leftHalfGeo(),
                             `<h1 class='text-center'>Eine Ente</h1><div>Genauer, eine Stockente</div>`,
@@ -152,7 +305,7 @@ var j31 =
                  )
             );
 var j3 =
-    mkVMProg([j31],
+    VMProg([j31],
              cJob('Ente1',
                   cLoadImg('/albums/EinPaarBilder/pic-00001',
                            defaultFrameGS(),
@@ -184,7 +337,7 @@ var j3 =
 
 
 var j4 =
-    mkVMProg([],
+    VMProg([],
              cJob("Ente2",
                   cLoadImgStd('/albums/EinPaarBilder/pic-0002',
                               GS('fill', V2(1.1), 'center', V2()),
@@ -194,7 +347,7 @@ var j4 =
             );
 
 var j6 =
-    mkVMProg([],
+    VMProg([],
              cJob("arizona",
                   cLoadImg('/clipboard/pic-0000',
                            defaultFrameGS(),
@@ -218,7 +371,7 @@ var j6 =
             );
 
 var j5 =
-    mkVMProg([],
+    VMProg([],
              cJob('Ende',
                   cLoadText1(`<h1 class='text-center'>The End</h1>
                      <div>This is the end, my friend.</div>`,
@@ -254,6 +407,7 @@ function restartJobs(js) {
 function ttt() {
     setAspectRatio(V2(4,3));
 
+    removeFrame(jno0);   // cleanup DOM
     resetVM();
     initVMCode(mkVMMain(
         j1,
