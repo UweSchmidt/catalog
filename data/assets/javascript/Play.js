@@ -255,13 +255,7 @@ function cViewCrossfade(dur, fadeDur, waitJob) {
 
 // ----------------------------------------
 //
-// job creation
-
-var newJobNo = 0;
-
-function mkJob(jno,code) {
-    return {jno: jno, jcode: code};
-}
+// example jobs
 
 var j1 =
     VMProg([],
@@ -388,33 +382,19 @@ var jobList = [
 //    j5,
 ];
 
-
-
-function restartJobs(js) {
-    for (let i = 0; i < js.length; ++i) {
-        // remove comments in terminateJob to cleanup on the fly
-        removeFrame(i+1);    // cleanup DOM when restartd
-        remJob(i+1);         // cleanup job data when restarted
-        addJob(i+1, js[i]);
-    }
-    for (let i = 0; i < js.length; ++i) {
-        addReady(i+1);
-    }
-}
-
 // example "main"
 
 function ttt() {
     setAspectRatio(V2(4,3));
 
     removeFrame(jno0);   // cleanup DOM
-    resetVM();
-    initVMCode(mkVMMain(
+    vm.reset();
+    vm.initCode(VMMain(
         j1,
         j3,
         j4,
     ));
-    restartVM();
+    vm.start();
 }
 
 
