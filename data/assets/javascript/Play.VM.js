@@ -149,12 +149,12 @@ function VMMain(...jobs) {
 //
 // constructors for VM instructions
 
-function mkInit(name)  {return {op: opInit, name: name,};}
+function mkInit(name)  {return {op: opInit, name: name};}
 function mkFinish()    {return {op: opFinish };};
-function mkType(type)  {return {op: opType, type: type,};}
-function mkFrame(gs)   {return {op: opFrame, gs: gs,};}
-function mkPath(path)  {return {op: opPath, path: path,};}
-function mkText(align, text) {return {op: opText, align: align, text: text,};}
+function mkType(type)  {return {op: opType, type: type};}
+function mkFrame(gs)   {return {op: opFrame, gs: gs};}
+function mkPath(path)  {return {op: opPath, path: path};}
+function mkText(align, text) {return {op: opText, align: align, text: text};}
 function mkLoadpage()  {return {op: opLoadpage };}
 function mkLoadmedia() {return {op: opLoadmedia };}
 function mkRender(gs)  {return {op: opRender, gs: gs};}
@@ -162,15 +162,15 @@ function mkRender(gs)  {return {op: opRender, gs: gs};}
 function mkFadein(dur, trans, job) {
     return {op: opFadein, dur: dur, trans: trans, job: job || 'prev'};
 }
-function mkFadeout(dur, trans) {return {op: opFadeout, dur: dur, trans: trans,};}
-function mkStatus(st)        {return {op: opStatus, status: st,};};
+function mkFadeout(dur, trans) {return {op: opFadeout, dur: dur, trans: trans};}
+function mkStatus(st)        {return {op: opStatus, status: st};};
 function mkMove(dur, gs)     {return {op: opMove, dur: dur, gs: gs};};
 function mkPlace(gs)         {return {op: opPlace, gs: gs};};
 function mkDelay(dur)        {return {op:  opDelay, dur: dur};}
 function mkWaitclick()       {return {op: opWaitclick};}
 
 // job values: 'par', 'prev', 'children' or -1, -2, ... (rel. jnos)
-function mkWait(status, job) {return {op: opWait, job: job, status: status,};};
+function mkWait(status, job) {return {op: opWait, job: job, status: status};};
 function mkSet(name, value)  {return {op: 'set', name:  name, value: value};}
 function mkErrmsg(msg)       {return {op: 'errmsg', msg: msg};}
 function mkAbort()           {return {op: 'abort'} ;}
@@ -728,7 +728,7 @@ function VM() {
         case opInit:
             ms.push(
                 mkStatus(stCreated),
-                mkSet('name', mi.name),
+                mkSet('name', mi.name || jno),
             );
             // local jobs wait until parent job is created
             if (! isTopLevelJno(jno)) {

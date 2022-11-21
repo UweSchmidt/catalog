@@ -63,7 +63,7 @@ function mkVMParser() {
     // compound parsers
     const geoSpec        = PS.app(GS, algSy, scaleSy, dirSy, shiftSy);
 
-    const instrInit      = PS.app(mkInit,  PS.wordToken0(opInit),  identSy);
+    const instrInit      = PS.app(mkInit,  PS.wordToken0(opInit),  PS.opt("", identSy));
     const instrType      = PS.app(mkType,  PS.wordToken0(opType),  typeSy);
     const instrFrame     = PS.app(mkFrame, PS.wordToken0(opFrame), geoSpec);
     const instrText      = PS.app(mkText,  PS.wordToken0(opText),  alnSy, textSy);
