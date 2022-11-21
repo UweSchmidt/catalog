@@ -397,5 +397,7 @@ function ttt() {
     vm.start();
 }
 
+// simulate user input (click or key)
+function xxx() {vm.resumeFromInput();}
 
 // ----------------------------------------

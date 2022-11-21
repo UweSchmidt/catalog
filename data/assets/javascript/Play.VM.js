@@ -144,115 +144,10 @@ function VMMain(...jobs) {
         ]
     );
 }
-/*
-function getVMProg(jno) {
-    let xs  = jnoToIntList(jno);
-    let res = vmProg;                     // access global vmProg variable
-    while ( xs.length > 0 ) {
-        const ix = xs.shift();
-        res = res.blocks[ix - 1];
-    }
-    return res;
-}
 
-function getVMCode(jno)   {return getVMProg(jno).code;}
-function getVMBlocks(jno) {return getVMProg(jno).blocks;}
-
-function getLastInstr(predicate) {
-
-    function get1(aj) {
-        const jno = aj.jno;
-        const jpc = aj.jpc;
-        const c   = getVMCode(jno);
-
-        for (let i = jpc; i >= 0; i--) {
-            const instr = c[i];
-            if ( predicate(instr) ) {
-                trc(1, `getLastInstr: jpc: ${i} instr=${PP.instr(instr)}`);
-                return instr;
-            }
-        }
-        trc(1, `getLastInstr: no instr found`);
-        return null;
-    }
-    return get1;
-}
-
-const getTextInstr   = getLastInstr((i) => {return i.op === opText;});
-const getTypeInstr   = getLastInstr((i) => {return i.op === opType;});
-const getLastGSInstr = getLastInstr((i) => {return isDefined(i.gs);});
-
-function getLastGS() {
-    const i = getLastGSInstr(curJob);
-    return i ? i.gs : defaultGS();
-}
-
-function getLastTextInstr() {
-    return getTextInstr(curJob);
-}
-
-function getLastType() {
-    return getTypeInstr(curJob).type;
-}
-
-function getGeoSpecs(jno) {
-    const code = getVMCode(jno);
-    let   gss  = [];
-    for (const i of code) {
-        if ( isDefined(i.gs) ) {
-            gss.push(i.gs);
-        }
-    }
-    trc2(`getGeoSpecs: ${jno}`, gss);
-    return gss;
-}
-*/
-// ----------------------------------------
-/*
-//
-// code edit ops
-
-// replace the code part of a job with a new instr sequence
-// without destroying the object reference of the code array
-
-function replaceVMCode(jno, code) {
-    const c = getVMCode(jno);
-    c.splice(0, c.length, ...code);
-}
-
-// reload the code for given jno and all sub jobs
-// reset local jpc and add jobs to ready queue
-// works on global vmProg variable
-
-function reloadVMCode(jno0) {
-
-    function readyJobs(prog, jno) {
-        trc(1,`readyJobs: ${jno} ${prog.code.length} ${prog.blocks.length}`);
-        addJob(jno, prog.code);
-        addReady(jno);
-
-        const subprogs = prog.blocks;
-        for (let i = 0; i < subprogs.length; i++) {
-            readyJobs(subprogs[i],
-                      mkJno(jno, i + 1),    // job # run from 1
-                     );
-        }
-    }
-
-    // set VM state to interrupted
-    const irupt = vmInterrupted;
-    vmInterrupted = true;
-
-    const prog0 = getVMProg(jno0);
-    readyJobs(prog0, jno0);
-
-    // restore VM interrupted flag
-    vmInterrupted = irupt;
-}
-*/
 // ----------------------------------------
 //
-// build instructions
+// constructors for VM instructions
 
 function mkInit(name)  {return {op: opInit, name: name,};}
 function mkFinish()    {return {op: opFinish };};
@@ -268,11 +163,11 @@ function mkFadein(dur, trans, job) {
     return {op: opFadein, dur: dur, trans: trans, job: job || 'prev'};
 }
 function mkFadeout(dur, trans) {return {op: opFadeout, dur: dur, trans: trans,};}
-function mkStatus(st) {return {op: opStatus, status: st,};};
-function mkMove(dur, gs) {return {op: opMove, dur: dur, gs: gs};};
-function mkPlace(gs) {return { op: opPlace, gs: gs};};
-function mkDelay(dur) {return { op:  opDelay, dur: dur};}
-function mkWaitclick() {return { op: opWaitclick};}
+function mkStatus(st)        {return {op: opStatus, status: st,};};
+function mkMove(dur, gs)     {return {op: opMove, dur: dur, gs: gs};};
+function mkPlace(gs)         {return {op: opPlace, gs: gs};};
+function mkDelay(dur)        {return {op:  opDelay, dur: dur};}
+function mkWaitclick()       {return {op: opWaitclick};}
 
 // job values: 'par', 'prev', 'children' or -1, -2, ... (rel. jnos)
 function mkWait(status, job) {return {op: opWait, job: job, status: status,};};
@@ -321,37 +216,6 @@ function VMJob(jno) {
              jdata   : {},
     };
 }
-/*
-function abortCurJob(aj) {
-    // jpc points behind last instr
-    // and stack of micros is empty
-    // --> nextMicroInstr will return Nothing
-
-    aj.jpc     = aj.jcode.length;
-    aj.jmicros = [];
-}
-
-function nextMicroInstr(aj) {
-    if ( isEmptyList(aj.jmicros) ) {
-        // stack of micro instructions is empty
-        // expand current instr into a sequence of
-        // micro instructions and push them
-        // onto .jmicros stack
-
-        const instr = aj.jcode[aj.jpc++];
-        if ( ! instr ) {
-            // no more instruction
-            trc(1,`(${aj.jno}, ${aj.jpc}): job finished`);
-            return Nothing;
-        }
-        trc(1, `(${aj.jno}, ${aj.jpc}): ${instr.op}`);
-
-        aj.jmicros.push(instr);
-    }
-    // .jmicros is not empty
-    return aj.jmicros.pop();
-}
-*/
 // --------------------
 // status ops
 
@@ -377,7 +241,7 @@ function mkWaitJob(jno, jstatus) {
 //
 // Jno ops
 
-const jno0 ='.0';   // howto see an empty string?
+const jno0 ='.0';   // not '', howto see an empty string?
 
 function mkJno(jno, i) {
     if ( jno === jno0 ) {jno = '';}
@@ -469,70 +333,6 @@ function jnosFromJobName(jno, n) {
 
 function isTopLevelJno(jno) {return jnoToIntList(jno).length <= 1;}
 function isRootJno    (jno) {return jno === jno0;}
-
-// ----------------------------------------
-/*
-function initVMCode(prog0) {
-    // vmInterrupted = true;    // addReady does not start jobs immediatly
-    vmProg = prog0;             // store job hierachy in global VM variable
-    reloadVMCode(jno0);         // flatten nested jobs and init jobs
-}
-
-function restartVM() {
-    vmInterrupted = false;
-    run();
-}
-
-// machine state: global
-
-var vmInterrupted; // :: Bool
-var vmRunning;     // :: Bool
-var vmStepCnt;     // :: Int
-var curJob;        // :: VMJob
-
-// the hierachically structured job numbers
-// type Jno    = [Nat]
-// type Jpc    = Nat
-// type Jcode  = [Instr]
-
-// the hierachically organized set of jobs
-// type VMCode = ([VMCode], Jcode)
-
-// all components of a job
-// type VMJob  = (Jno, Jpc, Set Status, Jcode, Jdata)
-
-var vmProg;        // :: VMCode
-var jobsAll;       // :: Map Jno VMJob      // the table of all jobs
-
-// job sync map: every job has an associated table
-// with the job stati to be reached to wakeup other jobs
-var jobsWaiting;   // :: Map Jno (Map Status (Set Jno))
-
-// the jobs waiting for IO, e.g. clicks to continue
-var jobsInput;     // :: Queue Jno
-
-// the jobs ready to be executed
-var jobsReady;     // :: Queue Jno
-
-// the jobs running currently in a Javascript asyn functions
-// and will be terminated and put back into the ready queue by a callback
-var jobsRunning;   // :: Set Jno
-
-// initialize al VM variables
-function resetVM() {
-    vmInterrupted = true;
-    vmRunning     = false;
-    vmStepCnt     = 0;
-    curJob   = null;
-    jobsAll       = new Map();  // Map Jno VMJob
-    jobsWaiting   = new Map();  // Map Jno (Map Status (Set Jno))
-    jobsInput     = [];         // Queue Jno
-    jobsReady     = [];         // Queue Jno
-    jobsRunning   = new Set();  // Set Jno
-}
-
-resetVM();
-*/
 
 // ----------------------------------------
 // the VM constructor
@@ -1380,640 +1180,11 @@ function VM() {
 
 // build the VM object
 
-let vm = VM();
+let vm = VM();   // this object contains the VM
 
 // ----------------------------------------
-// ----------------------------------------
-// ----------------------------------------
-
-// --------------------
-// jobs:
-/*
-function addJob(jno, jcode) {
-    const aj = VMJob(jno);  // create new job
-    aj.jcode = jcode;             // and set jcode array
-    jobsAll.set(jno, aj);         // insert job into job table
-}
-
-function remJob(jno) {
-    jobsAll.delete(jno);
-};
-
-// TODO never called
-
-function replaceCode(jno, jcode) {
-    // if job isn't already there it is created
-    if ( ! jobsAll.has(jno) ) {
-        addJob(jno, jcode);
-    }
-    else {
-        const aj = jobsAll.get(jno);
-        aj.jcode.splice(0, aj.jcode.length, ...code);
-    }
-}
-
-function noMoreJobs() {
-    return ! readyJobs() && ! runningJobs() && ! waitingForInputJobs();
-}
-
-function restartJob(jno, jcode) {
-    removeFrame(jno);
-    replaceVMCode(jno, jcode);
-    reloadVMCode(jno);
-    restartVM();
-}
-
-function restartProg(jno, jprog) {
-
-    // whole VM code is changed, new init
-    if ( jno === jno0 ) {
-        resetVM();
-        initVMCode(jprog);
-        restartVM();
-    }
-                                  // a single job is replaced
-    const p  = getVMProg(jno);    // get the program block
-    p.code   = jprog.code;        // update code
-    p.blocks = jprog.blocks;      // replace local jobs
-
-    removeFrame(jno);             // remove DOM stuff for job and subjobs
-    reloadVMCode(jno);            // reload and reinit job and subjobs
-    restartVM();                  // push the red button
-}
-*/
-// --------------------
-// jobsRunning:
-/*
-function addAsyncRunning(jno) {
-    trc(1, `addAsyncRunning: add to async running jobs: ${jno}`);
-    jobsRunning.add(jno);
-}
-function remAsyncRunning(jno) {
-    jobsRunning.delete(jno);
-}
-function runningJobs() {
-    return jobsRunning.size > 0;
-}
-*/
-// --------------------
-// jobsReady:
-/*
-function addReady(...jnos) {
-    // in restart after code edit
-    // jno maybe already in queue
-
-    for (const jno of jnos) {
-        if ( ! jobsReady.includes(jno) ) {
-            jobsReady.push(jno);           // add at end of job queue
-            trc(1, `addReady: ${jno}`);
-        }
-    }
-    run();                             // new ready jobs, (re)start VM
-}
-
-function nextReady() {
-    const jno = jobsReady.shift();      // get and rem 1. elem of job queue
-    return jobsAll.get(jno);
-}
-
-function readyJobs() {
-    return jobsReady.length > 0;
-}
-*/
-// --------------------
-/*
-// jobsWaiting
 //
-// for lookup jobsWaiting the WaitJob objects must be serialized
-
-function addWaiting(jno, waitFor) {
-    const jno1    = waitFor.jno;
-    const status1 = waitFor.jstatus;
-
-    const stmap   = jobsWaiting.get(jno1) || new Map();
-    const jnoset  = stmap.get(status1)  || new Set();
-    const stmap1  = stmap.set(status1, jnoset.add(jno));
-    jobsWaiting.set(jno1, stmap1);
-    trc(1, `addWaiting: job ${jno} waits for (${jno1},${status1})`);
-}
-
-function getWaiting(waitFor) {
-    const jno1    = waitFor.jno;
-    const status1 = waitFor.jstatus;
-    const res     = [];
-
-    const stmap   = jobsWaiting.get(jno1);    // lookup waiting jobs for jno1
-    if ( stmap ) {
-        const jnos = stmap.get(status1);      // lookup waiting jobs for status1
-        if ( jnos ) {                         // jobs found
-            // trc(1,`wakeupWaiting: (${jno1},${status1})`);
-            stmap.delete(status1);            // cleanup map of waiting jobs
-            if ( stmap.size === 0) {
-                jobsWaiting.delete(jno1);
-            }
-            jnos.forEach((jno) => {           // collect all jobs
-                // trc(1,`wakup: job ${jno}`);   // waiting for jno1 reaching
-                res.push(jno);                // status1
-            });
-        }
-    }
-    return res;
-}
-
-function wakeupWaiting(waitFor) {
-    // all jobs are added at once before execution continues
-    const res = getWaiting(waitFor);
-    if ( res.length > 0 ) {
-        trc2(`wakeupWaiting: (${waitFor.jno},${waitFor.jstatus}):`, res);
-        addReady(...res);
-    }
-}
-
-function getAllWaiting(jno1) {
-    const res   = [];
-    const stmap = jobsWaiting.get(jno1);
-    if ( stmap ) {
-        let sts = [];
-        for (const s of stmap.keys()) {
-            sts.push(s);
-        }
-        for (const s1 of sts) {
-            res.push(...getWaiting(mkWaitJob(jno1, s1)));
-        }
-    }
-    return res;
-}
-
-function wakeupAllWaiting(jno) {
-    // all jobs are added at once before execution continues
-    const res = getAllWaiting(jno);
-    if ( res.length > 0 ) {
-        trc2(`wakeupAllWaiting: (${jno},*):`, res);
-        addReady(...res);
-    }
-}
-
-function waitingJobs() {
-    return jobsWaiting.size > 0;
-}
-*/
-// --------------------
-/*
-function addInputJob(jno) {
-    trc(1,`addInputJob: job ${jno} inserted into waiting for click queue`);
-    jobsInput.push(jno);
-}
-
-function wakeupInputJobs() {
-    const jobs = [...jobsInput];
-    jobsInput.splice(0, jobs.length);   // don't build a new array object
-
-    trc(1, `wakeupInput: ${JSON.stringify(jobs)} ${JSON.stringify(jobsInput)}`);
-    addReady(...jobs);                  // only change the elements
-}
-
-function waitingForInputJobs() {
-    return jobsInput.length > 0;
-}
-
-// --------------------
-
-// resume from interrupted state
-
-function resumeFromInput() {
-    vmInterrupted = false;
-    wakeupInputJobs();
-}
-
-function run() {
-    if ( vmRunning || vmInterrupted ) {
-        // trc(1, "run: VM already running");
-        return;
-    }
-    else {
-        trc(1, "run: (re)start VM");
-        run1();
-    }
-}
-
-function run1() {
-    vmRunning = true;
-    do {
-        // trc(1, `${vmStepCnt}. step started`);
-        res = step1();
-        if ( res === 'step') {
-            // trc(1, `${vmStepCnt}. step finished`);
-        }
-        vmStepCnt++;
-    }
-    while ( res === 'step' );
-
-    vmRunning = false;
-    trc(1, `${vmStepCnt - 1}. step: res = ${res}`);
-}
-
-function step1() {
-    if ( readyJobs() ) {
-        let aj = nextReady();
-        let mi = nextMicroInstr(aj);
-
-        // trc(1, `(${aj.jno}, ${aj.jpc}): mi: ${JSON.stringify(mi)}`);
-        if ( ! isNothing(mi) ) {
-            execMicroInstr(mi, aj);
-        }                        // else job is finished
-        return 'step';
-    }
-    else if ( runningJobs() ) {
-        return 'running';
-    }
-    else if ( waitingForInputJobs() ){
-        return 'waiting for input';
-    }
-    else if ( waitingJobs() ){
-        return 'blocked';
-    }
-    else {
-        return 'terminated';
-    }
-}
-
-function execMicroInstr(mi, aj) {
-    const jno = aj.jno;
-    const op  = mi.op;
-    const ms  = aj.jmicros;
-
-    trc(1, `(${jno}, ${aj.jpc}): ${JSON.stringify(mi)} ${JSON.stringify(ms)}}`);
-
-    switch ( op ) {
-
-    // --------------------
-    // micro instructions
-
-    case 'errmsg':
-        trc(1, mi.msg);
-        statusBar.show(mi.msg);
-        break;
-
-    case 'exit':
-        abortCurJob(aj);
-        break;
-
-    case 'fadeoutcut':
-        fadeinCut(aj);
-        break;
-
-    case 'place1':
-        place1(aj, mi.gs);
-        break;
-
-    case 'processpage':
-        processPage(aj);
-        break;
-
-    case 'render1':
-        render1(aj, mi.gs);
-        break;
-
-    case 'set':
-        aj.jdata[mi.name] = mi.value;
-        break;
-
-    case opStatus:
-        setStatus(aj, mi.status);
-        break;
-
-        // --------------------
-        // basic async operations (don't exec addReady)
-
-    case opDelay:
-        sleep(aj, mi.dur);
-        return;
-
-    case 'fadeincut':
-        fadeinCut(aj);
-        return;
-
-    case 'fadeinanim':
-        fadeinAnim(aj, mi.dur);
-        return;
-
-    case 'fadeoutanim':
-        fadeoutAnim(aj, mi.dur);
-        return;
-
-    case 'loadpage1':
-        loadPage1(aj);
-        return;
-
-    case 'loadimage':
-        loadImage(aj);
-        return;
-
-    case 'move1':
-        move1(aj, mi.dur, mi.gs);
-        return;
-
-    case 'wait1':
-        const jno1 = mi.jno;
-        const st1  = mi.status;
-
-        // trc(1, `wait: ${jno} requires (${jno1}, ${st1})`);
-
-        const aj1  = jobsAll.get(jno1);
-        if ( ! hasStatus(aj1, st1) ) {
-            // job jno1 is too slow
-            // put job into wait queue
-            // and setup syncronizing
-
-            trc(1, `wait: ${jno} waits for job ${jno1} reaching status=${st1}`);
-            addWaiting(jno, mkWaitJob(jno1, st1));
-            return;                                 // async
-        }
-
-        // job j1 already has reached st1
-        // job not blocked, instr becomes a noop
-        trc(1, `wait: job ${jno1} already has status ${st1}, continue`);
-        break;                                     // not async
-
-    case 'waitinput':
-        curJob   = aj;      // store active job
-        vmInterrupted = true;    // interrupt VM
-        vmRunning     = false;
-        addInputJob(jno);        // mark job as waiting for input
-        return;
-
-    // --------------------
-    // macro instructions
-
-    case 'terminate':
-        ms.push(
-            mkExit(),
-            mkStatus(stFinished),
-        );
-        break;
-
-    case 'abort':
-        ms.push(
-            mkTerminate(),
-            mkStatus(stAborted),
-            mkErrmsg(`job ${jno} is aborted`),
-        );
-        break;
-
-    case opFadein:
-        const syncJob = mi.job;
-
-        // if job to be synced with is set to 'nowait'
-        // no syncronisation is done,
-        // so fadein can start immediately
-
-        function mkFadeWait(st) {
-            if ( syncJob !== 'nowait' ) {
-                ms.push(mkWait(st, syncJob));
-            }
-        }
-
-        ms.push(mkStatus(stVisible));
-        if (mi.trans === trCut || ! isPositive(mi.dur)) {
-            ms.push(mkFadeinCut());
-            mkFadeWait(stShown);
-        }
-        else if (mi.trans === trFadein) {
-            ms.push(mkFadeinAnim(mi.dur));
-            mkFadeWait(stHidden);
-        }
-        else if (mi.trans === trCrossfade) {
-            ms.push(mkFadeinAnim(mi.dur));
-            mkFadeWait(stShown);
-        }
-        break;
-
-    case opFadeout:
-        ms.push(mkStatus(stHidden));
-        if (mi.trans === trCut || ! isPositive(mi.dur)) {
-            ms.push(mkFadeoutCut());
-        }
-        else if (mi.trans === trFadeout || mi.trans === trCrossfade) {
-            ms.push(mkFadeoutAnim(mi.dur));
-        }
-        ms.push(mkStatus(stShown));
-        break;
-
-    case opFinish:
-        // const nb = getVMBlocks(jno).length;
-        // cleanup
-        ms.push(mkTerminate());
-
-        // wait for children to be finished
-        ms.push(mkWait(stFinished, 'children'));
-
-        // for (i = nb; i > 0; i--) {
-        //    ms.push(mkWait(stFinished, mkJno(jno, i)));
-        // }
-        // set status, so no job will wait for any status to be reached
-        ms.push(mkStatus(stFinished));
-        break;
-
-    case opFrame:
-        ms.push(mkSet('frameGS', mi.gs));
-        break;
-
-    case opInit:
-        ms.push(
-            mkStatus(stCreated),
-            mkSet('name', mi.name),
-        );
-        // local jobs wait until parent job is created
-        if (! isTopLevelJno(jno)) {
-            ms.push(mkWait(stCreated, 'par'));
-        }
-        break;
-
-    case opLoadmedia:
-        const ty = aj.jdata.type;
-        switch ( ty ) {
-        case 'img':
-            ms.push(
-                mkStatus(stReadymedia),
-                mkLoadimage(),
-            );
-            break;
-
-        case 'text':
-            ms.push(
-                mkStatus(stReadymedia),
-            );
-            break;
-
-        default:
-            ms.push(
-                mkAbort(),
-                mkErrmsg(`loadMedia: wrong type ${ty}`),
-            );
-            break;
-        }
-        break;
-
-    case opLoadpage:
-        ms.push(
-            mkLoadpage1CB(),
-            mkLoadpage1(),   // async (HTTP request)
-        );
-        break;
-
-    case 'loadpageCallback':
-        const jdata = aj.jdata;
-        if ( jdata.page ) {
-            ms.push(
-                mkStatus(stReadypage),
-                mkProcesspage(),
-            );
-        }
-        else {
-            ms.push(
-                mkAbort(),
-                mkErrmsg(d.callbackError),
-            );
-        }
-        break;
-
-    case opMove:
-        ms.push(
-            mkStatus(stMoved),
-            mkMove1(mi.dur, mi.gs),
-            mkSet('lastGSInstr', mi),
-        );
-        break;
-
-    case opPath:
-        ms.push(mkSet('path', mi.path));
-        break;
-
-    case opPlace:
-        ms.push(
-            mkStatus(stMoved),
-            mkPlace1(mi.gs),
-            mkSet('lastGSInstr', mi),
-        );
-        break;
-
-    case opRender:
-        ms.push(
-            mkStatus(stRendered),
-            mkRender1(mi.gs)
-        );
-        // all jobs, except '.0', must wait for parent job
-        // to create a frame (DOM div element) as the parent
-        // element for this frame
-        if ( ! isRootJno(jno) ) {
-            ms.push(mkWait(stRendered, 'par'));
-        }
-        ms.push(mkSet('lastGSInstr', mi));
-        break;
-
-    case opText:
-        ms.push(
-            mkStatus(stReadymedia),
-            mkStatus(stReadypage),
-            mkSet('lastTextInstr', mi),
-        );
-        break;
-
-    case opType:
-        ms.push(mkSet('type', mi.type));
-        break;
-
-    case opWait:
-        // symbolic jnos --> real jnos
-        const jnos = jnosFromJobName(jno, mi.job);
-        for (const jno1 of jnos) {
-            ms.push(mkWait1(mi.status, jno1));
-        }
-        break;
-
-    case opWaitclick:
-        ms.push(
-            mkWaitInput(),
-            mkErrmsg('waiting for input'),
-        );
-        break;
-
-    default:
-        trc(1,`execMicroInstr: op=${op} not yet implemented !!!`);
-        break;
-    }
-    addReady(jno);
-}
-
-// --------------------
-
-function sleep(aj, dur) {
-    const jno = aj.jno;
-
-    function wakeup () {
-        trc(1, `sleep: wakeup (${jno}, ${aj.jpc})`);
-        termAsyncInstr(aj);
-    };
-
-    addAsyncRunning(jno);
-    setTimeout(wakeup, dur * 1000); // sec -> msec
-}
-
-// --------------------
-
-// add status to status set and wakeup waiting for status
-
-function setStatus(aj, st) {
-    const jno = aj.jno;
-
-    addStatus(aj, st);
-    trc(1, `setStatus: job=${jno} add ${st}`);
-
-    // wakeup jobs waiting for this job to reach status
-    if ( st === stFinished ) {
-        wakeupAllWaiting(jno);
-    }
-    else {
-        wakeupWaiting(mkWaitJob(jno, st));
-    }
-}
-
-// --------------------
-
-function abortJob(aj) {
-    trc(1, `abortJob: job abborted: ${aj.jno}`);
-    addStatus(aj, stAborted);
-    terminateJob(aj);
-}
-
-function terminateJob(aj) {
-    const jno = aj.jno;
-
-    trc(1, `terminateJob: job terminated, delete job: ${jno}`);
-
-    // // just for debugging
-    // removeFrame(jno);
-    // remJob(jno);
-
-    addStatus(aj, stFinished);
-    wakeupAllWaiting(jno);
-    addReady(jno);
-
-}
-
-// --------------------
-
-function termAsyncInstr(aj) {
-    const jno = aj.jno;
-
-    trc(1, `termAsyncInstr: instr terminated: (${jno}, ${aj.jpc})`);
-
-    // move job from async set to ready queue
-    remAsyncRunning(jno);
-    addReady(jno);
-}
-*/
-// --------------------
+// server requests
 
 function loadPage1(aj) {
     const jdata = aj.jdata;
@@ -2093,7 +1264,9 @@ function loadImage(aj) {
     return;
 }
 
-// --------------------
+// ----------------------------------------
+//
+// DOM manipulation
 
 function newFrame(id, go, css) {
     const s1 = cssAbsGeo(go);
@@ -2406,7 +1579,7 @@ function removeFrame(jno) {
 
 // ----------------------------------------
 //
-// code selection and modification
+// code modification ops
 
 // list of geo specs in a job
 
@@ -2420,8 +1593,8 @@ function instrGS(code) {
     return gss;
 }
 
-// this is a destructive op
-// the new scale value is inserted into the existing GS object
+// these are destructive op
+// the existing GS objects are modified, no new GS are constructed
 
 function algGS(alg) {
     function go(gs) {
@@ -2430,6 +1603,7 @@ function algGS(alg) {
     }
     return go;
 }
+
 function dirGS(dir) {
     function go(gs) {
         gs.dir = dir;
@@ -2437,6 +1611,7 @@ function dirGS(dir) {
     }
     return go;
 }
+
 function scaleGS(sc) {
     function go(gs) {
         gs.scale = mulV2(gs.scale, sc);
@@ -2444,6 +1619,7 @@ function scaleGS(sc) {
     }
     return go;
 }
+
 function shiftGS(sh) {
     function go(gs) {
         gs.shift = addV2(gs.shift, sh);
