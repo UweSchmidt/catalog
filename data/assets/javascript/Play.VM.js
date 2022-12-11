@@ -187,7 +187,7 @@ function mkLoadpage1()       {return {op: 'loadpage1'};}
 function mkLoadpage1CB()     {return {op: 'loadpageCallback'};}
 function mkProcesspage()     {return {op: 'processpage'};}
 function mkLoadimage()       {return {op: 'loadimage'};}
-function mkWaitInput()       {return {op: 'waitinput'};}
+function mkWaitOnClick()       {return {op: 'waitonclick'};}
 function mkWait1(status,jno) {return {op: 'wait1', jno: jno, status: status};};
 
 // --------------------
@@ -206,6 +206,11 @@ function noop() {}
 // jmicros: stack of micro instructions to be executed
 // jcode:   array of instructions to be executed
 // jdata:   job local data store
+// jterm:   handler for premature termination of async instructions,
+//          delay and animation instructions can be terminated
+//          by input commands and set this field,
+//          http requests (json and image requests) can finish in background
+//          without conflicts with stopped or advanced slideshows
 
 function VMJob(jno) {
     return { jno     : jno,
@@ -214,6 +219,7 @@ function VMJob(jno) {
              jmicros : [],
              jcode   : [],
              jdata   : {},
+             jterm   : null,
     };
 }
 // --------------------
@@ -371,7 +377,7 @@ function VM() {
         setStatus: setStatus,
         abortJob: abortJob,
         terminateJob: terminateJob,
-        termAsyncInstr: termAsyncInstr,
+        finishAsyncInstr: finishAsyncInstr,
 
         // ready jobs
         addReady:  addReady,
@@ -379,9 +385,10 @@ function VM() {
         readyJobs: readyJobs,
 
         // async jobs
-        addAsyncRunning: addAsyncRunning,
-        remAsyncRunning: remAsyncRunning,
-        runningJobs:     runningJobs,
+        addAsyncRunning:  addAsyncRunning,
+        remAsyncRunning:  remAsyncRunning,
+        termAsyncRunning: termAsyncRunning,
+        runningJobs:      runningJobs,
 
         // job management
         addJob:     addJob,
@@ -642,14 +649,21 @@ function VM() {
             trc(1, `wait: job ${jno1} already has status ${st1}, continue`);
             break;                                     // not async
 
-        case 'waitinput':
+        case 'waitonclick':
+            // semantics: wait an unlimited time
+            // wakeup by termAsyncRunning
+            sleep(aj, 'unlimited');
+            return;
+
+            /*  TODO cleanup
             vm.curJob      = aj;      // store active job
             vm.interrupted = true;    // interrupt VM
             vm.running     = false;
             addInputJob(jno);         // mark job as waiting for input
             return;
+            */
 
-            // --------------------
+            // ----------------------------------------
             // macro instructions
 
         case 'terminate':
@@ -839,8 +853,8 @@ function VM() {
 
         case opWaitclick:
             ms.push(
-                mkWaitInput(),
-                mkErrmsg('waiting for input'),
+                mkWaitOnClick(),
+                mkErrmsg('wait for user input'),
             );
             break;
 
@@ -855,14 +869,23 @@ function VM() {
 
     function sleep(aj, dur) {
         const jno = aj.jno;
+        let timeout = null;
 
         function wakeup () {
             trc(1, `sleep: wakeup (${jno}, ${aj.jpc})`);
-            termAsyncInstr(aj);
+
+            timeout && clearTimeout(timeout);
+            finishAsyncInstr(aj);
         };
 
+        // wait a given time
+        // or wait unlimited
+        if ( isPositive(dur) ) {
+            timeout = setTimeout(wakeup, dur * 1000);  // sec -> msec
+        }
+        aj.jterm = wakeup;
+
         addAsyncRunning(jno);
-        setTimeout(wakeup, dur * 1000); // sec -> msec
     }
 
     // --------------------
@@ -906,10 +929,15 @@ function VM() {
 
     // --------------------
 
-    function termAsyncInstr(aj) {
+    function finishAsyncInstr(aj) {
         const jno = aj.jno;
 
-        trc(1, `termAsyncInstr: instr terminated: (${jno}, ${aj.jpc})`);
+        trc(1, `finishAsyncInstr: instr terminated: (${jno}, ${aj.jpc})`);
+
+        // remove handler for premature termination
+        // of async instruction (timeout or animation)
+        // These maybe set before starting async instr
+        aj.jterm = null;
 
         // move job from async set to ready queue
         remAsyncRunning(jno);
@@ -942,9 +970,39 @@ function VM() {
         trc(1, `addAsyncRunning: add to async running jobs: ${jno}`);
         vm.jobsRunning.add(jno);
     }
+
     function remAsyncRunning(jno) {
         vm.jobsRunning.delete(jno);
     }
+
+    // terminate all those async running jobs,
+    // which have set a termination handler in .jterm field
+
+    function termAsyncRunning() {
+        let jbs = [];
+        vm.jobsRunning.forEach((jno) => {
+            const aj1 = vm.jobsAll.get(jno);
+            if ( aj1.jterm ) {
+                jbs.push(aj1);
+            }
+        });
+        if ( jbs.length > 0 ) {
+            // interrupt VM and
+            // run all .jterm finalizer actions
+            // then restart VM
+            const intr = vm.interrupted;
+            vm.interrupted = true;     // call of run() in addReady becomes noop
+
+            for (const aj of jbs) {
+                trc(1, `termAsyncRunning: job ${aj.jno} synchonized`);
+                aj.jterm();
+            }
+
+            vm.interrupted = intr;
+            run();
+        }
+    }
+
     function runningJobs() {
         return vm.jobsRunning.size > 0;
     }
@@ -1198,13 +1256,13 @@ function loadPage1(aj) {
 
     function processRes(page) {
         jdata.page = page;
-        vm.termAsyncInstr(aj);
+        vm.finishAsyncInstr(aj);
     }
 
     function processErr(errno, url, msg) {
         const txt = showErrText(errno, url, msg);
         jdata.callbackError = txt;
-        vm.termAsyncInstr(aj);
+        vm.finishAsyncInstr(aj);
     }
 
     vm.addAsyncRunning(jno);
@@ -1256,7 +1314,7 @@ function loadImage(aj) {
     jdata.imgCache.onload = function () {
         const img       = jdata.imgCache;
         jdata.imgResGeo = V2(img.naturalWidth, img.naturalHeight);
-        vm.termAsyncInstr(aj);
+        vm.finishAsyncInstr(aj);
     };
 
     vm.addAsyncRunning(jno);
@@ -1314,6 +1372,7 @@ function move1(aj, dur, gs) {
     const jdata = aj.jdata;
     const fid   = jnoToFrameId(jno);
     const cssId = mkCssId(jno, cssAnimCnt++);
+    const cssNm = `kf-${cssId}`;
     const imgId = mkImgId(fid);
 
     const ms0   = cssAbsGeo(jdata.go);    // transition start
@@ -1327,7 +1386,7 @@ function move1(aj, dur, gs) {
 `;
     const cssMoveClass = `
 img.${cssId}, div.${cssId} {
-  animation-name:            kf-${cssId};
+  animation-name:            ${cssNm};
   animation-duration:        ${dur}s;
   animation-delay:           0s;
   animation-direction:       normal;
@@ -1343,20 +1402,25 @@ img.${cssId}, div.${cssId} {
     const i = getElem(imgId);
 
     function animEnd(ev) {
-        trc(1, `animEnd: ${ev.animationName} animation has finished`);
+        trc(1, `animEnd: ${cssNm} animation has finished`);
 
-        ev.stopPropagation();
+        // ev only set when animationend is fired (not premature term)
+        ev && ev.stopPropagation();
         i.classList.remove(cssId);
         i.removeEventListener("animationend", animEnd);
 
         setCSS(imgId, ms1);
         // // for debugging
         // c.remove();
-        vm.termAsyncInstr(aj);
+        vm.finishAsyncInstr(aj);
     }
 
     trc2(`move: ${jno} dur=${dur}`, gs);
 
+    // set handler for premature termination of async instr
+    aj.jterm = animEnd;
+
+    // set handler for regular termination of async instr
     i.addEventListener('animationend', animEnd);
     i.classList.add(cssId);
     vm.addAsyncRunning(jno);
@@ -1541,7 +1605,9 @@ function fadeAnim(frameId, aj, dur, fade) { // fadein/fadeout
 
     function handleFadeEnd(ev) {
         trc(1,`handleFadeEnd: ${frameId}, ${dur}, ${fade}`);
-        ev.stopPropagation();
+
+        // ev only set when animationend is fired (not premature term)
+        ev && ev.stopPropagation();
         e.classList.remove(cls);
         e.removeEventListener('animationend', handleFadeEnd);
         if ( fade === 'fadeout' ) {
@@ -1549,10 +1615,14 @@ function fadeAnim(frameId, aj, dur, fade) { // fadein/fadeout
         } else {
             fadeinCut(aj);
         }
-        vm.termAsyncInstr(aj);
+        vm.finishAsyncInstr(aj);
     }
 
     fadeCut(jno, 'visible', opacity);
+
+    // set handler for premature termination of async instr
+    aj.jterm = handleFadeEnd;
+
     e.addEventListener('animationend', handleFadeEnd);
     e.classList.add(cls);
 
