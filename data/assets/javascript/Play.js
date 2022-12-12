@@ -266,7 +266,7 @@ var j1 =
                   cViewStd0(1.0, trFadein,
                             3.0, trCrossfade,
                             [...cView('click'),
-                             ...cView(3.0),
+                             // ...cView(3.0),
                             ],
                            )
                  )
@@ -308,14 +308,14 @@ var j3 =
                   cViewStd0(5.0, trCrossfade,
                             5.0, trCrossfade,
                             [// ...cView('click'),
-                             //...cMove(10.0,GS('fill',V2(2),'center',V2())),
+                             ...cMove(10.0,GS('fill',V2(2),'center',V2())),
                              ...cView('click'),
-                             ...cView(5.0),
-                             ...cView('click'),
+                             // ...cView(5.0),
+                             // ...cView('click'),
                              ...cMove(0.0,GS('fitInto',V2(0.5),'center',V2())),
                              ...cView('click'),
-                             ...cView(5.0),
-                                ...cMove(0,GS('fill',V2(2),'center',V2())),
+                             // ...cView(5.0),
+                             ...cMove(0,GS('fill',V2(2),'center',V2())),
                              // ...cView('click'),
                              ...cView(5.0),
                              ...cMove(5.0,GS('fix',V2(1),'center',V2())),
@@ -397,7 +397,12 @@ function ttt() {
     vm.start();
 }
 
-// simulate user input (click or key)
-function xxx() {vm.resumeFromInput();}
+// simulate user click event
+function xxx() {vm.termAsyncRunning();}
+
+// stop VM
+function yyy() { vm.interrupted = true;
+                 vm.termAsyncRunning();
+               }
 
 // ----------------------------------------

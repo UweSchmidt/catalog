@@ -363,8 +363,9 @@ function VM() {
         getCode:   getCode,
         getBlocks: getBlocks,
 
-        // start and restart
+        // start, stop and restart
         start:     start,
+        stop:      stop,
         restartJob:  restartJob,
         restartProg: restartProg,
 
@@ -404,10 +405,10 @@ function VM() {
         waitingJobs: waitingJobs,
 
         // input jobs
-        addInputJob:         addInputJob,
-        wakeupInputJobs:     wakeupInputJobs,
-        waitingForInputJobs: waitingForInputJobs,
-        resumeFromInput:     resumeFromInput,
+        // addInputJob:         addInputJob,
+        // wakeupInputJobs:     wakeupInputJobs,
+        // waitingForInputJobs: waitingForInputJobs,
+        // resumeFromInput:     resumeFromInput,
     };
 
     // reset all fields except the program
@@ -421,7 +422,7 @@ function VM() {
         vm.curJob        = null;
         vm.jobsAll       = new Map();  // Map Jno VMJob
         vm.jobsWaiting   = new Map();  // Map Jno (Map Status (Set Jno))
-        vm.jobsInput     = [];         // Queue Jno
+        // vm.jobsInput     = [];         // Queue Jno
         vm.jobsReady     = [];         // Queue Jno
         vm.jobsRunning   = new Set();  // Set Jno
     }
@@ -469,6 +470,11 @@ function VM() {
         run();
     }
 
+    function stop() {
+        vm.interrupted = true;
+        vm.termAsyncRunning();
+    }
+
     function run() {
         if ( vm.running || vm.interrupted ) {
             // trc(1, "run: VM already running");
@@ -510,9 +516,11 @@ function VM() {
         else if ( runningJobs() ) {
             return 'running';
         }
+        /* TODO
         else if ( waitingForInputJobs() ){
             return 'waiting for input';
         }
+        */
         else if ( waitingJobs() ){
             return 'blocked';
         }
@@ -959,8 +967,8 @@ function VM() {
 
     function noMoreJobs() {
         return ! readyJobs()
-            && ! runningJobs()
-            && ! waitingForInputJobs();
+            && ! runningJobs();
+            // TODO && ! waitingForInputJobs();
     }
 
     // --------------------
@@ -1107,7 +1115,7 @@ function VM() {
     }
 
     // --------------------
-
+    /*
     function addInputJob(jno) {
         trc(1,`addInputJob: job ${jno} inserted into waiting for click queue`);
         vm.jobsInput.push(jno);
@@ -1130,7 +1138,7 @@ function VM() {
         vm.interrupted = false;
         wakeupInputJobs();
     }
-
+    */
     // --------------------
     // code access (for code edit)
 
