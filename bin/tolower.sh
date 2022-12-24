@@ -2,7 +2,7 @@
 
 # set -x
 
-for i in $(find . -maxdepth 1 -name "*.NEF" -or -name "*.XMP" -or -name "*.xmp" -or -name "*.dop" -or -name "*.JPG" -or -name "*.jpg" -or -name "*.JPEG" -or -name "*.jpeg" -or -name "*.MP4" -or -name "*.MOV")
+for i in $(find . -maxdepth 1 -name "*.NEF" -or -name "*.XMP" -or -name "*.xmp" -or -name "*.dop" -or -name "*.JPG" -or -name "*.jpg" -or -name "*.JPEG" -or -name "*.jpeg" -or -name "*.MP4" -or -name "*.MOV" -or -name "*.HEIC")
 do
     if [[ -f "$i" ]]
     then
