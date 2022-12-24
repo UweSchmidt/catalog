@@ -1048,6 +1048,8 @@ normMetaData ty md
                   -- (no conversion to .jpg)
 
   | otherwise   = md
+                  & remqt
+
   where
     -- overwrite dst
     cpy src dst md' = md' & metaTextAt dst .~ (md' ^. metaTextAt src)
@@ -1057,6 +1059,14 @@ normMetaData ty md
 
     -- animation iterations metadata, used for checking wackelgif
     anim = md ^. metaTextAt gifAnimationIterations
+
+    -- rem empty quicktime create date
+    -- (QuickTime:CreateDate 0000:00:00 00:00:00 is useless)
+    remqt md' = md' & metaTextAt quickTimeCreateDate %~ notEmptyDate
+      where
+        notEmptyDate d
+          | "0000" `T.isPrefixOf` d = mempty
+          | otherwise               = d
 
 -- --------------------
 
