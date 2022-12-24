@@ -136,6 +136,7 @@ module Data.MetaData
   , fileFileSize
   , fileImgType
   , fileMimeType
+  , fileFileModifyDate
   , fileName
   , fileRefImg
   , fileRefJpg
@@ -343,6 +344,7 @@ data MetaKey
   | File'FileSize
   | File'ImgType
   | File'MimeType
+  | File'FileModifyDate
   | File'Name
   | File'RefImg
   | File'RefJpg
@@ -545,6 +547,7 @@ fileCheckSum
   , fileFileSize
   , fileImgType
   , fileMimeType
+  , fileFileModifyDate
   , fileName
   , fileRefImg
   , fileRefJpg
@@ -559,6 +562,7 @@ keysAttrFile@[
   , fileFileSize
   , fileImgType
   , fileMimeType
+  , fileFileModifyDate
   , fileName
   , fileRefImg
   , fileRefJpg
@@ -1174,6 +1178,7 @@ lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
         [ compositeSubSecCreateDate
         , exifCreateDate
         , quickTimeCreateDate
+        , fileFileModifyDate
         ] mt
 
 -- access image geometry and orientation
