@@ -45,6 +45,7 @@ import Data.MetaData
        , theImgEXIFUpdate
        , normMetaData
        , splitMetaData
+       , cleanupOutdatedMeta
        )
 import Data.Prim
        ( ObjId
@@ -53,6 +54,7 @@ import Data.Prim
        , (^.)
        , (.~)
        , (&)
+       , to
        , substPathName
        , msgPath
        , tailPath
@@ -110,13 +112,14 @@ setPartMD imgPath i acc pt = do
                    .
                    normMetaData ty              -- normalize meta keys
                    .
-                   (<> pt ^. theImgMeta)
+                   ( <> old'md )
                    <$>
                    getExifMetaData partPath
 
   adjustPartMetaData (const md'pt) (ImgRef i tn)
   return (md'i <> acc)
   where
+    old'md   = pt ^. theImgMeta . to cleanupOutdatedMeta
     ty       = pt ^. theMimeType
     tn       = pt ^. theImgName
     partPath = substPathName tn . tailPath $ imgPath
@@ -135,7 +138,7 @@ setMD :: ( EffIStore   r   -- any effects missing?
       -> ImgParts
       -> MetaData
       -> Sem r ()
-setMD i ps md'old = do
+setMD i ps md0 = do
   ip  <- objid2path i
   ts  <- whatTimeIsIt
 
@@ -148,5 +151,7 @@ setMD i ps md'old = do
   -- set new metadata
   adjustMetaData (const md') i
   log'trc $ msgPath ip "setMD: update exif data done: "
+  where
+    md'old = cleanupOutdatedMeta md0
 
 ------------------------------------------------------------------------

@@ -35,6 +35,7 @@ module Data.MetaData
   , normMetaData
   , cleanupMetaData
   , cleanupOldMetaData
+  , cleanupOutdatedMeta
 
   , someKeysMetaData
   , globKeysMetaData
@@ -1026,6 +1027,22 @@ cleanupMetaData ty =
 cleanupOldMetaData :: MetaData' a -> MetaData' a
 cleanupOldMetaData = filterKeysMetaData (`elem` keysAttrDescr)
 
+cleanupOutdatedMeta :: MetaData -> MetaData
+cleanupOutdatedMeta =
+  filterKeysMetaData (not . (`elem` dateKeys))
+  where
+    -- remove all timestamps from meta
+    -- those are recomputed during exif update
+    dateKeys =
+      [ exifCreateDate
+      , fileFileModifyDate
+      , fileDateTime
+      , fileTimeStamp
+      , imgEXIFUpdate
+      , quickTimeCreateDate
+      ]
+
+
 normMetaData :: MimeType -> MetaData -> MetaData
 normMetaData ty md
   | isRawMT  ty = md
@@ -1144,7 +1161,7 @@ keysByMimeType ty
 
 -- ----------------------------------------
 --
--- filter meta data enries by image type
+-- filter meta data entries by image type
 
 filterByImgType :: MimeType -> MetaData' a -> MetaData' a
 filterByImgType ty =
