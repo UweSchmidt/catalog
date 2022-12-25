@@ -82,7 +82,7 @@ function mkPrettyPrint() {
             break;
 
         case opInit:
-            isEmpty(i.name) || res.push(jno);
+            isEmpty(i.name) || res.push(i.name);
             break;
 
         case opType:

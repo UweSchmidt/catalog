@@ -133,8 +133,8 @@ function mkEditGeoPanel(editId) {
     }
 
     function configEditGeo() {
-        const ty = getLastType();
-        const gs = getLastGS();
+        const ty = vm.getLastType();
+        const gs = vm.getLastGS();
 
         switch ( ty ) {
         case 'text':

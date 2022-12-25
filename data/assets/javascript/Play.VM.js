@@ -205,12 +205,30 @@ function noop() {}
 //          used for synchronizing jobs
 // jmicros: stack of micro instructions to be executed
 // jcode:   array of instructions to be executed
-// jdata:   job local data store
 // jterm:   handler for premature termination of async instructions,
 //          delay and animation instructions can be terminated
 //          by input commands and set this field,
 //          http requests (json and image requests) can finish in background
 //          without conflicts with stopped or advanced slideshows
+
+// jdata:          job local data store
+// .name           job name
+// .path           page path for img
+// .page           json page for img to be shown
+// .type           page type ('text', 'pic')
+// .imgMetaData    json metadata of img
+// .imgGeo         size of img to be shown
+// .imgMaxGeo      largest size of img to be shown
+// .imgReqGeo      img size requested from server
+// .imgCache       for prefetch of img
+// .imgResGeo      size of text box for text to be shown
+// .frameGS        geo spec for frame
+// .frameGO        .geo & .off of frame
+// .gs             current geo spec of img
+// .go             .geo & .off of current img
+// .callbackError  error msg of http request
+// .lastTextInstr  ic of last 'text' instr executed
+// .lastGSInstr    ic of last instr with a geo spec field
 
 function VMJob(jno) {
     return { jno     : jno,
@@ -350,7 +368,7 @@ function isRootJno    (jno) {return jno === jno0;}
 
 function VM() {
     const vm = {
-        prog          : null,
+        prog : null,
 
         // prog management
         reset:      reset,
@@ -381,9 +399,10 @@ function VM() {
         finishAsyncInstr: finishAsyncInstr,
 
         // ready jobs
-        addReady:  addReady,
-        nextReady: nextReady,
-        readyJobs: readyJobs,
+        addReady:   addReady,
+        nextReady:  nextReady,
+        getReady:   getReady,
+        readyJobs:  readyJobs,
 
         // async jobs
         addAsyncRunning:  addAsyncRunning,
@@ -404,11 +423,6 @@ function VM() {
         wakeupAllWaiting: wakeupAllWaiting,
         waitingJobs: waitingJobs,
 
-        // input jobs
-        // addInputJob:         addInputJob,
-        // wakeupInputJobs:     wakeupInputJobs,
-        // waitingForInputJobs: waitingForInputJobs,
-        // resumeFromInput:     resumeFromInput,
     };
 
     // reset all fields except the program
@@ -419,10 +433,8 @@ function VM() {
         vm.interrupted   = true;
         vm.running       = false;
         vm.stepCnt       = 0;
-        vm.curJob        = null;
         vm.jobsAll       = new Map();  // Map Jno VMJob
         vm.jobsWaiting   = new Map();  // Map Jno (Map Status (Set Jno))
-        // vm.jobsInput     = [];         // Queue Jno
         vm.jobsReady     = [];         // Queue Jno
         vm.jobsRunning   = new Set();  // Set Jno
     }
@@ -516,11 +528,6 @@ function VM() {
         else if ( runningJobs() ) {
             return 'running';
         }
-        /* TODO
-        else if ( waitingForInputJobs() ){
-            return 'waiting for input';
-        }
-        */
         else if ( waitingJobs() ){
             return 'blocked';
         }
@@ -585,7 +592,8 @@ function VM() {
             break;
 
         case 'place1':
-            place1(aj, mi.gs);
+            aj.jdata.gs = mi.gs;
+            place1(aj);
             break;
 
         case 'processpage':
@@ -593,7 +601,8 @@ function VM() {
             break;
 
         case 'render1':
-            render1(aj, mi.gs);
+            aj.jdata.gs = mi.gs;
+            render1(aj);
             break;
 
         case 'set':
@@ -632,7 +641,8 @@ function VM() {
             return;
 
         case 'move1':
-            move1(aj, mi.dur, mi.gs);
+            aj.jdata.gs = mi.gs;
+            move1(aj, mi.dur);
             return;
 
         case 'wait1':
@@ -662,14 +672,6 @@ function VM() {
             // wakeup by termAsyncRunning
             sleep(aj, 'unlimited');
             return;
-
-            /*  TODO cleanup
-            vm.curJob      = aj;      // store active job
-            vm.interrupted = true;    // interrupt VM
-            vm.running     = false;
-            addInputJob(jno);         // mark job as waiting for input
-            return;
-            */
 
             // ----------------------------------------
             // macro instructions
@@ -729,16 +731,12 @@ function VM() {
             break;
 
         case opFinish:
-            // const nb = getVMBlocks(jno).length;
             // cleanup
             ms.push(mkTerminate());
 
             // wait for children to be finished
             ms.push(mkWait(stFinished, 'children'));
 
-            // for (i = nb; i > 0; i--) {
-            //    ms.push(mkWait(stFinished, mkJno(jno, i)));
-            // }
             // set status, so no job will wait for any status to be reached
             ms.push(mkStatus(stFinished));
             break;
@@ -968,7 +966,6 @@ function VM() {
     function noMoreJobs() {
         return ! readyJobs()
             && ! runningJobs();
-            // TODO && ! waitingForInputJobs();
     }
 
     // --------------------
@@ -1034,6 +1031,12 @@ function VM() {
     function nextReady() {
         const jno = vm.jobsReady.shift();   // get and rem 1. elem of job queue
         return vm.jobsAll.get(jno);
+    }
+
+    function getReady() {
+        const aj = nextReady();
+        aj && vm.jobsReady.unshift(aj.jno);
+        return aj;
     }
 
     function readyJobs() {
@@ -1115,31 +1118,6 @@ function VM() {
     }
 
     // --------------------
-    /*
-    function addInputJob(jno) {
-        trc(1,`addInputJob: job ${jno} inserted into waiting for click queue`);
-        vm.jobsInput.push(jno);
-    }
-
-    function wakeupInputJobs() {
-        const jobs = [...vm.jobsInput];
-        vm.jobsInput.splice(0, jobs.length); // don't build a new array object
-
-        trc(1, `wakeupInput: ${JSON.stringify(jobs)} ${JSON.stringify(vm.jobsInput)}`);
-        addReady(...jobs); // only change the elements
-    }
-
-    function waitingForInputJobs() {
-        return vm.jobsInput.length > 0;
-    }
-
-    // resume from interrupted state
-    function resumeFromInput() {
-        vm.interrupted = false;
-        wakeupInputJobs();
-    }
-    */
-    // --------------------
     // code access (for code edit)
 
     function getProg(jno) {
@@ -1180,12 +1158,12 @@ function VM() {
     vm.getLastGSInstr = getLastInstr((i) => {return isDefined(i.gs);});
 
     function getLastGS() {
-        const i = vm.getLastGSInstr(vm.curJob);
+        const i = vm.getLastGSInstr(vm.getReady());
         return i ? i.gs : defaultGS();
     }
 
-    function getLastTextInstr() {return vm.getTextInstr(vm.curJob);}
-    function getLastType()      {return vm.getTypeInstr(vm.curJob).type;}
+    function getLastTextInstr() {return vm.getTextInstr(vm.getReady());}
+    function getLastType()      {return vm.getTypeInstr(vm.getReady()).type;}
 
     vm.getLastGS        = getLastGS;
     vm.getLastTextInstr = getLastTextInstr;
@@ -1205,7 +1183,7 @@ function VM() {
     vm.getGeoSpecs = getGeoSpecs;
 
     // --------------------
-    //  restart job or block of jobs
+    // restart a job or a block of jobs
 
     // replace the code part of a job with a new instr sequence
     // without destroying the object reference of the code array
@@ -1246,7 +1224,7 @@ function VM() {
 
 // build the VM object
 
-let vm = VM();   // this object contains the VM
+let vm = VM();   // this object contains the whole VM
 
 // ----------------------------------------
 //
@@ -1340,11 +1318,11 @@ function newFrame(id, go, css) {
     return newElem('div', id, s2, 'frame');
 }
 
-function imgGeoToCSS(jdata, gs) {
+function imgGeoToCSS(jdata) {
     const frameGeo = jdata.frameGO.geo;
     const imgGeo   = jdata.imgGeo;
+    const gs       = jdata.gs;
     const go       = placeMedia(frameGeo, imgGeo)(gs);
-    jdata.gs       = gs;           // save current geo spec
     jdata.go       = go;           // save current abs geo/off
     return cssAbsGeo(go);
 }
@@ -1359,23 +1337,23 @@ function alignText(aj, aln) {
     setTextAlignCSS(iid2, aln);
 }
 
-function place1(aj, gs) {
+function place1(aj) {
     const jdata = aj.jdata;
     const fid   = jnoToFrameId(aj.jno);
     const iid   = mkImgId(fid);
     const iid2  = mkImgId(iid);
-    const ms    = imgGeoToCSS(jdata, gs);
+    const ms    = imgGeoToCSS(jdata);
 
-    trc(1,`place: ${aj.jno} gs=${PP.gs(gs)} type=${jdata.type}`);
+    trc(1,`place: ${aj.jno} gs=${PP.gs(jdata.gs)} type=${jdata.type}`);
     setCSS(iid, ms);
     if ( jdata.type === 'text' ) {
-        setTextScaleCSS(iid2, gs.scale);
+        setTextScaleCSS(iid2, jdata.gs.scale);
     }
 }
 
 let cssAnimCnt = 1;
 
-function move1(aj, dur, gs) {
+function move1(aj, dur) {
     const jno   = aj.jno;
     const jdata = aj.jdata;
     const fid   = jnoToFrameId(jno);
@@ -1384,7 +1362,7 @@ function move1(aj, dur, gs) {
     const imgId = mkImgId(fid);
 
     const ms0   = cssAbsGeo(jdata.go);    // transition start
-    const ms1   = imgGeoToCSS(jdata, gs); // transition end
+    const ms1   = imgGeoToCSS(jdata);     // transition end
 
     const cssKeyFrames = `
 @keyframes kf-${cssId} {
@@ -1423,7 +1401,7 @@ img.${cssId}, div.${cssId} {
         vm.finishAsyncInstr(aj);
     }
 
-    trc2(`move: ${jno} dur=${dur}`, gs);
+    trc(1, `move: ${jno} dur=${dur} gs=${PP.gs(jdata.gs)}`);
 
     // set handler for premature termination of async instr
     aj.jterm = animEnd;
@@ -1474,7 +1452,7 @@ function parFrameGeoId(jno) {
     }
 }
 
-function render1(aj, gs) {
+function render1(aj) {
     const jno   = aj.jno;
     const jdata = aj.jdata;
     const ty    = jdata.type;
@@ -1485,11 +1463,11 @@ function render1(aj, gs) {
 
     switch ( ty ) {
     case 'text':
-        renderText(jdata, fid, sg, sid, gs);
+        renderText(jdata, fid, sg, sid);
         break;
 
     case 'img':
-        renderImg(jdata, fid, sg, sid, gs);
+        renderImg(jdata, fid, sg, sid);
         break;
 
     case 'container':
@@ -1528,9 +1506,9 @@ function renderContainer(jdata, frameId, stageGeo, parentId) {
     getElem(parentId).appendChild(frame);
 }
 
-function renderImg(jdata, frameId, stageGeo, parentId, gs) {
+function renderImg(jdata, frameId, stageGeo, parentId) {
     const frame    = renderFrame(jdata, frameId, stageGeo, hiddenCSS);
-    const ms       = imgGeoToCSS(jdata, gs);
+    const ms       = imgGeoToCSS(jdata);
     const me       = newImgElem(frameId, ms, 'img');
     me.src         = jdata.imgUrl;
 
@@ -1538,7 +1516,7 @@ function renderImg(jdata, frameId, stageGeo, parentId, gs) {
     getElem(parentId).appendChild(frame);
 }
 
-function renderText(jdata, frameId, stageGeo, parentId, gs) {
+function renderText(jdata, frameId, stageGeo, parentId) {
     const frame     = renderFrame(jdata, frameId, stageGeo, hiddenCSS);
     const frameGeo  = jdata.frameGO.geo;
 
@@ -1546,7 +1524,7 @@ function renderText(jdata, frameId, stageGeo, parentId, gs) {
     // media geo is rel to frame geo
     // make media geo absolute
 
-    const go   = placeFrame(frameGeo, gs);
+    const go   = placeFrame(frameGeo, jdata.gs);
     jdata.go = go;        // save text element geo/off in job data
 
     const ms1 = cssAbsGeo(go);
@@ -1565,7 +1543,7 @@ function renderText(jdata, frameId, stageGeo, parentId, gs) {
 
     const me3    = newBlogElem(textId, {width: '100%'}, 'text-body' );
     setTextAlignCSS(me3, jdata.lastTextInstr.align);
-    setTextScaleCSS(me3, gs.scale);
+    setTextScaleCSS(me3, jdata.gs.scale);
     me3.innerHTML = jdata.lastTextInstr.text;
     me.appendChild(me3);
 
@@ -1581,10 +1559,9 @@ function renderText(jdata, frameId, stageGeo, parentId, gs) {
     // round up geo, else unwanted linebreaks are added during rendering
     const textGeo = ceilV2(V2(rect.width, rect.height));
     jdata.imgGeo  = textGeo;
-    const go4     = placeMedia(frameGeo, textGeo)(gs);
+    const go4     = placeMedia(frameGeo, textGeo)(jdata.gs);
     const ms4     = cssAbsGeo(go4);
     setCSS(me, ms4);
-
 }
 
 // --------------------
@@ -1717,8 +1694,8 @@ const resetGS  = (gs) => { gs.alg   = 'fitInto';
 
 function editGS(f) {
     const gs  = vm.getLastGS();
-    const gs1 = f(gs);
-    place1(curJob, gs);
+    const gs1 = f(gs);   // side effect: fields in object gs are modified
+    place1(vm.getReady());
 }
 
 // --------------------
@@ -1734,7 +1711,7 @@ function alnText(aln) {
 function editTextAlign(f) {
     const i  = vm.getLastTextInstr();
     const i1 = f(i);
-    alignText(curJob, i1.align);
+    alignText(vm.getReady(), i1.align);
 }
 
 function editTextInstr() {
@@ -1746,7 +1723,7 @@ function editTextInstr() {
     // and rerender the text frame and contents
 
     function restoreCont(text) {
-        const aj  = vm.curJob;
+        const aj  = vm.getReady();
         const jno = aj.jno;
         const gs  = aj.jdata.lastGSInstr.gs;
 
@@ -1763,11 +1740,11 @@ function editTextInstr() {
     editTextPanel.edit(textInstr.text, restoreCont);
 }
 
-function editCode() {return editCode1(curJob.jno);}
-function editProg() {return editProg1(curJob.jno);}
+function editCode() {return editCode1(vm.getReady().jno);}
+function editProg() {return editProg1(vm.getReady().jno);}
 
 function editCode1(jno) {
-    const ppc = PP.code(getVMCode(jno));
+    const ppc = PP.code(vm.getCode(jno));
 
     // callback
     function restoreCode(ppc1) {
@@ -1780,7 +1757,7 @@ function editCode1(jno) {
             const newCode = res.right;
             trc(1, PP.code(newCode));
             trc(1, `restart job ${jno} with new code`);
-            restartJob(jno, newCode);
+            vm.restartJob(jno, newCode);
         }
     }
 
@@ -1789,7 +1766,7 @@ function editCode1(jno) {
 }
 
 function editProg1(jno) {
-    const ppc = PP.prog(getVMProg(jno));
+    const ppc = PP.prog(vm.getProg(jno));
 
     // callback
     function restoreProg(ppc1) {
@@ -1802,7 +1779,7 @@ function editProg1(jno) {
             const newProg = res.right;
             trc(1, PP.prog(newProg));
             trc(1, `restart job ${jno} and subjobs with new code`);
-            restartProg(jno, newProg);
+            vm.restartProg(jno, newProg);
         }
     }
 
