@@ -2,7 +2,7 @@ module Main where
 
 -- polysemy
 import Polysemy
-import Polysemy.Internal (send)
+-- import Polysemy.Internal (send)
 import Polysemy.Error
 import Polysemy.Reader
 
