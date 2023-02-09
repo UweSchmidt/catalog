@@ -424,6 +424,8 @@ buildResize3 vico rot d'g s'geo d s'
                     & addVal s
 
     addCrops cmd  = cmd
+                      -- reducing amount of intermediate data
+                    & (if isThumbnail then addQuality else id)
                     & addCrop
                     & addVal s
                     & toStdout
@@ -452,9 +454,13 @@ buildResize3 vico rot d'g s'geo d s'
                     & fromStdin
 
     -- add options
-
-    toStdout      = addVal "miff:-"
-    fromStdin     = addVal "miff:-"
+    -- ERROR: corvert 7.1 destroys some images, when piping miff format data
+    -- from one convert cmf to anaother
+    -- this is used for icons with a fixed aspect ratio
+    -- first a crop is done, then a resize
+    -- workaround: take jpg as intermediate format
+    toStdout      = addVal "jpg:-"
+    fromStdin     = addVal "jpg:-"
 
     addCrop       = addOptVal "-crop"
                     ( toText cw   <> "x" <> toText ch
