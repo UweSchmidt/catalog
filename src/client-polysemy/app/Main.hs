@@ -2,11 +2,10 @@ module Main where
 
 -- polysemy
 import Polysemy
-import Polysemy.Internal (send)
 import Polysemy.Error
 import Polysemy.Reader
 
--- polysemy-useful-stuff
+-- polysemy-tools
 import Polysemy.Consume
 import Polysemy.FileSystem
 import Polysemy.HttpRequest

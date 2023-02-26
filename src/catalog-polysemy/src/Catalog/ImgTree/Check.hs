@@ -223,28 +223,28 @@ checkInvImgTree = do
                     "check root ref"
                     "root ref doesn't point to a ROOT node"
                     fmtNode'
-                    (const $ abortWith "archive corrupted")
+                    (abortWith' "archive corrupted")
                     (theNode . filtered (not . isROOT))
 
     asRootColNode = check'
                     "check root collection ref"
                     "root collection ref doesn't point to a COL node"
                     fmtNode'
-                    (const $ abortWith "archive corrupted")
+                    (abortWith' "archive corrupted")
                     (theRootCol . theNode . filtered (not . isCOL))
 
     asRootDirNode = check'
                     "check root directory ref"
                     "root dir ref doesn't point to a DIR node"
                     fmtNode'
-                    (const $ abortWith "archive corrupted")
+                    (abortWith' "archive corrupted")
                     (theRootDir . theNode . filtered (not . isDIR))
 
     asRootChildRef = check'
                      "check parent ref of root children"
                      "parent ref in col or dir entry wrong"
                      fmtRef2
-                     (const $ abortWith "archive corrupted")
+                     (abortWith' "archive corrupted")
                      ( folding
                        (\ t@(_, rr) ->
                           t ^.. theChildren
@@ -313,6 +313,9 @@ checkInvImgTree = do
       where
         l1 = "checkInvImgTree: " <> tt
         l2 = "checkInvImgTree: " <> msg
+
+    abortWith' :: Eff'ISEJL r => Text -> Fold NavTree a -> Sem r ()
+    abortWith' msg _ = abortWith msg
 
     fmtNode' :: ImgNode -> Text
     fmtNode' n = n ^. to show . isoText . to (indent . ("node: " <>))
