@@ -2116,10 +2116,7 @@ function setMetaData() {
     }
 
     var ixs = getMarkedEntries(cid);
-    if (! anyMarked(ixs)) {
-        statusMsg('no marked images/collections found');
-        return;
-    }
+
     console.log('setMetaData');
     console.log(metadata);
     console.log(ixs);
@@ -2151,12 +2148,14 @@ function fillMetaData() {
     o.path = collectionPath(o.cid);
     o.dia  = getLastMarkedEntry(o.cid);
 
-    if (! o.dia) {
-        statusError('no marked image/collection found');
-        return ;
+    if (o.dia) {
+        o.pos  = getEntryPos(o.dia);
+        o.name = getDiaName(o.dia);
     }
-    o.pos  = getEntryPos(o.dia);
-    o.name = getDiaName(o.dia);
+    else {
+        o.pos  = -1;
+        o.name = o.path;
+    }
     fillMetaFromServer(o);
 
 }
@@ -2779,11 +2778,20 @@ function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
 }
 
 function setMetaOnServer(path, ixs, metadata) {
-    addHistCmd("set metadata in " + splitName(path));
-    modifyServer("setMetaData", path, [ixs, metadata],
-                 function () {
-                     getColFromServer(path, refreshCollectionF);
-                 });
+    var entrymeta = anyMarked(ixs);
+
+    addHistCmd("set metadata " + ( entrymeta ? "in" : "of") + " " + splitName(path));
+
+    function cb() {
+        getColFromServer(path, refreshCollectionF);
+    };
+
+    if (entrymeta) {
+        modifyServer("setMetaData", path, [ixs, metadata], cb);
+    }
+    else {
+        modifyServer("setMetaData1", path, [-1, metadata], cb);
+    }
 }
 
 function setRatingOnServer(cid, path, ix, rating) {
