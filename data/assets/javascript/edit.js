@@ -2201,6 +2201,8 @@ function fillMetaData1(md, args) {
 // else the real getMetaData is performed
 
 function getMetaData0() {
+    console.log("getMetaData0");
+
     var cid  = activeCollectionId();
     var dia  = getLastMarkedEntry(cid);
 
@@ -2208,22 +2210,26 @@ function getMetaData0() {
         statusError('no marked image/collection found');
         return ;
     }
+    console.log("getMetaData0: click ShowMetaDataButton");
     $('#ShowMetaDataButton').click();
 }
 
 function getMetaData() {
+    console.log("getMetaData");
+
     var o  = {};
     o.cid  = activeCollectionId();
     o.path = collectionPath(o.cid);
     o.dia  = getLastMarkedEntry(o.cid);
 
-    if (! o.dia) {
-        $('#ShowMetaDataModal').modal('hide');
-        statusError('no marked image/collection found');
-        return ;
+    if (o.dia) {
+        o.pos  = getEntryPos(o.dia);
+        o.name = o.path + "/" + getDiaName(o.dia);
     }
-    o.pos  = getEntryPos(o.dia);
-    o.name = getDiaName(o.dia);
+    else {
+        o.pos  = -1;
+        o.name = o.path;
+    }
     getMetaFromServer(o);
 }
 
@@ -2234,7 +2240,7 @@ function showMetaData(md, args) {
 
     $('#ShowMetaDataModalLabel')
         .empty()
-        .append('Metadata: ' + args.path + "/" + args.name);
+        .append('Metadata: ' + args.name);
 
     var kvs = [];
     $.each(md, function (k, v) {
@@ -2255,8 +2261,10 @@ function showMetaData(md, args) {
         mdt.append('<tr><th>' + e[0] + '</th><td>' + e[1] + '</td></tr>');
     });
 
-    // clear mark for entry invoked
-    clearEntryMark($(args.dia));
+    if (args.pos >= 0) {
+        // clear mark for entry invoked
+        clearEntryMark($(args.dia));
+    }
 }
 
 function imageCarousel() {
@@ -3227,14 +3235,9 @@ $(document).ready(function () {
         .on('hidden.bs.modal', statusClear);
     */
 
-    $('#ShowMetaDataButton0')
-        .on('click', function () {
-            statusClear();
-            getMetaData0();
-        });
-
     $('#ShowMetaDataModal')
         .on('show.bs.modal', function () {
+            console.log("ShowMetaDataModal.click()");
             statusClear();
             getMetaData();
         });
