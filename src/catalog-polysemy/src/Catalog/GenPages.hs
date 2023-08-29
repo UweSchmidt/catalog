@@ -344,13 +344,14 @@ toMediaReq0 r = do
 
 toImgMeta :: (Eff'ISE r, EffNonDet r)
           => Req'IdNode a -> Sem r MetaData
-toImgMeta r =
-  case r ^. rPos of
-    Just _pos
-      -> do ir <- (^. rImgRef) <$> setImgRef r
-            getImgMetaData ir
-    Nothing
-      -> return $ r ^. rColNode . theMetaData
+toImgMeta r = do
+  md <- case r ^. rPos of
+          Just _pos
+            -> do ir <- (^. rImgRef) <$> setImgRef r
+                  getImgMetaData ir
+          Nothing
+            -> return $ r ^. rColNode . theMetaData
+  return $ addMetaGPSurl md
 
 -- --------------------
 --
@@ -997,7 +998,7 @@ collectImgAttr r = do
   let rp
         | isempty rnm = mempty
         | otherwise   = substPathName rnm theSrc ^. isoText
-  let md   = theMeta
+  let md0  = theMeta
              & metaTextAt fileRefImg    .~ (theSrc ^. isoText)
              & metaTextAt fileRefMedia  .~ (theUrl ^. isoText)
              & metaTextAt fileRefRaw    .~ rp
@@ -1009,6 +1010,7 @@ collectImgAttr r = do
                                            [ theMeta ^. metaTextAt descrDuration
                                            , "1.0"
                                            ]
+  let md   = addMetaGPSurl md0
   return (theIPath, nm, md)
   where
     ir@(ImgRef iOid nm) = r ^. rImgRef
@@ -1032,7 +1034,6 @@ genReqImgPage' r = do
 
   let     this'mediaUrl  = this'meta ^. metaTextAt fileRefMedia
   let     this'fileDate  = this'meta ^. metaDataAt fileTimeStamp . metaTimeStamp
-  let     this'gps       = lookupGPSposDeg this'meta
   let     this'geo       = r ^. rGeo
 
   -- the urls of the siblings
@@ -1049,9 +1050,6 @@ genReqImgPage' r = do
                            & metaTextAt fileDateTime .~ ( if isempty this'fileDate
                                                           then mempty
                                                           else timeStampToText this'fileDate)
-                           & metaTextAt descrGPSPositionDeg
-                                                     .~ this'gps
-                           & metaTextAt descrGPSurl  .~ (this'gps & isoString . googleMapsGPSdec %~ id)
 
   let org'geo            = lookupGeo metaData
 

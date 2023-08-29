@@ -27,6 +27,7 @@ module Data.MetaData
 
   , theImgEXIFUpdate
 
+  , addMetaGPSurl
   , editMetaData
   , splitMDT
   , filterByImgType
@@ -1042,7 +1043,6 @@ cleanupOutdatedMeta =
       , quickTimeCreateDate
       ]
 
-
 normMetaData :: MimeType -> MetaData -> MetaData
 normMetaData ty md
   | isRawMT  ty = md
@@ -1084,6 +1084,13 @@ normMetaData ty md
         notEmptyDate d
           | "0000" `T.isPrefixOf` d = mempty
           | otherwise               = d
+
+addMetaGPSurl :: MetaData -> MetaData
+addMetaGPSurl md =
+  md & metaTextAt descrGPSurl         .~ (gps & isoString . googleMapsGPSdec %~ id)
+     & metaTextAt descrGPSPositionDeg .~ gps
+  where
+    gps = lookupGPSposDeg md
 
 -- --------------------
 
