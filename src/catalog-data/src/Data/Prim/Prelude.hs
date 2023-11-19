@@ -394,7 +394,7 @@ all3 inj (x1, x2, x3) = (,,) <$> inj x1 <*> inj x2 <*> inj x3
 --
 -- mothers little helper for en/decoding optional fileds
 
-(.=?!) :: (IsEmpty v, J.KeyValue a, ToJSON v)
+(.=?!) :: (IsEmpty v, J.KeyValue e a, ToJSON v)
        => J.Key -> v -> [a]
 t .=?! x
   | isempty x = []

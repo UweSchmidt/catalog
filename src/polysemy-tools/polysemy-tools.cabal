@@ -51,7 +51,7 @@ library
     -fspecialise-aggressively -fplugin=Polysemy.Plugin
 
   build-depends:
-      aeson            >=2.0
+      aeson            >=2.2
     , async            >=2.2.2
     , base             >=4.7
     , bytestring
