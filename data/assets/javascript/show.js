@@ -1871,6 +1871,7 @@ const metaInfo = {
     "Composite:ImageSize":          "Geometrie",
     "File:RefRaw":                  "Raw-Datei",
     "File:RefImg":                  "Bilddatei",
+    "File:DirName":                 "Verzeichnis",
     "File:MimeType":                "Dateityp",
     "Composite:Megapixels":         "Megapixel",
     "File:FileSize":                "Dateigröße",

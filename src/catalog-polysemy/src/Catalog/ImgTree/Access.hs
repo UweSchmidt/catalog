@@ -96,34 +96,21 @@ import Data.ImgTree
        , theRootImgDir
        )
 import Data.MetaData
-       ( MetaData )
+       ( MetaData
+       , imgDirMetaData
+       )
 
 import Data.Prim
-       ( Foldable(toList)
-       , Ixed(ix)
-       , Seq
-       , IsoText(isoText)
-       , Getting
-       , Path
+       ( Path
        , Name
        , ObjId
-       , Text
-       , (^.)
-       , (^..)
-       , (^?)
-       , filterM
-       , filterSeqM
-       , isJust
-       , isoSeqList
-       , listToMaybe
        , mkObjId
        , msgPath
        , noOfBitsUsedInKeys
-       , on
        , snocPath
-       , to
-       , whenM
+       , tailPath
        )
+import Data.Prim.Prelude
 
 import qualified Data.Set      as S
 import qualified Data.Sequence as Seq
@@ -283,9 +270,15 @@ getMetaData :: Eff'ISE r => ObjId -> Sem r MetaData
 getMetaData i = getImgVals i theMetaData
 
 getImgMetaData :: Eff'ISE r => ImgRef -> Sem r MetaData
-getImgMetaData (ImgRef i nm) =
-  (<>) <$> getImgVals i (theImgPart nm . theImgMeta)
-       <*> getMetaData i
+getImgMetaData (ImgRef i nm) = do
+  partMD <- getImgVals  i (theImgPart nm . theImgMeta)
+  imgMD  <- getMetaData i
+  dirMD  <- getImgParentDir i
+  return (partMD <> imgMD <> dirMD)
+
+getImgParentDir :: Eff'ISE r => ObjId -> Sem r MetaData
+getImgParentDir i =
+  getImgParent i >>= objid2path <&> imgDirMetaData . (^. isoText) . tailPath
 
 -- ----------------------------------------
 

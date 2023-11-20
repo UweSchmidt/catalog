@@ -16,9 +16,10 @@ module Data.Prim.Prelude
        , (.=?!)
        , (.:?!)
 
-         -- * Data.Maybe and Data.Either
+         -- * basic Data modules
        , module Data.Either
        , module Data.Maybe
+       , module Data.Functor
 
          -- * Control.Monad
        , module Control.Applicative
@@ -120,6 +121,8 @@ import Data.Foldable
 
 import Data.Function
        ( on )
+
+import Data.Functor
 
 import Data.List
        ( intercalate

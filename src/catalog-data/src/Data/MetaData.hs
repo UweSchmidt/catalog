@@ -27,6 +27,7 @@ module Data.MetaData
 
   , theImgEXIFUpdate
 
+  , imgDirMetaData
   , addMetaGPSurl
   , editMetaData
   , splitMDT
@@ -140,6 +141,7 @@ module Data.MetaData
   , fileMimeType
   , fileFileModifyDate
   , fileName
+  , fileDirName
   , fileRefImg
   , fileRefJpg
   , fileRefMedia
@@ -348,6 +350,7 @@ data MetaKey
   | File'MimeType
   | File'FileModifyDate
   | File'Name
+  | File'DirName
   | File'RefImg
   | File'RefJpg
   | File'RefMedia
@@ -551,6 +554,7 @@ fileCheckSum
   , fileMimeType
   , fileFileModifyDate
   , fileName
+  , fileDirName
   , fileRefImg
   , fileRefJpg
   , fileRefMedia
@@ -566,6 +570,7 @@ keysAttrFile@[
   , fileMimeType
   , fileFileModifyDate
   , fileName
+  , fileDirName
   , fileRefImg
   , fileRefJpg
   , fileRefMedia
@@ -711,6 +716,12 @@ metaDataAt mk k mt = (\ v -> insertMD mk v mt) <$> k (lookupMD mk mt)
 
 metaTextAt :: MetaKey -> Lens' MetaData Text
 metaTextAt k = metaDataAt k . isoMetaValueText k
+
+singleMD :: MetaKey -> Text -> MetaData
+singleMD k t = mempty & metaTextAt k .~ t
+
+imgDirMetaData :: Text -> MetaData
+imgDirMetaData = singleMD fileDirName
 
 insertMD :: IsEmpty a => MetaKey -> a -> MetaData' a -> MetaData' a
 insertMD k v mt@(MD m)

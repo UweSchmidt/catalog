@@ -1,11 +1,11 @@
+local:
+	$(MAKE) install-local
+
 build:
 	$(MAKE) -C src build
 
 install:
 	$(MAKE) -C src install
-
-local:
-	$(MAKE) install-local
 
 install-local:
 	$(MAKE) build

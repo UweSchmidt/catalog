@@ -105,12 +105,7 @@ import qualified Catalog.SyncWithFileSys as SC
 
 -- catalog
 import Data.Prim
-       ( sortBy
-       , unless
-       , traverse_
-       , (&)
-       , on
-       , p'arch'photos
+       ( p'arch'photos
        , p'photos
        , checkAndRemExt
        , isPathPrefix
@@ -119,28 +114,17 @@ import Data.Prim
        , substPathPrefix
        , viewBase
        , isoPathPos
-       , isoSeqList
-       , unlessM
-       , (^?)
-       , (^.)
-       , (#)
-       , (.~)
        , CheckSum
        , CheckSumRes
        , Geo
-       , Text
        , Name
        , Path
        , ObjId
        , PathPos
-       , IsoText(isoText)
-       , LazyByteString
        , ReqType(..)
        , TimeStamp
-       , Seq
-       , Ixed(ix)
-       , Field2(_2)
        )
+import Data.Prim.Prelude
 import Data.ImgNode
        ( colEntry'
        , isCOL

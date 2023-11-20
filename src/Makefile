@@ -1,6 +1,8 @@
 build:
 	cabal build all \
-	--disable-documentation  --disable-profiling
+	--disable-documentation \
+        --disable-profiling \
+	--disable-library-profiling --disable-executable-profiling
 
 install:
 	cabal install client-polysemy servant-polysemy \
