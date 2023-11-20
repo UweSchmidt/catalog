@@ -13,7 +13,7 @@ install-local:
 
 bump-version:
 	bin/versionbump.sh
-	$(MAKE) build
+	$(MAKE) local
 
 configure:
 	$(MAKE) -C src configure
