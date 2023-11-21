@@ -97,7 +97,7 @@ import Data.ImgTree
        )
 import Data.MetaData
        ( MetaData
-       , imgDirMetaData
+       , addFileMetaData
        )
 
 import Data.Prim
@@ -108,7 +108,6 @@ import Data.Prim
        , msgPath
        , noOfBitsUsedInKeys
        , snocPath
-       , tailPath
        )
 import Data.Prim.Prelude
 
@@ -273,12 +272,8 @@ getImgMetaData :: Eff'ISE r => ImgRef -> Sem r MetaData
 getImgMetaData (ImgRef i nm) = do
   partMD <- getImgVals  i (theImgPart nm . theImgMeta)
   imgMD  <- getMetaData i
-  dirMD  <- getImgParentDir i
-  return (partMD <> imgMD <> dirMD)
-
-getImgParentDir :: Eff'ISE r => ObjId -> Sem r MetaData
-getImgParentDir i =
-  getImgParent i >>= objid2path <&> imgDirMetaData . (^. isoText) . tailPath
+  p      <- objid2path i
+  return $ addFileMetaData p nm (partMD <> imgMD)
 
 -- ----------------------------------------
 

@@ -993,15 +993,8 @@ collectImgAttr r = do
   theIPath <- objid2path iOid
   theMeta  <- getImgMetaData ir
   theUrl   <- toMediaReq r >>= toUrlPath'  -- not toUrlPath due to RMovie, RGif
-  theSrc   <- toSourcePath r
-  let rnm   = theMeta ^. metaDataAt imgNameRaw . metaName
-  let rp
-        | isempty rnm = mempty
-        | otherwise   = substPathName rnm theSrc ^. isoText
   let md0  = theMeta
-             & metaTextAt fileRefImg    .~ (theSrc ^. isoText)
              & metaTextAt fileRefMedia  .~ (theUrl ^. isoText)
-             & metaTextAt fileRefRaw    .~ rp
              & metaTextAt descrTitle1   .~ take1st
                                            [ theMeta ^. metaTextAt descrTitle
                                            , nm ^. isoText

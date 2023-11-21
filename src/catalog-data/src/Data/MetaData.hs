@@ -27,7 +27,7 @@ module Data.MetaData
 
   , theImgEXIFUpdate
 
-  , imgDirMetaData
+  , addFileMetaData
   , addMetaGPSurl
   , editMetaData
   , splitMDT
@@ -178,39 +178,17 @@ module Data.MetaData
 where
 
 import Data.Prim
-       ( Alternative(some, (<|>))
-       , MonadPlus(mzero)
-       , Text
-       , Field1(_1)
-       , Iso'
-       , Lens'
-       , IsEmpty(..)
-       , IsoString(isoString)
-       , IsoText(..)
-       , PrismString(prismString)
-       , FromJSON(parseJSON)
-       , ToJSON(toJSON)
-       , CheckSum
+       ( CheckSum
        , Name
+       , Path
        , TimeStamp
        , ImgType
        , MimeType
        , Geo
        , GPSposDec
-       , fromMaybe
-       , nub
-       , partition
-       , readMaybe
-       , (&)
-       , (^?)
-       , (^.)
-       , (#)
-       , (%~)
-       , (.~)
-       , (.||.)
-       , (&&&)
-       , first
-       , iso
+       , initPath
+       , tailPath
+       , snocPath
        , isGifMT
        , isImgMT
        , isJpgMT
@@ -225,6 +203,8 @@ import Data.Prim
        , googleMapsGPSdec
        , isoDegDec
        )
+import Data.Prim.Prelude
+
 import Data.Access
        ( Access
        , AccessRestr(..)
@@ -717,11 +697,19 @@ metaDataAt mk k mt = (\ v -> insertMD mk v mt) <$> k (lookupMD mk mt)
 metaTextAt :: MetaKey -> Lens' MetaData Text
 metaTextAt k = metaDataAt k . isoMetaValueText k
 
-singleMD :: MetaKey -> Text -> MetaData
-singleMD k t = mempty & metaTextAt k .~ t
-
-imgDirMetaData :: Text -> MetaData
-imgDirMetaData = singleMD fileDirName
+addFileMetaData :: Path -> Name -> MetaData -> MetaData
+addFileMetaData p nm md =
+  md
+  & metaTextAt fileDirName .~ dirp ^. isoText
+  & metaTextAt fileRefImg  .~ imgp ^. isoText
+  & metaTextAt fileRefRaw  .~ rawp ^. isoText
+  where
+    p'   = tailPath p              -- remove /archive
+    dirp = initPath p'
+    imgp = snocPath p' nm
+    rnm  = md ^. metaDataAt imgNameRaw . metaName
+    rawp | isempty rnm = mempty
+         | otherwise   = snocPath p' rnm
 
 insertMD :: IsEmpty a => MetaKey -> a -> MetaData' a -> MetaData' a
 insertMD k v mt@(MD m)
