@@ -713,11 +713,17 @@ function collectionIsSortProtected(cid) {
     return res;
 }
 
+function collectionIsFix(path) {
+    console.log('collectionIsFix');
+    console.log(path);
+    return path === pathClipboard()
+        || path === pathCollections();
+}
+
 function collectionIsGenerated(path) {
     console.log('collectionIsGenerated');
     console.log(path);
-    return path === pathClipboard()
-        || path === pathCollections()
+    return collectionIsFix(path)
         || isPathPrefix(pathPhotos(), path)
         || isPathPrefix(pathTimeline(), path)
         || isPathPrefix(pathImports(), path);
@@ -798,6 +804,7 @@ function showNewCollection(path, colVal) {
         var sr = isNotSortableCollection(md);
         var nd = isNoDeleteCollection(md);
         var gn = collectionIsGenerated(o.path);
+        var fx = collectionIsFix(o.path);
         var ct = md["Descr:Title"];
 
         // add the tab panel
@@ -826,6 +833,17 @@ function showNewCollection(path, colVal) {
         tb.find('.coltab-name')
             .empty()
             .append(o.name);
+
+        if ( fx ) {  // hide close button
+            tb.find('.coltab-delete')
+                .addClass("hidden-bs450");
+        } else {
+            tb.find('.coltab-delete')
+                .find('button')
+                .on('click', function (e) {
+                    closeCollection(o.colId);
+                });
+        }
 
         $('#collectionTab').append(tb);
         markAccess(o.colId, ro);
