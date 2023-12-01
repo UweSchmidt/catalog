@@ -706,10 +706,10 @@ addFileMetaData p nm md =
   where
     p'   = tailPath p              -- remove /archive
     dirp = initPath p'
-    imgp = snocPath p' nm
+    imgp = snocPath dirp nm
     rnm  = md ^. metaDataAt imgNameRaw . metaName
     rawp | isempty rnm = mempty
-         | otherwise   = snocPath p' rnm
+         | otherwise   = snocPath dirp rnm
 
 insertMD :: IsEmpty a => MetaKey -> a -> MetaData' a -> MetaData' a
 insertMD k v mt@(MD m)
