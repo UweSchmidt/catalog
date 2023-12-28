@@ -878,6 +878,7 @@ function setActiveTab(colId) {
     $('#collectionTab')
         .find('a[aria-controls=' + colId + ']')
         .trigger('click');
+    document.querySelector("#edit-collections-container").scrollTop = 0;
 }
 
 function insertEntries(colId, entries) {
