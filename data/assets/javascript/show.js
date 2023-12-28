@@ -1185,7 +1185,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
     const c = newElem("div",
                       { padding:      padding + "px",
-                        "min-height": scrGeo.h + "px"
+                        "min-height": (scrGeo.h - 2 * padding) + "px"
                       },
                       "collection"
                      );
