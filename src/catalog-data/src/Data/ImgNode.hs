@@ -70,7 +70,7 @@ module Data.ImgNode
        )
 where
 
-import           Control.Monad.Except
+-- import           Control.Monad.Except
 
 import           Data.MetaData
 {-
@@ -95,6 +95,7 @@ import           Data.MetaData
 -}
 
 import Data.Prim
+{-
     ( Traversal',
       Lens',
       Field4(_4),
@@ -129,6 +130,7 @@ import Data.Prim
       isShowablePartMT,
       t'archive,
       t'collections )
+ -}
 
 import qualified Data.Aeson      as J
 import qualified Data.Aeson.Key  as J

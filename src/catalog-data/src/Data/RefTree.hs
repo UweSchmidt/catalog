@@ -222,7 +222,7 @@ refObjIdPath r0 t =
 -- test whether a ref @r@ is a part of the tree given by ref @p@
 refInTree :: (Ord ref, Show ref) => ref -> ref -> DirTree node ref -> Bool
 refInTree r p t =
-  r `elem` tail (refObjIdPath p t)
+  r `elem` drop 1 (refObjIdPath p t)
 
 -- | create the root of a DirTree.
 --

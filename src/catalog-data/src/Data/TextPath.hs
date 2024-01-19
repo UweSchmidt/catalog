@@ -19,6 +19,7 @@ module Data.TextPath
   , classifyPaths
   , path2MimeType
   , isImgCopiesDir
+  , imgNames
 
   , addExt
   , addJpg
@@ -83,6 +84,9 @@ path2MimeType = snd . F.splitPathNameExtMime . (^. isoString)
 
 isImgCopiesDir :: TextPath -> Bool
 isImgCopiesDir p = F.isImgCopiesDir (p ^. isoString)
+
+imgNames :: [ClassifiedNames] -> [Name]
+imgNames = map (fst . snd) . concatMap (take 1)
 
 -- ----------------------------------------
 --

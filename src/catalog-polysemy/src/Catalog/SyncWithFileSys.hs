@@ -118,6 +118,7 @@ import Data.TextPath
        , classifyPaths
        , isImgCopiesDir
        , (<//>)
+       , imgNames
        )
 
 import qualified Data.Map.Strict as M
@@ -488,7 +489,6 @@ idSyncFS recursive i = getImgVal i >>= go
           trc'Obj i "idSyncFS: nothing done for collection"
           return ()
 
-
 syncDirCont :: Eff'Sync r => Bool -> ObjId -> Sem r ()
 syncDirCont recursive i = do
   -- trc'Obj i "syncDirCont: syncing entries in dir "
@@ -497,7 +497,7 @@ syncDirCont recursive i = do
   p  <- objid2path i
 
   cont <- objid2contNames i
-  let lost = filter (`notElem` subdirs <> map (fst . snd . head) imgfiles) cont
+  let lost = filter (`notElem` subdirs <> imgNames imgfiles) cont
   log'trc $ "syncDirCont: lost = " <> toText lost
 
   -- remove lost stuff
@@ -533,7 +533,10 @@ collectImgCont i = do
   nm <- getImgName   i
   ip <- getImgParent i
   cs <- snd <$> collectDirCont ip
-  return $ concat . take 1 . filter (^. to head . _2 . _1 . to (== nm)) $ cs
+  return
+    . concat
+    . take 1
+    . filter (maybe False ((== nm) . fst . snd . fst) . uncons) $ cs
 
 
 collectDirCont :: (EffLogging r, EffCatEnv r, EffIStore r, EffFileSys r)
@@ -597,7 +600,8 @@ syncImg ip pp xs = do
   where
     p  = pp `snocPath` n
     i  = mkObjId p
-    n  = xs ^. to head . _2 . _1
+    n  = maybe mempty (fst . snd . fst) . uncons $ xs
+    -- n  = xs ^. to head . _2 . _1
     ps = xs &  traverse %~ uncurry mkImgPart . second snd
 
 

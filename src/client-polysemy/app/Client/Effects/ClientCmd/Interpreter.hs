@@ -290,8 +290,8 @@ evalClientCmd =
       -- drop all edits older than last catalog save command
       | otherwise -> do
           es <- listUndoEntries
-          let i = head
-                  . (++ [0])
+          let i = maybe 0 fst
+                  . uncons
                   . map fst
                   . filter (("save catalog" `T.isPrefixOf`) . snd)
                   $ es
