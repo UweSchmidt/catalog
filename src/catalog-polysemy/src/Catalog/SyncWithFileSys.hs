@@ -601,7 +601,6 @@ syncImg ip pp xs = do
     p  = pp `snocPath` n
     i  = mkObjId p
     n  = maybe mempty (fst . snd . fst) . uncons $ xs
-    -- n  = xs ^. to head . _2 . _1
     ps = xs &  traverse %~ uncurry mkImgPart . second snd
 
 
