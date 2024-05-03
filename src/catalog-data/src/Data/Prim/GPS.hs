@@ -125,7 +125,8 @@ instance PrismString GPSposDec where
 -- the googleMaps parser accepts various input formats
 -- as GPS position
 --
--- .1 a google maps url with a part .../@53.0,10.0,17z...
+-- .1a a google maps url with a part .../@53.0,10.0,17z...
+-- .1b a google maps url with a part ...&ll=53.0%2C-90.0&z=20
 -- .2 a pair of decimal lat/long coords: 53.0,10.0
 -- .3 the GPS format in EXIF data
 --
@@ -152,10 +153,17 @@ googleMapsGPSdec = prism' pos2mapsUrl
     -- parse a Google maps url or just a GPSposDec (pair of doubles)
     parserMapsUrl :: SP GPSposDec
     parserMapsUrl =
+      -- old maps format .1a
       try ( anyStringThen "/@" *> parserPosDec <*
             char ',' <* some digitChar <* manyChars
           )
       <|>
+      -- new maps format .1b
+      try ( anyStringThen "&ll=" *> parserPosDec <*
+            char '&' <* manyChars
+          )
+      <|>
+      -- .2 lat/long pair or EXIF data
       try parserPosDec
 
 -- a use case for the whole GPS stuff:
@@ -204,9 +212,13 @@ instance FromJSON GPSposDec where
 -- helper funtions
 
 parserPosDec :: SP GPSposDec
-parserPosDec = tt <$> signedFloat <* msp <* char ',' <*> signedFloat <* msp
+parserPosDec = tt <$> signedFloat <* del <*> signedFloat <* msp
   where
     tt x y = GPSpos (read x) (read y)
+
+    del = (msp <* char ',')
+          <|>
+          (string "%2C")   -- new maps format .1b
 
 showDeg :: GPSdeg -> String
 showDeg (GPSdeg d m s r) = unwords
