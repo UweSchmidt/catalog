@@ -2091,6 +2091,91 @@ function renameCollection() {
 }
 
 // ----------------------------------------
+//
+// global state for metadata clipboard
+
+var metaDataClipboard= {};
+
+
+// keys of editable metadata values
+
+var metaDataKeys = [ "Title",
+                     "Subtitle",
+                     "Comment",
+                     "CommentImg",
+                     "GPSPosition",
+                     "Location",
+                     "Rating",
+                     "Keywords",
+                     "Web",
+                     "Wikipedia",
+                     "TitleEnglish",
+                     "TitleLatin"
+                   ];
+
+function mdKey(k) { return 'Descr:'  + k; }
+function mdKid(k) { return '#descr-' + k; }
+
+function copyMetaData() {
+    console.log('copyMetaData');
+
+    metaDataClipboard = readMetaDataBox();
+
+    statusMsg('Metadata copied to clipboard');
+}
+
+function pasteMetaData() {
+    console.log('pasteMetaData');
+
+    // read dialog box
+    var md = readMetaDataBox();
+
+    // merge clipboard values
+    metaDataKeys.forEach(function(e) {
+        var k = mdKey(e);
+        var v = metaDataClipboard[k] || "";
+        if (v && v.length > 0) {
+            md[k] = v;
+        }
+    });
+
+    // write new values back into dialog box
+    writeMetaDataBox(md);
+
+    statusMsg('Metadata from clipboard inserted');
+}
+
+// read attr values from dialog box for metadata
+
+function readMetaDataBox() {
+    var md = {};
+
+    metaDataKeys.forEach(function (e) {
+        var k = mdKey(e);
+        var v = $(mdKid(e)).val();
+        if (v && v.length > 0) {
+            md[k] = v;
+        }
+    });
+
+    console.log('readMetaDataBox');
+    console.log(md);
+
+    return md;
+}
+
+// write attr values into dialog box
+
+function writeMetaDataBox(md) {
+    console.log('writeMetaDataBox');
+    console.log(md);
+
+    metaDataKeys.forEach(function(e) {
+        var v = md[mdKey(e)] || "";
+        $(mdKid(e)).val(v);
+    });
+}
+
 
 function setMetaData() {
     var cid   = activeCollectionId();
@@ -2108,27 +2193,8 @@ function setMetaData() {
     }
      */
 
-    var metadata = {};
-    var keys = [ "Title",
-                 "Subtitle",
-                 "Comment",
-                 "CommentImg",
-                 "GPSPosition",
-                 "Location",
-                 "Rating",
-                 "Keywords",
-                 "Web",
-                 "Wikipedia",
-                 "TitleEnglish",
-                 "TitleLatin"
-               ];
-    keys.forEach(function (e, i) {
-        var k =    'Descr:' + e;
-        var v = $('#descr-' + e).val();
-        if (v && v.length > 0) {
-            metadata[k] = v;
-        }
-    });
+    var metadata = readMetaDataBox();
+
     if (jQuery.isEmptyObject(metadata)) {
         statusMsg('no meta data given');
         return;
@@ -2185,31 +2251,7 @@ function fillMetaData1(md, args) {
     console.log(args);
 
     // insert fields into metadata edit form
-    var dt = md["Descr:Title"] || "";
-    console.log(dt);
-    $('#descr-Title').val(dt);
-    var ds = md["Descr:Subtitle"] || "";
-    $('#descr-Subtitle').val(ds);
-    var dte = md["Descr:TitleEnglish"] || "";
-    $('#descr-TitleEnglish').val(dte);
-    var dtl = md["Descr:TitleLatin"] || "";
-    $('#descr-TitleLatin').val(dtl);
-    var dr = md["Descr:Rating"] || "";
-    $('#descr-Rating').val(dr);
-    var dc = md["Descr:Comment"] || "";
-    $('#descr-Comment').val(dc);
-    var dci = md["Descr:CommentImg"] || "";
-    $('#descr-CommentImg').val(dci);
-    var dgp = md["Descr:GPSPosition"] || "";
-    $('#descr-GPSPosition').val(dgp);
-    var dlc = md["Descr:Location"] || "";
-    $('#descr-Location').val(dlc);
-    var dk = md["Descr:Keywords"] || "";
-    $('#descr-Keywords').val(dk);
-    var dw = md["Descr:Web"] || "";
-    $('#descr-Web').val(dw);
-    var di = md["Descr:Wikipedia"] || "";
-    $('#descr-Wikipedia').val(di);
+    writeMetaDataBox(md);
 }
 
 // ----------------------------------------
@@ -3242,6 +3284,18 @@ $(document).ready(function () {
             console.log("MetaDataOK clicked");
             $('#MetaDataModal').modal('hide');
             setMetaData();
+        });
+
+    $('#MetaDataCopy')
+        .on('click', function (e) {
+            console.log("MetaDataCopy clicked");
+            copyMetaData();
+        });
+
+    $('#MetaDataPaste')
+        .on('click', function (e) {
+            console.log("MetaDataPaste clicked");
+            pasteMetaData();
         });
 
     $('#PreviewButton')
