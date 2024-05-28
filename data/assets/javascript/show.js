@@ -1853,8 +1853,8 @@ const metaInfo = {
     "Descr:Subtitle":               "Untertitel",
     "Descr:TitleEnglish":           "Titel engl.",
     "Descr:TitleLatin":             "Titel lat.",
-    "Descr:Comment":                "Kommentar (Aufnahme)",
-    "Descr:CommentImg":             "Kommentar (Kopie)",
+    "Descr:Comment":                "Kommentar",
+    "Descr:CommentImg":             "Kommentar Kopie",
     "EXIF:CreateDate":              "Aufnahmedatum",
     "Descr:Address":                "Adresse",
     "Descr:Location":               "Ort",
@@ -1952,7 +1952,32 @@ function fmtRating(n) {
     return spn;
 }
 
-function fmtWeb(url) {
+// web attribute can be a list of urls separated by whitespace
+
+function fmtWeb(t) {
+    const urls = t.split(" ");
+    if (urls.length === 0) {
+        return newText("");
+    }
+
+    var url = fmtWeb1(urls[0]);
+    if (urls.length === 1) {
+        return url;
+    }
+
+    var res = newElem("div");
+    res.append(url);
+
+    for (let i = 1; i < urls.length; i++) {
+        url = fmtWeb1(urls[i]);
+        res.append(newElem("br"));
+        res.append(url);
+    }
+
+    return res;
+}
+
+function fmtWeb1(url) {
     const txt = newText(url);
     const a   = newElem("a");
     a.href    = url;
