@@ -1027,12 +1027,23 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             return l;
         }
 
+        function buildLineGPS(deg, url) {
+            const l = newElem("div", "", {}, "gpsposition");
+            // hack, hack, hack: global variable for 2. param
+            gpsUrl = url;
+            const e = fmtGPS(deg);
+            l.appendChild(e);
+            return l;
+        }
+
         function buildHeadLine() {
             if ( isHeader ) {
                 const r  = newElem("div", {}, "collection-header-title");
                 const t1 = colMeta["Descr:Title"];
                 const t2 = colMeta["Descr:Subtitle"];
                 const t3 = colMeta["Descr:Comment"];
+                const t4 = colMeta["Descr:GPSPositionDeg"];
+                const t5 = colMeta["Descr:GPSurl"];
 
                 if (t1) {
                     r.appendChild(buildLine("title", t1));
@@ -1042,6 +1053,9 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                 }
                 if (t3) {
                     r.appendChild(buildLine("comment", t3));
+                }
+                if (t4) {
+                    r.appendChild(buildLineGPS(t4, t5));
                 }
                 return r;
             } else {

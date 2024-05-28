@@ -296,7 +296,13 @@ div.ruler {
 }
 
 .comment {
-  font-weight: bold;
+  /* font-weight: bold; */
+  padding-top: 0.1em;
+}
+
+.gpsposition {
+  font-size: 0.8em;
+  padding-top: 0.2em;
 }
 
 /* links */
