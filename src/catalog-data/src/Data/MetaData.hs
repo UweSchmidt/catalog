@@ -364,11 +364,11 @@ type MetaKeySet = MetaKey -> Bool
 
 data MetaValue
   = MText !Text
+  | MTSet ![Text]         -- list of text
   | MNm   !Name
   | MInt  !Int
   | MRat  !Int            -- rating: 0..5
   | MOri  !Int            -- orientation: 0..3 <-> 0, 90, 180, 270 degrees CW
-  | MKeyw ![Text]         -- keywords
   | MAcc  !Access         -- access restrictions
   | MTs   !TimeStamp      -- time stamp
   | MGps  !GPSposDec      -- GPS coordinate
@@ -763,11 +763,11 @@ deriving instance Show MetaValue
 
 instance IsEmpty MetaValue where   -- default values are redundant
   isempty (MText  t) = isempty t
+  isempty (MTSet ws) = null ws
   isempty (MNm    n) = isempty n
   isempty (MInt   _) = False       -- no default value for Int
   isempty (MOri   o) = o == 0
   isempty (MRat   r) = r == 0
-  isempty (MKeyw ws) = null ws
   isempty (MAcc   a) = a == no'restr
   isempty (MTs    t) = t == mempty
   isempty (MCS   cs) = isempty cs
@@ -791,7 +791,7 @@ instance Semigroup MetaValue where
   mv1@(MTyp _)   <> MTyp _   = mv1     -- 1. wins
   mv1@(MMime _)  <> MMime _  = mv1     -- 1. wins
   MTs   t1       <> MTs   t2 = MTs   $ t1 <> t2       -- newest wins
-  MKeyw w1       <> MKeyw w2 = MKeyw $ unionKW w1 w2  -- keywords are collected
+  MTSet w1       <> MTSet w2 = MTSet $ unionTS w1 w2  -- union of words
 
   _              <> mv2      = mv2     -- mixing types, no effect
 
@@ -812,9 +812,10 @@ isoMetaValueText k = case k of
   Composite'GPSPosition -> metaGPSDecText
   Descr'Access          -> metaAccess    . isoAccText
   Descr'GPSPosition     -> metaGPSDecText
-  Descr'Keywords        -> metaKeywords  . isoKeywText
+  Descr'Keywords        -> metaTS        . isoKeywText
   Descr'Rating          -> metaRatingText
   Descr'RatingImg       -> metaRatingText
+  Descr'Web             -> metaTS        . isoTSetText
   EXIF'Orientation      -> metaOri       . isoOriText
   File'CheckSum         -> metaCheckSum  . isoText
   File'ImgType          -> metaImgType   . isoText
@@ -842,6 +843,20 @@ metaText = iso
           else MText t
   )
 {-# INLINE metaText #-}
+
+metaTS :: Iso' MetaValue [Text]
+metaTS =
+  iso
+    ( \case
+        MTSet kw -> kw
+        _ -> []
+    )
+    ( \ws ->
+        if null ws
+          then mempty
+          else MTSet ws
+    )
+{-# INLINE metaTS #-}
 
 metaName :: Iso' MetaValue Name
 metaName = iso
@@ -889,18 +904,6 @@ metaOri = iso
              else MOri i'
   )
 {-# INLINE metaOri #-}
-
-metaKeywords :: Iso' MetaValue [Text]
-metaKeywords = iso
-  (\ case
-      MKeyw kw -> kw
-      _        -> []
-  )
-  (\ ws -> if null ws
-           then mempty
-           else MKeyw ws
-  )
-{-# INLINE metaKeywords #-}
 
 metaAcc :: Iso' MetaValue Access
 metaAcc = iso
@@ -1100,8 +1103,11 @@ editMetaData (MD m) mt = IM.foldlWithKey' ins mt m
       | v0 == "-" =                      -- remove key from metadata
           acc & metaDataAt k .~ mempty
 
-      | k == descrKeywords =             -- add and remove keywords
-          acc & metaDataAt k . metaKeywords %~ mergeKW (isoKeywText # v0)
+      | k == descrKeywords =             -- add and remove keywords (',' separated)
+          acc & metaDataAt k . metaTS %~ mergeTS (isoKeywText # v0)
+
+      | k == descrWeb =                  -- add and remove URLs     ('|' separated)
+          acc & metaDataAt k . metaTS %~ mergeTS (isoTSetText # v0)
 
       | otherwise =                      -- insert or set new value
           acc & metaDataAt k .~ isoMetaValueText k # v0
@@ -1286,20 +1292,29 @@ doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
 --
 -- auxiliary iso's for conversion of MetaData <-> Text
 
-{-# INLINE isoKeywText #-}
 isoKeywText :: Iso' [Text] Text
-isoKeywText = iso toT frT
+isoKeywText = isoListText ((== ','), ", ")     -- comma separated list for keywords
+{-# INLINE isoKeywText #-}
+
+isoTSetText :: Iso' [Text] Text
+isoTSetText = isoListText ((== '|'), " | ")   -- '|' separated list (for URLs)
+{-# INLINE isoTSetText #-}
+
+
+isoListText :: (Char -> Bool, Text) -> Iso' [Text] Text
+isoListText (del, sep)= iso toT frT
   where
     toT :: [Text] -> Text
-    toT = T.intercalate ", "
+    toT = T.intercalate sep
 
     frT :: Text -> [Text]
     frT =
-      filter (not . T.null)       -- remove empty words
+      filter (not . T.null)         -- remove empty words
       .
-      map (T.unwords . T.words)   -- normalize whitespace
+      map (T.unwords . T.words)     -- normalize whitespace
       .
-      T.split (== ',')            -- split at ","
+      T.split del                   -- split at delimiter char
+{-# INLINE isoListText #-}
 
 isoOriText :: Iso' Int Text
 isoOriText = iso toT frT
@@ -1349,19 +1364,19 @@ isoMaybeIntText =
 
 -- --------------------
 
-unionKW :: [Text] -> [Text] -> [Text]
-unionKW ws1 ws2 = nub (ws1 ++ ws2)
-{-# INLINE unionKW #-}
+unionTS :: [Text] -> [Text] -> [Text]
+unionTS ws1 ws2 = nub (ws1 ++ ws2)
+{-# INLINE unionTS #-}
 
 -- used when editing metadata: add/rem keywords
-mergeKW :: [Text] -> [Text] -> [Text]
-mergeKW ws1 ws2 = ws
+mergeTS :: [Text] -> [Text] -> [Text]
+mergeTS ws1 ws2 = ws
   where
     ws         = nub ins L.\\ rmv
-    (rmv, ins) = partKWs $ ws1 ++ ws2
+    (rmv, ins) = partTS $ ws1 ++ ws2
 
     -- partition keywords in (to be removed, added)
-    partKWs =
+    partTS =
       first (map (T.drop 1))
       .
       partition ((== "-"). T.take 1)

@@ -1955,7 +1955,7 @@ function fmtRating(n) {
 // web attribute can be a list of urls separated by whitespace
 
 function fmtWeb(t) {
-    const urls = t.split(" ");
+    const urls = t.split("|");
     if (urls.length === 0) {
         return newText("");
     }
@@ -1978,7 +1978,7 @@ function fmtWeb(t) {
 }
 
 function fmtWeb1(url) {
-    const txt = newText(url);
+    const txt = newText(url.trim());
     const a   = newElem("a");
     a.href    = url;
     a.target  = "_blank";
