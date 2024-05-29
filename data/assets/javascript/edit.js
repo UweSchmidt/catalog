@@ -2177,6 +2177,12 @@ function writeMetaDataBox(md) {
 }
 
 
+function clearMetaDataBox() {
+    console.log('clearMetaDataBox');
+
+    writeMetaDataBox({});
+}
+
 function setMetaData() {
     var cid   = activeCollectionId();
     var cpath = collectionPath(cid);
@@ -2195,10 +2201,12 @@ function setMetaData() {
 
     var metadata = readMetaDataBox();
 
+    /*
     if (jQuery.isEmptyObject(metadata)) {
         statusMsg('no meta data given');
         return;
     }
+    */
 
     var ixs = getMarkedEntries(cid);
 
@@ -3284,6 +3292,12 @@ $(document).ready(function () {
             console.log("MetaDataOK clicked");
             $('#MetaDataModal').modal('hide');
             setMetaData();
+        });
+
+    $('#MetaDataClear')
+        .on('click', function (e) {
+            console.log("MetaDataClear clicked");
+            clearMetaDataBox();
         });
 
     $('#MetaDataCopy')

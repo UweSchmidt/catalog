@@ -463,3 +463,10 @@ table.metadata-table th {
 #PreviewModalBlog {
   max-width : 64em;
 }
+
+/* placeholder in input fields with lighter grey than bootstrap default */
+
+.form-control::placeholder {
+  color: #bbb;
+  opacity:1
+}
