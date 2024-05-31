@@ -85,10 +85,16 @@ function addHistList(hl) {
     }
 }
 
-function addHistCmd(cname) {
+function addHistCmd(cname, modifyCmd) {
     console.log("addHistCmd " + cname);
     getHistIdFromServer(cname, function (hid) {
         console.log("addHistCmd: " + hid + ": " + cname);
+
+        // continuation style is necessary to
+        // synchronize server calls
+        // for creating a change history entry
+        // and the real catalog modifying operation
+        modifyCmd();
     });
 }
 
@@ -1181,14 +1187,16 @@ function syncCollectionWithFilesystem(sync, path) {
 
     // start syncing on server side
     statusMsg('synchronizing collection with filesystem: ' + path);
-    addHistCmd("sync collection " + splitName(path));
-    modifyServer1(sync, path, [],
-                  function(log) {
-                      statusMsg('synchronizing collections on server side done');
-                      // TODO: show log file in modal box
-                      console.log(log);
-                      checkAllColAreThere(true, false);
-                  });
+    addHistCmd("sync collection " + splitName(path),
+               function () {
+                   modifyServer1(sync, path, [],
+                                 function(log) {
+                                     statusMsg('synchronizing collections on server side done');
+                                     // TODO: show log file in modal box
+                                     console.log(log);
+                                     checkAllColAreThere(true, false);
+                                 });
+               });
 }
 
 function exifActiveCollection() {
@@ -1208,24 +1216,28 @@ function exifCollectionWithFilesystem(path) {
 
     // start syncing on server side
     statusMsg('recomputing exif data for: ' + path);
-    addHistCmd("sync exif data in " + splitName(path));
-    modifyServer('syncExif', path, [true, true],
-                function(log) {
-                    statusMsg('recomputing exif data done');
-                    console.log(log);
-                });
+    addHistCmd("sync exif data in " + splitName(path),
+               function () {
+                   modifyServer('syncExif', path, [true, true],
+                                function(log) {
+                                    statusMsg('recomputing exif data done');
+                                    console.log(log);
+                                });
+               });
 }
 
 function checkArchiveConsistency() {
     console.log("checkArchiveConsistency");
     statusMsg('checking/repairing archive consistency');
-    addHistCmd("check catalog");
-    modifyServer1("checkArchive", pathArchive(), [],
-                  function(log) {
-                      statusMsg('checking archive on server side done');
-                      // TODO
-                      console.log(log);
-                  });
+    addHistCmd("check catalog",
+               function () {
+                   modifyServer1("checkArchive", pathArchive(), [],
+                                 function(log) {
+                                     statusMsg('checking archive on server side done');
+                                     // TODO
+                                     console.log(log);
+                                 });
+               });
 }
 
 // ----------------------------------------
@@ -1922,26 +1934,30 @@ function setCollectionImg(cid) {
         if ( $(simg).hasClass('data-jpg') ) {
             // it's a .jpg image or a .mp4 movie
             // so take this image or movie icon as collection image
-            addHistCmd("set col img for " + splitName(path));
-            modifyServer('colimg', path, [spath, pos],
-                         function () {
-                             var ppath = o.cpath;
-                             var pcol = isAlreadyOpen(ppath);
-                             statusMsg('collection image set in: ' + path);
-                             if ( pcol[0] ) {
-                                 // parent collection open
-                                 // refresh the parent collection
-                                 // to show the new collection image
-                                 remCol(ppath); // force refresh
-                                 getColFromServer(ppath, refreshCollection);
-                             }
-                         });
+            addHistCmd("set col img for " + splitName(path),
+                       function () {
+                           modifyServer('colimg', path, [spath, pos],
+                                        function () {
+                                            var ppath = o.cpath;
+                                            var pcol = isAlreadyOpen(ppath);
+                                            statusMsg('collection image set in: ' + path);
+                                            if ( pcol[0] ) {
+                                                // parent collection open
+                                                // refresh the parent collection
+                                                // to show the new collection image
+                                                remCol(ppath); // force refresh
+                                                getColFromServer(ppath, refreshCollection);
+                                            }
+                                        });
+                       });
         }
         else if ( $(simg).hasClass('data-md') ) {
             // it's a .md text file
             // so take this as the collection blog text
-            addHistCmd("set col blog for " + splitName(path));
-            modifyServer('colblog', path, [spath, pos], noop);
+            addHistCmd("set col blog for " + splitName(path),
+                       function () {
+                           modifyServer('colblog', path, [spath, pos], noop);
+                       });
         } else {
             statusError('not a .jpg image or a .md text file');
         }
@@ -2796,21 +2812,27 @@ function saveBlogText(args) {
 // ajax calls
 
 function removeFromColOnServer(path, args) {
-    addHistCmd("remove from " + splitName(path));
-    modifyServer("removeFromCollection", path, args,
-                 function () {
-                     getColFromServer(path, refreshCollection1);
-                 });
+    addHistCmd("remove from " + splitName(path),
+               function () {
+                   modifyServer("removeFromCollection", path, args,
+                                function () {
+                                    getColFromServer(path, refreshCollection1);
+                                });
+               });
 }
 
 function copyToColOnServer(spath, dpath, args) {
-    addHistCmd("copy from " + splitName(spath) + " to " + splitName(dpath));
-    copyMoveToColOnServer("copyToCollection", spath, dpath, args);
+    addHistCmd("copy from " + splitName(spath) + " to " + splitName(dpath),
+               function () {
+                   copyMoveToColOnServer("copyToCollection", spath, dpath, args);
+               });
 }
 
 function moveToColOnServer(spath, dpath, args) {
-    addHistCmd("move from " + splitName(spath) + " to " + splitName(dpath));
-    copyMoveToColOnServer("moveToCollection", spath, dpath, args);
+    addHistCmd("move from " + splitName(spath) + " to " + splitName(dpath),
+               function () {
+                   copyMoveToColOnServer("moveToCollection", spath, dpath, args);
+               });
 }
 
 function copyMoveToColOnServer(cpmv, spath, dpath, args) {
@@ -2822,63 +2844,74 @@ function copyMoveToColOnServer(cpmv, spath, dpath, args) {
 }
 
 function sortColOnServer(path, ixs) {
-    addHistCmd("sort in " + splitName(path));
-    modifyServer("sort", path, ixs,
-                 function () {
-                     getColFromServer(path, refreshCollection);
-                 });
+    addHistCmd("sort in " + splitName(path),
+               function () {
+                   modifyServer("sort", path, ixs,
+                                function () {
+                                    getColFromServer(path, refreshCollection);
+                                });
+               });
 }
 
 function sortColByDateOnServer(path, ixs) {
-    addHistCmd("sort by date in " + splitName(path));
-    modifyServer("sortByDate", path, ixs,
-                 function () {
-                     getColFromServer(path, refreshCollection);
-                 });
+    addHistCmd("sort by date in " + splitName(path),
+               function () {
+                   modifyServer("sortByDate", path, ixs,
+                                function () {
+                                    getColFromServer(path, refreshCollection);
+                                });
+               });
 }
 
 function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
-    addHistCmd("write protect in " + splitName(path));
-    modifyServer("changeWriteProtected", path, [ixs, ro],
-                 function () {
-                     getColFromServer(path, refreshCollectionF);
-                     markWriteProtected(opcs, ro);
-                 });
+    addHistCmd("write protect in " + splitName(path),
+               function () {
+                   modifyServer("changeWriteProtected", path, [ixs, ro],
+                                function () {
+                                    getColFromServer(path, refreshCollectionF);
+                                    markWriteProtected(opcs, ro);
+                                });
+               });
 }
 
 function setMetaOnServer(path, ixs, metadata) {
     var entrymeta = anyMarked(ixs);
 
-    addHistCmd("set metadata " + ( entrymeta ? "in" : "of") + " " + splitName(path));
+    addHistCmd("set metadata " + ( entrymeta ? "in" : "of") + " " + splitName(path),
+               function () {
+                   function cb() {
+                       getColFromServer(path, refreshCollectionF);
+                   };
 
-    function cb() {
-        getColFromServer(path, refreshCollectionF);
-    };
-
-    if (entrymeta) {
-        modifyServer("setMetaData", path, [ixs, metadata], cb);
-    }
-    else {
-        modifyServer("setMetaData1", path, [-1, metadata], cb);
-    }
+                   if (entrymeta) {
+                       modifyServer("setMetaData", path, [ixs, metadata], cb);
+                   }
+                   else {
+                       modifyServer("setMetaData1", path, [-1, metadata], cb);
+                   }
+               });
 }
 
 function setRatingOnServer(cid, path, ix, rating) {
     console.log('setRatingOnserver:' + path + ", " + ix + ", " + rating);
-    addHistCmd("set rating in " + splitName(path));
-    modifyServer("setRating1", path, [ix, rating],
-                 function () {
-                     setRatingInCollection(cid, ix, rating);
-                 });
+    addHistCmd("set rating in " + splitName(path),
+               function () {
+                   modifyServer("setRating1", path, [ix, rating],
+                                function () {
+                                    setRatingInCollection(cid, ix, rating);
+                                });
+               });
 }
 
 function setRatingsOnServer(cid, path, ixs, rating) {
     console.log('setRatingsOnserver:' + path + ", " + ixs + ", " + rating);
-    addHistCmd("set ratings in " + splitName(path));
-    modifyServer1("setRating", path, [ixs, rating],
-                  function () {
-                      setRatingsInCollection(cid, ixs, rating);
-                  });
+    addHistCmd("set ratings in " + splitName(path),
+               function () {
+                   modifyServer1("setRating", path, [ixs, rating],
+                                 function () {
+                                     setRatingsInCollection(cid, ixs, rating);
+                                 });
+               });
 }
 
 function getHistIdFromServer(cname, processRes) {
@@ -2927,19 +2960,23 @@ function getIsColFromServer(path, cleanupCol) {
 }
 
 function createColOnServer(path, name, showCol) {
-    addHistCmd("new collection " + name);
-    modifyServer("newcol", path, name,
-                 function () {
-                     getColFromServer(path, refreshCollection);
-                 });
+    addHistCmd("new collection " + name,
+               function () {
+                   modifyServer("newcol", path, name,
+                                function () {
+                                    getColFromServer(path, refreshCollection);
+                                });
+               });
 }
 
 function renameColOnServer(cpath, path, newname, showCol) {
-    addHistCmd("rename " + splitName(path) + " to " + newname);
-    modifyServer("renamecol", path, newname,
-                 function () {
-                     getColFromServer(cpath, refreshCollection1);
-                 });
+    addHistCmd("rename " + splitName(path) + " to " + newname,
+               function () {
+                   modifyServer("renamecol", path, newname,
+                                function () {
+                                    getColFromServer(cpath, refreshCollection1);
+                                });
+               });
 }
 
 function fillMetaFromServer(args) {
@@ -3053,13 +3090,15 @@ function saveImgStoreStart() {
 
 function saveImgStore(text) {
     console.log('saveImgStore: ' + text);
-    addHistCmd("save catalog");
-    modifyServer("snapshot",
-                 pathArchive(),
-                 text,
-                 function () {
-                     statusMsg('snapshot of image archive taken');
-                 });
+    addHistCmd("save catalog",
+               function () {
+                   modifyServer("snapshot",
+                                pathArchive(),
+                                text,
+                                function () {
+                                    statusMsg('snapshot of image archive taken');
+                                });
+               });
 }
 
 // ----------------------------------------
