@@ -31,6 +31,7 @@ module Data.MetaData
   , addMetaGPSurl
   , editMetaData
   , splitMDT
+  , colMDT
   , filterByImgType
   , filterKeysMetaData
   , splitMetaData
@@ -1116,6 +1117,10 @@ editMetaData (MD m) mt = IM.foldlWithKey' ins mt m
 
 splitMDT :: MetaDataText -> (MetaDataT, MetaDataT)
 splitMDT mdt = splitMetaData mempty (isoMetaDataMDT # mdt)
+
+colMDT :: MetaDataText -> MetaDataT
+colMDT mdt = filterKeysMetaData (`elem` keysAttrDescr) (isoMetaDataMDT # mdt)
+
 
 -- --------------------
 

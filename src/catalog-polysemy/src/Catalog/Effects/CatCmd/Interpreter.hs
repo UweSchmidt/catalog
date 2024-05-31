@@ -149,6 +149,7 @@ import Data.MetaData
        , editMetaData
        , isoMetaDataMDT
        , splitMDT
+       , colMDT
        , lookupCreate
        , lookupRating
        , mkRating
@@ -724,10 +725,10 @@ modify'renamecol newName i = do
 modify'setMetaData :: Eff'ISEJL r
                    => [Int] -> MetaDataText -> ImgNode -> Sem r ()
 modify'setMetaData ixs mdt =
-  modify'setMetaData'' ixs (editMetaData mdi) (editMetaData mdp)
+  modify'setMetaData'' ixs (editMetaData mdi) (editMetaData mdp) (editMetaData mdc)
   where
     (mdi, mdp) = splitMDT mdt
-
+    mdc        = colMDT mdt
  {-
 modify'setMetaData' :: Eff'ISEJL r
                     => [Int] -> (MetaData -> MetaData) -> ImgNode -> Sem r ()
@@ -747,8 +748,9 @@ modify'setMetaData'' :: Eff'ISEJL r
                      => [Int]
                      -> (MetaData -> MetaData)
                      -> (MetaData -> MetaData)
+                     -> (MetaData -> MetaData)
                      -> ImgNode -> Sem r ()
-modify'setMetaData'' ixs edi edp n =
+modify'setMetaData'' ixs edi edp edc n =
   traverse_ setm $ toPosList ixs
   where
     cs = n ^. theColEntries
@@ -757,7 +759,7 @@ modify'setMetaData'' ixs edi edp n =
       where
         sm = colEntry'
              adjustImgMetaData      -- img entry
-             (adjustMetaData edi)   -- col entry
+             (adjustMetaData edc)   -- col entry
 
         adjustImgMetaData ir@(ImgRef i _nm) = do
           adjustPartMetaData edp ir
@@ -778,7 +780,9 @@ modify'setMetaData1 pos md oid n
 
 modify'setRating :: Eff'ISEJL r => [Int] -> Rating -> ImgNode -> Sem r ()
 modify'setRating ixs r =
-  modify'setMetaData'' ixs id (mkRating r)
+  modify'setMetaData'' ixs id mr mr
+  where
+    mr = mkRating r
 
 -- set the rating field for a collection or a single collection entry
 
