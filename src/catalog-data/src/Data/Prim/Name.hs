@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Data.Prim.Name
        ( Name
        , mkName
@@ -14,13 +15,15 @@ import Data.Prim.Prelude
        , (&)
        , (^.)
        , iso
+       , isn'tEmpty
        , (#)
        , (%~)
-       , IsEmpty(..)
+       , Iso'
        , IsoString(..)
        , IsoText(..)
        , FromJSON(parseJSON)
        , ToJSON(toJSON)
+       , AsEmpty(..)
        )
 
 import qualified Data.Aeson as J
@@ -48,14 +51,10 @@ mkName xs        = Name . T.pack $ xs
 
 toName :: Text -> Name
 toName t
-  | not (isempty t)
+  | isn'tEmpty t
     &&
     T.head t /= '.' = Name t
   | otherwise       = emptyName
-
-instance IsEmpty Name where
-  isempty (Name n) = isempty n
-  {-# INLINE isempty #-}
 
 fromName :: Name -> String
 fromName (Name fsn) = T.unpack fsn
@@ -80,19 +79,26 @@ deriving instance Eq   Name
 deriving instance Ord  Name
 
 instance IsoString Name where
+  isoString :: Iso' Name String
   isoString = iso fromName mkName
   {-# INLINE isoString #-}
 
 instance IsoText Name where
+  isoText :: Iso' Name Text
   isoText = iso (\ (Name n) -> n) toName
   {-# INLINE isoText #-}
 
 instance Semigroup Name where
+  (<>) :: Name -> Name -> Name
   Name n1 <> Name n2 = Name $ n1 `T.append` n2
+  {-# INLINE (<>) #-}
 
 instance Monoid Name where
+  mempty :: Name
   mempty  = emptyName
-  mappend = (<>)
+  {-# INLINE mempty #-}
+
+instance AsEmpty Name
 
 instance IsString Name where
   fromString = mkName

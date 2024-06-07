@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# LANGUAGE InstanceSigs #-}
 
 -- ----------------------------------------
 
@@ -379,7 +380,7 @@ data MetaValue
   | MNull                 -- missing or default value
 
 -- invariant for MetaValue:
--- isempty mv => mv == MNull
+-- isEmpty mv => mv == MNull
 --
 -- the invariant will be guaranteed by the setter parts
 -- of "meta***" iso's
@@ -631,17 +632,17 @@ keysAttrXmp@[
 --
 -- instances and basic functions for MetaData
 
-instance (IsEmpty a, IsoValueText a) => FromJSON (MetaData' a) where
+instance (AsEmpty a, IsoValueText a) => FromJSON (MetaData' a) where
   parseJSON o = (isoMetaDataMDT #) <$> parseJSON o
 
-instance (IsEmpty a, IsoValueText a) => ToJSON (MetaData' a) where
+instance (AsEmpty a, IsoValueText a) => ToJSON (MetaData' a) where
   toJSON m = toJSON $ m ^. isoMetaDataMDT
 
 deriving instance Eq   a => Eq   (MetaData' a)   -- used in Catalog.MetaData.Exif
 deriving instance Show a => Show (MetaData' a)
 
-instance IsEmpty (MetaData' a) where
-  isempty (MD m) = IM.null m
+instance AsEmpty (MetaData' a) where
+  _Empty = nearly (MD IM.empty) (\ (MD m) -> IM.null m)
 
 instance Semigroup a => Semigroup (MetaData' a) where
   (<>) = unionMD
@@ -660,7 +661,7 @@ instance IsoValueText MetaValue where
 instance IsoValueText Text where
   isoValueText _k = iso id id
 
-isoMetaDataMDT :: (IsEmpty a, IsoValueText a)
+isoMetaDataMDT :: (AsEmpty a, IsoValueText a)
                => Iso' (MetaData' a) MetaDataText
 isoMetaDataMDT = iso toMDT frMDT
   where
@@ -669,7 +670,7 @@ isoMetaDataMDT = iso toMDT frMDT
         m' = IM.foldrWithKey' ins M.empty m
           where
             ins k0 v
-              | isempty k = id
+              | isEmpty k = id
               | otherwise = M.insert (metaKeyToText k) (v ^. isoValueText k)
               where
                 k = toEnum k0
@@ -709,13 +710,13 @@ addFileMetaData p nm md =
     dirp = initPath p'
     imgp = snocPath dirp nm
     rnm  = md ^. metaDataAt imgNameRaw . metaName
-    rawp | isempty rnm = mempty
+    rawp | isEmpty rnm = mempty
          | otherwise   = snocPath dirp rnm
 
-insertMD :: IsEmpty a => MetaKey -> a -> MetaData' a -> MetaData' a
+insertMD :: AsEmpty a => MetaKey -> a -> MetaData' a -> MetaData' a
 insertMD k v mt@(MD m)
-  | isempty k   = mt                               -- no redundant stuff in metatable
-  | isempty v   = MD $ IM.delete (fromEnum k)   m  -- dto
+  | isEmpty k   = mt                               -- no redundant stuff in metatable
+  | isEmpty v   = MD $ IM.delete (fromEnum k)   m  -- dto
   | otherwise   = MD $ IM.insert (fromEnum k) v m
 
 lookupMD :: Monoid a => MetaKey -> MetaData' a -> a
@@ -762,22 +763,26 @@ instance ToJSON MetaDataText where
 deriving instance Eq   MetaValue
 deriving instance Show MetaValue
 
-instance IsEmpty MetaValue where   -- default values are redundant
-  isempty (MText  t) = isempty t
-  isempty (MTSet ws) = null ws
-  isempty (MNm    n) = isempty n
-  isempty (MInt   _) = False       -- no default value for Int
-  isempty (MOri   o) = o == 0
-  isempty (MRat   r) = r == 0
-  isempty (MAcc   a) = a == no'restr
-  isempty (MTs    t) = t == mempty
-  isempty (MCS   cs) = isempty cs
-  isempty (MTyp   t) = isempty t
-  isempty (MMime  m) = isempty m
-  isempty (MGps   _) = False       -- no default value for GPS data
-  isempty  MNull     = True
+instance AsEmpty MetaValue where
+  _Empty :: Prism' MetaValue ()
+  _Empty = nearly MNull ise
+    where
+      ise (MText t)  = isEmpty t
+      ise (MTSet ws) = null ws
+      ise (MNm n)    = isEmpty n
+      ise (MInt _)   = False -- no default value for Int
+      ise (MOri o)   = o == 0
+      ise (MRat r)   = r == 0
+      ise (MAcc a)   = a == no'restr
+      ise (MTs t)    = t == mempty
+      ise (MCS cs)   = isEmpty cs
+      ise (MTyp t)   = isEmpty t
+      ise (MMime m)  = isEmpty m
+      ise (MGps _)   = False -- no default value for GPS data
+      ise MNull      = True
 
 instance Semigroup MetaValue where
+  (<>) :: MetaValue -> MetaValue -> MetaValue
   MNull          <> mv2      = mv2     -- 1. arg null: take the other one
   mv1            <> MNull    = mv1     -- 2. arg null: take the other one
 
@@ -797,6 +802,7 @@ instance Semigroup MetaValue where
   _              <> mv2      = mv2     -- mixing types, no effect
 
 instance Monoid MetaValue where
+  mempty :: MetaValue
   mempty = MNull
 
 -- MetaKey determines the MetaValue representation
@@ -839,7 +845,7 @@ metaText = iso
       MText t -> t
       _       -> mempty
   )
-  (\ t -> if isempty t
+  (\ t -> if isEmpty t
           then mempty
           else MText t
   )
@@ -865,7 +871,7 @@ metaName = iso
       MNm n -> n
       _     -> mempty
   )
-  (\ n -> if isempty n
+  (\ n -> if isEmpty n
           then mempty
           else MNm n
   )
@@ -928,7 +934,7 @@ metaTimeStamp = iso
       MTs t -> t
       _     -> mempty
   )
-  (\ t -> if isempty t
+  (\ t -> if isEmpty t
           then mempty
           else MTs t
   )
@@ -949,7 +955,7 @@ metaCheckSum = iso
       MCS cs -> cs
       _      -> mempty
   )
-  (\ c -> if isempty c
+  (\ c -> if isEmpty c
           then mempty
           else MCS c
   )
@@ -961,7 +967,7 @@ metaImgType = iso
       MTyp t -> t
       _      -> mempty
   )
-  (\ t -> if isempty t
+  (\ t -> if isEmpty t
           then mempty
           else MTyp t
   )
@@ -973,7 +979,7 @@ metaMimeType = iso
       MMime m -> m
       _       -> mempty
   )
-  (\ t -> if isempty t
+  (\ t -> if isEmpty t
           then mempty
           else MMime t
   )
@@ -1002,7 +1008,7 @@ metaGPSDecText = metaGPS . isoGPSDec . isoText
     isoGPSDec :: Iso' (Maybe GPSposDec) String
     isoGPSDec = iso toS frS
       where
-        toS = maybe mempty (& (prismString #))
+        toS = maybe mempty (& (ppString #))
         frS = (^? googleMapsGPSdec)
 
 metaGPSDegText :: Iso' MetaValue Text
@@ -1011,8 +1017,8 @@ metaGPSDegText = metaGPS . isoGPSDeg . isoText
     isoGPSDeg :: Iso' (Maybe GPSposDec) String
     isoGPSDeg = iso toS frS
       where
-        toS v = maybe mempty (\ p -> prismString # (isoDegDec # p)) v
-        frS s = (^. isoDegDec) <$> (s ^? prismString)
+        toS v = maybe mempty (\ p -> ppString # (isoDegDec # p)) v
+        frS s = (^. isoDegDec) <$> (s ^? ppString)
 
 -- ----------------------------------------
 --
@@ -1059,7 +1065,7 @@ normMetaData ty md
                   -- of the img to the pos in .xmp from Lightroom
                   -- set img rating from LR
 
-  | isGifMT ty && not (isempty anim)
+  | isGifMT ty && not (isEmpty anim)
                 = md
                   & metaDataAt fileMimeType . metaMimeType .~ wackelGif
                   -- when animated gif
@@ -1411,12 +1417,14 @@ deriving instance Ord     MetaKey
 deriving instance Show    MetaKey
 
 instance IsoText MetaKey where
+  isoText :: Iso' MetaKey Text
   isoText = iso metaKeyTextLookup metaKeyLookup
   {-# INLINE isoText #-}
 
-instance IsEmpty MetaKey where
-  isempty Key'Unknown = True
-  isempty _           = False
+instance AsEmpty MetaKey where
+  _Empty :: Prism' MetaKey ()
+  _Empty = only Key'Unknown
+  {-# INLINE _Empty #-}
 
 metaKeyLookup :: Text -> MetaKey
 metaKeyLookup t =

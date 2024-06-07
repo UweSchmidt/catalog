@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Data.Prim.Path
   ( Path'
   , Path
@@ -81,7 +82,7 @@ readPath = fromMaybe emptyPath <$> parseMaybe ppath
 
 mkPath :: Name -> Path
 mkPath n
-  | isempty n = PNil
+  | isEmpty n = PNil
   | otherwise = PSnoc PNil n
 {-# INLINE mkPath #-}
 
@@ -261,26 +262,28 @@ instance Foldable Path' where
   {-# INLINE foldr #-}
 
 instance Semigroup Path where
+  (<>) :: Path -> Path -> Path
   (<>) = concPath
+  {-# INLINE (<>) #-}
 
 instance Monoid Path where
+  mempty :: Path
   mempty = PNil
-  mappend = (<>)
-  {-# INLINE mappend #-}
   {-# INLINE mempty #-}
 
-instance IsEmpty Path where
-  isempty = nullPath
-  {-# INLINE isempty #-}
+instance AsEmpty Path
 
 instance IsoString Path where
+  isoString :: Iso' Path String
   isoString = iso showPath readPath
   {-# INLINE isoString #-}
 
 instance IsoText Path where
+  isoText :: Iso' Path Text
   isoText = iso textFromPath textToPath
 
 instance Show Path where
+  show :: Path -> String
   show = showPath
   {-# INLINE show #-}
 
@@ -292,6 +295,7 @@ instance FromJSON Path where
   parseJSON o = textToPath <$> parseJSON o
 
 instance IsString Path where
+  fromString :: String -> Path
   fromString = readPath
   {-# INLINE fromString #-}
 

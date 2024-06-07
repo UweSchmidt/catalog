@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Data.Prim.TimeStamp
        ( TimeStamp
        , now            -- TODO mv now into extra module
@@ -24,8 +25,8 @@ import Data.Prim.Prelude
        , view
        , iso
        , (#)
+       , AsEmpty(..)
        , Iso'
-       , IsEmpty(..)
        , IsoString(..)
        , IsoText(..)
        , FromJSON(parseJSON)
@@ -59,24 +60,27 @@ deriving instance Ord  TimeStamp
 deriving instance Show TimeStamp
 
 instance IsoString TimeStamp where
+  isoString :: Iso' TimeStamp String
   isoString = iso
               (^. isoEpochTime . to show)
               (maybe mempty TS . readMaybe)
   {-# INLINE isoString #-}
 
 instance IsoText TimeStamp where
+  isoText :: Iso' TimeStamp Text
   isoText = isoString . isoText
 
 instance Semigroup TimeStamp where
+  (<>) :: TimeStamp -> TimeStamp -> TimeStamp
   (<>) = max
+  {-# INLINE (<>) #-}
 
 instance Monoid TimeStamp where
+  mempty :: TimeStamp
   mempty  = zeroTimeStamp
-  mappend = (<>)
+  {-# INLINE mempty #-}
 
-instance IsEmpty TimeStamp where
-  isempty = (== zeroTimeStamp)
-  {-# INLINE isempty #-}
+instance AsEmpty TimeStamp
 
 instance ToJSON TimeStamp where
   toJSON = toJSON . view isoString -- (s ->) is an instance of MonadReader

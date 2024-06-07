@@ -72,7 +72,7 @@ import Data.Prim
        , (^.)
        , msgPath
        , (&)
-       , IsEmpty(isempty)
+       , isEmpty
        , IsoText(isoText)
        , Text
        , Path
@@ -215,7 +215,7 @@ createResized2 :: Eff'Img r
                -> Path
                -> Sem r ()
 createResized2 vico (s'geo, ori) d'geo src dst = do
-  vc           <- if isempty vico
+  vc           <- if isEmpty vico
                   then return mempty
                   else toFileSysPath vico
   sp           <- toFileSysPath src
@@ -224,7 +224,7 @@ createResized2 vico (s'geo, ori) d'geo src dst = do
   let shellCmd    = buildResizeCmd vc ori d'geo s'geo dp sp
   let shellScript = toBash shellCmd
 
-  if isempty shellCmd
+  if isEmpty shellCmd
     then
     do
       -- resize is a noop so a link is sufficient
@@ -388,7 +388,7 @@ buildResize3 vico rot d'g s'geo d s'
     &&
     rot == 0
     &&
-    isempty vico
+    isEmpty vico
     &&
     ".jpg" `T.isSuffixOf` s = mempty
 
@@ -439,13 +439,13 @@ buildResize3 vico rot d'g s'geo d s'
                     & addResize
                     & addVal s
 
-      & ( if isempty vico
+      & ( if isEmpty vico
           then id
           else addVideo
         )
 
     addVideo cmd
-     | isempty vico = cmd
+     | isEmpty vico = cmd
      | otherwise    = cmd
                     & toStdout
                     & composite
@@ -623,7 +623,7 @@ buildIconScript dst fopt t =
 
     addText cmd =
       cmd & addOptVal "-pointsize"   ps'
-          & ( if isempty fopt
+          & ( if isEmpty fopt
               then id
               else addOptVal "-font" fopt
             )

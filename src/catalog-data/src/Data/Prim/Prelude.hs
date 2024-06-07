@@ -1,260 +1,238 @@
 module Data.Prim.Prelude
-       ( ByteString
-       , LazyByteString
-       , Map
-       , Seq
-       , Set
-       , Text
-       , LazyText
-       , Vector
-       , IsEmpty(..)
-       , IsString(..)
+  ( ByteString,
+    LazyByteString,
+    Map,
+    Seq,
+    Set,
+    Text,
+    LazyText,
+    Vector,
+    isEmpty,
+    isn'tEmpty,
+    IsString (..),
 
-         -- * Data.Aeson
-       , ToJSON(..)
-       , FromJSON(..)
-       , (.=?!)
-       , (.:?!)
+    -- * Data.Aeson
+    ToJSON (..),
+    FromJSON (..),
+    (.=?!),
+    (.:?!),
 
-         -- * basic Data modules
-       , module Data.Either
-       , module Data.Maybe
-       , module Data.Functor
+    -- * basic Data modules
+    module Data.Either,
+    module Data.Maybe,
+    module Data.Functor,
 
-         -- * Control.Monad
-       , module Control.Applicative
-       , module Control.Monad
+    -- * Control.Monad
+    module Control.Applicative,
+    module Control.Monad,
 
-         -- * Data.List
-       , intercalate
-       , isPrefixOf
-       , isSuffixOf
-       , partition
-       , sort
-       , sortBy
-       , nub
-       , unfoldr
-       , zip3
-       , zip4
-       , zip5
-       , zip6
+    -- * Data.List
+    intercalate,
+    isPrefixOf,
+    isSuffixOf,
+    partition,
+    sort,
+    sortBy,
+    nub,
+    unfoldr,
+    zip3,
+    zip4,
+    zip5,
+    zip6,
 
-         -- * Data.Char
-       , module Data.Char
-       , module Data.Foldable
-       , module Data.Semigroup
+    -- * Data.Char
+    module Data.Char,
+    module Data.Foldable,
+    module Data.Semigroup,
 
-         -- * Data.Function
-       , on
+    -- * Data.Function
+    on,
 
-         -- * Data.Read
-       , readMaybe
+    -- * Data.Read
+    readMaybe,
 
-         -- * System.FilePath
-       , FilePath
-       , (</>)
-       , takeFileName
-       , takeDirectory
+    -- * System.FilePath
+    FilePath,
+    (</>),
+    takeFileName,
+    takeDirectory,
 
-         -- * Control.Arrow
-       , first, second, (&&&), (***)
+    -- * Control.Arrow
+    first,
+    second,
+    (&&&),
+    (***),
 
-         -- * this module
-       , compareBy
-       , compareJust
-       , compareJust'
-       , partBy
-       , toText
+    -- * this module
+    compareBy,
+    compareJust,
+    compareJust',
+    partBy,
+    toText,
 
-         -- * lens stuff
-       , module Control.Lens
-       , IsoString(..)
-       , IsoText(..)
-       , IsoInteger(..)
-       , IsoHex(..)
-       , IsoMaybe(..)
-       , PrismString(..)
-       , PrismText(..)
-       , take1st
-       , isoMapElems
-       , isoMapList
-       , isoSetList
-       , isoSeqList
-       , isoUpperLower
+    -- * lens stuff
+    module Control.Lens,
+    IsoString (..),
+    IsoText (..),
+    IsoInteger (..),
+    IsoHex (..),
+    IsoMaybe (..),
+    ParsePrintString (..),
+    ParsePrintText (..),
+    take1st,
+    isoMapElems,
+    isoMapList,
+    isoSetList,
+    isoSeqList,
+    isoUpperLower,
 
-         -- * utilities
-       , (.||.)
-       , partitionBy
-       , divideAt
+    -- * utilities
+    (.||.),
+    partitionBy,
+    divideAt,
 
-         -- * Monad ops
-       , whenM
-       , unlessM
-       , partitionM
-       , filterSeqM
+    -- * Monad ops
+    whenM,
+    unlessM,
+    partitionM,
+    filterSeqM,
 
-         -- * pretty printing helper
-       , fillLeft
-       , fillRight
-       , fillLeftList
-       , fillRightList
-       )
+    -- * pretty printing helper
+    fillLeft,
+    fillRight,
+    fillLeftList,
+    fillRightList,
+  )
 where
 
 import Control.Applicative
 import Control.Arrow
-       ( (***)
-       , first
-       , second
-       , (&&&)
-       )
+  ( first,
+    second,
+    (&&&),
+    (***),
+  )
 import Control.Lens
 import Control.Monad
-
-import Data.Aeson (ToJSON(..), FromJSON(..))
-import Data.Char
+import Data.Aeson (FromJSON (..), ToJSON (..))
+import qualified Data.Aeson as J
+import qualified Data.Aeson.Types as J
 import Data.ByteString
-       ( ByteString )
-
+  ( ByteString,
+  )
+-- import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Lazy.UTF8 as LBU
+import qualified Data.ByteString.UTF8 as BU
+import Data.Char
 import Data.Either
 import Data.Foldable
-
 import Data.Function
-       ( on )
-
+  ( on,
+  )
 import Data.Functor
 
 import Data.List
-       ( intercalate
-       , isPrefixOf
-       , isSuffixOf
-       , nub
-       , partition
-       , sort
-       , sortBy
-       , unfoldr
-       , zip4
-       , zip5
-       , zip6
-       )
+  ( intercalate,
+    isPrefixOf,
+    isSuffixOf,
+    nub,
+    partition,
+    sort,
+    sortBy,
+    unfoldr,
+    zip4,
+    zip5,
+    zip6,
+  )
 import Data.Map.Strict
-       ( Map )
-
+  ( Map,
+  )
+import qualified Data.Map.Strict as M
 import Data.Maybe
-
 import Data.Semigroup
-
-import Data.Set
-       ( Set )
-
 import Data.Sequence
-       ( Seq )
-
+  ( Seq,
+  )
+import qualified Data.Sequence as Seq
+import Data.Set
+  ( Set,
+  )
+import qualified Data.Set as S
 import Data.String
-       ( IsString(..) )
-
+  ( IsString (..),
+  )
 import Data.Text
-       ( Text )
-
+  ( Text,
+  )
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
+import Data.Text.Lens
 import Data.Vector
-       ( Vector )
-
+  ( Vector,
+  )
 import Numeric
-       ( readHex )
-
+  ( readHex,
+  )
 import System.FilePath
-       ( (</>)
-       , takeDirectory
-       , takeFileName
-       )
+  ( takeDirectory,
+    takeFileName,
+    (</>),
+  )
 import Text.Printf
-       ( printf
-       , PrintfArg
-       )
+  ( PrintfArg,
+    printf,
+  )
 import Text.Read
-       ( readMaybe )
-
-import qualified Data.Aeson                as J
-import qualified Data.Aeson.Types          as J
-import qualified Data.ByteString           as BS
-import qualified Data.ByteString.Lazy      as LB
-import qualified Data.ByteString.Lazy.UTF8 as LBU
-import qualified Data.ByteString.UTF8      as BU
-import qualified Data.Map.Strict           as M
-import qualified Data.Sequence             as Seq
-import qualified Data.Set                  as S
-import qualified Data.Text                 as T
-import qualified Data.Text.Lazy            as LT
+  ( readMaybe,
+  )
 
 -- ----------------------------------------
 
 type LazyByteString = LB.ByteString
-type LazyText       = LT.Text
+
+type LazyText = LT.Text
 
 -- ----------------------------------------
 
-class IsEmpty a where
-  isempty :: a -> Bool
+isEmpty :: AsEmpty a => a -> Bool
+isEmpty = has _Empty
+{-# INLINE isEmpty #-}
 
-
-instance IsEmpty [a] where
-  isempty = null
-  {-# INLINE isempty #-}
-
-instance IsEmpty (Maybe a) where
-  isempty Nothing = True
-  isempty _       = False
-  {-# INLINE isempty #-}
-
-instance IsEmpty Text where
-  isempty = T.null
-  {-# INLINE isempty #-}
-
-instance IsEmpty ByteString where
-  isempty = BS.null
-  {-# INLINE isempty #-}
-
-instance IsEmpty LazyByteString where
-  isempty = LB.null
-  {-# INLINE isempty #-}
-
-instance IsEmpty (Set a) where
-  isempty = S.null
-  {-# INLINE isempty #-}
-
-instance IsEmpty (Seq a) where
-  isempty = Seq.null
-  {-# INLINE isempty #-}
-
-instance IsEmpty (Map k v) where
-  isempty = M.null
-  {-# INLINE isempty #-}
+isn'tEmpty :: (AsEmpty a) => a -> Bool
+isn'tEmpty = isn't _Empty
+{-# INLINE isn'tEmpty #-}
 
 -- ----------------------------------------
 --
 -- the save version of conversion to/from String
 -- when parsing is unsafe
 
-class PrismString a where
-  prismString :: Prism' String a
+class ParsePrintString a where
+  -- parse (pretty) print String
+  ppString :: Prism' String a
+  default ppString :: (Read a, Show a) => Prism' String a
+  ppString = prism' show readMaybe
 
-  default prismString :: (Read a, Show a) => Prism' String a
-  prismString = prism' show readMaybe
+instance ParsePrintString String
 
+instance ParsePrintString Int
+
+instance ParsePrintString Integer
+
+instance ParsePrintString Bool
 
 -- the safe version of conversion to/from Text
 
-class PrismText a where
-  textPrism :: Prism' Text a
-
-  default textPrism :: (PrismString a) => Prism' Text a
-  textPrism = isoString . prismString
+class ParsePrintText a where
+  ppText :: Prism' Text a
+  default ppText :: (ParsePrintString a) => Prism' Text a
+  ppText = unpacked . ppString
 
 -- ----------------------------------------
 
 class IsoString a where
   isoString :: Iso' a String
-
   default isoString :: (Read a, Show a) => Iso' a String
   isoString = iso show read
   {-# INLINE isoString #-}
@@ -281,13 +259,13 @@ instance IsoString LazyByteString where
 
 -- unsafe conversions
 instance IsoString Int
+
 instance IsoString Integer
 
 -- ----------------------------------------
 
 class IsoText a where
   isoText :: Iso' a Text
-
   default isoText :: (IsoString a) => Iso' a Text
   isoText = isoString . isoText
   {-# INLINE isoText #-}
@@ -302,9 +280,10 @@ instance IsoText String where
 
 -- unsafe conversions
 instance IsoText Int
+
 instance IsoText Integer
 
-toText :: Show a => a -> Text
+toText :: (Show a) => a -> Text
 toText x = show x ^. isoText
 {-# INLINE toText #-}
 
@@ -312,7 +291,6 @@ toText x = show x ^. isoText
 
 class IsoInteger a where
   isoInteger :: Iso' a Integer
-
   default isoInteger :: (Integral a) => Iso' a Integer
   isoInteger = iso toInteger fromInteger
   {-# INLINE isoInteger #-}
@@ -321,14 +299,13 @@ class IsoInteger a where
 
 class IsoHex a where
   isoHex :: Iso' a String
-
   default isoHex :: (Integral a, PrintfArg a) => Iso' a String
   isoHex = iso toHex frHex
     where
-      toHex   = printf "%016x"
+      toHex = printf "%016x"
       frHex s
         | [(i, "")] <- ps = i
-        | otherwise       = 0
+        | otherwise = 0
         where
           ps = readHex s
 
@@ -338,41 +315,43 @@ instance IsoHex Int
 
 class IsoMaybe a where
   isoMaybe :: Iso' a (Maybe a)
-
-  default isoMaybe :: (IsEmpty a, Monoid a) => Iso' a (Maybe a)
+  default isoMaybe :: (AsEmpty a, Monoid a) => Iso' a (Maybe a)
   isoMaybe = iso toM fromM
     where
       toM xs
-        | isempty xs = Nothing
-        | otherwise  = Just xs
-      fromM Nothing   = mempty
+        | isEmpty xs = Nothing
+        | otherwise = Just xs
+      fromM Nothing = mempty
       fromM (Just xs) = xs
   {-# INLINE isoMaybe #-}
 
 instance IsoMaybe String
+
 instance IsoMaybe Text
+
 instance IsoMaybe ByteString
+
 instance IsoMaybe LazyByteString
 
-take1st :: (IsEmpty a, Monoid a) => [a] -> a
-take1st = fromMaybe mempty . listToMaybe . take 1 . filter (not . isempty)
+take1st :: (AsEmpty a, Monoid a) => [a] -> a
+take1st = fromMaybe mempty . listToMaybe . take 1 . filter (not . isEmpty)
 
 -- ----------------------------------------
 
 -- an iso for converting a list of elemets into a map,
 -- the key function extracts the keys of the elements
 
-isoMapElems :: Ord k => (e -> k) -> Iso' (Map k e) [e]
-isoMapElems key = iso M.elems (M.fromList . map (\ e -> (key e, e)))
+isoMapElems :: (Ord k) => (e -> k) -> Iso' (Map k e) [e]
+isoMapElems key = iso M.elems (M.fromList . map (\e -> (key e, e)))
 {-# INLINE isoMapElems #-}
 
 -- an iso for converting between maps and list of pairs
 
-isoMapList :: Ord a => Iso' (Map a b) [(a, b)]
+isoMapList :: (Ord a) => Iso' (Map a b) [(a, b)]
 isoMapList = iso M.toList M.fromList
 {-# INLINE isoMapList #-}
 
-isoSetList :: Ord a => Iso' (Set a) [a]
+isoSetList :: (Ord a) => Iso' (Set a) [a]
 isoSetList = iso S.toList S.fromList
 {-# INLINE isoSetList #-}
 
@@ -383,7 +362,6 @@ isoSeqList = iso toList Seq.fromList
 isoUpperLower :: Iso' String String
 isoUpperLower = iso (& _head %~ toUpper) (& _head %~ toLower)
 {-# INLINE isoUpperLower #-}
-
 
 {-
 -- my first traversal, but Edward already made this, it's named each
@@ -397,15 +375,21 @@ all3 inj (x1, x2, x3) = (,,) <$> inj x1 <*> inj x2 <*> inj x3
 --
 -- mothers little helper for en/decoding optional fileds
 
-(.=?!) :: (IsEmpty v, J.KeyValue e a, ToJSON v)
-       => J.Key -> v -> [a]
+(.=?!) ::
+  (AsEmpty v, J.KeyValue e a, ToJSON v) =>
+  J.Key ->
+  v ->
+  [a]
 t .=?! x
-  | isempty x = []
+  | isEmpty x = []
   | otherwise = [t J..= x]
 {-# INLINE (.=?!) #-}
 
-(.:?!) :: (FromJSON v, Monoid v)
-       => J.Object -> J.Key -> J.Parser v
+(.:?!) ::
+  (FromJSON v, Monoid v) =>
+  J.Object ->
+  J.Key ->
+  J.Parser v
 o .:?! t =
   o J..:? t J..!= mempty
 {-# INLINE (.:?!) #-}
@@ -415,25 +399,28 @@ o .:?! t =
 infixr 2 .||.
 
 -- | Lift boolean 'or' over predicates.
-
 (.||.) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
 p .||. q = (||) <$> p <*> q
 
-
 -- | group a list of entries by a mapping the
 -- elements to an ordered domain
-
 partitionBy :: (Ord e) => (a -> e) -> [a] -> [[a]]
 partitionBy f =
   M.elems
-  . foldr (\ x m -> M.insertWith (++) (f x) [x]
-                    m) M.empty
+    . foldr
+      ( \x m ->
+          M.insertWith
+            (++)
+            (f x)
+            [x]
+            m
+      )
+      M.empty
 
 -- | divide a list into equal length parts
-
 divideAt :: Int -> [a] -> [[a]]
 divideAt n
-  | n <= 1    = map (:[])
+  | n <= 1 = map (: [])
   | otherwise = go
   where
     go [] = []
@@ -451,8 +438,15 @@ divideAt n
 partBy :: (Ord e) => (a -> e) -> [a] -> [[a]]
 partBy f =
   M.elems
-  . foldr (\ x m -> M.insertWith (++) (f x) [x]
-                    m) M.empty
+    . foldr
+      ( \x m ->
+          M.insertWith
+            (++)
+            (f x)
+            [x]
+            m
+      )
+      M.empty
 
 -- ----------------------------------------
 
@@ -461,29 +455,27 @@ partBy f =
 
 compareBy :: [a -> a -> Ordering] -> a -> a -> Ordering
 compareBy fs x1 x2 =
-  mconcat $ map (\ cmp -> cmp x1 x2) fs
+  mconcat $ map (\cmp -> cmp x1 x2) fs
 {-# INLINE compareBy #-}
-
 
 -- compare only on Just values
 --
 -- useful in compareBy when Nothing values occur
 
-compareJust :: Ord a => Maybe a -> Maybe a -> Ordering
+compareJust :: (Ord a) => Maybe a -> Maybe a -> Ordering
 compareJust (Just x1) (Just x2) = compare x1 x2
-compareJust _         _         = EQ
+compareJust _ _ = EQ
 {-# INLINE compareJust #-}
-
 
 -- compare with Nothing as largest values
 --
 -- default with compare: Nothing is smallest
 
-compareJust' :: Ord a => Maybe a -> Maybe a -> Ordering
+compareJust' :: (Ord a) => Maybe a -> Maybe a -> Ordering
 compareJust' (Just x1) (Just x2) = compare x1 x2
-compareJust' (Just _ ) _         = LT
-compareJust' _         (Just _ ) = GT
-compareJust' _         _         = EQ
+compareJust' (Just _) _ = LT
+compareJust' _ (Just _) = GT
+compareJust' _ _ = EQ
 {-# INLINE compareJust' #-}
 
 -- ----------------------------------------
@@ -492,35 +484,37 @@ whenM :: (Monoid a, Monad m) => m Bool -> m a -> m a
 whenM b c = do
   b' <- b
   if b' then c else return mempty
-
 {-# INLINE whenM #-}
 
-unlessM :: Monad m => m Bool -> m () -> m ()
+unlessM :: (Monad m) => m Bool -> m () -> m ()
 unlessM b c = do
   b' <- b
   unless b' c
 {-# INLINE unlessM #-}
 
-partitionM :: Monad m
-           => (a -> m Bool) -> [a] -> m ([a], [a])
+partitionM ::
+  (Monad m) =>
+  (a -> m Bool) ->
+  [a] ->
+  m ([a], [a])
 partitionM p xs =
   partitionEithers <$> mapM toLR xs
   where
-    toLR x = (\ b -> (if b then Left else Right) x) <$> p x
+    toLR x = (\b -> (if b then Left else Right) x) <$> p x
 
 -- ----------------------------------------
 
 -- a monadic filter for sequneces
 
-filterSeqM :: Monad m => (a -> m Bool) -> Seq a -> m (Seq a)
+filterSeqM :: (Monad m) => (a -> m Bool) -> Seq a -> m (Seq a)
 filterSeqM p = foldM f mempty
   where
     f rs x = do
       b <- p x
       return
         ( if b
-          then rs Seq.|> x
-          else rs
+            then rs Seq.|> x
+            else rs
         )
 {-# INLINE filterSeqM #-}
 
@@ -540,9 +534,11 @@ fillLeftList = fillList fillLeft
 fillRightList :: Char -> [String] -> [String]
 fillRightList = fillList fillRight
 
-
-fillList :: (Char -> Int -> String -> String)
-         -> Char -> [String] -> [String]
+fillList ::
+  (Char -> Int -> String -> String) ->
+  Char ->
+  [String] ->
+  [String]
 fillList ff c xs = map (ff c l) xs
   where
     l = maximum (0 : map length xs)

@@ -33,8 +33,8 @@ instance IsoText ReqType
 instance IsoString ReqType where
   isoString = iso show'ReqType (fromMaybe RRef . read'ReqType)
 
-instance PrismString ReqType where
-  prismString = prism' show'ReqType read'ReqType
+instance ParsePrintString ReqType where
+  ppString = prism' show'ReqType read'ReqType
 
 instance ToJSON ReqType where
   toJSON = toJSON . show'ReqType

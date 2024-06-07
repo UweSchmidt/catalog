@@ -1,4 +1,5 @@
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE InstanceSigs #-}
 
 -- paths used as object ids
 -- not space efficient, but god for testing
@@ -37,20 +38,21 @@ deriving instance Eq   ObjId
 deriving instance Ord  ObjId
 
 instance Semigroup ObjId where
+  (<>) :: ObjId -> ObjId -> ObjId
   i1 <> i2
-    | isempty i1 = i2
+    | isEmpty i1 = i2
     | otherwise  = i1
   {-# INLINE (<>) #-}
 
 instance Monoid ObjId where
+  mempty :: ObjId
   mempty  = ObjId mempty
-  mappend = (<>)
+  {-# INLINE mempty #-}
 
-instance IsEmpty ObjId where
-  isempty = (== mempty)
-  {-# INLINE isempty #-}
+instance AsEmpty ObjId
 
 instance Show ObjId where
+  show :: ObjId -> String
   show = showObjId
   {-# INLINE show #-}
 
@@ -62,6 +64,7 @@ instance FromJSON ObjId where
   parseJSON o = readObjId <$> parseJSON o
 
 instance IsoString ObjId where
+  isoString :: Iso' ObjId String
   isoString = iso showObjId readObjId
   {-# INLINE isoString #-}
 

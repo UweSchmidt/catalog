@@ -496,7 +496,7 @@ reqToPath Req'{ _rType    = rty
               , _rPathPos = (pt, ps)
               , _rGeo     = g
               }
-  | isempty pt = mempty
+  | isEmpty pt = mempty
   | otherwise  = addRt rty (toRaw g pt ps)
   where
     toRaw :: Geo -> Path -> Pos -> Path
@@ -686,7 +686,7 @@ genReqImg r = do
           -- fall back to create icon from object path
 
           str <- getTxtFromFile srcPath
-          if isempty str
+          if isEmpty str
             then createIconFromObj    r       imgPath
             else createIconFromString geo str imgPath
 
@@ -759,7 +759,7 @@ createIconFromObj r dstPath = do
           (theMetaData . metaTextAt descrTitle)
   log'dbg $ "createIconFromObj: " <> txt1
 
-  txt2 <- if isempty txt1
+  txt2 <- if isEmpty txt1
           -- if no title there, extract text from path
           then do
                p <- objid2path (r ^. rColId)
@@ -877,7 +877,7 @@ withCache cmd sp dp = do
   sw  <- (isoEpochTime #) <$> getModiTime sp'
   dw  <- (isoEpochTime #) <$> getModiTime dp'
 
-  unless (dw == sw && not (isempty dw)) $ do
+  unless (dw == sw && isn'tEmpty dw) $ do
     -- no cache hit
     -- execute command and
     -- set mtime of dest to mtime of source
@@ -1040,7 +1040,7 @@ genReqImgPage' r = do
 
   let metaData           = this'meta                 -- normalize metadata
                            & metaTextAt fileRefJpg   .~ (this'mediaUrl ^. isoText)
-                           & metaTextAt fileDateTime .~ ( if isempty this'fileDate
+                           & metaTextAt fileDateTime .~ ( if isEmpty this'fileDate
                                                           then mempty
                                                           else timeStampToText this'fileDate)
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Data.Prim.SysPath
   ( SysPath
   , isoFilePath
@@ -9,21 +10,25 @@ where
 import Data.Prim.Prelude
     ( iso
     , Iso'
-    , IsEmpty(..)
+    , Prism'
+    , AsEmpty(..)
     , FromJSON(parseJSON)
     , ToJSON(toJSON)
     )
 
 --
 -- file paths for file system paths with mount point prefix
+--
+-- SysPath' is needed for deriving fmap
 
 newtype SysPath' a = SP {_unSP :: a}
   deriving (Eq, Ord, Show, Functor)
 
 type SysPath     = SysPath' FilePath
 
-isoFilePath :: Iso' SysPath FilePath
+isoFilePath :: Iso' (SysPath' a) a
 isoFilePath = iso _unSP SP
+{-# INLINE isoFilePath #-}
 
 instance ToJSON a => ToJSON (SysPath' a) where
   toJSON = toJSON . _unSP
@@ -31,8 +36,10 @@ instance ToJSON a => ToJSON (SysPath' a) where
 instance FromJSON a => FromJSON (SysPath' a) where
   parseJSON o = SP <$> parseJSON o
 
-instance (Eq a, Monoid a) => IsEmpty (SysPath' a) where
-  isempty sp = sp == emptySysPath
+instance AsEmpty a => AsEmpty (SysPath' a) where
+  _Empty :: AsEmpty a => Prism' (SysPath' a) ()
+  _Empty = isoFilePath . _Empty
+  {-# INLINE _Empty #-}
 
 emptySysPath :: Monoid a => SysPath' a
 emptySysPath = SP mempty

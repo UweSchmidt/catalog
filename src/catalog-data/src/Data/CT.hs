@@ -3,6 +3,7 @@
 -- construct complex bash commands, e.g. for
 -- ImageMagic command pipes
 -- quoting is done automatically
+{-# LANGUAGE InstanceSigs #-}
 
 module Data.CT
   ( CT    -- * Command Tree
@@ -50,8 +51,10 @@ where
 import Data.Prim.Prelude
        ( Text
        , Traversal'
-       , IsEmpty(..)
        , IsoString(isoString)
+       , AsEmpty(..)
+       , Prism'
+       , nearly
        , (&)
        , (%~)
        , isJust
@@ -91,14 +94,22 @@ deriving instance (Show val) => Show (CT val)
 deriving instance Functor CT
 
 instance Semigroup (CT val) where
+  (<>) :: CT val -> CT val -> CT val
   (<>) = mkCconc
+  {-# INLINE (<>) #-}
 
 instance Monoid (CT val) where
+  mempty :: CT val
   mempty = Nil
+  {-# INLINE mempty #-}
 
-instance IsEmpty (CT val) where
-  isempty Nil = True
-  isempty _   = False
+instance AsEmpty (CT val) where
+  _Empty :: Prism' (CT val) ()
+  _Empty = nearly mempty isn
+    where
+      isn Nil = True
+      isn _   = False
+  {-# INLINE _Empty #-}
 
 deriving instance Eq   Cop
 deriving instance Ord  Cop

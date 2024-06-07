@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Data.ImgNode
        ( ImgNode'(..)
        , ImgParts
@@ -121,7 +122,6 @@ import Data.Prim
       Seq,
       Set,
       Text,
-      IsEmpty(..),
       ObjId,
       TimeStamp,
       CheckSum,
@@ -160,11 +160,13 @@ deriving instance (Show ref) => Show (ImgNode' ref)
 
 deriving instance Functor ImgNode'
 
-instance IsEmpty (ImgNode' ref) where
-  isempty (IMG _pts _md)       = True
-  isempty (DIR es _ts)         = isempty es
-  isempty (COL _md _im _be cs) = isempty cs
-  isempty (ROOT _d _c)         = False
+instance AsEmpty (ImgNode' ref) where
+  _Empty = nearly emptyImg ise
+    where
+      ise (IMG _pts _md)       = True
+      ise (DIR es _ts)         = isEmpty es
+      ise (COL _md _im _be cs) = isEmpty cs
+      ise (ROOT _d _c)         = False
 
 instance ToJSON ref => ToJSON (ImgNode' ref) where
   toJSON (IMG pm md) = J.object
@@ -353,11 +355,12 @@ newtype ImgParts = ImgParts (Map Name ImgPart)
 
 deriving instance Show ImgParts
 
-instance IsEmpty ImgParts where
-  isempty (ImgParts im) = isempty im
-  {-# INLINE isempty #-}
+instance AsEmpty ImgParts where
+  _Empty :: Prism' ImgParts ()
+  _Empty = nearly mempty (\ (ImgParts m) -> isEmpty m)
 
 instance Semigroup ImgParts where
+  (<>) :: ImgParts -> ImgParts -> ImgParts
   ImgParts m1 <> ImgParts m2
     = ImgParts $ M.mergeWithKey combine only1 only2 m1 m2
     where
@@ -371,10 +374,12 @@ instance Semigroup ImgParts where
           t2 = e2 ^. theImgTimeStamp
 
 instance Monoid ImgParts where
+  mempty :: ImgParts
   mempty  = ImgParts M.empty
-  mappend = (<>)
+  {-# INLINE mempty #-}
 
 instance ToJSON ImgParts where
+  toJSON :: ImgParts -> J.Value
   toJSON ips = toJSON $ ips ^. isoImgParts
   -- old
   -- toJSON (ImgParts pm) = toJSON . M.toList $ pm
@@ -474,16 +479,22 @@ deriving instance Foldable    ImgRef'
 deriving instance Traversable ImgRef'
 
 instance (ToJSON ref) => ToJSON (ImgRef' ref) where
+  toJSON :: ToJSON ref => ImgRef' ref -> J.Value
   toJSON (ImgRef i n) = J.toJSON (i, n)
 
 instance (Show ref) => Show (ImgRef' ref) where
+  show :: Show ref => ImgRef' ref -> String
   show (ImgRef r n) = show (r, n)
 
-instance IsEmpty (ImgRef' ref) where
-  isempty = isempty . _iname
+instance Monoid ref => AsEmpty (ImgRef' ref) where
+  _Empty :: Monoid ref => Prism' (ImgRef' ref) ()
+  _Empty = nearly (ImgRef mempty mempty)
+                  (isEmpty . _iname)
+  {-# INLINE _Empty #-}
 
 emptyImgRef :: ImgRef
 emptyImgRef = ImgRef mempty mempty
+{-# INLINE emptyImgRef #-}
 
 -- --------------------
 
@@ -593,18 +604,23 @@ deriving instance Functor     DirEntries'
 deriving instance Foldable    DirEntries'
 deriving instance Traversable DirEntries'
 
-instance IsEmpty (DirEntries' ref) where
-  isempty (DE xs) = isempty xs
-  {-# INLINE isempty #-}
-
 instance Semigroup (DirEntries' ref) where
+  (<>) :: DirEntries' ref -> DirEntries' ref -> DirEntries' ref
   DE xs <> DE ys = DE $ xs <> ys
+  {-# INLINE (<>) #-}
 
 instance Monoid (DirEntries' ref) where
+  mempty :: DirEntries' ref
   mempty  = DE mempty
-  mappend = (<>)
+  {-# INLINE mempty #-}
+
+instance AsEmpty (DirEntries' ref) where
+  _Empty :: Prism' (DirEntries' ref) ()
+  _Empty = nearly (DE mempty) (\(DE s) -> isEmpty s)
+  {-# INLINE _Empty #-}
 
 instance (ToJSON ref) => ToJSON (DirEntries' ref) where
+  toJSON :: ToJSON ref => DirEntries' ref -> J.Value
   toJSON (DE rs) = toJSON rs
   {-# INLINE toJSON #-}
 

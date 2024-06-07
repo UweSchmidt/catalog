@@ -1,3 +1,5 @@
+{-# LANGUAGE InstanceSigs #-}
+
 module Data.Prim.ImageType
 where
 
@@ -15,13 +17,14 @@ import Data.Prim.Prelude
        , (#)
        , (.||.)
        , (&&&)
+       , isEmpty
        , Map
        , Iso'
-       , IsEmpty(..)
        , IsoString(..)
        , IsoText(..)
        , FromJSON(parseJSON)
        , ToJSON(toJSON)
+       , AsEmpty(..)
        )
 
 import qualified Data.Map.Strict     as M
@@ -69,19 +72,23 @@ deriving instance Bounded MimeType
 deriving instance Enum    MimeType
 
 instance IsoText MimeType where
+  isoText :: Iso' MimeType Text
   isoText = iso mimeTextLookup mimeLookup
 
-instance IsEmpty MimeType where
-  isempty = (== Unknown'mime_type)
-
 instance Semigroup MimeType where
+  (<>) :: MimeType -> MimeType -> MimeType
   t1 <> t2
-    | isempty t1 = t2
+    | isEmpty t1 = t2
     | otherwise  = t1
 
+  {-# INLINE (<>) #-}
+
 instance Monoid MimeType where
+  mempty :: MimeType
   mempty  = Unknown'mime_type
-  mappend = (<>)
+  {-# INLINE mempty #-}
+
+instance AsEmpty MimeType
 
 instance ToJSON MimeType where
   toJSON m = toJSON (m ^. isoText)
@@ -211,7 +218,7 @@ hasSizeMT =  isJpgMT
 
 -- files which are ignored when syncing with filesystem
 isBoringMT :: MimeType -> Bool
-isBoringMT = isempty
+isBoringMT = isEmpty
 {-# INLINE isBoringMT #-}
 
 -- ----------------------------------------
@@ -304,16 +311,20 @@ instance FromJSON ImgType where
   {-# INLINE parseJSON #-}
 
 instance Semigroup ImgType where
+  (<>) :: ImgType -> ImgType -> ImgType
   t1 <> t2
-    | isempty t1 = t2
+    | isEmpty t1 = t2
     | otherwise  = t1
 
-instance Monoid ImgType where
-  mempty  = IMGboring
-  mappend = (<>)
+  {-# INLINE (<>) #-}
 
-instance IsEmpty ImgType where
-  isempty = (== mempty)
+instance Monoid ImgType where
+  mempty :: ImgType
+  mempty  = IMGboring
+  {-# INLINE mempty #-}
+
+instance AsEmpty ImgType
+
 -- {-
 -- is .jpg file
 isJpg :: ImgType -> Bool

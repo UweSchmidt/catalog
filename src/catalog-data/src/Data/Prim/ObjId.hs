@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Data.Prim.ObjId
   ( ObjId
   , mkObjId
@@ -12,16 +13,17 @@ import Data.Prim.Prelude
        ( Alternative((<|>))
        , MonadPlus(mzero)
        , Iso'
-       , IsEmpty(..)
        , IsoHex(..)
        , IsoString(..)
        , IsoText
        , FromJSON(parseJSON)
        , ToJSON(toJSON)
+       , AsEmpty(..)
        , (^.)
        , fromMaybe
        , sort
        , iso
+       , isEmpty
        )
 
 import Data.Bits
@@ -68,7 +70,7 @@ objId2Int = iso (\ (ObjId w) -> fromIntegral w)
 
 objId2Maybe :: Iso' ObjId (Maybe ObjId)
 objId2Maybe =
-  iso (\ i -> if isempty i
+  iso (\ i -> if isEmpty i
               then Nothing
               else Just i
       )
@@ -78,21 +80,23 @@ objId2Maybe =
 deriving instance Eq   ObjId
 deriving instance Ord  ObjId
 instance Show ObjId where
+  show :: ObjId -> String
   show = oidToHex
 
 instance Semigroup ObjId where
+  (<>) :: ObjId -> ObjId -> ObjId
   i1 <> i2
-    | isempty i1 = i2
+    | isEmpty i1 = i2
     | otherwise  = i1
+
   {-# INLINE (<>) #-}
 
 instance Monoid ObjId where
+  mempty :: ObjId
   mempty  = toObjId 0
-  mappend = (<>)
+  {-# INLINE mempty #-}
 
-instance IsEmpty ObjId where
-  isempty = (== mempty)
-  {-# INLINE isempty #-}
+instance AsEmpty ObjId
 
 instance ToJSON ObjId where
   -- old instance as decimals

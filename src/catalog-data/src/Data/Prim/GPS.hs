@@ -23,7 +23,7 @@ import Data.Prim.Prelude
        , Lens'
        , Prism'
        , IsoMaybe(isoMaybe)
-       , PrismString(..)
+       , ParsePrintString(..)
        , FromJSON(parseJSON)
        , ToJSON(toJSON)
        , (>=>)
@@ -86,10 +86,11 @@ isoDegDec = iso toDec frDec
     toDec (GPSpos lat long) = GPSpos (deg2dec       lat) (deg2dec       long)
     frDec (GPSpos lat long) = GPSpos (dec2deg (N,S) lat) (dec2deg (E,W) long)
 
+
 -- parse and show positions in degree format
 
-instance PrismString GPSposDeg where
-  prismString = prism' showPos
+instance ParsePrintString GPSposDeg where
+  ppString = prism' showPos
                        (parseMaybe parserPos)
     where
       showPos :: GPSposDeg -> String
@@ -106,11 +107,11 @@ instance PrismString GPSposDeg where
 
 -- parse and show positions in decimal form
 --
--- "53.3, 10.0" ^? prismString      -> Just (GPSpos 53.3 10.0)
--- prismString # (GPSpos 53.3 10.0) -> "53.3, 10.0"
+-- "53.3, 10.0" ^? ppString      -> Just (GPSpos 53.3 10.0)
+-- ppString # (GPSpos 53.3 10.0) -> "53.3, 10.0"
 
-instance PrismString GPSposDec where
-  prismString = prism' showPosDec
+instance ParsePrintString GPSposDec where
+  ppString = prism' showPosDec
                        (parseMaybe parserPos)
     where
       showPosDec :: GPSposDec -> String
@@ -136,7 +137,7 @@ googleMapsGPSdec :: Prism' String GPSposDec
 googleMapsGPSdec = prism' pos2mapsUrl
                          (\ s -> parseMaybe parserMapsUrl s
                                  <|>
-                                 (s ^? prismString . isoDegDec)
+                                 (s ^? ppString . isoDegDec)
                          )
   where
     -- generate a Google maps url
@@ -145,7 +146,7 @@ googleMapsGPSdec = prism' pos2mapsUrl
       "https://www.google.com/maps/@"
       <> "?api=1"
       <> "&map_action=map"
-      <> "&center=" <> (prismString # pos)
+      <> "&center=" <> (ppString # pos)
       <> "&zoom=17"                       -- default: 15
       <> "&basemap=satellite"             -- or roadmap, terrain
 
@@ -168,8 +169,8 @@ googleMapsGPSdec = prism' pos2mapsUrl
 
 -- a use case for the whole GPS stuff:
 --
--- transform a Google Maps url into a string representing and EXIF GPS position
--- and vice versa
+-- transform a Google Maps url into a string representing a GPS position
+-- in EXIF format and vice versa
 
 isoGoogleMapsDegree :: Iso' String String
 isoGoogleMapsDegree =
@@ -183,20 +184,20 @@ isoGoogleMapsDegree =
         deg = url ^? googleMapsGPSdec . from isoDegDec
 
         res :: Maybe String
-        res = (prismString #) <$> deg
+        res = (ppString #) <$> deg
 
     degree2googleMapsUrl :: String -> String
     degree2googleMapsUrl deg =
       isoMaybe # res
       where
         dec :: Maybe GPSposDec
-        dec = deg ^? prismString . isoDegDec
+        dec = deg ^? ppString . isoDegDec
 
         res :: Maybe String
-        res = (prismString #) <$> dec
+        res = (ppString #) <$> dec
 
-instance PrismString GPSdeg where
-  prismString = prism' showDeg (parseMaybe $ parserDeg [N, E, S, W])
+instance ParsePrintString GPSdeg where
+  ppString = prism' showDeg (parseMaybe $ parserDeg [N, E, S, W])
 
 instance ToJSON GPSposDec where
   toJSON (GPSpos lo la) = toJSON [lo, la]
@@ -318,19 +319,35 @@ instance ToJSON GeoAddress where
 
 -- ----------------------------------------
 --
--- Test data
+-- Tests
 --
--- parsing Google maps urls is critical, they sometimes change the format
+-- parsing Google maps urls is critical, Google sometimes changes the format
 
 {-
-s1, s11, s2, s22, s3 :: String
 
-s1 = " 53.575644, -9.767767 "
-s11 = "53.575644,-9.767767"
+>>> let s1  = " 53.575644, -9.767767 "
+>>> let s11 = "53.575644,-9.767767"
+>>>
+>>> (s1  ^? ppString) :: Maybe GPSposDec
+>>> (s11 ^? ppString) :: Maybe GPSposDec
+>>>
+Just (GPSpos {_gpsLat = 53.575644, _gpsLong = -9.767767})
+Just (GPSpos {_gpsLat = 53.575644, _gpsLong = -9.767767})
 
-s2  = "https://www.google.com/maps/place/34%C2%B011'19.1%22N+118%C2%B040'26.5%22W/@34.1886344,-118.6762237,17z/data=!3m1!4b1!4m14!1m7!3m6!1s0x80c2c75ddc27da13:0xe22fdf6f254608f4!2sLos+Angeles,+CA,+USA!3b1!8m2!3d34.0522342!4d-118.2436849!3m5!1s0x0:0x0!7e2!8m2!3d34.1886303!4d-118.6740354"
-s22 = "https://www.google.com/maps/place/40%C2%B045'58.8%22N+0%C2%B044'16.0%22E/@40.766342,0.7355993,1230m/data=!3m2!1e3!4b1!4m14!1m7!3m6!1s0x12a107cdc6829017:0x91989cc9d39014fd!2sEbro+Delta,+Spain!3b1!8m2!3d40.6934831!4d0.6962853!3m5!1s0x0:0x0!7e2!8m2!3d40.7663384!4d0.7377877"
+>>> let s2  = "https://www.google.com/maps/place/34%C2%B011'19.1%22N+118%C2%B040'26.5%22W/@34.1886344,-118.6762237,17z/data=!3m1!4b1!4m14!1m7!3m6!1s0x80c2c75ddc27da13:0xe22fdf6f254608f4!2sLos+Angeles,+CA,+USA!3b1!8m2!3d34.0522342!4d-118.2436849!3m5!1s0x0:0x0!7e2!8m2!3d34.1886303!4d-118.6740354"
+>>> let s22 = "https://www.google.com/maps/place/40%C2%B045'58.8%22N+0%C2%B044'16.0%22E/@40.766342,0.7355993,1230m/data=!3m2!1e3!4b1!4m14!1m7!3m6!1s0x12a107cdc6829017:0x91989cc9d39014fd!2sEbro+Delta,+Spain!3b1!8m2!3d40.6934831!4d0.6962853!3m5!1s0x0:0x0!7e2!8m2!3d40.7663384!4d0.7377877"
+>>>
+>>> (s2  ^? googleMapsGPSdec) :: Maybe GPSposDec
+>>> (s22 ^? googleMapsGPSdec) :: Maybe GPSposDec
+>>>
+Just (GPSpos {_gpsLat = 34.1886344, _gpsLong = -118.6762237})
+Just (GPSpos {_gpsLat = 40.766342, _gpsLong = 0.7355993})
 
-s3 = "53 deg 2' 10.3\" N , 10 deg 0' 20.1\" E"
+>>> let s3  = "53 deg 2' 10.3\" N , 10 deg 0' 20.1\" E"
+>>>
+>>>
+>>> (s3  ^? ppString) :: Maybe GPSposDeg
+>>>
+Just (GPSpos {_gpsLat = GPSdeg 53 2 10.3 N, _gpsLong = GPSdeg 10 0 20.1 E})
 
--- -}
+-}

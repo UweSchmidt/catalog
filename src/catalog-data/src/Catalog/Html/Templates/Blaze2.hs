@@ -27,7 +27,7 @@ import Data.Prim.Geometry
 import Data.Prim.Prelude
        ( Text
        , Map
-       , IsEmpty(isempty)
+       , isEmpty
        , IsoString(isoString)
        , IsoText(isoText)
        , LazyText
@@ -893,7 +893,7 @@ picMeta md = mconcat mdTab
         key = fileTimeStamp
         ts  = md ^. metaDataAt key . metaTimeStamp
         val
-          | isempty ts = mempty
+          | isEmpty ts = mempty
           | otherwise  = timeStampToText ts
 
     mdMPX :: Text -> Html
@@ -904,7 +904,7 @@ picMeta md = mconcat mdTab
         key = compositeMegapixels
         mpx = md ^. metaTextAt key
         val
-          | isempty mpx = mempty
+          | isEmpty mpx = mempty
           | otherwise   = mpx & isoString %~ fmt
         fmt s = maybe "" (printf "%f") px
           where
@@ -990,7 +990,7 @@ formatDegree = T.replace " deg" "\176"
 
 imgRef :: Text -> Text -> Text
 imgRef theImgGeoDir theImgRef
-  | isempty theImgRef = mempty
+  | isEmpty theImgRef = mempty
   | otherwise         = cond ("/" <>) theImgGeoDir <> theImgRef
 
 imgRef' :: Text -> Text -> Text -> Text

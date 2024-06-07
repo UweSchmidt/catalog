@@ -58,7 +58,8 @@ import Data.Prim
        , Name
        , ObjId
        , Path
-       , IsEmpty(isempty)
+       , isEmpty
+       , isn'tEmpty
        , IsoText(isoText)
        , TimeStamp
        , Ixed(ix)
@@ -103,7 +104,7 @@ checkImgPart' onlyUpdate path ip = do
 
       if onlyUpdate
          &&
-        fts == ts0 && not (isempty cs0)
+        fts == ts0 && isn'tEmpty cs0
         then return $ CSok cs0
         else do
           fcs <- genChecksumOfFile fsp
@@ -116,7 +117,7 @@ checkImgPart' onlyUpdate path ip = do
 
     check ts1 cs1
       | ts1 > ts0   = CSupdate cs1 ts1    -- file modified since last check
-      | isempty cs0 = CSnew    cs1        -- checksum not yet computed
+      | isEmpty cs0 = CSnew    cs1        -- checksum not yet computed
       | cs1 /= cs0  = CSerr    cs1 cs0    -- file corrupted
       | otherwise   = CSok     cs0
 

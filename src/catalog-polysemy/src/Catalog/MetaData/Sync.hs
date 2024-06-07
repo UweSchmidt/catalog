@@ -54,7 +54,7 @@ import Data.MetaData
        )
 import Data.Prim
        ( ObjId
-       , IsEmpty(isempty)
+       , isEmpty
        , (^.)
        , (.~)
        , toText
@@ -116,7 +116,7 @@ syncMetaData :: Eff'MDSync r => ObjId -> Sem r ()
 syncMetaData i = do
   ps <- getImgVals i theParts
   md <- getImgVals i theMetaData
-  unless (isempty ps) $
+  unless (isEmpty ps) $
     syncMetaData' i ps md
 
 

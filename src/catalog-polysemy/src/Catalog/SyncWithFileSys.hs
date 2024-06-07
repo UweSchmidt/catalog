@@ -259,7 +259,7 @@ updateAllImgRefs um =
 
 updateImgRefs :: Eff'ISEJL r => ImgRefUpdateMap -> ObjId -> Sem r ()
 updateImgRefs um i0
-  | isempty um = return ()
+  | isEmpty um = return ()
   | otherwise  = cleanupRefs' adjIR adjCE i0
   where
     adjIR :: AdjustImgRef         -- Maybe ImgRef -> Maybe (Maybe ImgRef)
@@ -626,7 +626,7 @@ syncParts i pp = do
 
 checkEmptyDir :: Eff'ISEJL r => ObjId -> Sem r ()
 checkEmptyDir i =
-  whenM (isempty <$> getImgVal i) $ do
+  whenM (isEmpty <$> getImgVal i) $ do
     p <- objid2path i
     log'trc $ msgPath p "sync: empty DIR ignored: "
     rmImgNode i

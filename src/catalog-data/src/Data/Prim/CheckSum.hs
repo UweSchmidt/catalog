@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Data.Prim.CheckSum
        ( CheckSum
        , mkCheckSum
@@ -12,13 +13,15 @@ import Data.Prim.Prelude
        ( (^.)
        , iso
        , (#)
-       , IsEmpty(..)
+       , AsEmpty(..)
+       , isEmpty
        , IsoHex(..)
        , IsoInteger(..)
        , IsoString(..)
        , IsoText
        , FromJSON(parseJSON)
        , ToJSON(toJSON)
+       , Iso'
        )
 
 import qualified Data.Digest.Murmur64 as MM
@@ -41,29 +44,34 @@ toCheckSum = CS . fromInteger
 
 deriving instance Eq CheckSum
 
-instance IsEmpty CheckSum where
-  isempty = (== zeroCheckSum)
-
 instance Semigroup CheckSum where
+  (<>) :: CheckSum -> CheckSum -> CheckSum
   c1 <> c2
-    | isempty c1 = c2
+    | isEmpty c1 = c2
     | otherwise  = c1
+  {-# INLINE (<>) #-}
 
 instance Monoid CheckSum where
+  mempty :: CheckSum
   mempty  = zeroCheckSum
-  mappend = (<>)
+  {-# INLINE mempty #-}
+
+instance AsEmpty CheckSum
 
 instance IsoInteger CheckSum where
+  isoInteger :: Iso' CheckSum Integer
   isoInteger = iso fromCheckSum toCheckSum
   {-# INLINE isoInteger #-}
 
 instance IsoString CheckSum where
+  isoString :: Iso' CheckSum String
   isoString = iso showCheckSum readCheckSum
   {-# INLINE isoString #-}
 
 instance IsoText CheckSum
 
 instance Show CheckSum where
+  show :: CheckSum -> String
   show = ("0x" ++) . showCheckSum
 
 showCheckSum :: CheckSum -> String
@@ -81,6 +89,7 @@ readCheckSum s =
     i = isoHex # s
 
 instance IsoHex CheckSum where
+  isoHex :: Iso' CheckSum String
   isoHex = iso showCheckSum readCheckSum
   {-# INLINE isoHex #-}
 

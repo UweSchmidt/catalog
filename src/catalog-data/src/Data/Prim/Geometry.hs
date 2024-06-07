@@ -1,4 +1,5 @@
 -- types for image geometry
+{-# LANGUAGE InstanceSigs #-}
 
 module Data.Prim.Geometry
 where
@@ -32,23 +33,27 @@ instance ToJSON   Geo where
   toJSON geo = toJSON (geo ^. isoText)
 
 instance IsoString Geo where
+  isoString :: Iso' Geo String
   isoString = iso showGeo readGeo
   {-# INLINE isoString #-}
 
 instance IsoText Geo where
+  isoText :: Iso' Geo Text
   isoText = isoString . isoText
   {-# INLINE isoText #-}
 
 instance Semigroup Geo where
+  (<>) :: Geo -> Geo -> Geo
   Geo 0 0 <> geo2 = geo2
   geo1    <> _    = geo1
+  {-# INLINE (<>) #-}
 
 instance Monoid Geo where
+  mempty :: Geo
   mempty  = Geo 0 0
-  mappend = (<>)
+  {-# INLINE mempty #-}
 
-instance IsEmpty Geo where
-  isempty g = g == mempty
+instance AsEmpty Geo
 
 geo'org :: Geo
 geo'org = Geo 1 1

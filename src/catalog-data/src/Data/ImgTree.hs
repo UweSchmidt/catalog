@@ -11,7 +11,7 @@ import Control.Monad.Except
 import Data.ImgNode
 
 import Data.Prim
-       ( IsEmpty(isempty)
+       ( isEmpty
        , Name
        , ObjId
        , Path
@@ -83,7 +83,7 @@ removeImgNode :: ObjId
               -> ImgTree
               -> Except String ImgTree
 removeImgNode =
-  remDirNode isempty removeChildRef
+  remDirNode isEmpty removeChildRef
 {-# INLINE removeImgNode #-}
 
 addChildRef :: ObjId -> ImgNode -> ImgNode

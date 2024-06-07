@@ -105,7 +105,7 @@ import Data.Prim {- - }
        , Name
        , Path
        , PathPos
-       , IsEmpty(isempty)
+       , isEmpty
        , IsoString(isoString)
        , IsoText(isoText)
        , ReqType
@@ -314,14 +314,14 @@ evalClientCmd =
       saveGeoCache
 
     CcGetAddress g -> do
-      log'verb $ untext ["get address for GPS coordinate: ", (prismString # g) ^. isoText]
+      log'verb $ untext ["get address for GPS coordinate: ", (ppString # g) ^. isoText]
       loadGeoCache
       a <- lookupGeoCache g
       case a of
         Just (GA{_display_name = ad} : _) -> do
           writeln ad
           saveGeoCache
-        _ -> log'err $ "no address found for: " <> (prismString # g) ^. isoText
+        _ -> log'err $ "no address found for: " <> (ppString # g) ^. isoText
 
     CcPage path -> do
       showDoc path
@@ -362,7 +362,7 @@ parseDocPath p0
     (n0, p1) = p0 ^. viewTop
     (n1, p2) = p1 ^. viewTop
     (n2, p3) = p2 ^. viewTop
-    mrty     = n1 ^? (isoString . prismString)
+    mrty     = n1 ^? (isoString . ppString)
     ext      = maybe "" reqType2ext mrty
     mgeo     = readGeo' (n2 ^. isoString)
 
@@ -677,7 +677,7 @@ evalCheckSum :: CSEffects r
              => CSCmd r () -> Path -> Name -> Sem r ()
 
 evalCheckSum k p part
-  | isempty part = theEntry p >>= evalCheckSum' k p
+  | isEmpty part = theEntry p >>= evalCheckSum' k p
   | otherwise    = evalCheckSumPart k p part
 
 
@@ -808,7 +808,7 @@ setGeoAddress force p e
       | Just loc <- mgps
       , force
         ||
-        isempty mAddr = do
+        isEmpty mAddr = do
           log'trc $ untext [ "setGeoAddress: update addr for"
                            , p ^. isoText
                            ]
@@ -871,7 +871,7 @@ checkMeta p e
     checkMetaPart _mdi mdp
       | hasSizeMT ty
         &&
-        isempty geo  = do
+        isEmpty geo  = do
           writeln $ untext [ p ^. isoText
                            , "part=", nm
                            , ": no metadata tag found for "

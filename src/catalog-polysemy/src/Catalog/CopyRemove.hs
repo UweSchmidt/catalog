@@ -116,7 +116,7 @@ import Data.Prim
        , (^?)
        , (^.)
        , Any(Any, getAny)
-       , IsEmpty(isempty)
+       , isEmpty
        , Name
        , ObjId
        , Path
@@ -477,7 +477,7 @@ filterDirs imgs =
     dirA go i es ts = do
       void $ foldDir go i es ts             -- remove all images in sudirs
 
-      e <- isempty <$> getImgVal i          -- dir now empty?
+      e <- isEmpty <$> getImgVal i          -- dir now empty?
       when e $ do
         r <- isROOT                         -- and
              <$>

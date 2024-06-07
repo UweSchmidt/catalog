@@ -107,7 +107,7 @@ import Data.Prim
        , Ixed(ix)
        , TimeStamp
        , IsoText(isoText)
-       , IsEmpty(isempty)
+       , isEmpty
        , Path
        , Name
        , ObjId
@@ -337,7 +337,7 @@ genCollectionsByDir di = do
 
     path2Title :: Path -> Text
     path2Title p
-      | isempty b && n == n'photos =
+      | isEmpty b && n == n'photos =
           tt'photos ^. isoText
       | otherwise =
           n ^. isoText
@@ -547,7 +547,7 @@ mkColByPath' :: Eff'ISEJLT r
 mkColByPath' insertCol p = do
   log'trc $ msgPath p "mkColByPath': "
   -- check for legal path
-  when (isempty $ tailPath p) $
+  when (isEmpty $ tailPath p) $
     throw @Text $ msgPath p "mkColByPath: can't create collection"
 
   mid <- lookupByPath p
@@ -583,7 +583,7 @@ type DateMap = IM.IntMap ColEntries
 
 updateCollectionsByDate :: Eff'ISEJLT r => ColEntries -> Sem r ()
 updateCollectionsByDate es =
-  unless (isempty es) $ do
+  unless (isEmpty es) $ do
     log'verb $
        "updateCollectionsByDate: new refs are added to byDate collections: "
        <> toText es
@@ -634,7 +634,7 @@ dateMap2Collections pc dm =
 
 updateImportsDir :: Eff'ISEJLT r => TimeStamp -> ColEntries -> Sem r ()
 updateImportsDir ts es =
-  unless (isempty es) $ do
+  unless (isEmpty es) $ do
     genImportsCollection
     idir <- mkImportCol ts p'imports
     adjustColByName es idir

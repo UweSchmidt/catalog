@@ -65,10 +65,10 @@ import Data.Prim
        , (#)
        , second
        , Geo(Geo)
-       , IsEmpty(isempty)
+       , isEmpty
        , IsoString(isoString)
        , IsoText(isoText)
-       , PrismString(prismString)
+       , ParsePrintString(ppString)
        , Text
        , Geo
        , GPSposDec
@@ -231,7 +231,7 @@ cmdClient = subparser $
               = CcDownload path' reqtype' geo' dest'' seqno' overwrite'
                 where
                   dest''
-                    | isempty dest' = lastPath path' ^. isoText
+                    | isEmpty dest' = lastPath path' ^. isoText
                     | otherwise     = dest'
 
             img'variants :: String
@@ -537,7 +537,7 @@ imgReqReader = eitherReader parse
       maybe
         (Left $ "Wrong image format: " <> arg)
         Right
-        (arg ^? prismString)
+        (arg ^? ppString)
 
 geoReader :: ReadM Geo
 geoReader = eitherReader parse

@@ -88,7 +88,7 @@ import Data.Prim
        , GeoAddrList
        , GPSposDec
        , Text
-       , PrismString(prismString)
+       , ParsePrintString(ppString)
        , FromJSON(parseJSON)
        , gpsLat
        , gpsLong
@@ -233,7 +233,7 @@ nominatimHttps' req0 = do
       GeoLocAddress loc -> delayExec timeBetweenRequests $
         ( do
             log'trc $ untext [ "geoLocAddress: read address for: "
-                             , isoString . prismString # loc
+                             , isoString . ppString # loc
                              ]
 
             req <- embedExcText $ req0 loc              -- create request
