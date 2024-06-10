@@ -97,6 +97,9 @@ addExt ext fn
   | ext `T.isSuffixOf` fn = fn
   | otherwise             = fn <> ext
 
+-- >>> addExt ".xyz" "/abc/def"
+-- "/abc/def.xyz"
+
 -- ----------------------------------------
 
 infixr 5 <//>
@@ -122,6 +125,16 @@ takeBaseName p =
 addJpg :: TextPath -> TextPath
 addJpg p =
   p & isoString %~ F.addJpg
+
+-- >>> addJpg "/abc/def"
+-- "/abc/def.jpg"
+
+-- >>> addJpg "/abc/def.jpg"
+-- "/abc/def.jpg"
+
+-- >>> addJpg "/abc/def.png"
+-- "/abc/def.png.jpg"
+
 
 ymdNameMb :: TextPath -> Maybe (Text, Maybe (Text, Maybe Text))
 ymdNameMb p =

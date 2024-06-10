@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Data.Prim.GPS
   ( GPSposDeg
   , GPSposDec
@@ -35,17 +36,20 @@ import Data.Prim.Prelude
        , (#)
        )
 import Text.SimpleParser
-       ( SP
-       , (<++>)
-       , anyStringThen
-       , manyChars
-       , msp
-       , parseMaybe
-       , char
-       , digitChar
-       , string
-       , try
-    )
+    ( (<++>),
+      anyStringThen,
+      manyChars,
+      msp,
+      noCaseWord,
+      parseMaybe,
+      satisfy,
+      char,
+      digitChar,
+      string,
+      SP,
+      try,
+      caseWord )
+
 import Text.Printf
        ( printf )
 
@@ -90,8 +94,9 @@ isoDegDec = iso toDec frDec
 -- parse and show positions in degree format
 
 instance ParsePrintString GPSposDeg where
+  ppString :: Prism' String GPSposDeg
   ppString = prism' showPos
-                       (parseMaybe parserPos)
+             (parseMaybe parserPos)
     where
       showPos :: GPSposDeg -> String
       showPos (GPSpos lat long) =
@@ -111,6 +116,7 @@ instance ParsePrintString GPSposDeg where
 -- ppString # (GPSpos 53.3 10.0) -> "53.3, 10.0"
 
 instance ParsePrintString GPSposDec where
+  ppString :: Prism' String GPSposDec
   ppString = prism' showPosDec
                        (parseMaybe parserPos)
     where
@@ -219,7 +225,7 @@ parserPosDec = tt <$> signedFloat <* del <*> signedFloat <* msp
 
     del = (msp <* char ',')
           <|>
-          (string "%2C")   -- new maps format .1b
+          (noCaseWord "%2C")   -- new maps format .1b
 
 showDeg :: GPSdeg -> String
 showDeg (GPSdeg d m s r) = unwords
@@ -234,9 +240,9 @@ showDeg (GPSdeg d m s r) = unwords
 
 parserDeg :: [GPSdir] -> SP GPSdeg
 parserDeg dirs = do
-  deg <- read <$> (some digitChar <* msp <* string "deg" <* msp)
-  mn  <- read <$> (some digitChar <* char '\''           <* msp)
-  sec <- read <$> (floatParser    <* char '"'            <* msp)
+  deg <- read <$> (some digitChar <* msp <* noCaseWord "deg" <* msp)
+  mn  <- read <$> (some digitChar <* char '\''               <* msp)
+  sec <- read <$> (floatParser    <* char '"'                <* msp)
   dir <- parserDir
   return $ GPSdeg deg mn sec dir
   where
@@ -244,7 +250,7 @@ parserDeg dirs = do
     parserDir = foldr ((<|>) . parserD) empty dirs
       where
         parserD :: GPSdir -> SP GPSdir
-        parserD d = string (show d) >> return d
+        parserD d = caseWord (show d) >> return d
 
 deg2dec :: GPSdeg -> Double
 deg2dec (GPSdeg d m s r) =
@@ -270,7 +276,10 @@ dec2deg (po, ne) x = GPSdeg d'  m'  s'  c'
 signedFloat :: SP String
 signedFloat =
   msp *>
-  ( (string "-" <|> string "+" <|> return "")
+  ( ( ((: []) <$> satisfy (\ x -> x == '+' || x == '-'))
+      <|>
+      return ""
+    )
     <++>
     floatParser
   )

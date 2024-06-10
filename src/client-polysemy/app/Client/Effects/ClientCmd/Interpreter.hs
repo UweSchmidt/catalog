@@ -158,7 +158,7 @@ import Data.History
 
 import Text.SimpleParser
        ( parseMaybe
-       , parseGlob
+       , parseGlobText
        )
 
 -- catalog-polysemy
@@ -416,9 +416,9 @@ filterGlob globPattern = filter (matchGlob globPattern)
 
 matchGlob :: Text -> (Path -> Bool)
 matchGlob globPattern =
-  case parseMaybe parseGlob (globPattern ^. isoString) of
+  case parseMaybe parseGlobText globPattern of
     Nothing  -> const False
-    Just prs -> (\ p -> isJust . parseMaybe prs $ lastPath p ^. isoString)
+    Just prs -> (\ p -> isJust . parseMaybe prs $ lastPath p ^. isoText)
 
 globExpandPP :: CCmdEffects r => PathPos -> Sem r PathPos
 globExpandPP (p, cx) = do

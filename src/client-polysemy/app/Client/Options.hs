@@ -80,7 +80,7 @@ import Data.Prim
 
 import Text.SimpleParser
        ( parseMaybe
-       , parseGlobNoCase
+       , parseGlobNoCaseString
        )
 
 import Client.Version
@@ -576,7 +576,7 @@ globParser' :: (String -> [MetaKey] -> Either String a) -> ReadM a
 globParser' check = eitherReader parse
   where
     parse arg =
-      case parseMaybe parseGlobNoCase arg of
+      case parseMaybe parseGlobNoCaseString arg of
         Nothing -> Left $ "Wrong glob style pattern: " <> arg
         Just gp -> check arg (globKeysMetaData gp)
 
