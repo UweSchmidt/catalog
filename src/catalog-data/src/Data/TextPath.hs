@@ -36,56 +36,12 @@ module Data.TextPath
   )
 where
 
-import Data.Prim.Constants ( p'bycreatedate )
-
-import Data.Prim.ImageType
-    ( MimeType(Unknown'mime_type), isJpgMT, isBoringMT, imgMimeExt' )
-
-import Data.Prim.Name ( Name )
-
-import Data.Prim.Prelude
-    ( Text,
-      Alternative(many, some, (<|>)),
-      fromMaybe,
-      isJust,
-      MonadPlus(mzero),
-      optional,
-      (&),
-      (^.),
-      (#),
-      (%~),
-      both,
-      isAlphaNum,
-      isDigit,
-      IsoText(isoText),
-      IsoString(isoString) )
+import Data.Prim
 
 import Text.SimpleParser
-    ( CPC,
-      CP,
-      try,
-      eof,
-      parseMaybe,
-      option,
-      satisfy,
-      single,
-      anySingle,
-      TP,
-      (<++>),
-      anyStringThen',
-      someChars,
-      digitChar,
-      lowerOrUpperCaseWord,
-      ntimes,
-      nChars,
-      atleast'ntimes,
-      char,
-      lowerChar,
-      upperChar,
-      string )
 
+import qualified Data.List        as L
 import qualified Data.Text        as T
-import qualified System.FilePath  as FP
 
 ------------------------------------------------------------------------------
 
@@ -164,6 +120,15 @@ splitExtMimeP = anyStringThen' $ pext <* eof
     pext = foldr ((<|>) . pe) mzero imgMimeLT
     pe (e, t) = (,t) <$> try (lowerOrUpperCaseWord e)
 
+splitExtP' :: TP Text -> TP (Text, Text)
+splitExtP' pext =
+  anyStringThen' (option mempty (try pext) <* eof)
+
+splitExtP :: TP (Text,  Text)
+splitExtP = splitExtP' pext
+  where
+    pext = consChar <$> single '.' <*> someChars extChar
+
 -- --------------------
 --
 -- names for image subdirectories
@@ -216,22 +181,42 @@ p'geo = someChars digitChar <++> string "x" <++> someChars digitChar
 
 -- examples
 
--- >>> parseMaybe imgName ("dsc_1234.nef")
--- >>> parseMaybe imgName ("DSC_1234.NEF")
--- >>> parseMaybe imgName ("dsc_1234.jpg")
--- >>> parseMaybe imgName ("dsc_1234.xmp")
--- >>> parseMaybe imgName ("dsc_1234_M.tiff")
--- >>> parseMaybe imgName ("dsc_1234_1.tiff")
--- >>> parseMaybe imgName ("dsc_1234-8.jpg")
+-- >>> parseMaybe imgName "dsc_1234.nef"
+-- Just ("dsc_1234",".nef")
 
--- >>> parseMaybe imgName ("dog.jpg")
--- >>> parseMaybe imgName ("dog_and_cat.jpg")
+-- >>> parseMaybe imgName "DSC_1234.NEF"
+-- Just ("DSC_1234",".NEF")
+
+-- >>> parseMaybe imgName "dsc_1234.jpg"
+-- Just ("dsc_1234",".jpg")
+
+-- >>> parseMaybe imgName "dsc_1234.xmp"
+-- Just ("dsc_1234",".xmp")
+
+-- >>> parseMaybe imgName "dsc_1234_M.tiff"
+-- Just ("dsc_1234","_M.tiff")
+
+-- >>> parseMaybe imgName "dsc_1234_1.tiff"
+-- Just ("dsc_1234","_1.tiff")
+
+-- >>> parseMaybe imgName "dsc_1234-8.jpg"
+-- Just ("dsc_1234","-8.jpg")
+
+-- >>> parseMaybe imgName "dog.jpg"
+-- Just ("dog",".jpg")
+
+-- >>> parseMaybe imgName "dog_and_cat.jpg"
+-- Just ("dog_and_cat",".jpg")
+
+-- >>> parseMaybe imgName "dog_and_cat_and_mouse"
+-- Just ("dog_and_cat_and_mouse","")
+
 
 imgName :: TP (Text, Text)
 imgName =
   try ((,) <$> camName <*> camSuffix)
   <|>
-  (,mempty) . T.pack <$> some imgChar
+  splitExtP
 
 camName :: TP Text
 camName =
@@ -257,6 +242,9 @@ imgDel = satisfy (`elem` ("_-." :: String))
 imgChar :: (CPC s) => CP s Char
 imgChar = satisfy isAlphaNum <|> imgDel
 
+extChar :: CPC s => CP s Char
+extChar = satisfy isAlphaNum <|> satisfy (\ x -> x == '_' || x == '-')
+
 imgMimeLT :: [(Text, MimeType)]
 imgMimeLT = concatMap f imgMimeExt'
   where
@@ -271,16 +259,20 @@ p1 <//> p2 = p1 <> "/" <> p2
 
 splitExtension :: TextPath -> (TextPath, Text)
 splitExtension p =
-  FP.splitExtension (p ^. isoString)
-     & both %~ (isoString #)
+  fromMaybe (p, mempty) $  parseMaybe splitExtP p
 
 takeDir :: TextPath -> TextPath
-takeDir p =
-   p & isoString %~ FP.takeDirectory
+takeDir = fst . splitDirBase
 
 takeBaseName :: TextPath -> TextPath
-takeBaseName p =
-  p & isoString %~ FP.takeFileName
+takeBaseName = snd . splitDirBase
+
+splitDirBase :: TextPath -> (TextPath, TextPath)
+splitDirBase =
+  fromMaybe (mempty, mempty)
+  . fmap (first $ T.intercalate "/")
+  . L.unsnoc
+  . T.split (== '/')
 
 ------------------------------------------------------------------------------
 
