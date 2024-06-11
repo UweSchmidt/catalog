@@ -5,16 +5,31 @@ module Data.Prim.Geometry
 where
 
 import Data.Prim.Prelude
+    ( Text,
+      Alternative((<|>), many),
+      fromMaybe,
+      toLower,
+      toUpper,
+      (&),
+      _head,
+      (^.),
+      iso,
+      (#),
+      (%~),
+      AsEmpty,
+      Field1(_1),
+      Field2(_2),
+      Iso',
+      Lens',
+      FromJSON(parseJSON),
+      ToJSON(toJSON),
+      isDigit,
+      readMaybe,
+      IsoText(..),
+      IsoString(..) )
 
 import Text.SimpleParser
-       ( SP
-       , parseMaybe
-       , char
-       , digitChar
-       , satisfy
-       , string
-       , try
-       )
+    ( try, parseMaybe, satisfy, SP, digits, char, string )
 
 -- ----------------------------------------
 
@@ -94,9 +109,9 @@ geoParser = try pg <|> pg'org
     pg'org = string "org" >> return geo'org
 
     pg = do
-      x <- read <$> some digitChar
+      x <- read <$> digits
       _ <- char 'x'
-      y <- read <$> some digitChar
+      y <- read <$> digits
       return (Geo x y)
 
 flipGeo :: Geo -> Geo
