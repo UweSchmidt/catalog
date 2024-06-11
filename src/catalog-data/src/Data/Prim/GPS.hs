@@ -39,6 +39,7 @@ import Text.SimpleParser
     ( (<++>),
       anyStringThen,
       manyChars,
+      anySingle,
       msp,
       noCaseWord,
       parseMaybe,
@@ -162,12 +163,12 @@ googleMapsGPSdec = prism' pos2mapsUrl
     parserMapsUrl =
       -- old maps format .1a
       try ( anyStringThen "/@" *> parserPosDec <*
-            char ',' <* some digitChar <* manyChars
+            char ',' <* some digitChar <* manyChars anySingle
           )
       <|>
       -- new maps format .1b
       try ( anyStringThen "&ll=" *> parserPosDec <*
-            char '&' <* manyChars
+            char '&' <* manyChars anySingle
           )
       <|>
       -- .2 lat/long pair or EXIF data

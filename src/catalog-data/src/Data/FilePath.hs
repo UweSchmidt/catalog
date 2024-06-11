@@ -1,5 +1,7 @@
 -- | classify file names and compute a file type for a file name/path
 
+-- no longer in use
+
 module Data.FilePath
   ( splitPathNameExtMime
   , isImgCopiesDir
@@ -30,6 +32,7 @@ import Text.SimpleParser
        , lowerOrUpperCaseWord
        , ntimes
        , someChars
+       , anySingle
        , parseMaybe
        , satisfy
        , single
@@ -55,7 +58,7 @@ p'geo = some digitChar <++> string "x" <++> some digitChar
 -- "/archive/collections/photos" -> "photos"
 baseNameParser :: SP String
 baseNameParser =
-  char '/' *> many (try $ anyStringThen' (char '/')) *> someChars
+  char '/' *> many (try $ anyStringThen' (char '/')) *> someChars anySingle
 
 baseNameMb :: String -> Maybe String
 baseNameMb = parseMaybe baseNameParser
@@ -107,8 +110,6 @@ camSuffix :: SP String
 camSuffix =
   SP.option mempty $
   (:) <$> c1 <*> some cc
-  <|>
-  (:) <$> single '.' <*> some cc
   where
     c' :: String
     c' = "_-."

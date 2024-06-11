@@ -162,13 +162,21 @@ msp :: (CPC s) => CP s s
 msp = packChars <$> many (single ' ')
 {-# INLINE msp  #-}
 
-manyChars :: (CPC s) => CP s s
-manyChars = packChars <$> many anySingle
+manyChars :: (CPC s) => CP s Char -> CP s s
+manyChars cp = packChars <$> many cp
 {-# INLINE manyChars  #-}
 
-someChars :: (CPC s) => CP s s
-someChars = packChars <$> some anySingle
+someChars :: (CPC s) => CP s Char -> CP s s
+someChars cp = packChars <$> some cp
 {-# INLINE someChars  #-}
+
+digits :: (CPC s) => CP s s
+digits = someChars digitChar
+{-# INLINE digits #-}
+
+letters :: (CPC s) => CP s s
+letters = someChars letterChar
+{-# INLINE letters #-}
 
 word'' :: (CPC s) => (Char -> CP s Char) -> s -> CP s s
 word'' charP w =

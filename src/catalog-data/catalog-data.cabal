@@ -19,7 +19,6 @@ library
     Data.Access
     Data.ColEntrySet
     Data.CT
-    Data.FilePath
     Data.History
     Data.ImageStore
     Data.ImgNode

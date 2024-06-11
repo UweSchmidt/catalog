@@ -8,7 +8,7 @@
 --
 -- As long as there is a MTL version of the catalog modules
 -- and a Polysemy version, this is a wrapper to module
--- Catalog.FilePath containing all parsing ops with FileName
+-- Data.FilePath containing all parsing ops with FileName
 -- as input
 
 module Data.TextPath
@@ -36,27 +36,53 @@ module Data.TextPath
   )
 where
 
-import Data.Prim
-       ( Text
-       , IsoString(isoString)
-       , IsoText(isoText)
-       , Name
-       , MimeType
-       , (&)
-       , (^.)
-       , (#)
-       , (%~)
-       , (***)
-       , both
-       , isBoringMT
-       )
+import Data.Prim.Constants ( p'bycreatedate )
 
-import qualified Data.FilePath    as F ( splitPathNameExtMime
-                                       , isImgCopiesDir
-                                       , addJpg
-                                       , ymdNameMb
-                                       , baseNameMb
-                                       )
+import Data.Prim.ImageType
+    ( MimeType(Unknown'mime_type), isJpgMT, isBoringMT, imgMimeExt' )
+
+import Data.Prim.Name ( Name )
+
+import Data.Prim.Prelude
+    ( Text,
+      Alternative(many, some, (<|>)),
+      fromMaybe,
+      isJust,
+      MonadPlus(mzero),
+      optional,
+      (&),
+      (^.),
+      (#),
+      (%~),
+      both,
+      isAlphaNum,
+      isDigit,
+      IsoText(isoText),
+      IsoString(isoString) )
+
+import Text.SimpleParser
+    ( CPC,
+      CP,
+      try,
+      eof,
+      parseMaybe,
+      option,
+      satisfy,
+      single,
+      anySingle,
+      TP,
+      (<++>),
+      anyStringThen',
+      someChars,
+      digitChar,
+      lowerOrUpperCaseWord,
+      ntimes,
+      nChars,
+      atleast'ntimes,
+      char,
+      lowerChar,
+      upperChar,
+      string )
 
 import qualified Data.Text        as T
 import qualified System.FilePath  as FP
@@ -69,24 +95,30 @@ type TextPath        = Text
 type ClassifiedName  = (Name, (Name, MimeType))
 type ClassifiedNames = [ClassifiedName]
 
+
 -- classify paths: compute base name and type
 -- and remove boring names
 classifyPaths :: [TextPath] -> [ClassifiedName]
 classifyPaths = filter (not . isBoringMT . snd . snd) . map classifyPath
 
 classifyPath :: TextPath -> ClassifiedName
-classifyPath tp = (isoText # tp, (isoString # bn, mimeType))
+classifyPath tp = (isoText # tp, (isoText # bn, mimeType))
   where
-    ((_p, (bn, _bx), _ex), mimeType) = F.splitPathNameExtMime (tp ^. isoString)
+    ((_p, (bn, _bx), _ex), mimeType) = splitPathNameExtMime tp
 
 path2MimeType :: TextPath -> MimeType
-path2MimeType = snd . F.splitPathNameExtMime . (^. isoString)
-
-isImgCopiesDir :: TextPath -> Bool
-isImgCopiesDir p = F.isImgCopiesDir (p ^. isoString)
+path2MimeType = snd . splitPathNameExtMime
 
 imgNames :: [ClassifiedNames] -> [Name]
 imgNames = map (fst . snd) . concatMap (take 1)
+
+isImgCopiesDir :: Text -> Bool
+isImgCopiesDir = isJust . parseMaybe imgSubdir
+
+splitPathNameExtMime :: Text -> (SplitName, MimeType)
+splitPathNameExtMime n =
+  fromMaybe ((mempty, (n, mempty), mempty), Unknown'mime_type) $
+    parseMaybe splitPathNameExtMimeP n
 
 -- ----------------------------------------
 --
@@ -95,10 +127,140 @@ imgNames = map (fst . snd) . concatMap (take 1)
 addExt :: Text -> TextPath -> TextPath
 addExt ext fn
   | ext `T.isSuffixOf` fn = fn
-  | otherwise             = fn <> ext
+  | otherwise = fn <> ext
 
 -- >>> addExt ".xyz" "/abc/def"
 -- "/abc/def.xyz"
+
+-- >>> addExt ".xyz" "/abc/def.xyz"
+
+-- ----------------------------------------
+--
+-- filr path parsers
+
+type SplitName = (Text, (Text, Text), Text)
+
+splitPathNameExtMimeP :: TP (SplitName, MimeType)
+splitPathNameExtMimeP = do
+  p <- path'
+  (nm, (e, t)) <- splitExtMimeP
+  let n = fromMaybe (nm, mempty) $ parseMaybe imgName nm
+  return ((p, n, e), t)
+  where
+    p' :: TP Text
+    p' =
+      T.pack <$>
+      try ( (<>)
+            <$> many (satisfy (/= '/'))
+            <*> some (satisfy (== '/'))
+          )
+
+    path' :: TP Text
+    path' = T.concat <$> many p'
+
+splitExtMimeP :: TP (Text, (Text, MimeType))
+splitExtMimeP = anyStringThen' $ pext <* eof
+  where
+    pext = foldr ((<|>) . pe) mzero imgMimeLT
+    pe (e, t) = (,t) <$> try (lowerOrUpperCaseWord e)
+
+-- --------------------
+--
+-- names for image subdirectories
+-- containing processed copies e.g. of a raw image
+
+imgSubdir :: TP Text
+imgSubdir =
+  try p'geo
+  <|>
+  try ( foldl1 (<|>)
+        ( map
+          (try . string) -- first "tiff", then "tif" !!!
+          [ "srgb-bw",
+            "srgb",
+            "small",
+            "web",
+            "bw",
+            "jpg",
+            "tiff",
+            "tif",
+            "dng",
+            "dxo"
+          ]
+        )
+        <++> og
+      )
+  where
+    og :: TP Text
+    og =
+      option mempty (string "-")
+      <++>
+      option mempty ( try p'geo
+                      <|>
+                      try (someChars digitChar)
+                    )
+
+p'geo :: TP Text
+p'geo = someChars digitChar <++> string "x" <++> someChars digitChar
+
+-- --------------------
+--
+-- img names are partitions into
+-- camera generated names with a fixed syntax
+-- of 3 letters, '_' and 4 digits plus extension
+-- and other image names with letters, digits or '_', '-', '.'
+--
+-- camera generated images, there are usually
+-- various files with same name and different extensions or suffixes
+-- theses files are grouped together to a single (logical) image entry
+
+-- examples
+
+-- >>> parseMaybe imgName ("dsc_1234.nef")
+-- >>> parseMaybe imgName ("DSC_1234.NEF")
+-- >>> parseMaybe imgName ("dsc_1234.jpg")
+-- >>> parseMaybe imgName ("dsc_1234.xmp")
+-- >>> parseMaybe imgName ("dsc_1234_M.tiff")
+-- >>> parseMaybe imgName ("dsc_1234_1.tiff")
+-- >>> parseMaybe imgName ("dsc_1234-8.jpg")
+
+-- >>> parseMaybe imgName ("dog.jpg")
+-- >>> parseMaybe imgName ("dog_and_cat.jpg")
+
+imgName :: TP (Text, Text)
+imgName =
+  try ((,) <$> camName <*> camSuffix)
+  <|>
+  (,mempty) . T.pack <$> some imgChar
+
+camName :: TP Text
+camName =
+  T.pack <$> ((<>) <$> (try cn1 <|> cn2) <*> cno)
+  where
+    cn = try (ntimes 3 ucn) <|> ntimes 3 lcn
+
+    cn1 = (:) <$> single '_' <*> cn
+    cn2 = (\xs x -> xs <> [x]) <$> cn <*> single '_'
+
+    cno = atleast'ntimes 4 digitChar
+    ucn = upperChar <|> digitChar
+    lcn = lowerChar <|> digitChar
+
+camSuffix :: TP Text
+camSuffix =
+  T.pack <$>
+  option mempty ((:) <$> imgDel <*> some imgChar)
+
+imgDel :: CPC s => CP s Char
+imgDel = satisfy (`elem` ("_-." :: String))
+
+imgChar :: (CPC s) => CP s Char
+imgChar = satisfy isAlphaNum <|> imgDel
+
+imgMimeLT :: [(Text, MimeType)]
+imgMimeLT = concatMap f imgMimeExt'
+  where
+    f (t, es) = map (,t) (map T.pack es)
 
 -- ----------------------------------------
 
@@ -123,8 +285,11 @@ takeBaseName p =
 ------------------------------------------------------------------------------
 
 addJpg :: TextPath -> TextPath
-addJpg p =
-  p & isoString %~ F.addJpg
+addJpg fn
+  | isJ fn = fn
+  | otherwise = fn <> ".jpg"
+  where
+    isJ = isJpgMT . snd . splitPathNameExtMime
 
 -- >>> addJpg "/abc/def"
 -- "/abc/def.jpg"
@@ -135,14 +300,45 @@ addJpg p =
 -- >>> addJpg "/abc/def.png"
 -- "/abc/def.png.jpg"
 
+-- --------------------
 
 ymdNameMb :: TextPath -> Maybe (Text, Maybe (Text, Maybe Text))
-ymdNameMb p =
-  (T.pack *** fmap (T.pack *** fmap T.pack)) <$> F.ymdNameMb (T.unpack p)
+ymdNameMb = parseMaybe ymdParser
+
+ymdParser :: TP (Text, Maybe (Text, Maybe Text))
+ymdParser = do
+  y <- do _ <- string $ p'bycreatedate ^. isoText
+          _ <- char '/'
+          nChars 4 isDigit
+
+  md <- optional $
+        do _ <- char '/'
+           m <- nChars 2 isDigit
+           d <- optional $
+                do _ <- char '/'
+                   nChars 2 isDigit
+           return (m, d)
+  return (y, md)
+
+-- >>> ymdNameMb (p'bycreatedate ^. isoText <> "/2024/06/11")
+-- Just ("2024",Just ("06",Just "11"))
+
+-- --------------------
 
 baseNameMb :: Text -> Maybe Text
-baseNameMb p =
-  T.pack <$> F.baseNameMb (T.unpack p)
+baseNameMb = parseMaybe baseNameParser
+
+--  T.pack <$> F.baseNameMb (T.unpack p)
+
+-- "/archive/collections/photos" -> "photos"
+baseNameParser :: TP Text
+baseNameParser =
+  char '/' *> many (try $ anyStringThen' (char '/')) *> someChars anySingle
+
+
+-- >>> baseNameMb "/archive/collections/photos"
+-- >>> baseNameMb  "archive/collections/photos"
+-- >>> baseNameMb "/archive/collections/photos/"
 
 ------------------------------------------------------------------------------
  {-
