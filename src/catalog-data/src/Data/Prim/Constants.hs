@@ -12,7 +12,6 @@ import Data.Prim.Path
        )
 import Data.Prim.Prelude
        ( Text
-       , (</>)
        , (^.)
        , IsoString(isoString)
        , IsoText(isoText)
@@ -133,8 +132,8 @@ ps'photos       = p'photos       ^. isoString
 ps'trash        = p'trash        ^. isoString
 
 ps'bootstrap    = "/bootstrap"
-ps'cache        = "/cache"                               -- old url scheme
-ps'iconsgen     = ps'cache ++ ps'icons  </> "generated"  -- old url scheme
+ps'cache        = "/cache"                              -- old url scheme
+ps'iconsgen     = ps'cache ++ ps'icons ++ "/generated"  -- old url scheme
 
 ps'assets       = p'assets     ^. isoString
 ps'html         = p'html       ^. isoString

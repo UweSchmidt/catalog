@@ -51,12 +51,6 @@ module Data.Prim.Prelude
     -- * Data.Read
     readMaybe,
 
-    -- * System.FilePath
-    FilePath,
-    (</>),
-    takeFileName,
-    takeDirectory,
-
     -- * Control.Arrow
     first,
     second,
@@ -173,11 +167,6 @@ import Data.Vector
   )
 import Numeric
   ( readHex,
-  )
-import System.FilePath
-  ( takeDirectory,
-    takeFileName,
-    (</>),
   )
 import Text.Printf
   ( PrintfArg,
