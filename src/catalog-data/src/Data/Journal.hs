@@ -24,6 +24,7 @@ import Data.Aeson
        , (.=)
        , object
        )
+import Data.TextPath ( TextPath )
 
 -- ----------------------------------------
 
@@ -43,8 +44,8 @@ data Journal' ref = MkIMG           ref Name
                   | AdjColEntries   ref (ColEntries' ref)
                   | SetSyncTime     ref TimeStamp
                   | InitImgStore    Name Name Name
-                  | LoadImgStore    FilePath
-                  | SaveImgStore    FilePath
+                  | LoadImgStore    TextPath
+                  | SaveImgStore    TextPath
                   | SaveBlogText    ref Name Text
                   | NewUndo         HistoryID
                   | DoUndo          HistoryID

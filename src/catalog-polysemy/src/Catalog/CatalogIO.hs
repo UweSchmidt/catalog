@@ -157,7 +157,7 @@ saveImgStore p = do
 
   bs <- toBS
   writeFileLB sp bs
-  journal $ SaveImgStore (p ^. isoString)   -- FilePath in Journal def
+  journal $ SaveImgStore p
 
   log'info $ "saveImgStore: catalog stored into file: " <> toText sp
   where
@@ -245,9 +245,9 @@ loadImgStore f = do
         md ^. metaTextAt descrCatalogWrite
 
       put st
-      journal $ LoadImgStore (f ^. isoString)
-      -- make a "FS check" and throw away undefined refs
+      journal $ LoadImgStore f
 
+      -- make a "FS check" and throw away undefined refs
       log'info "loadImgStore: check catalog integrity"
       checkImgStore
       log'info "loadImgStore: catalog loading complete"

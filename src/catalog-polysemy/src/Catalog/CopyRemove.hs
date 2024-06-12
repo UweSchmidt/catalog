@@ -97,31 +97,6 @@ import Data.MetaData
        ( isRemovable )
 
 import Data.Prim
-       ( join
-       , foldM
-       , unless
-       , traverse_
-       , void
-       , when
-       , mkObjId
-       , isPathPrefix
-       , msgPath
-       , snocPath
-       , substPathPrefix
-       , filterSeqM
-       , isoSeqList
-       , toText
-       , unlessM
-       , (^..)
-       , (^?)
-       , (^.)
-       , Any(Any, getAny)
-       , isEmpty
-       , Name
-       , ObjId
-       , Path
-       , Text
-       )
 
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
