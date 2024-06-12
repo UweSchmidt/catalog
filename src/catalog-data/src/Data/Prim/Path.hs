@@ -2,7 +2,6 @@
 module Data.Prim.Path
   ( Path'
   , Path
-  , readPath
   , mkPath
   , emptyPath
   , consPath
@@ -35,6 +34,26 @@ where
 
 -- catalog-data
 import Data.Prim.Prelude
+    ( IsString(..),
+      Foldable(foldl'),
+      AsEmpty,
+      Text,
+      IsoText(..),
+      ToJSON(toJSON),
+      Iso',
+      FromJSON(parseJSON),
+      iso,
+      Alternative(many, some),
+      isEmpty,
+      (#),
+      fromMaybe,
+      (&),
+      (^.),
+      (%~),
+      (.~),
+      Field1(_1),
+      filtered,
+      Field2(_2) )
 
 import Data.Prim.Name
        ( Name )
@@ -65,19 +84,6 @@ data Path' n = PNil
 type Path = Path' Name
 
 ----------------------------------------
-
-readPath :: String -> Path
-readPath = fromMaybe emptyPath <$> parseMaybe ppath
-  where
-    ppath :: SP Path
-    ppath = listToPath <$>
-      (many (single '/') >> many pname)
-
-    pname :: SP Text
-    pname = (^. isoText) <$> pstring
-
-    pstring :: SP String
-    pstring = some (noneOf' "/") <* many (single '/')
 
 
 -- empty Name -> empty Path
@@ -238,6 +244,22 @@ checkExtPath ext p
     ln   = T.length ext
     bn   = p ^. viewBase . _2 . isoText
     ext' = T.toLower . T.takeEnd ln $ bn
+
+-- just for user input
+
+readPath :: String -> Path
+readPath = fromMaybe emptyPath <$> parseMaybe ppath
+  where
+    ppath :: SP Path
+    ppath =
+      listToPath
+        <$> (many (single '/') >> many pname)
+
+    pname :: SP Text
+    pname = (^. isoText) <$> pstring
+
+    pstring :: SP String
+    pstring = some (noneOf' "/") <* many (single '/')
 
 ----------------------------------------
 --

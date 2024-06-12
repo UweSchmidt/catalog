@@ -60,12 +60,12 @@ import Data.Prim
        , lastPath
        , isoPathPos
        , imgReqTypes
-       , readPath
        , (^?)
        , (^.)
        , second
        , Geo(Geo)
        , isEmpty
+       , IsString(fromString)
        , IsoString(isoString)
        , IsoText(isoText)
        , ParsePrintString(ppString)
@@ -528,7 +528,7 @@ imgPathReader = eitherReader parse
         arg'
       where
         arg' = fmap (p,) cx
-        (p, cx) = (readPath arg) ^. isoPathPos
+        (p, cx) = (fromString arg) ^. isoPathPos
 
 imgReqReader :: ReadM ReqType
 imgReqReader = eitherReader parse

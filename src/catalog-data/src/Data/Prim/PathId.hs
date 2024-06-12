@@ -27,7 +27,7 @@ showObjId (ObjId p) = show p
 {-# INLINE showObjId #-}
 
 readObjId :: String -> ObjId
-readObjId = ObjId . readPath
+readObjId = ObjId . fromString
 {-# INLINE readObjId #-}
 
 objId2path :: Iso' ObjId Path
