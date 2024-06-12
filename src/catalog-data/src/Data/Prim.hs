@@ -12,7 +12,6 @@ module Data.Prim
        , module Data.Prim.ObjId
        , module Data.Prim.Prelude
        , module Data.Prim.ReqType
-       , module Data.Prim.SysPath
        , module Data.Prim.TimeStamp
        )
 where
@@ -28,7 +27,6 @@ import Data.Prim.Path
 import Data.Prim.PathPos
 import Data.Prim.Prelude
 import Data.Prim.ReqType
-import Data.Prim.SysPath
 import Data.Prim.TimeStamp
 
 -- import Data.Prim.PathId  -- not used at the moment

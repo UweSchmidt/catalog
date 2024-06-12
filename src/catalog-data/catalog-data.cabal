@@ -39,7 +39,6 @@ library
     Data.Prim.PathPos
     Data.Prim.Prelude
     Data.Prim.ReqType
-    Data.Prim.SysPath
     Data.Prim.TimeStamp
     Data.RefTree
     Data.Text.Fill
