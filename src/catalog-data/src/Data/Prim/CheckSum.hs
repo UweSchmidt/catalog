@@ -2,7 +2,6 @@
 module Data.Prim.CheckSum
        ( CheckSum
        , mkCheckSum
-       , mkFileCheckSum
        )
 where
 
@@ -100,13 +99,5 @@ instance ToJSON CheckSum where
 instance FromJSON CheckSum where
   parseJSON o = readCheckSum <$> parseJSON o
   {-# INLINE parseJSON #-}
-
--- ----------------------------------------
-
--- | compute the checksum for a simple file
--- does not work for directories
-
-mkFileCheckSum :: FilePath -> IO CheckSum
-mkFileCheckSum p = mkCheckSum <$> readFile p
 
 -- ----------------------------------------
