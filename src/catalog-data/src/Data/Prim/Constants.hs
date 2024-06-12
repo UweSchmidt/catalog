@@ -6,16 +6,8 @@ import Data.Prim.Name
        ( Name )
 
 import Data.Prim.Path
-       ( mkPath
-       , snocPath
-       , Path
-       )
+
 import Data.Prim.Prelude
-       ( Text
-       , (^.)
-       , IsoString(isoString)
-       , IsoText(isoText)
-       )
 
 n'archive
   , n'albums
@@ -104,48 +96,13 @@ p'zipcache     = p'docroot `snocPath` "zip-cache"
 p'gen'icon     = (p'docroot `snocPath` "generated") `snocPath` "icon"
 
 
-ps'archive
-  , ps'collections
-  , ps'bycreatedate
-  , ps'cache
-  , ps'iconsgen
-  , ps'clipboard
-  , ps'trash
-  , ps'photos
-  , ps'assets
-  , ps'html
-  , ps'bootstrap
-  , ps'icons
-  , ps'blank
-  , ps'javascript
-  , ps'css
-  , ps'docroot
-  , ps'exifcache
-  , ps'zipcache
-  , ps'gen'icon :: FilePath
+p'bootstrap
+  , p'cache
+  , p'iconsgen  :: Path
 
-ps'archive      = p'archive      ^. isoString
-ps'clipboard    = p'clipboard    ^. isoString
-ps'collections  = p'collections  ^. isoString
-ps'bycreatedate = p'bycreatedate ^. isoString
-ps'photos       = p'photos       ^. isoString
-ps'trash        = p'trash        ^. isoString
-
-ps'bootstrap    = "/bootstrap"
-ps'cache        = "/cache"                              -- old url scheme
-ps'iconsgen     = ps'cache ++ ps'icons ++ "/generated"  -- old url scheme
-
-ps'assets       = p'assets     ^. isoString
-ps'html         = p'html       ^. isoString
-ps'icons        = p'icons      ^. isoString
-ps'javascript   = p'javascript ^. isoString
-ps'css          = p'css        ^. isoString
-ps'blank        = p'blank      ^. isoString
-
-ps'docroot      = p'docroot    ^. isoString
-ps'exifcache    = p'exifcache  ^. isoString
-ps'zipcache     = p'zipcache   ^. isoString
-ps'gen'icon     = p'gen'icon   ^. isoString
+p'bootstrap = mkPath "bootstrap"
+p'cache     = mkPath "cache" -- old url scheme
+p'iconsgen  = (p'cache `concPath` p'icons) `snocPath` "generated" -- old url scheme
 
 -- ----------------------------------------
 

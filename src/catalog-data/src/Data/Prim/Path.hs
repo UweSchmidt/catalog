@@ -28,6 +28,8 @@ module Data.Prim.Path
   , isoPathList
   , checkExtPath
   , editName
+  , textToPath
+  , textFromPath
   )
 where
 
@@ -272,11 +274,6 @@ instance Monoid Path where
   {-# INLINE mempty #-}
 
 instance AsEmpty Path
-
-instance IsoString Path where
-  isoString :: Iso' Path String
-  isoString = iso showPath readPath
-  {-# INLINE isoString #-}
 
 instance IsoText Path where
   isoText :: Iso' Path Text

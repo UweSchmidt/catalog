@@ -592,10 +592,10 @@ toCachedImgPath r = do
     addP p =
       dr `concPath` ty `consPath` geo `consPath` ar `concPath` p'
       where
-        dr  = readPath ps'docroot
+        dr  = p'docroot
         ty  = r ^. rType . isoText . from isoText
         geo = r ^. rGeo  . isoText . from isoText
-        ar  = readPath ps'archive
+        ar  = p'archive
         p'  = p & viewBase . _2 . isoText %~ jpg
 
         jpg n

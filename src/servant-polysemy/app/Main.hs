@@ -136,14 +136,15 @@ import Data.Prim
        , p'html
        , p'icons
        , p'javascript
-       , ps'bootstrap
-       , ps'css
-       , ps'icons
-       , ps'javascript
+       , p'bootstrap
+       , p'css
+       , p'icons
+       , p'javascript
        , initPath
        , listToPath
        , snocPath
        , tailPath
+       , showPath
        , from
        )
 import Data.ImageStore
@@ -274,12 +275,12 @@ catalogServer env runReadC runModyC runBGC =
     mountPath = env ^. catMountPath . isoString
 
     static p = do
-      serveDirectoryWebApp (mountPath ++ p ^. isoString)
+      serveDirectoryWebApp (mountPath ++ showPath p)
 
-    bootstrap         = static ps'bootstrap
-    assets'css        = static ps'css
-    assets'icons      = static ps'icons
-    assets'javascript = static ps'javascript
+    bootstrap         = static p'bootstrap
+    assets'css        = static p'css
+    assets'icons      = static p'icons
+    assets'javascript = static p'javascript
 
     -- movies are served statically to enable streaming
     -- the original .mp4 movies are accessed
