@@ -57,6 +57,7 @@ import System.Exit
 
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.Text                 as T
+import qualified Data.Text.Encoding        as T
 import qualified System.IO.Error           as EX
 import qualified System.Process.ByteString as XBS
 import qualified System.Process.Text       as XT
@@ -199,6 +200,6 @@ execText mkExc prg args inp = do
 ----------------------------------------
 
 bs2text :: ByteString -> Text
-bs2text = T.pack . BS.unpack
+bs2text = T.decodeUtf8Lenient -- T.pack . BS.unpack
 
 ------------------------------------------------------------------------------
