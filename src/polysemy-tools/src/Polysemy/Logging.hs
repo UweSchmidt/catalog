@@ -67,6 +67,9 @@ import System.IO
        , stderr
        )
 
+import Data.Maybe (fromMaybe)
+
+import qualified Data.List    as L
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 
@@ -84,7 +87,16 @@ prettyLogLevel LogInfo = "info:    "
 prettyLogLevel LogVerb = "verbose: "
 prettyLogLevel LogTrc  = "trace:   "
 prettyLogLevel LogDbg  = "debug:   "
-prettyLogLevel LogNull = "quiet:   "  -- make fct total
+prettyLogLevel LogNull = "quiet:   "
+
+prettyIndent :: Text
+prettyIndent =  "\n         "
+
+prettyLog :: LogLevel -> Text -> Text
+prettyLog ll t =
+  T.intercalate prettyIndent ((prettyLogLevel ll <> l1) : ls)
+  where
+    (l1, ls) = fromMaybe ("", []) . L.uncons  . T.lines $ t
 
 -- --------------------
 
@@ -112,7 +124,7 @@ logWithLevel logLevel =
   \ case
     Log' l (LogMsg msg) -> do
       if LogNull < l && l <= logLevel
-        then consume $ LogMsg (prettyLogLevel l <> msg)
+        then consume $ LogMsg (prettyLog l msg)
         else pure ()
 
 

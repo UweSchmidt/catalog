@@ -80,24 +80,7 @@ import Data.MetaData
        , descrCatalogVersion
        )
 import Data.Prim
-       ( Text
-       , Name
-       , IsoString(isoString)
-       , IsoText(isoText)
-       , LazyByteString
-       , ToJSON
-       , (&)
-       , (^.)
-       , (#)
-       , (%~)
-       , (.~)
-       , void
-       , whenM
-       , n'archive
-       , n'collections
-       , n'photos
-       , toText
-       )
+
 import Data.TextPath
        ( takeDir
        , splitExtension
@@ -106,7 +89,6 @@ import Data.TextPath
 -- libraries
 
 import qualified Data.Aeson               as J
-import qualified Data.Aeson.Encode.Pretty as J
 import qualified Data.Text                as T
 
 -- ----------------------------------------
@@ -136,14 +118,6 @@ setCatMetaData = do
 
   modify' @ImgStore (\ s -> s & theCatMetaData %~ (catMeta <>))
 
--- --------------------
-
-encodeJSON :: ToJSON a => a -> LazyByteString
-encodeJSON = J.encodePretty' conf
-  where
-    conf = J.defConfig
-           { J.confIndent  = J.Spaces 2 }
-
 ----------------------------------------
 --
 -- save the whole image store
@@ -163,10 +137,10 @@ saveImgStore p = do
   where
     toBS
       | isHashIdArchive p =
-          encodeJSON <$> get @ImgStore
+          prettyJSON <$> get @ImgStore
 
       | isPathIdArchive p =
-          encodeJSON <$> mapImgStore2Path
+          prettyJSON <$> mapImgStore2Path
 
       | otherwise =
           throw @Text $ "saveImgStore: wrong archive extension in " <> toText p

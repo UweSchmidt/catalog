@@ -22,10 +22,6 @@ import Data.Journal
        , Journal
        )
 import Data.Prim
-       ( (#)
-       , IsoString(isoString)
-       , LazyByteString
-       )
 
 import Polysemy.Consume.BGQueue
        ( BGQueue
@@ -39,7 +35,6 @@ import System.IO
        , stderr
        )
 
-import qualified Data.Aeson.Encode.Pretty as J
 import qualified Data.ByteString.Lazy     as LB
 
 ------------------------------------------------------------------------------
@@ -94,18 +89,8 @@ journalToDevNull = consumeNull
 outJournal :: Handle -> JournalP -> IO ()
 outJournal h j = do
   LB.hPutStr h (isoString # "\n")
-  LB.hPutStr h (encodeJ j)
+  LB.hPutStr h (prettyJSON j)
   LB.hPutStr h (isoString # "\n")
   hFlush     h
-
-encodeJ :: JournalP -> LazyByteString
-encodeJ = J.encodePretty' conf
-  where
-    conf = J.defConfig
-      { J.confIndent  = J.Spaces 2
-      , J.confCompare = J.keyOrder ["cmd", "path", "name"]
-                        <>
-                        compare
-      }
 
 -- ----------------------------------------

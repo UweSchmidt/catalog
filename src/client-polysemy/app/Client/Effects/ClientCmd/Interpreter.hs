@@ -61,56 +61,7 @@ import Polysemy.HttpRequest.SimpleRequests
        ( Request )
 
 -- catalog-data
-import Data.Prim {- - }
-       ( sort
-       , Text
-       , ToJSON
-       , (>=>)
-       , unless
-       , lefts
-       , rights
-       , forM_
-       , traverse_
-       , (&)
-       , void
-       , fromMaybe
-       , isJust
-       , when
-       , mkCheckSum
-       , prettyCSR
-       , p'archive
-       , geo'org
-       , orgGeo
-       , hasSizeMT
-       , lastPath
-       , listFromPath
-       , snocPath
-       , substPathName
-       , isoPathPos
-       , isoPicNo
-       , isoSeqList
-       , unlessM
-       , whenM
-       , (^..)
-       , (^.)
-       , from
-       , (#)
-       , (.~)
-       , CheckSum
-       , CheckSumRes(..)
-       , GPSposDec
-       , GeoAddrList
-       , GeoAddress(GA, _display_name)
-       , Geo
-       , Name
-       , Path
-       , PathPos
-       , isEmpty
-       , IsoString(isoString)
-       , IsoText(isoText)
-       , ReqType
-       )
--- -}
+import Data.Prim
 
 import Data.ImgTree
        ( ImgNodeP )
@@ -196,10 +147,7 @@ import GPS.Effects.GeoLocCmd
        )
 
 -- libraries
-import qualified Data.Aeson.Encode.Pretty as J
 import qualified Data.Text                as T
-import qualified Data.Text.Lazy           as TL
-import qualified Data.Text.Lazy.Encoding  as TL
 
 ------------------------------------------------------------------------------
 
@@ -226,7 +174,7 @@ evalClientCmd =
       ps <- globExpand p
       traverse_ (\ p' -> do n <- theEntry p'
                             writeln $ p' ^. isoText
-                            writeln $ viaJsonToText n
+                            writeln $ prettyJSONText n
                 ) ps
 
     CcLsSub p -> do
@@ -336,7 +284,7 @@ showDoc path
       case rty of
         RJson -> do
           jpage <- jsonPage geo rp
-          writeln (viaJsonToText jpage)
+          writeln (prettyJSONText jpage)
         _
           | rty == RPage || rty == RPage1 -> do
               hpage <- htmlPage rty geo rp
@@ -893,50 +841,5 @@ prettyUndo hid cmt = writeln $ (show hid ++ ". ") ^. isoText <> cmt
 
 defaultPath :: Path
 defaultPath = p'archive
-
-------------------------------------------------------------------------------
-
-viaJsonToText :: ToJSON a => a -> Text
-viaJsonToText = TL.toStrict . TL.decodeUtf8 . J.encodePretty' conf
-  where
-    conf = J.defConfig
-           { J.confIndent  = J.Spaces 2
-           , J.confCompare = (compare `on` keyToInt) <> compare
-           }
-
-keyToInt :: Text -> Int
-keyToInt = fromMaybe 100 . (`lookup` jPageKeys)
-
-jPageKeys :: [(Text, Int)]
-jPageKeys = zip keys [0..]
-  where
-    keys = [ "imgReq"         -- JImgPage
-           , "oirGeo"
-           , "img"
-           , "imgNavRefs"
-           , "imgNavImgs"
-
-           , "colDescr"         -- JColPage
-           , "navIcons"
-           , "c1Icon"
-           , "contIcons"
-           , "blogCont"       -- JPage
-           , "now"
-
-           , "prev"           -- PrevNextPar
-           , "next"
-           , "par"
-           , "fwrd"
-
-           , "eReq"           -- EDescr
-           , "eMeta"
-
-           , "rType"          -- ReqType
-           , "rPathPos"
-           , "rGeo"
-           ]
-
-lbsToText :: LazyByteString -> Text
-lbsToText = TL.toStrict . TL.decodeUtf8
 
 ------------------------------------------------------------------------------

@@ -96,6 +96,12 @@ module Data.Prim.Prelude
     fillRight,
     fillLeftList,
     fillRightList,
+
+    prettyJSON,
+    prettyJSONText,
+
+    lbsToText,
+    bsToText
   )
 where
 
@@ -109,15 +115,19 @@ import Control.Arrow
 import Control.Lens
 import Control.Monad
 import Data.Aeson (FromJSON (..), ToJSON (..))
-import qualified Data.Aeson as J
-import qualified Data.Aeson.Types as J
+
+import qualified Data.Aeson               as J
+import qualified Data.Aeson.Types         as J
+import qualified Data.Aeson.Encode.Pretty as J
+
 import Data.ByteString
   ( ByteString,
   )
--- import qualified Data.ByteString           as BS
-import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Lazy      as LB
 import qualified Data.ByteString.Lazy.UTF8 as LBU
-import qualified Data.ByteString.UTF8 as BU
+import qualified Data.ByteString.UTF8      as BU
+
 import Data.Char
 import Data.Either
 import Data.Foldable
@@ -159,9 +169,13 @@ import Data.String
 import Data.Text
   ( Text,
   )
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as LT
+import qualified Data.Text              as T
+import qualified Data.Text.Encoding     as T
+import qualified Data.Text.Lazy         as LT
+import qualified Data.Text.Lazy.Builder as LT
+
 import Data.Text.Lens
+
 import Data.Vector
   ( Vector,
   )
@@ -531,5 +545,27 @@ fillList ::
 fillList ff c xs = map (ff c l) xs
   where
     l = maximum (0 : map length xs)
+
+------------------------------------------------------------------------
+
+prettyJSON :: ToJSON a => a -> LazyByteString
+prettyJSON = J.encodePretty' prettyJSONConfig
+
+prettyJSONText :: ToJSON a => a -> Text
+prettyJSONText = LT.toStrict . LT.toLazyText . J.encodePrettyToTextBuilder' prettyJSONConfig
+
+prettyJSONConfig :: J.Config
+prettyJSONConfig =
+  J.defConfig { J.confIndent  = J.Spaces 2
+              , J.confCompare = compare
+              }
+
+------------------------------------------------------------------------
+
+lbsToText :: LazyByteString -> Text
+lbsToText = T.decodeUtf8Lenient . BS.concat . LB.toChunks
+
+bsToText :: BS.ByteString -> Text
+bsToText = T.decodeUtf8Lenient
 
 ------------------------------------------------------------------------

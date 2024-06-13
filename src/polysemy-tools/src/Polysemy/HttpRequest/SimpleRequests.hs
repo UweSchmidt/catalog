@@ -18,8 +18,6 @@ module Polysemy.HttpRequest.SimpleRequests
   , parseRequest
 
   , jsonDecode
-  , lbsToText
-  , bsToText
 
     -- reexport all HTTP types
   , module Network.HTTP.Types
@@ -55,15 +53,7 @@ import Network.HTTP.Client
        , parseRequest
        )
 
-import Network.HTTP.Types  {- these types and functions are used locally
-       ( Method
-       , hContentType
-       , methodGet
-       , methodPost
-       , statusCode
-       , statusMessage
-       )
--}
+import Network.HTTP.Types
 
 import Data.Aeson
        ( ToJSON
@@ -235,9 +225,10 @@ jsonDecode lbs =
 -- no decodeUtf8, avoid decodeUtf8 errors
 
 lbsToText :: LBS.ByteString -> Text
-lbsToText = T.pack . LCS.unpack
+lbsToText =
+  T.decodeUtf8Lenient . BS.concat . LBS.toChunks
 
 bsToText :: BS.ByteString -> Text
-bsToText = T.pack . CS.unpack
+bsToText = T.decodeUtf8Lenient
 
 ------------------------------------------------------------------------------

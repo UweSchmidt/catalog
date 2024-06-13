@@ -64,7 +64,6 @@ import Polysemy.HttpRequest.SimpleRequests
        , execReq
        , getReq
        , jsonDecode
-       , lbsToText
        , RequestBody(RequestBodyLBS)
        , Header
        )
@@ -80,19 +79,6 @@ import Polysemy.Reader
        )
 
 import Data.Prim
-       ( (#)
-       , (^.)
-       , (<|>)
-       , GeoAddress
-       , IsoString(isoString)
-       , GeoAddrList
-       , GPSposDec
-       , Text
-       , ParsePrintString(ppString)
-       , FromJSON(parseJSON)
-       , gpsLat
-       , gpsLong
-       )
 
 import Text.Printf
        ( printf )
@@ -103,7 +89,6 @@ import Client.Version
 import qualified Data.ByteString.Lazy     as LS
 import qualified Data.ByteString.Char8    as BS
 import qualified Data.Aeson               as J
-import qualified Data.Aeson.Encode.Pretty as J
 
 ------------------------------------------------------------------------------
 
@@ -124,11 +109,7 @@ putGeoCache lbs = do
 getGeoCache :: ( Member (Error Text) r
                , Member (Cache GPSposDec GeoAddrList) r)
             => Sem r LS.ByteString
-getGeoCache = J.encodePretty' conf <$> getCache
-  where
-    conf = J.defConfig
-           { J.confIndent  = J.Spaces 2 }
-
+getGeoCache = prettyJSON <$> getCache
 
 type CacheEffects r =
   Members '[ Error Text
@@ -239,17 +220,26 @@ nominatimHttps' req0 = do
             req <- embedExcText $ req0 loc              -- create request
             lbs <- local (const req) execReq            -- set request and exec
 
-            log'trc $ untext [ "geoLocAddress: result: "
-                             , lbsToText lbs
-                             ]
+            -- trace output of open street map response
+            (do jv <- jsonDecode lbs
+                log'trc $ "geoLocAddress: response:\n" <> prettyJSONText (jv :: J.Value)
+              )
+              `catch`
+              (const $ return ())
+        --            let adr =
+            -- log'trc  $ "geoLocAddress: result:\n" <> (prettyJSONText @J.Value lbs :: J.Value)
+
             -- decode response
-            (Just . toGeoAddrList <$> jsonDecode lbs)
+            adr <-
+              (toGeoAddrList <$> jsonDecode lbs)
               `catch`
               (\ msg ->
                   do
                     log'trc $ untext ["geoLocAddress: error catched: ", msg]
-                    return $ Just []
+                    return []
               )
+            log'trc $ "geoLocAddress: result:\n" <> prettyJSONText adr
+            return (Just adr)
         )
         `catch`
         ( \ msg ->
