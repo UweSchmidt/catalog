@@ -7,9 +7,9 @@ where
 -- version number is updated automatically
 
 version :: String
-version = "0.5.8.15"
+version = "0.5.9.1"
 
 date :: String
-date = "2024-06-04"
+date = "2024-06-13"
 
 -- ----------------------------------------
