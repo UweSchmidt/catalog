@@ -53,15 +53,6 @@ import Data.MetaData
        , theImgEXIFUpdate
        )
 import Data.Prim
-       ( ObjId
-       , isEmpty
-       , (^.)
-       , (.~)
-       , toText
-       , when
-       , unless
-       , traverse_
-       )
 
 -- ----------------------------------------
 
@@ -122,16 +113,15 @@ syncMetaData i = do
 
 syncMetaData' :: Eff'MDSync r => ObjId -> ImgParts -> MetaData -> Sem r ()
 syncMetaData' i ps md'old = do
-  trc'Obj i $ "syncMetaData': " <> toText ps
-  -- md   <-  getMetaData i
-  trc'Obj i $ "syncMetaData': " <> toText md'old
+  trc'Obj i $ "syncMetaData:\n" <> prettyJSONText [] ps
+  trc'Obj i $ "syncMetaData:\n" <> prettyJSONText [] md'old
 
   forceUpdate <- (^. catForceMDU) <$> ask
   let ts      =  md'old ^. theImgEXIFUpdate
   let ts'ps   =  ps     ^. traverseParts . theImgTimeStamp
   let update = forceUpdate || ts < ts'ps
 
-  log'trc $ "syncMetadata: " <> toText (ts, ts'ps, update)
+  log'trc $ "syncMetadata: " <> prettyJSONText [] (ts, ts'ps, update)
 
   -- collect meta data from raw and xmp parts
   when update $

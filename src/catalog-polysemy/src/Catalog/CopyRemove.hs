@@ -202,7 +202,7 @@ rmRec = foldMT imgA dirA foldRoot colA
     imgA i _p _md = rmImgNode i
 
     dirA go i es ts = do
-      log'trc $ "dirA: " <> toText (i, es ^. isoDirEntries)
+      log'trc $ "remRec: remove dirs:\n" <> prettyJSONText [] (i, es ^. isoDirEntries)
       void $ foldDir go i es ts            -- process subdirs first
 
       pe <- getImgParent i >>= getImgVal   -- remove dir node
@@ -370,27 +370,27 @@ cleanupRefs' adjIR adjCE =
         cleanupIm p = case adjIR im of
           Nothing -> return ()
           Just new'im -> do
-            log'trc $ msgPath p "cleanupRefs: col img changed: "
-            log'trc $ "old: " <> toText im
-            log'trc $ "new: " <> toText new'im
+            log'trc $ msgPath p "cleanupRefs: col img changed:\n"
+            log'trc $ "old:\n" <> prettyJSONText [] im
+            log'trc $ "new:\n" <> prettyJSONText [] new'im
             adjustColImg (const new'im) i
 
         cleanupBe :: Eff'ISEJL r => Path -> Sem r ()
         cleanupBe p = case adjIR be of
           Nothing -> return ()
           Just new'be -> do
-            log'trc $ msgPath p "cleanupRefs: col blog changed: "
-            log'trc $ "old: " <> toText be
-            log'trc $ "new: " <> toText new'be
+            log'trc $ msgPath p "cleanupRefs: col blog changed:\n"
+            log'trc $ "old:\n" <> prettyJSONText [] be
+            log'trc $ "new:\n" <> prettyJSONText [] new'be
             adjustColBlog (const new'be) i
 
         cleanupEs :: Eff'ISEJL r => Path -> Sem r ()
         cleanupEs p = case adjCE es of
           Nothing -> return ()
           Just new'es -> do
-            log'trc $ msgPath p "cleanupRefs: col entries changed: "
-            log'trc $ "old: " <> toText (es     ^. isoSeqList)
-            log'trc $ "new: " <> toText (new'es ^. isoSeqList)
+            log'trc $ msgPath p "cleanupRefs: col entries changed:\n"
+            log'trc $ "old:\n" <> prettyJSONText [] (es ^. isoSeqList)
+            log'trc $ "new:\n" <> prettyJSONText [] (new'es ^. isoSeqList)
             adjustColEntries (const new'es) i
 
         cleanupSubCols :: Eff'ISEJL r => Sem r ()

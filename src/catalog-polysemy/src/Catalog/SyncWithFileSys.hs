@@ -323,14 +323,14 @@ syncDirP ts p = do
 
   -- remember all ImgRef's in dir to be synchronized
   old'refs <- collectImgRefs' p
-  log'trc $ "syncDir: refs before sync: " <> toText old'refs
+  log'trc $ "syncDir: refs before sync:\n" <> prettyJSONText [] (toList old'refs)
 
   -- sync the dir
   syncDir' p
 
   -- collect all ImgRef' after dir sync
   new'refs <- collectImgRefs' p
-  log'trc $ "syncDir: refs after sync " <> toText new'refs
+  log'trc $ "syncDir: refs after sync\n" <> prettyJSONText [] (toList new'refs)
 
   -- compute refs to be deleted or renamed in collection hierachy
   let mod'refs = buildImgRefUpdates old'refs new'refs
@@ -450,7 +450,7 @@ syncNewDirsCont i = do
   cont    <- objid2contNames i
   newdirs <- filter (`notElem` cont) . fst <$>
              collectDirCont i
-  log'trc $ "syncNewDirsCont: " <> toText newdirs
+  log'trc $ "syncNewDirsCont: " <> prettyJSONText [] newdirs
   traverse_ (syncDirP ts . (p `snocPath`)) newdirs
 
 -- ----------------------------------------
@@ -493,12 +493,13 @@ syncDirCont :: Eff'Sync r => Bool -> ObjId -> Sem r ()
 syncDirCont recursive i = do
   -- trc'Obj i "syncDirCont: syncing entries in dir "
   (subdirs, imgfiles) <- collectDirCont i
-  log'trc $ "syncDirCont: " <> toText (subdirs, imgfiles)
+  log'trc $ "syncDirCont: subdirs:\n"     <> prettyJSONText [] subdirs
+  log'trc $ "syncDirCont: image files:\n" <> prettyJSONText [] imgfiles
   p  <- objid2path i
 
   cont <- objid2contNames i
   let lost = filter (`notElem` subdirs <> imgNames imgfiles) cont
-  log'trc $ "syncDirCont: lost = " <> toText lost
+  log'trc $ "syncDirCont: entries lost:\n" <> prettyJSONText [] lost
 
   -- remove lost stuff
   traverse_ (remDirCont p) lost
@@ -547,8 +548,8 @@ collectDirCont i = do
 
   (subdirs, es) <- parseDir p'
 
-  log'trc $ "collectDirCont: files   found: " <> toText es
-  log'trc $ "collectDirCont: subdirs found: " <> toText subdirs
+  log'trc $ "collectDirCont: files found:\n"   <> prettyJSONText [] es
+  log'trc $ "collectDirCont: subdirs found:\n" <> prettyJSONText [] subdirs
 
   let (others,   es1) = partition (hasMimeType isOtherMT    ) es
   let (imgfiles, es2) = partition (hasMimeType isAnImgPartMT) es1
@@ -559,9 +560,9 @@ collectDirCont i = do
     es2
 
   unless (null others) $
-    log'trc $ "collectDirCont: unused files: "   <> toText others
+    log'trc $ "collectDirCont: ignored:\n" <> prettyJSONText [] others
   unless (null imgfiles') $
-    log'trc $ "collectDirCont: imgfiles "        <> toText imgfiles'
+    log'trc $ "collectDirCont: imgfiles\n" <> prettyJSONText [] imgfiles'
 
   return (subdirs, imgfiles')
 
@@ -570,7 +571,7 @@ collectDirCont i = do
 syncImg :: Eff'Sync r
         => ObjId -> Path -> ClassifiedNames -> Sem r ()
 syncImg ip pp xs = do
-  trc'Obj i $ "syncImg: " <> toText (p, xs)
+  trc'Obj i $ "syncImg:\n" <> prettyJSONText [] (p, xs)
 
   -- new image ?
   whenM (not <$> existsEntry i) $
@@ -674,7 +675,7 @@ parseDir p = do
 
   -- collect all file names contained in these dirs
   fss <- traverse parseSubDir dsi
-  log'trc $ "parseDir: fss = " <> toText fss
+  log'trc $ "parseDir: files:\n" <> prettyJSONText [] fss
 
   -- collect all file names in this dir and img copy subdirs
   let fs = fs0 <> mconcat fss

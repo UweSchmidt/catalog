@@ -103,63 +103,6 @@ import Data.MetaData
        , descrTitle
        )
 import Data.Prim
-       ( Foldable(fold)
-       , Ixed(ix)
-       , TimeStamp
-       , IsoText(isoText)
-       , isEmpty
-       , Path
-       , Name
-       , ObjId
-       , Text
-       , (.~)
-       , (&)
-       , (^?)
-       , (^..)
-       , (^.)
-       , (#)
-       , iso8601TimeStamp
-       , formatTimeStamp
-       , p'imports
-       , traverse_
-       , foldlM
-       , p'bycreatedate
-       , unless
-       , msgPath
-       , timeStampToText
-       , when
-       , isTxtMT
-       , sort
-       , isoSeqList
-       , listFromPath
-       , viewBase
-       , to'colandname
-       , tailPath
-       , toText
-       , substPathPrefix
-       , consPath
-       , mkPath
-       , mkName
-       , viewTop
-       , to'dateandtime
-       , tt'day
-       , tt'month
-       , to'name
-       , tt'year
-       , void
-       , snocPath
-       , tt'bydate
-       , n'bycreatedate
-       , tt'imports
-       , n'imports
-       , tt'photos
-       , n'photos
-       , tt'albums
-       , n'albums
-       , tt'clipboard
-       , n'clipboard
-       , tt'collections
-       )
 
 import qualified Data.IntMap     as IM
 import qualified Data.Sequence   as Seq
@@ -357,7 +300,7 @@ genCollectionsByDir di = do
         imgA :: Eff'ISEJLT r
              => ObjId -> ImgParts -> MetaData -> Sem r ColEntries
         imgA i pts _md = do
-          trc'Obj i $ "genCol img: " <> toText res
+          trc'Obj i $ "genCol img:\n" <> prettyJSONText [] res
           return $ isoSeqList # res
             where
               res = map (mkColImgRef i) $ sort (pts ^.. thePartNamesI)
@@ -371,7 +314,7 @@ genCollectionsByDir di = do
         dirA go i es _ts = do
           p  <- objid2path i
           let cp = fp p
-          trc'Obj i $ "genCol dir " <> toText cp
+          trc'Obj i $ "genCol dir\n" <> prettyJSONText [] cp
 
           -- check or create collection
           -- with action for meta data
@@ -506,7 +449,7 @@ mkColMeta' :: Eff'ISEJLT r => MetaData -> Sem r MetaData
 mkColMeta' md0 = do
   tm <- timeStampToText <$> whatTimeIsIt
   let md = md0 & metaTextAt descrCreateDate .~ tm
-  log'trc $ "mkColMeta: " <> toText md
+  log'trc $ "mkColMeta: " <> prettyJSONText [] md
   return md
 
 defaultColMeta :: Text -> Text -> Text -> Text -> Access -> MetaData
@@ -585,8 +528,8 @@ updateCollectionsByDate :: Eff'ISEJLT r => ColEntries -> Sem r ()
 updateCollectionsByDate es =
   unless (isEmpty es) $ do
     log'verb $
-       "updateCollectionsByDate: new refs are added to byDate collections: "
-       <> toText es
+       "updateCollectionsByDate: new refs are added to byDate collections:\n"
+       <> prettyJSONText [] es
 
     genByDateCollection
     dm <- colEntries2dateMap es
