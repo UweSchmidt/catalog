@@ -109,7 +109,7 @@ putGeoCache lbs = do
 getGeoCache :: ( Member (Error Text) r
                , Member (Cache GPSposDec GeoAddrList) r)
             => Sem r LS.ByteString
-getGeoCache = prettyJSON <$> getCache
+getGeoCache = prettyJSON [] <$> getCache
 
 type CacheEffects r =
   Members '[ Error Text
@@ -222,12 +222,13 @@ nominatimHttps' req0 = do
 
             -- trace output of open street map response
             (do jv <- jsonDecode lbs
-                log'trc $ "geoLocAddress: response:\n" <> prettyJSONText (jv :: J.Value)
+                log'trc $
+                  "geoLocAddress: response:\n"
+                  <>
+                  prettyJSONText [] (jv :: J.Value)
               )
               `catch`
               (const $ return ())
-        --            let adr =
-            -- log'trc  $ "geoLocAddress: result:\n" <> (prettyJSONText @J.Value lbs :: J.Value)
 
             -- decode response
             adr <-
@@ -238,7 +239,8 @@ nominatimHttps' req0 = do
                     log'trc $ untext ["geoLocAddress: error catched: ", msg]
                     return []
               )
-            log'trc $ "geoLocAddress: result:\n" <> prettyJSONText adr
+            log'trc $
+              "geoLocAddress: result:\n" <> prettyJSONText [] adr
             return (Just adr)
         )
         `catch`

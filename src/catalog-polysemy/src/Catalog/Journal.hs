@@ -89,7 +89,7 @@ journalToDevNull = consumeNull
 outJournal :: Handle -> JournalP -> IO ()
 outJournal h j = do
   LB.hPutStr h (isoString # "\n")
-  LB.hPutStr h (prettyJSON j)
+  LB.hPutStr h (prettyJSON ["cmd", "path", "name"]  j)
   LB.hPutStr h (isoString # "\n")
   hFlush     h
 

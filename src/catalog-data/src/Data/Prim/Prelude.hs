@@ -548,16 +548,23 @@ fillList ff c xs = map (ff c l) xs
 
 ------------------------------------------------------------------------
 
-prettyJSON :: ToJSON a => a -> LazyByteString
-prettyJSON = J.encodePretty' prettyJSONConfig
+prettyJSON :: (ToJSON a) => [Text] -> a -> LazyByteString
+prettyJSON ks =
+  J.encodePretty' (prettyJSONConfig ks)
 
-prettyJSONText :: ToJSON a => a -> Text
-prettyJSONText = LT.toStrict . LT.toLazyText . J.encodePrettyToTextBuilder' prettyJSONConfig
+prettyJSONText :: (ToJSON a) => [Text] -> a -> Text
+prettyJSONText ks =
+  LT.toStrict
+  . LT.toLazyText
+  . J.encodePrettyToTextBuilder' (prettyJSONConfig ks)
 
-prettyJSONConfig :: J.Config
-prettyJSONConfig =
+prettyJSONConfig :: [Text] -> J.Config
+prettyJSONConfig ks =
   J.defConfig { J.confIndent  = J.Spaces 2
-              , J.confCompare = compare
+              , J.confCompare =
+                  J.keyOrder ks
+                  <>
+                  compare
               }
 
 ------------------------------------------------------------------------

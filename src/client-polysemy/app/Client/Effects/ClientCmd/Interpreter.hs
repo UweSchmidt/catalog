@@ -174,7 +174,7 @@ evalClientCmd =
       ps <- globExpand p
       traverse_ (\ p' -> do n <- theEntry p'
                             writeln $ p' ^. isoText
-                            writeln $ prettyJSONText n
+                            writeln $ prettyJSONText jPageKeys n
                 ) ps
 
     CcLsSub p -> do
@@ -284,7 +284,7 @@ showDoc path
       case rty of
         RJson -> do
           jpage <- jsonPage geo rp
-          writeln (prettyJSONText jpage)
+          writeln (prettyJSONText jPageKeys jpage)
         _
           | rty == RPage || rty == RPage1 -> do
               hpage <- htmlPage rty geo rp
@@ -296,6 +296,33 @@ showDoc path
   | otherwise =
       abortWith $ "illegal doc path: " <> path ^. isoText
 
+jPageKeys :: [Text]
+jPageKeys =
+  [ "imgReq"         -- JImgPage
+  , "oirGeo"
+  , "img"
+  , "imgNavRefs"
+  , "imgNavImgs"
+
+  , "colDescr"         -- JColPage
+  , "navIcons"
+  , "c1Icon"
+  , "contIcons"
+  , "blogCont"       -- JPage
+  , "now"
+
+  , "prev"           -- PrevNextPar
+  , "next"
+  , "par"
+  , "fwrd"
+
+  , "eReq"           -- EDescr
+  , "eMeta"
+
+  , "rType"          -- ReqType
+  , "rPathPos"
+  , "rGeo"
+  ]
 
 parseDocPath :: Path -> Maybe (ReqType, Geo, Path, Text)
 parseDocPath p0

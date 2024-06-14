@@ -137,10 +137,10 @@ saveImgStore p = do
   where
     toBS
       | isHashIdArchive p =
-          prettyJSON <$> get @ImgStore
+          prettyJSON [] <$> get @ImgStore
 
       | isPathIdArchive p =
-          prettyJSON <$> mapImgStore2Path
+          prettyJSON [] <$> mapImgStore2Path
 
       | otherwise =
           throw @Text $ "saveImgStore: wrong archive extension in " <> toText p
