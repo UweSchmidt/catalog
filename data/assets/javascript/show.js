@@ -749,6 +749,7 @@ function insertImg(id, url, style, geo, cls, addHandler) {
     const e = clearCont(id);
     setCSS(e, style);
     const i = newImgElem(id, styleSize(geo), cls);
+    addHandler(i);
     i.src   = url;
     e.appendChild(i);
 
@@ -760,14 +761,6 @@ function loadImg(id, url, geo, resizeAlg) {
     const style  = styleGeo(imgGeo, offset, "hidden");
 
     insertImg(id, url, style, geo, "img " + resizeAlg, () => {});
-
-    // get element, clear contents and set style attributes
-    const e = clearCont(id);
-    setCSS(e, style);
-
-    const i = newImgElem(id, styleSize(geo), "img " + resizeAlg);
-    i.src   = url;
-    e.appendChild(i);
 }
 
 function loadZoomImg(id, url, geo, pos) {
@@ -775,26 +768,14 @@ function loadZoomImg(id, url, geo, pos) {
     const offset = placeOnScreen(imgGeo);
     const style  = styleGeo(imgGeo, offset, "hidden");
 
-    // get element, clear contents and set style attributes
-    const e = clearCont(id);
-    setCSS(e, style);
-
-    const i = newImgElem(id, styleSize(geo), "img zoom");
-    i.src   = url;
-    e.appendChild(i);
+    insertImg(id, url, style, geo, "img zoom", () => {});
 }
 
 function loadFullImg(id, url, imgGeo) {
     const scrGeo = screenGeo();
     const style  = styleGeo(scrGeo, nullGeo);
 
-    // get element, clear contents and set style attributes
-    const e = clearCont(id);
-    setCSS(e, style);
-
-    const i = newImgElem(id, styleSize(imgGeo), "img fullsize");
-    i.src   = url;
-    e.appendChild(i);
+    insertImg(id, url, style, imgGeo, "img fullsize", () => {});
 }
 
 function loadPanoramaImg(id, url, imgGeo) {
@@ -837,18 +818,17 @@ function loadPanoramaImg(id, url, imgGeo) {
     s.appendChild(newText(cssKeyFrames + cssPanoClass));
 
     const style = styleGeo(scrGeo, nullGeo, "hidden");
-    const e = clearCont(id);
-    setCSS(e, style);
 
     function animationEndFunction() {
         trc(1, "animation of panorama has finished");
     }
 
-    const i = newImgElem(id, {}, "img panorama");
-    i.addEventListener("load", togglePanoAnimation);
-    i.addEventListener("animationend", animationEndFunction);
-    i.src = url;
-    e.appendChild(i);
+    function addHandler(i) {
+        i.addEventListener("load", togglePanoAnimation);
+        i.addEventListener("animationend", animationEndFunction);
+    }
+
+    insertImg(id, url, style, {}, "img panorama", addHandler);
 }
 
 function loadImg1(id, req, geo, resizeAlg, pos) {
