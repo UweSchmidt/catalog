@@ -81,6 +81,7 @@ function intercalate(s, xs) {
 /* geometry ops */
 
 const infiniteWidth = 1000000;
+const nullGeo = { w : 0, h : 0 };
 
 function addGeo(g1, g2) {
     if (typeof g2 === "number") {
@@ -91,19 +92,6 @@ function addGeo(g1, g2) {
     } else {
         return { w : g1.w + g2.w,
                  h : g1.h + g2.h
-               };
-    }
-}
-
-function mulGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return { w : g1.w * g2,   // geo + scalar
-                 h : g1.h * g2
-               };
-
-    } else {
-        return { w : g1.w * g2.w,
-                 h : g1.h * g2.h
                };
     }
 }
@@ -121,11 +109,113 @@ function subGeo(g1, g2) {
     }
 }
 
+function mulGeo(g1, g2) {
+    if (typeof g2 === "number") {
+        return { w : g1.w * g2,   // geo + scalar
+                 h : g1.h * g2
+               };
+
+    } else {
+        return { w : g1.w * g2.w,
+                 h : g1.h * g2.h
+               };
+    }
+}
+
+function divGeo(g1, g2) {
+    if (typeof g2 === "number") {
+        return { w : g1.w / g2,   // geo + scalar
+                 h : g1.h / g2
+               };
+
+    } else {
+        return { w : g1.w / g2.w,
+                 h : g1.h / g2.h
+               };
+    }
+}
+
+function roundGeo(g) {
+    return { w : Math.round(g.w),
+             h : Math.round(g.h)
+           };
+}
+
+function pxGeo(g) {
+    const g1 = roundGeo(g);
+    return { w : g1.w + "px",
+             h : g1.h + "px"
+           };
+}
+
+function styleSize(geo) {
+    const gpx = pxGeo(geo);
+    return {
+        width  : gpx.w,
+        height : gpx.h
+    };
+}
+
+function styleGeo(geo, off, ov) {
+    const res = styleSize(geo);
+    const opx = pxGeo(off);
+
+    if (off.w > 0)
+        res.left = opx.w;
+
+    if (off.h > 0)
+        res.top  = opx.h;
+
+    res.overflow = ov || "auto";
+
+    return res;
+}
+
+function moveAndResize(sGeo, i1Geo, i1Off, i2Geo, clickOff) {
+    const scale    = divGeo(i2Geo, i1Geo);
+    const i1Center = addGeo(divGeo(i1Geo, 2), i1Off);
+    const shifti1  = subGeo(clickOff, i1Center);
+    const shifti2  = mulGeo(shifti1, scale);
+    const i2Off0   = divGeo(subGeo(sGeo, i2Geo), 2);
+    const i2Off    = roundGeo(subGeo(i2Off0, shifti2));
+
+    // return [scale, i1Center, shifti1, shifti2, i2Off0, i2Off];
+    return i2Off;
+}
+
+/*
+t1 = moveAndResize(
+    {w : 1920, h : 1200},
+    {w : 1800, h : 1200},
+    {w :   60, h :    0},
+    {w : 3600, h : 2400},   // zoom an image twice as large as the screen to 100%
+    {w :  960, h :  600}    // click at center of i1
+);
+
+t2 = moveAndResize(
+    {w : 1920, h : 1200},
+    {w : 1800, h : 1200},
+    {w :   60, h :    0},
+    {w : 3600, h : 2400},
+    {w :   60, h :    0}    // click at left upper corner of i1
+);
+
+t3 = moveAndResize(
+    {w : 1920, h : 1200},
+    {w : 6000, h : 1200},
+    {w :    0, h :    0},
+    {w : 6000, h : 1200},
+    {w : 6000 - 960, h :  600}    // move a panorama to the right
+);
+*/
+
+/*
 function scaleGeo(g, s) {
     return { w : Math.floor(g.w * s),
              h : Math.floor(g.h * s)
     };
 }
+*/
 
 function fitsInto(g1, g2) {
     return g1.w <= g2.w && g1.h <= g2.h;
@@ -230,8 +320,8 @@ function fitToScreenGeo(geo, blowUp) {
 
 function placeOnScreen(geo) {
     const sg = screenGeo();
-    return { x : div(sg.w - geo.w, 2),
-             y : div(sg.h - geo.h, 2)
+    return { w : div(sg.w - geo.w, 2),
+             h : div(sg.h - geo.h, 2)
            };
 }
 
@@ -512,16 +602,18 @@ function nextImgId() {
     return nextimg[currImgId()];
 }
 
-function toggleImg12(id)  {
-    const trans = getTransition(currPage, lastPage);
+function toggleImg12(id, noTrans)  {
+    const trans = getTransition(currPage,
+                                lastPage,
+                                noTrans ? true : false);
     trans(id, nextimg[id]);
 }
 
 // ----------------------------------------
 // simplest transition: exchange images without animation
 
-function getTransition(cp, lp) {
-    if ( defaultTransDur === 0) {
+function getTransition(cp, lp, noTrans) {
+    if ( noTrans || defaultTransDur === 0) {
         return cut;
     }
     if (isImgPage(currPage)
@@ -651,49 +743,56 @@ function initShow() {
 // ----------------------------------------
 // display an ordinary image
 
+function insertImg(id, url, style, geo, cls, addHandler) {
+    // get element, clear contents and set style attributes
+
+    const e = clearCont(id);
+    setCSS(e, style);
+    const i = newImgElem(id, styleSize(geo), cls);
+    i.src   = url;
+    e.appendChild(i);
+
+}
+
 function loadImg(id, url, geo, resizeAlg) {
     const imgGeo = fitToScreenGeo(geo, resizeAlg);
     const offset = placeOnScreen(imgGeo);
-    const off    = toPx(offset);
-    const g      = toPx(imgGeo);
-    const style  = { width    : g.w,
-                     height   : g.h,
-                     left     : off.x,
-                     top      : off.y,
-                     overflow : "hidden"
-                   };
+    const style  = styleGeo(imgGeo, offset, "hidden");
+
+    insertImg(id, url, style, geo, "img " + resizeAlg, () => {});
+
     // get element, clear contents and set style attributes
     const e = clearCont(id);
     setCSS(e, style);
 
-    const i = newImgElem(id,
-                         { width:  g.w,
-                           height: g.h
-                         },
-                         "img " + resizeAlg
-                        );
+    const i = newImgElem(id, styleSize(geo), "img " + resizeAlg);
+    i.src   = url;
+    e.appendChild(i);
+}
+
+function loadZoomImg(id, url, geo, pos) {
+    const imgGeo = fitToScreenGeo(geo, "no-magnify");
+    const offset = placeOnScreen(imgGeo);
+    const style  = styleGeo(imgGeo, offset, "hidden");
+
+    // get element, clear contents and set style attributes
+    const e = clearCont(id);
+    setCSS(e, style);
+
+    const i = newImgElem(id, styleSize(geo), "img zoom");
     i.src   = url;
     e.appendChild(i);
 }
 
 function loadFullImg(id, url, imgGeo) {
     const scrGeo = screenGeo();
-    const style  = { width    : scrGeo.w + "px",
-                     height   : scrGeo.h + "px",
-                     left     : "0px",
-                     top      : "0px",
-                     overflow : "auto"     // !!! image becomes scrollable
-                   };
+    const style  = styleGeo(scrGeo, nullGeo);
+
     // get element, clear contents and set style attributes
     const e = clearCont(id);
     setCSS(e, style);
 
-    const i = newImgElem(id,
-                         { width:  imgGeo.w + "px",  // original geo
-                           height: imgGeo.h + "px"   // often larger than screen geo
-                         },
-                         "img fullsize"
-                        );
+    const i = newImgElem(id, styleSize(imgGeo), "img fullsize");
     i.src   = url;
     e.appendChild(i);
 }
@@ -737,12 +836,7 @@ function loadPanoramaImg(id, url, imgGeo) {
 
     s.appendChild(newText(cssKeyFrames + cssPanoClass));
 
-    const style = { width    : scrGeo.w + "px",
-                    height   : scrGeo.h + "px",
-                    left     : "0px",
-                    top      : "0px",
-                    overflow : "hidden"
-                  };
+    const style = styleGeo(scrGeo, nullGeo, "hidden");
     const e = clearCont(id);
     setCSS(e, style);
 
@@ -757,9 +851,12 @@ function loadPanoramaImg(id, url, imgGeo) {
     e.appendChild(i);
 }
 
-function loadImg1(id, req, geo, resizeAlg) {
+function loadImg1(id, req, geo, resizeAlg, pos) {
     if (resizeAlg === "fullsize") {
         loadFullImg(id, req, geo);
+    }
+    else if (resizeAlg === "zoom") {
+        loadZoomImg(id, req, geo, pos);
     }
     else if (resizeAlg === "panorama") {
         loadPanoramaImg(id, req, geo);
@@ -769,12 +866,16 @@ function loadImg1(id, req, geo, resizeAlg) {
     }
 }
 
-function showImg1(page, resizeAlg) {
+function showImg1(page, resizeAlg, noTrans, zoomPos) {
     const imgReq = page.imgReq;
     const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
     const imgGeo = resizeToScreenHeight(orgGeo);
 
-    const imgUrl = (resizeAlg === "fullsize" && fitsInto(screenGeo(), orgGeo))
+    const imgUrl = ( (   resizeAlg === "fullsize"
+                      || resizeAlg === "zoom"
+                     )
+                     && fitsInto(screenGeo(), orgGeo)
+                   )
           ? imgReqToUrl(imgReq, readGeo("org"))
           : ( resizeAlg === "panorama" && isPano(imgGeo)
               ? imgReqToUrl(imgReq, resizeToScreenHeight(imgGeo))
@@ -786,16 +887,23 @@ function showImg1(page, resizeAlg) {
     picCache.onload = () => {
         const id = nextImgId();
         loadImg1(id, imgUrl,
-                 resizeAlg === "fullsize" ? orgGeo : imgGeo,
-                 resizeAlg);
-        toggleImg12(id);
+                 ( resizeAlg === "fullsize"
+                   ||
+                   resizeAlg === "zoom"
+                 )
+                 ? orgGeo : imgGeo,
+                 resizeAlg,
+                 zoomPos);
+        toggleImg12(id, noTrans);
     };
     picCache.src = imgUrl; // the .onload handler is triggered here
 }
 
 function showImg(page)          { showImg1(page, "no-magnify"); }
+function showNoTransImg(page)   { showImg1(page, "no-magnify", true); }
 function showMagnifiedImg(page) { showImg1(page, "magnify");    }
 function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
+function showZoomImg(page, pos) { showImg1(page, "zoom", true, pos);  }
 function showPanoramaImg(page)  { showImg1(page, "panorama");   }
 
 // ----------------------------------------
@@ -806,8 +914,8 @@ function loadMovie(id, url, geo, rType, resizeAlg) {
     const g      = toPx(movGeo);
     const style  = { width  : g.w,
                      height : g.h,
-                     left   : offset.x,
-                     top    : offset.y
+                     left   : offset.w,
+                     top    : offset.h
                    };
 
     // get element, clear contents and set style attributes
@@ -1335,6 +1443,11 @@ function isFullImg() {
     return e && e.classList.contains("fullsize");
 }
 
+function isZoomImg() {
+    const e = getCurrImgElem();
+    return e && e.classList.contains("zoom");
+}
+
 function isMagnifiedImg() {
     const e = getCurrImgElem();
     return e && e.classList.contains("magnify");
@@ -1492,6 +1605,16 @@ function toggleFullImg() {
             showImg(currPage);            // reset to normal size
         } else {
             showFullSizeImg(currPage);    // show in full resolution
+        }
+    }
+}
+
+function toggleZoomImg(zoomPos) {
+    if ( isPic() ) {
+        if ( isZoomImg() ) {
+            showNoTransImg(currPage);       // reset to normal size without animation
+        } else {
+            showZoomImg(currPage, zoomPos); // zoom into full resolution
         }
     }
 }
