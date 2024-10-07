@@ -844,6 +844,8 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
     const clickScale = divGeo(orgGeo, viewGeo);
     const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
 
+    const style      = styleGeo(null, nullGeo, "hidden");
+
     // const dstoff = moveAndResize(scrGeo, viewGeo, viewOff, orgGeo, clickPos);
 
     trc(1, `loadZoomImg: ${url}, ${showGeo(orgGeo)}, ${showGeo(clickPos)}`);
@@ -862,7 +864,7 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
 
     insertZoomCss("zoom-css", "zoom-move", viewGeo, viewOff, viewScale, orgGeo, clickOff, orgScale);
 
-    insertImg(id, url, null, null, "img zoom zoom-init", addHandler);
+    insertImg(id, url, style, null, "img zoom zoom-init", addHandler);
 }
 
 function loadFullImg(id, url, imgGeo) {
