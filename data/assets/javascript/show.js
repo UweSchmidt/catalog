@@ -826,21 +826,35 @@ function loadImg(id, url, geo, resizeAlg) {
     const offset = placeOnScreen(imgGeo);
     const style  = styleGeo(imgGeo, offset, "hidden");
 
-    insertImg(id, url, style, geo, "img " + resizeAlg, () => {});
+    function initZoom(e) {
+        trc(1, "initZoom: start zooming image with id=" + this.id );
+
+        const pos = { w: e.offsetX,
+                      h: e.offsetY
+                    };
+        trc(1, "pos=" + showGeo(pos));
+        showZoomImg(currPage, pos);
+    }
+
+    function addHandler(i) {
+        i.addEventListener("click", initZoom);
+    }
+
+    insertImg(id, url, style, geo, "img " + resizeAlg, addHandler);
 }
 
 function loadZoomImg(id, url, orgGeo, clickPos) {
     const scrGeo     = screenGeo();
-    const scrCenter  = halfGeo(scrGeo);
 
     const viewGeo    = fitToScreenGeo(orgGeo, "no-magnify");
+    const viewCenter = halfGeo(viewGeo);
     const viewScale  = divGeo(viewGeo, orgGeo);
     const viewOff    = placeOnScreen(viewGeo);
 
     const orgOff     = placeOnScreen(orgGeo);
     const orgScale   = oneGeo;
 
-    const clickDisp  = subGeo(scrCenter, clickPos);
+    const clickDisp  = subGeo(viewCenter, clickPos);
     const clickScale = divGeo(orgGeo, viewGeo);
     const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
 
@@ -850,14 +864,20 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
 
     trc(1, `loadZoomImg: ${url}, ${showGeo(orgGeo)}, ${showGeo(clickPos)}`);
 
+    function finishZoom(e) {
+        trc(1,"finishZoom: back to normal view");
+        showNoTransImg(currPage);
+    }
+
     function animationEndFunction() {
         trc(1, "animation of zoom-move finished");
         const i = getCurrImgElem();
-        i.classList.remove("Zoom-init");
+        i.classList.remove("zoom-init");
         i.classList.add("zoom-end");
     }
 
     function addHandler(i) {
+        i.addEventListener("click", finishZoom);
         i.addEventListener("load", toggleZoomAnimation);
         i.addEventListener("animationend", animationEndFunction);
     }
