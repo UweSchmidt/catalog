@@ -782,27 +782,34 @@ function insertZoomCss(cssId, kf, view1Geo, view1Off, view1Scale, view2Geo, view
     const dur        = 2;
     const delay      = 0;
 
+    const zoom1 = `
+              transform: matrix(${view1Scale.w}, 0, 0, ${view1Scale.h}, ${view1Off.w}, ${view1Off.h});
+    `
+    ;
+
+    const zoom2 = `
+              transform: matrix(${view2Scale.w}, 0, 0, ${view2Scale.h}, ${view2Off.w}, ${view2Off.h});
+    `
+    ;
+
     const cssKeyFrames = `
           @keyframes ${kf} {
-              0% { transform-origin: left top;
-                   transform: matrix(${view1Scale.w}, 0, 0, ${view1Scale.h}, ${view1Off.w}, ${view1Off.h});
-                 }
-            100% { transform-origin: left top;
-                   transform: matrix(${view2Scale.w}, 0, 0, ${view2Scale.h}, ${view2Off.w}, ${view2Off.h});
-                 }
+              0% { ${zoom1} }
+            100% { ${zoom2} }
           }
           `;
     const cssClass = `
+          img.zoom-init { ${zoom1} }
+          img.zoom-end  { ${zoom2} }
+
           img.zoom {
               transform-origin: left top;
-              transform: matrix(${view1Scale.w}, 0, 0, ${view1Scale.h}, ${view1Off.w}, ${view1Off.h});
 
               animation-name:            ${kf};
               animation-duration:        ${dur}s;
               animation-delay:           ${delay}s;
               animation-iteration-count: 1;
               animation-timing-function: ease-in-out;
-              animation-fill-mode:       both;
               animation-play-state:      paused;
           }
           `;
@@ -836,12 +843,15 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
 
     const clickOff   = addGeo(orgOff, clickDisp);
 
-    const dstoff = moveAndResize(scrGeo, viewGeo, viewOff, orgGeo, clickPos);
+    // const dstoff = moveAndResize(scrGeo, viewGeo, viewOff, orgGeo, clickPos);
 
     trc(1, `loadZoomImg: ${url}, ${showGeo(orgGeo)}, ${showGeo(clickPos)}`);
 
     function animationEndFunction() {
         trc(1, "animation of zoom-move finished");
+        const i = getCurrImgElem();
+        i.classList.remove("Zoom-init");
+        i.classList.add("zoom-end");
     }
 
     function addHandler(i) {
@@ -851,7 +861,7 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
 
     insertZoomCss("zoom-css", "zoom-move", viewGeo, viewOff, viewScale, orgGeo, clickOff, orgScale);
 
-    insertImg(id, url, null, null, "img zoom", addHandler);
+    insertImg(id, url, null, null, "img zoom zoom-init", addHandler);
 }
 
 function loadFullImg(id, url, imgGeo) {
@@ -1707,7 +1717,7 @@ function toggleZoomAnimation() {
         const i = getCurrImgElem();
         const s = i.style.animationPlayState;
         trc(1, "toggleZoomAnimation: " + s);
-        setCSS(i, { animationPlayState: (s === "running" ? "paused" : "running")        });
+        setCSS(i, { animationPlayState: (false ? "paused" : "running")        });
     }
 }
 
