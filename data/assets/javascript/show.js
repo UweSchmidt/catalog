@@ -832,7 +832,6 @@ function loadImg(id, url, geo, resizeAlg) {
 function loadZoomImg(id, url, orgGeo, clickPos) {
     const scrGeo     = screenGeo();
     const scrCenter  = halfGeo(scrGeo);
-    const clickDisp  = subGeo(clickPos, scrCenter);
 
     const viewGeo    = fitToScreenGeo(orgGeo, "no-magnify");
     const viewScale  = divGeo(viewGeo, orgGeo);
@@ -841,7 +840,9 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
     const orgOff     = placeOnScreen(orgGeo);
     const orgScale   = oneGeo;
 
-    const clickOff   = addGeo(orgOff, clickDisp);
+    const clickDisp  = subGeo(scrCenter, clickPos);
+    const clickScale = divGeo(orgGeo, viewGeo);
+    const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
 
     // const dstoff = moveAndResize(scrGeo, viewGeo, viewOff, orgGeo, clickPos);
 
