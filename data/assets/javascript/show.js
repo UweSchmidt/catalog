@@ -176,11 +176,8 @@ function styleGeo(geo, off, ov) {
     const res = styleSize(geo);
     const opx = pxGeo(off);
 
-    if (off.w > 0)
-        res.left = opx.w;
-
-    if (off.h > 0)
-        res.top  = opx.h;
+    res.left = opx.w;
+    res.top  = opx.h;
 
     res.overflow = ov || "auto";
 
@@ -716,8 +713,15 @@ function setAnimDur(e, dur, delay) {
 
 function clearImageElem(e) {
     clearCont(e);
-    setCSS(e, {"animation-duration": null,
-               "animation-delay":    null,
+    setCSS(e, {"animation-duration": '',
+               "animation-delay":    '',
+               "width":              '',
+               "height":             '',
+               "left":               '',
+               "right":              '',
+               "bottom":             '',
+               "top":                '',
+               "overflow":           '',
               });
 }
 
@@ -858,7 +862,7 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
     const clickScale = divGeo(orgGeo, viewGeo);
     const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
 
-    const style      = styleGeo(null, nullGeo, "hidden");
+    const style      = styleGeo(scrGeo, nullGeo, "hidden");
 
     // const dstoff = moveAndResize(scrGeo, viewGeo, viewOff, orgGeo, clickPos);
 
