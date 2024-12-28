@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Data.Prim.Prelude
   ( ByteString,
     LazyByteString,
@@ -175,6 +176,7 @@ import qualified Data.Text.Lazy         as LT
 import qualified Data.Text.Lazy.Builder as LT
 
 import Data.Text.Lens
+  ( unpacked )
 
 import Data.Vector
   ( Vector,
@@ -241,22 +243,27 @@ class IsoString a where
   {-# INLINE isoString #-}
 
 instance IsoString String where
+  isoString :: Iso' String String
   isoString = iso id id
   {-# INLINE isoString #-}
 
 instance IsoString Text where
+  isoString :: Iso' Text String
   isoString = iso T.unpack T.pack
   {-# INLINE isoString #-}
 
 instance IsoString LazyText where
+  isoString :: Iso' LazyText String
   isoString = iso LT.unpack LT.pack
   {-# INLINE isoString #-}
 
 instance IsoString ByteString where
+  isoString :: Iso' ByteString String
   isoString = iso BU.toString BU.fromString
   {-# INLINE isoString #-}
 
 instance IsoString LazyByteString where
+  isoString :: Iso' LazyByteString String
   isoString = iso LBU.toString LBU.fromString
   {-# INLINE isoString #-}
 
@@ -495,11 +502,7 @@ unlessM b c = do
   unless b' c
 {-# INLINE unlessM #-}
 
-partitionM ::
-  (Monad m) =>
-  (a -> m Bool) ->
-  [a] ->
-  m ([a], [a])
+partitionM :: (Monad m) => (a -> m Bool) -> [a] -> m ([a], [a])
 partitionM p xs =
   partitionEithers <$> mapM toLR xs
   where
@@ -537,11 +540,7 @@ fillLeftList = fillList fillLeft
 fillRightList :: Char -> [String] -> [String]
 fillRightList = fillList fillRight
 
-fillList ::
-  (Char -> Int -> String -> String) ->
-  Char ->
-  [String] ->
-  [String]
+fillList :: (Char -> Int -> String -> String) -> Char -> [String] -> [String]
 fillList ff c xs = map (ff c l) xs
   where
     l = maximum (0 : map length xs)
