@@ -27,6 +27,15 @@ const videoAttrs = { controls: "",
                      muted:    null
                    };
 
+function constF(x) {
+    return (y) => { return x; };
+}
+
+function idF(x) { return x; }
+
+function fstF(x, y) { return x; }
+function sndF(x, y) { return y; }
+
 /* ---------------------------------------- */
 /* basic operations */
 
@@ -83,6 +92,10 @@ function intercalate(s, xs) {
 const infiniteWidth = 1000000;
 const nullGeo = { w : 0, h : 0 };
 const oneGeo  = { w : 1, h : 1 };
+
+function eqGeo(g1, g2) {
+    return g1.w === g2.w && g1.h === g2.h;
+}
 
 function addGeo(g1, g2) {
     if (typeof g2 === "number") {
@@ -184,60 +197,6 @@ function styleGeo(geo, off, ov) {
     return res;
 }
 
-function moveAndResize(sGeo, i1Geo, i1Off, i2Geo, clickOff) {
-    const scale    = divGeo(i2Geo, i1Geo);
-    const i1Center = addGeo(halfGeo(i1Geo), i1Off);
-    const shifti1  = subGeo(clickOff, i1Center);
-    const shifti2  = mulGeo(shifti1, scale);
-    const i2Off0   = halfGeo(subGeo(sGeo, i2Geo));
-    const i2Off    = roundGeo(subGeo(i2Off0, shifti2));
-
-    // return [scale, i1Center, shifti1, shifti2, i2Off0, i2Off];
-    return i2Off;
-}
-
-
-t1 = moveAndResize(
-    {w : 1920, h : 1200},
-    {w : 1800, h : 1200},
-    {w :   60, h :    0},
-    {w : 3600, h : 2400},   // zoom an image twice as large as the screen to 100%
-    {w :  960, h :  600}    // click at center of i1
-);
-
-t2 = moveAndResize(
-    {w : 1920, h : 1200},
-    {w : 1800, h : 1200},
-    {w :   60, h :    0},
-    {w : 3600, h : 2400},
-    {w :   60, h :    0}    // click at left upper corner of i1
-);
-
-t3 = moveAndResize(
-    {w : 1920, h : 1200},
-    {w : 6000, h : 1200},
-    {w :    0, h :    0},
-    {w : 6000, h : 1200},
-    {w : 6000 - 960, h :  600}    // move a panorama to the right
-);
-
-t4 = moveAndResize(
-    {w : 1920, h : 1200},
-    {w : 6000, h : 1200},
-    {w :    0, h :    0},
-    {w : 6000, h : 1200},
-    {w :  100, h :    0}    // move a (fullsize) image 100x100 pixels northwes
-);
-
-
-/*
-function scaleGeo(g, s) {
-    return { w : Math.floor(g.w * s),
-             h : Math.floor(g.h * s)
-    };
-}
-*/
-
 function fitsInto(g1, g2) {
     return g1.w <= g2.w && g1.h <= g2.h;
 }
@@ -305,6 +264,49 @@ function resizeGeo(s, d) {
                };
 }
 
+function resize(s, d) {
+    const resized = resizeGeo(s, d);
+    const scale   = divGeo(resized, s);
+    const offset  = halfGeo(subGeo(d, resized));
+    const aspectS = s.w / s.h;
+    const aspectD = d.w / d.h;
+
+
+    return {
+        org:     s,
+        target:  d,
+        resized: resized,
+        scale:   scale,
+        offset:  offset,
+        aspectr: aspectS,
+
+        isLandscape:  aspectS >= aspectD,
+        isPortrait:   aspectS <= aspectD,
+        fits:         eqGeo(resized, d),
+    };
+}
+
+function resizeWidth(g, w) {
+    return resize(g, {w: w, h: infiniteWidth});
+}
+
+function resizeHeight(g, h) {
+    return resize(g, {w: infiniteWidth, h: h});
+}
+
+function resizeToScreen(g) {
+    return resize(g, screenGeo());
+}
+
+function resizeToScreenH(g) {
+    return resizeHeight(g, screenGeo().h);
+}
+
+function resizeToScreenW(g) {
+    return resizeWidth(g, screenGeo().w);
+}
+
+
 function resizeToHeight(s, d) {
     return resizeGeo(s, {w: infiniteWidth, h: d.h});
 }
@@ -315,6 +317,18 @@ function resizeToWidth(s, d) {
 
 function resizeToScreenHeight(g) {
     return resizeToHeight(g, screenGeo());
+}
+
+function resizeToScreenHeight1(g) {
+    if ( fitsInto(screenGeo(), g) )
+        return readGeo("org");
+    return resizeToScreenHeight(g);
+}
+
+function resizeToScreenHeightPano(g) {
+    if ( ! isPano(g) )
+        return g;
+    return resizeToScreenHeight(g);
 }
 
 function resizeToScreenWidth(g) {
@@ -864,8 +878,6 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
 
     const style      = styleGeo(scrGeo, nullGeo, "hidden");
 
-    // const dstoff = moveAndResize(scrGeo, viewGeo, viewOff, orgGeo, clickPos);
-
     trc(1, `loadZoomImg: ${url}, ${showGeo(orgGeo)}, ${showGeo(clickPos)}`);
 
     function finishZoom(e) {
@@ -1008,6 +1020,77 @@ function showMagnifiedImg(page) { showImg1(page, "magnify");    }
 function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
 function showZoomImg(page, pos) { showImg1(page, "zoom", true, pos);  }
 function showPanoramaImg(page)  { showImg1(page, "panorama");   }
+
+
+function showImg1New(page, algs) {
+    const imgReq = page.imgReq;
+    const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
+
+    const imgGeo = algs.resizeA(orgGeo);
+    const imgUrl = imgReqToUrl(imgReq, urlGeo);
+
+    trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
+
+    picCache.onload = () => {
+        const id = nextImgId();
+        trc(1, `onload loadImg1: ${id}`);
+        algs.loadA(id, imgReq, imgGeo, algs);
+        toggleImg12(id);
+    };
+    picCache.src = imgUrl; // the .onload handler is triggered here
+}
+
+function mkShowImg() {
+    return {
+        class     : "no-magnify",
+        resizeA   : resizeToScreenHeight,
+        selA      : sndF,
+        transA    : getTransition,
+        durationA : slideDur,
+        loadA     : loadImgNew,         // continuation
+    };
+}
+
+function mkShowNoTransImg() {
+    return {
+        class     : "no-magnify",
+        resizeA   : resizeToScreenHeight,
+        selA      : sndF,
+        transA    : cut,
+        durationA : constF(0),
+    };
+}
+
+function mkShowFullSizeImg(pos) {
+    return {
+        class     : "fullsize",
+        resizeA   : idF,
+        selA      : fstF,
+        transA    : getTransition,
+        durationA : slideDur,
+    };
+}
+
+function mkShowZoomImg(pos) {
+    return {
+        class     : "zoom",
+        resizeA   : idF,
+        transA    : cut,
+        selA      : fstF,
+        durationA : constF(0),
+        clickPos  : pos
+    };
+}
+
+function mkShowPanoramaImg() {
+    return {
+        class     : "panorama",
+        resizeA   : resizeToScreenHeightPano,
+        selA      : sndF,
+        transA    : getTransition,
+        durationA : slideDur,
+    };
+}
 
 // ----------------------------------------
 
