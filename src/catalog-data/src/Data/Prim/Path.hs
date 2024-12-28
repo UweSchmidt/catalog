@@ -35,7 +35,6 @@ where
 -- catalog-data
 import Data.Prim.Prelude
     ( IsString(..),
-      Foldable(foldl'),
       AsEmpty,
       Text,
       IsoText(..),

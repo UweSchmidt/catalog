@@ -22,8 +22,7 @@ module Data.Access
 where
 
 import Data.Prim.Prelude
-       ( Foldable(foldl')
-       , Text
+       ( Text
        , Iso'
        , Lens'
        , (&)
