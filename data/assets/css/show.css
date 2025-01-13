@@ -134,6 +134,30 @@ body {
 }
 
 /* -------------------- */
+/* blog page */
+
+div.blog {
+  max-width: 50em;
+  margin: 1em;
+}
+
+div.blog h1 {
+  font-size:   1.6em;
+  font-weight: bold;
+  margin-block: 0.6em;
+}
+
+div.blog h2 {
+  font-size:   1.3em;
+  font-weight: bold;
+  margin-block: 0.4em;
+}
+
+.collection-blog p {
+  margin-block: 0.4em;
+}
+
+/* -------------------- */
 /* metadata table */
 
 #info {
@@ -269,13 +293,6 @@ span.rating {
 }
 
 /* -------------------- */
-
-div.blog {
-  padding-left:     1em;
-  padding-right:    1em;
-  background-color: #eee;
-  color:            #333;
-}
 
 img.gif {
   background-color: #eee;
