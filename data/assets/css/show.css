@@ -137,7 +137,6 @@ body {
 /* blog page */
 
 div.blog {
-  max-width: 50em;
   margin: 1em;
 }
 
@@ -145,16 +144,23 @@ div.blog h1 {
   font-size:   1.6em;
   font-weight: bold;
   margin-block: 0.6em;
+  max-width: 50em;
 }
 
 div.blog h2 {
   font-size:   1.3em;
   font-weight: bold;
   margin-block: 0.4em;
+  max-width: 50em;
 }
 
-.collection-blog p {
+div.blog p {
   margin-block: 0.4em;
+  max-width: 50em;
+}
+
+div.blog li, div.blog pre {
+  max-width: 50em;
 }
 
 /* -------------------- */
