@@ -855,7 +855,7 @@ function loadImg(id, url, geo, resizeAlg) {
     }
 
     function addHandler(i) {
-        i.addEventListener("click", initZoom);
+        i.addEventListener("dblclick", initZoom);
     }
 
     insertImg(id, url, style, geo, "img " + resizeAlg, addHandler);
@@ -893,7 +893,7 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
     }
 
     function addHandler(i) {
-        i.addEventListener("click", finishZoom);
+        i.addEventListener("dblclick", finishZoom);
         i.addEventListener("load", toggleZoomAnimation);
         i.addEventListener("animationend", animationEndFunction);
     }
