@@ -405,9 +405,17 @@ function toHref(url) {
 }
 
 function jsonReqToUrl(jsonReq) {
+    return jsonReqToUrl1(jsonReq, bestFitToScreenGeo());
+}
+
+function jsonReqToUrlFS(jsonReq) {
+    return jsonReqToUrl1(jsonReq, readGeo("org"));
+}
+
+function jsonReqToUrl1(jsonReq, geo) {
     const pp = rPathPosToUrl(jsonReq.rPathPos);
     return "/docs/json/"
-        + showGeo(bestFitToScreenGeo())
+        + showGeo(geo)
         + pp
         + ".json";
 }
@@ -1588,6 +1596,16 @@ function isColPage(page) {
 function isImgPage(page) {
     page = page || currPage;
     return ! isColPage(page);
+}
+
+function isFullsizeImgPage(page) {
+    page = page || currPage;
+    if ( isImgPage(page) ) {
+        if ( isPicReq(page.imgReq) ) {
+            return eqGeo(readGeo(page.oirGeo[1]), oneGeo);
+        }
+    }
+    return false;
 }
 
 function isPanoImgPage() {               // a panoaram image is larger
