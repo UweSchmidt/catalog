@@ -776,7 +776,37 @@ function isNotSortableCollection(md) {
 
 // ----------------------------------------
 
+// set write protection flag for collection entries
+// set ratings for collection entries
+
+var contChain = () => {};
+
+function showNewCollectionCont(cont) {
+    return (path, colVal) => {
+        console.log("showNewCollectionCont " + path);
+
+        // init contChain
+        contChain = () => {
+            console.log("contChain finished");
+
+            // reset contChain to noop
+            contChain = () => {};
+
+            console.log("contChain call global continuation");
+            cont();
+        };
+
+    // show collection and build contChain
+    // this is a normal function call
+    showNewCollection(path, colVal);
+
+    // call cont chain for setting write protection flags
+    // this is an async function call
+    contChain();
+}
+                                     }
 function showNewCollection(path, colVal) {
+    console.log("showNewCollection " + path);
     // insert into global state
     insCol(path, colVal);
 
@@ -857,7 +887,7 @@ function showNewCollection(path, colVal) {
         // make the collection visible
         setActiveTab(o.colId);
 
-        // fill the colection
+        // fill the collection
         insertEntries(o.colId, colVal.entries);
     }
 }
@@ -899,8 +929,15 @@ function insertEntries(colId, entries) {
         insertEntry(colId, path, e, i);
     });
 
-    // insert the ratings
-    getAllRatingsFromServer(colId);
+    var contChain1 = contChain;
+
+    contChain = () => {
+        console.log("setAllRatings for " + path);
+
+        // insert the ratings
+        // this async call must be  syncronized
+        getAllRatingsFromServer(colId, contChain1);
+    };
 
     // set handler for showing edit buttons
     col.find('div.dia')
@@ -932,7 +969,7 @@ function insertEntries(colId, entries) {
             }
             setEntryMark(o.dia);
             setRating(newRating);
-            getAllRatingsFromServer(colId);
+            getAllRatingsFromServer(colId, () => {});
         });
 
     // set handler for button groups
@@ -1111,10 +1148,22 @@ function newEntry(colId, colPath, entry, i) {
                 openCollection(ref.path);
             });
 
-        getIsWriteableFromServer(ref.path,
-                                 function (ro) {
-                                     setDiaColAccess(p, ro);
-                                 });
+        // getIsWriteable... is an async function
+        // which must be syncronized
+
+        // copy chain to local variable
+        var contChain1 = contChain;
+
+        // extend global contChain with server call
+        contChain = () => {
+            console.log("setDiaColAccess for " + ref.path);
+            getIsWriteableFromServer(ref.path,
+                                     function (ro) {
+                                         setDiaColAccess(p, ro);
+                                         contChain1();
+                                     });
+
+        };
 
     }
 
@@ -1452,9 +1501,10 @@ function openCols(ps, ff) {
     if (ps.length != 0) {
         var p = ps.shift();  // split 1. element from path list
         getColFromServer(p,
-                         function (path, colVal) {
-                             showNewCollection(path, colVal);
-                             openCols(ps, ff);
+                         (path, colVal) => {
+                             showNewCollectionCont(
+                                 () => { openCols(ps, ff)}
+                             )(path, colVal);
                          }
                         );
     } else {
@@ -1487,7 +1537,7 @@ function openSystemCollections() {
 
 function openCollection(path) {
     statusClear();
-    getColFromServer(path, showNewCollection);
+    getColFromServer(path, showNewCollectionCont(() => {}));
 }
 
 function updateCollection(path) {
@@ -3005,11 +3055,12 @@ function getRatingFromServer(path, pos, setRating) {
     readServer1('rating', path, pos, setRating);
 }
 
-function getAllRatingsFromServer(colId) {
+function getAllRatingsFromServer(colId, cont) {
     var path = collectionPath(colId);
     getRatingsFromServer(path,
                          function(ratings) {
                              setAllRatingsInCollection(colId, ratings);
+                             cont();
                          });
 
 }
