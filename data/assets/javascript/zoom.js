@@ -369,7 +369,8 @@ const serverSupportedGeos =
         "1400x1050",
         "1600x1200",
         "1920x1200",
-        "2560x1440"
+        "2560x1440",
+        "3840x2160"    // 4k Eizo monitor
       ];
 
 function bestFitToGeo (s) {
