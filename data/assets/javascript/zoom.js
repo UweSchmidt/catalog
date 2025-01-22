@@ -1030,35 +1030,216 @@ function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
 function showZoomImg(page, pos) { showImg1(page, "zoom", true, pos);  }
 function showPanoramaImg(page)  { showImg1(page, "panorama");   }
 
-
-function showImg1New(page, algs) {
+function showImgNew(page, context) {
     const imgReq = page.imgReq;
     const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
 
-    const imgGeo = algs.resizeA(orgGeo);
+    const imgGeo = context.resizeA(orgGeo);
     const imgUrl = imgReqToUrl(imgReq, urlGeo);
+
+    // extend context obj
+    context.imgReq = imgReq;
+    context.imgGeo = imgGeo;
 
     trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
 
     picCache.onload = () => {
         const id = nextImgId();
+
+        // extend context obj
+        context.id = id;
         trc(1, `onload loadImg1: ${id}`);
-        algs.loadA(id, imgReq, imgGeo, algs);
+        context.loadA(context);
         toggleImg12(id);
     };
     picCache.src = imgUrl; // the .onload handler is triggered here
 }
 
-function mkShowImg() {
+// ------------------------------------------------------------
+//
+// new show functions
+
+function showPageNew(page, algorithm) {
+    const rType = getPageType(page);
+    const ctxt  = mkShowContext(rType, algorithm);
+    if (ctxt) {
+        ctxt.renderPage(page, ctxt);
+    }
+}
+
+// --------------------
+
+// build context for various media types
+
+function mkShowContext(rType, algorithm) {
+    var ctxt = null;
+
+    if (rType === "json") {
+        ctxt = mkColContext();
+    }
+    else if (rType === "movie") {
+        ctxt = mkMovieContext();
+    }
+    else if (rType === "gif") {
+        ctxt = mkGifContext();
+    }
+    else if (rType === "page") {
+        ctxt = mkBlogContext();
+    }
+    else if ( ["img", "imgfx", "icon", "iconp"].includes(rType) ) {
+        algorithm = algorithm || "no-magnify";        // set default algorithm
+        ctxt = mkImgContext(rType, algorithm);
+    }
+    if (ctxt) {
+        ctxt.rType = rType;
+    }
+
+    return ctxt;
+}
+
+// build context for various render algorithms
+
+function mkShowImgContext(algorithm) {
+    const ctxt = null;
+
+    if (algorithm === "no-magnify") {
+        ctxt = mkNoMagnifyImgContext();
+    }
+    else if (algorithm === "magnify") {
+        ctxt = mkMagnifyImgContext();
+    }
+    else if (algorithm === "fullsize") {
+        ctxt = mkFullsizeImgContext();
+    }
+    else if (algorithm === "zoom") {
+        ctxt = mkZoomImgContext();
+    }
+    else if (algorithm === "panorama") {
+        ctxt = mkPanoramaImgContext();
+    }
+
+    if (ctxt) {
+        ctxt.algorithm = algorithm;
+    }
+
+    return ctxt;
+}
+
+// --------------------
+//
+// variants for image urls
+
+function imgToUrlStd(imgReq, orgGeo, imgGeo) {
+    return imgReqToUrl(imgReq);
+}
+
+function imgToUrlFullsize(imgReq, orgGeo, imgGeo) {
+    if ( fitsInto(screenGeo(), orgGeo) ) {
+        return imgReqToUrl(imgReq, readGeo("org"));
+    }
+    return imgReqToUrl(imgReq);
+}
+
+function imgToUrlPano(imgReq, orgGeo, imgGeo) {
+    if ( isPano(imgGeo) ) {
+        return imgReqToUrl(imgReq, resizeToScreenHeight(imgGeo));
+    }
+    return imgReqToUrl(imgReq);
+}
+
+// --------------------
+//
+// variants for image rendering sizes
+
+// resize image to fit into screen
+function renderGeoStd(ctxt) {
+    return ctxt.imgGeo;
+}
+
+// no resize: original resolution
+function renderGeoFullsize(ctxt) {
+    return ctxt.orgGeo;
+}
+
+// --------------------
+//
+// construtors for context to show an image
+
+function mkNoMagnifyImgContext() {
     return {
-        class     : "no-magnify",
-        resizeA   : resizeToScreenHeight,
-        selA      : sndF,
-        transA    : getTransition,
-        durationA : slideDur,
-        loadA     : loadImgNew,         // continuation
+        getMedia    : getImg(imgToUrlStd),
+        renderMedia : renderImg(renderGeoStd),
+        transition  : trans12
     };
 }
+
+function mkFullsizeImgContext() {
+    return {
+        imgUrlAlg   : getImg(imgToUrlFullsize),
+        renderMedia : renderImg(renderGeoFullsize),
+        transition  : trans12
+    };
+}
+
+function mkZoomImgContext() {
+    return {
+        imgUrlAlg   : getImg(imgToUrlFullsize),
+        renderMedia : renderImg(renderGeoFullsize),
+        transition  : trans12
+    };
+}
+
+function mkPanoImgContext() {
+    return {
+        imgUrlAlg   : getImg(imgToUrlPano),
+        renderMedia : renderImg(renderGeoStd),
+        transition  : trans12
+    };
+}
+
+// --------------------
+
+function getImg(imgToUrl) {
+    return (page, ctxt) => {
+        const imgReq = page.imgReq;
+        const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
+        const imgGeo = resizeToScreenHeight(orgGeo);
+
+        const imgUrl = imgToUrl(imgReq, orgGeo, imgGeo);
+        ctxt. imgUrl = imgUrl;
+
+        trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
+
+        // image is loaded into cache
+        // alg continues after loadin is finished
+
+        picCache.onload = () => {
+            const id = nextImgId();
+            ctxt.id = id;
+
+            trc(1, `onload loadImg1: ${id}`);
+
+            ctxt.renderMedia(ctxt);
+            ctxt.transition(ctxt);
+        };
+        picCache.src = imgUrl; // the .onload handler is triggered here
+    };
+}
+
+function renderImg(renderGeo) {
+    return (ctxt) => {
+        // TODO: refactor loadImg1
+
+        loadImg1(ctxt.id, ctxt.renderMedia(ctxt), cxt.algorithm, ctxt.zoomPos);
+    };
+}
+
+// TODO: refator transitions
+function trans12(ctxt) {
+    toggleImg12(ctxt.id, ctxt.noTrans || false);
+}
+
+// --------------------
 
 function mkShowNoTransImg() {
     return {
