@@ -848,10 +848,16 @@ function insertZoomCss(cssId, kf, view1Geo, view1Off, view1Scale, view2Geo, view
     css.appendChild(newText(cssKeyFrames + cssClass));
 }
 
-function loadImg(id, url, geo, resizeAlg) {
+// old stuff
+
+function loadImg(id, req, geo, resizeAlg) {
+    console.log(`loadImg ${id}, ${resizeAlg}`);
+
     const imgGeo = fitToScreenGeo(geo, resizeAlg);
     const offset = placeOnScreen(imgGeo);
     const style  = styleGeo(imgGeo, offset, "hidden");
+
+    const imgUrl = imgReqToUrl(req);
 
     function initZoom(e) {
         trc(1, "initZoom: start zooming image with id=" + this.id );
@@ -867,8 +873,10 @@ function loadImg(id, url, geo, resizeAlg) {
         i.addEventListener("dblclick", initZoom);
     }
 
-    insertImg(id, url, style, geo, "img " + resizeAlg, addHandler);
+    insertImg(id, imgUrl, style, geo, "img " + resizeAlg, addHandler);
 }
+
+// old stuff
 
 function loadZoomImg(id, url, orgGeo, clickPos) {
     const scrGeo     = screenGeo();
@@ -912,6 +920,7 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
     insertImg(id, url, style, null, "img zoom zoom-init", addHandler);
 }
 
+// old stuff
 function loadFullImg(id, url, imgGeo) {
     const scrGeo = screenGeo();
     const style  = styleGeo(scrGeo, nullGeo);
@@ -973,6 +982,8 @@ function loadPanoramaImg(id, url, imgGeo) {
 }
 
 function loadImg1(id, req, geo, resizeAlg, pos) {
+    console.log(`loadImg1 ${id}, ${resizeAlg}`);
+
     if (resizeAlg === "fullsize") {
         loadFullImg(id, req, geo);
     }
@@ -1062,8 +1073,10 @@ function showImgNew(page, context) {
 function showPageNew(page, algorithm) {
     const rType = getPageType(page);
     const ctxt  = mkShowContext(rType, algorithm);
+
     if (ctxt) {
-        ctxt.renderPage(page, ctxt);
+        ctxt.page = page;       // add page to context
+        ctxt.getMedia(ctxt);
     }
 }
 
@@ -1087,8 +1100,7 @@ function mkShowContext(rType, algorithm) {
         ctxt = mkBlogContext();
     }
     else if ( ["img", "imgfx", "icon", "iconp"].includes(rType) ) {
-        algorithm = algorithm || "no-magnify";        // set default algorithm
-        ctxt = mkImgContext(rType, algorithm);
+        ctxt = mkShowImgContext(algorithm);
     }
     if (ctxt) {
         ctxt.rType = rType;
@@ -1100,7 +1112,9 @@ function mkShowContext(rType, algorithm) {
 // build context for various render algorithms
 
 function mkShowImgContext(algorithm) {
-    const ctxt = null;
+    var ctxt = null;
+
+    algorithm = algorithm || "no-magnify";        // set default algorithm
 
     if (algorithm === "no-magnify") {
         ctxt = mkNoMagnifyImgContext();
@@ -1130,6 +1144,7 @@ function mkShowImgContext(algorithm) {
 // variants for image urls
 
 function imgToUrlStd(imgReq, orgGeo, imgGeo) {
+    console.log("imgToUrlStd: " + imgReqToUrl(imgReq));
     return imgReqToUrl(imgReq);
 }
 
@@ -1163,12 +1178,102 @@ function renderGeoFullsize(ctxt) {
 
 // --------------------
 //
+// variants for HTML rendering
+
+function renderHtmlStd(ctxt) {
+    console.log("renderHtmlStd");
+
+    const viewGeo = fitToScreenGeo(ctxt.renderGeo, ctxt.algorithm);
+    const offset  = placeOnScreen(viewGeo);
+    const style   = styleGeo(viewGeo, offset, "hidden");
+
+    function initZoom(e) {
+        trc(1, "initZoom: start zooming image with id=" + this.id );
+
+        const clickPos = { w: e.offsetX,
+                           h: e.offsetY
+                         };
+        trc(1, "clickPos=" + showGeo(clickPos));
+        showZoomImg(ctxt.page, clickPos);
+    }
+
+    function addHandler(i) {
+        i.addEventListener("dblclick", initZoom);
+    }
+
+    insertImg(ctxt.id, ctxt.imgUrl, style, ctxt.renderGeo, "img " + ctxt.algorithm, addHandler);
+}
+
+function renderHtmlFullsize(ctxt) {
+    console.log("renderHtmlFullsize: ");
+
+    const scrGeo = screenGeo();
+    const style  = styleGeo(scrGeo, nullGeo);
+
+    insertImg(ctxt.id, ctxt.imgUrl, style, ctxt.renderGeo, "img fullsize", () => {});
+}
+
+function renderHtmlZoom(ctxt) {
+    console.log("renderHtmlZoom: ");
+
+    const orgGeo     = ctxt.orgGeo;
+    const clickPos   = ctxt.clickPos;
+
+    const scrGeo     = screenGeo();
+
+    const viewGeo    = fitToScreenGeo(orgGeo, "no-magnify");
+    const viewCenter = halfGeo(viewGeo);
+    const viewScale  = divGeo(viewGeo, orgGeo);
+    const viewOff    = placeOnScreen(viewGeo);
+
+    const orgOff     = placeOnScreen(orgGeo);
+    const orgScale   = oneGeo;
+
+    const clickDisp  = subGeo(viewCenter, clickPos);
+    const clickScale = divGeo(orgGeo, viewGeo);
+    const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
+
+    const style      = styleGeo(scrGeo, nullGeo, "hidden");
+
+    trc(1, `renderHtmlZoom: ${url}, ${showGeo(orgGeo)}, ${showGeo(clickPos)}`);
+
+    function finishZoom(e) {
+        trc(1,"finishZoom: back to normal view");
+        showNoTransImg(ctxt.page);
+    }
+
+    function animationEndFunction() {
+        trc(1, "animation of zoom-move finished");
+        const i = getCurrImgElem();
+        i.classList.remove("zoom-init");
+        i.classList.add("zoom-end");
+    }
+
+    function addHandler(i) {
+        i.addEventListener("dblclick",     finishZoom);
+        i.addEventListener("load",         toggleZoomAnimation);
+        i.addEventListener("animationend", animationEndFunction);
+    }
+
+    insertZoomCss("zoom-css", "zoom-move", viewGeo, viewOff, viewScale, orgGeo, clickOff, orgScale);
+
+    insertImg(ctxt.id, ctxt.imgUrl, style, null, "img zoom zoom-init", addHandler);
+}
+
+function renderHtmlPano(ctxt) {
+    console.log("renderHtmlPano: TODO");
+
+    loadPanoramaImg(ctxt.id, ctxt.imgUrl, ctxt.renderGeo, ctxt.clickPos);
+}
+
+// --------------------
+//
 // construtors for context to show an image
 
 function mkNoMagnifyImgContext() {
     return {
         getMedia    : getImg(imgToUrlStd),
-        renderMedia : renderImg(renderGeoStd),
+        renderMedia : renderImg(renderGeoStd, renderHtmlStd),
         transition  : trans12
     };
 }
@@ -1176,7 +1281,7 @@ function mkNoMagnifyImgContext() {
 function mkFullsizeImgContext() {
     return {
         imgUrlAlg   : getImg(imgToUrlFullsize),
-        renderMedia : renderImg(renderGeoFullsize),
+        renderMedia : renderImg(renderGeoFullsize, renderHtmlFullsize),
         transition  : trans12
     };
 }
@@ -1184,7 +1289,7 @@ function mkFullsizeImgContext() {
 function mkZoomImgContext() {
     return {
         imgUrlAlg   : getImg(imgToUrlFullsize),
-        renderMedia : renderImg(renderGeoFullsize),
+        renderMedia : renderImg(renderGeoFullsize, renderHtmlZoom),
         transition  : trans12
     };
 }
@@ -1192,7 +1297,7 @@ function mkZoomImgContext() {
 function mkPanoImgContext() {
     return {
         imgUrlAlg   : getImg(imgToUrlPano),
-        renderMedia : renderImg(renderGeoStd),
+        renderMedia : renderImg(renderGeoStd, renderHtmlPano),
         transition  : trans12
     };
 }
@@ -1200,15 +1305,19 @@ function mkPanoImgContext() {
 // --------------------
 
 function getImg(imgToUrl) {
-    return (page, ctxt) => {
+    return (ctxt) => {
+        const page   = ctxt.page;
         const imgReq = page.imgReq;
         const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
         const imgGeo = resizeToScreenHeight(orgGeo);
-
         const imgUrl = imgToUrl(imgReq, orgGeo, imgGeo);
-        ctxt. imgUrl = imgUrl;
 
-        trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
+        ctxt.imgReq = imgReq;
+        ctxt.orgGeo = orgGeo;
+        ctxt.imgGeo = imgGeo;
+        ctxt.imgUrl = imgUrl;
+
+        trc(1, "getImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
 
         // image is loaded into cache
         // alg continues after loadin is finished
@@ -1226,11 +1335,14 @@ function getImg(imgToUrl) {
     };
 }
 
-function renderImg(renderGeo) {
+function renderImg(renderGeo, renderHtml) {
     return (ctxt) => {
+        ctxt.renderGeo = renderGeo(ctxt);
+        renderHtml(ctxt);
+
         // TODO: refactor loadImg1
 
-        loadImg1(ctxt.id, ctxt.renderMedia(ctxt), cxt.algorithm, ctxt.zoomPos);
+        loadImg1(ctxt.id, ctxt.imgReq, ctxt.imgGeo, ctxt.algorithm, ctxt.zoomPos);
     };
 }
 
@@ -1724,7 +1836,8 @@ function showPage(page) {
         showBlog(page);
     }
     else if ( ["img", "imgfx", "icon", "iconp"].includes(rty) ) {
-        showImg(page);
+        // showImg(page);
+        showPageNew(page);
     }
     else {
         trc(1, "showPage: illegal rType " + rty);
