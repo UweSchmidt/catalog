@@ -354,8 +354,6 @@ function fitToScreenGeo(geo, blowUp) {
 }
 
 function placeOnScreen(geo) {
-    const sg = screenGeo();
-
     return halfGeo(subGeo(screenGeo(), geo));
 }
 
@@ -364,6 +362,7 @@ const geoOrg = readGeo("org");
 const serverSupportedGeos =
       [ "160x120",
         "160x160",
+        "320x240",
         "900x600",
         "1280x800",
         "1400x1050",
@@ -390,10 +389,12 @@ function bestFitIconGeo() {
     const s = screenGeo();
     if (s.w <= 1280)
         return readGeo("120x90");
-    if (s.w <= 1400)
+    if (s.w <= 1400)               // cannon beamer geo 1400x1050
         return readGeo("140x105");
+    if (s.w <= 2560)
+        return readGeo("160x120"); // iMac 27''
 
-    return readGeo("160x120");
+    return readGeo("256x144");     // eizo 4k display
 }
 
 /* ---------------------------------------- */
@@ -1030,76 +1031,6 @@ function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
 function showZoomImg(page, pos) { showImg1(page, "zoom", true, pos);  }
 function showPanoramaImg(page)  { showImg1(page, "panorama");   }
 
-
-function showImg1New(page, algs) {
-    const imgReq = page.imgReq;
-    const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
-
-    const imgGeo = algs.resizeA(orgGeo);
-    const imgUrl = imgReqToUrl(imgReq, urlGeo);
-
-    trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
-
-    picCache.onload = () => {
-        const id = nextImgId();
-        trc(1, `onload loadImg1: ${id}`);
-        algs.loadA(id, imgReq, imgGeo, algs);
-        toggleImg12(id);
-    };
-    picCache.src = imgUrl; // the .onload handler is triggered here
-}
-
-function mkShowImg() {
-    return {
-        class     : "no-magnify",
-        resizeA   : resizeToScreenHeight,
-        selA      : sndF,
-        transA    : getTransition,
-        durationA : slideDur,
-        loadA     : loadImgNew,         // continuation
-    };
-}
-
-function mkShowNoTransImg() {
-    return {
-        class     : "no-magnify",
-        resizeA   : resizeToScreenHeight,
-        selA      : sndF,
-        transA    : cut,
-        durationA : constF(0),
-    };
-}
-
-function mkShowFullSizeImg(pos) {
-    return {
-        class     : "fullsize",
-        resizeA   : idF,
-        selA      : fstF,
-        transA    : getTransition,
-        durationA : slideDur,
-    };
-}
-
-function mkShowZoomImg(pos) {
-    return {
-        class     : "zoom",
-        resizeA   : idF,
-        transA    : cut,
-        selA      : fstF,
-        durationA : constF(0),
-        clickPos  : pos
-    };
-}
-
-function mkShowPanoramaImg() {
-    return {
-        class     : "panorama",
-        resizeA   : resizeToScreenHeightPano,
-        selA      : sndF,
-        transA    : getTransition,
-        durationA : slideDur,
-    };
-}
 
 // ----------------------------------------
 
@@ -2168,8 +2099,7 @@ function keyPressed (e) {
         return false;
     }
 
-    s = keyCodeToString(e.keyCode);
-    if ( s != "" ) {
+    if ( isKey(e, 104, "h") || isKey(e, 63, "?") ) {
         toggleHelp();
         return false;
     }
