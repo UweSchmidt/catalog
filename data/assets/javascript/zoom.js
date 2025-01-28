@@ -6,12 +6,6 @@ function trc (t, Text) {
     }
 }
 
-function trc1(t) { trc(1, t); }
-
-function TODO(t) {
-    trc(1, "Not yet implemented: " + t);
-}
-
 /* ---------------------------------------- */
 /* id's */
 
@@ -781,9 +775,6 @@ function showAnimDur() {
 var lastPage = null;
 var currPage = null;
 
-var currCtxt = null;
-var lastCtxt = null;
-
 var picCache = new Image();
 
 /* ---------------------------------------- */
@@ -809,7 +800,6 @@ function insertImg(id, url, style, geo, cls, addHandler) {
     setCSS(e, style);
     const i = newImgElem(id, styleSize(geo), cls);
     addHandler(i);
-    trc1("insertImg " + url);
     i.src   = url;
     e.appendChild(i);
 
@@ -858,16 +848,10 @@ function insertZoomCss(cssId, kf, view1Geo, view1Off, view1Scale, view2Geo, view
     css.appendChild(newText(cssKeyFrames + cssClass));
 }
 
-// old stuff
-
-function loadImg(id, req, geo, resizeAlg) {
-    console.log(`loadImg ${id}, ${resizeAlg}`);
-
+function loadImg(id, url, geo, resizeAlg) {
     const imgGeo = fitToScreenGeo(geo, resizeAlg);
     const offset = placeOnScreen(imgGeo);
     const style  = styleGeo(imgGeo, offset, "hidden");
-
-    const imgUrl = imgReqToUrl(req);
 
     function initZoom(e) {
         trc(1, "initZoom: start zooming image with id=" + this.id );
@@ -883,24 +867,13 @@ function loadImg(id, req, geo, resizeAlg) {
         i.addEventListener("dblclick", initZoom);
     }
 
-    insertImg(id, imgUrl, style, geo, "img " + resizeAlg, addHandler);
+    insertImg(id, url, style, geo, "img " + resizeAlg, addHandler);
 }
-
-function loadFullImg(id, req, imgGeo) {
-    const scrGeo = screenGeo();
-    const style  = styleGeo(scrGeo, nullGeo);
-    const imgUrl = imgReqToUrl(req);
-
-    insertImg(id, imgUrl, style, imgGeo, "img fullsize", () => {});
-}
-
-
-// old stuff
 
 function loadZoomImg(id, url, orgGeo, clickPos) {
     const scrGeo     = screenGeo();
 
-    const viewGeo    = fitToScreenGeo(orgGeo, "shrink-to-fit");
+    const viewGeo    = fitToScreenGeo(orgGeo, "no-magnify");
     const viewCenter = halfGeo(viewGeo);
     const viewScale  = divGeo(viewGeo, orgGeo);
     const viewOff    = placeOnScreen(viewGeo);
@@ -937,6 +910,13 @@ function loadZoomImg(id, url, orgGeo, clickPos) {
     insertZoomCss("zoom-css", "zoom-move", viewGeo, viewOff, viewScale, orgGeo, clickOff, orgScale);
 
     insertImg(id, url, style, null, "img zoom zoom-init", addHandler);
+}
+
+function loadFullImg(id, url, imgGeo) {
+    const scrGeo = screenGeo();
+    const style  = styleGeo(scrGeo, nullGeo);
+
+    insertImg(id, url, style, imgGeo, "img fullsize", () => {});
 }
 
 function loadPanoramaImg(id, url, imgGeo) {
@@ -993,8 +973,6 @@ function loadPanoramaImg(id, url, imgGeo) {
 }
 
 function loadImg1(id, req, geo, resizeAlg, pos) {
-    console.log(`loadImg1 ${id}, ${resizeAlg}`);
-
     if (resizeAlg === "fullsize") {
         loadFullImg(id, req, geo);
     }
@@ -1027,7 +1005,7 @@ function showImg1(page, resizeAlg, noTrans, zoomPos0) {
               : imgReqToUrl(imgReq)
             );
 
-    trc(1, "showImg1: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
+    trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
 
     picCache.onload = () => {
         const id = nextImgId();
@@ -1045,339 +1023,46 @@ function showImg1(page, resizeAlg, noTrans, zoomPos0) {
     picCache.src = imgUrl; // the .onload handler is triggered here
 }
 
-// function showImg(page)          { showImg1(page, "shrink-to-fit"); }
-function showNoTransImg(page)   { showImg1(page, "shrink-to-fit", true); }
+function showImg(page)          { showImg1(page, "no-magnify"); }
+function showNoTransImg(page)   { showImg1(page, "no-magnify", true); }
 function showMagnifiedImg(page) { showImg1(page, "magnify");    }
 function showFullSizeImg(page)  { showImg1(page, "fullsize");   }
 function showZoomImg(page, pos) { showImg1(page, "zoom", true, pos);  }
 function showPanoramaImg(page)  { showImg1(page, "panorama");   }
 
-// ------------------------------------------------------------
 
-function dumpCtxt(ctxt, t) {
-    // const ctxt = currCtxt;
+function showImg1New(page, algs) {
+    const imgReq = page.imgReq;
+    const orgGeo = readGeo(page.oirGeo[0]);  // original geo of image
 
-    function dumpField(k, sf) {
-        sf = sf || idF;
-        if ( ctxt[k] ) {
-            trc1("    " + k + " : " + sf(ctxt[k]));
-        }
-    }
-    trc1(t + ":");
-    trc1("ctxt {");
-    dumpField("jsonUrl");
-    dumpField("imgUrl");
-    dumpField("id");
-    dumpField("rType");
-    dumpField("screenSize", showGeo);
-    dumpField("orgImgSize", showGeo);
-    dumpField("fitImgSize", showGeo);
-    dumpField("renderSize", showGeo);
-    dumpField("algorithm");
-    dumpField("getMedia", constF("<fct>"));
-    dumpField("renderMedia", constF("<fct>"));
-    trc1("}");
+    const imgGeo = algs.resizeA(orgGeo);
+    const imgUrl = imgReqToUrl(imgReq, urlGeo);
 
+    trc(1, "showImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
+
+    picCache.onload = () => {
+        const id = nextImgId();
+        trc(1, `onload loadImg1: ${id}`);
+        algs.loadA(id, imgReq, imgGeo, algs);
+        toggleImg12(id);
+    };
+    picCache.src = imgUrl; // the .onload handler is triggered here
 }
 
-// ------------------------------------------------------------
-//
-// new show functions
-
-function showPageNew(ctxt, algorithm) {
-    ctxt.rType      = getPageType(ctxt.page);
-    ctxt.screenSize = screenGeo();
-
-    mkShowContext(ctxt, algorithm);
-    dumpCtxt(ctxt, "showPageNew");
-    ctxt.getMedia(ctxt);
-
-}
-
-// --------------------
-
-// build context for various media types
-
-function mkShowContext(ctxt, algorithm) {
-    const rType = ctxt.rType;
-    const page  = ctxt.page;
-
-    if (rType === "json") {
-        mkColContext(ctxt);
-    }
-    else if (rType === "movie") {
-        mkMovieContext(ctxt);
-    }
-    else if (rType === "gif") {
-        mkGifContext(ctxt);
-    }
-    else if (rType === "page") {
-        mkBlogContext(ctxt);
-    }
-    else if ( isJpgImg(ctxt) ) {
-        ctxt.orgImgSize   = readGeo(page.oirGeo[0]);    // size of original image
-
-        mkShowImgContext(ctxt, algorithm);
-    }
-}
-
-// build context for various render algorithms
-
-const defaultAlg = "shrink-to-fit";
-
-function mkShowImgContext(ctxt, algorithm) {
-
-    ctxt.algorithm = algorithm || defaultAlg;
-
-    // --------------------
-    // normaliziation of img rendering algoritms
-
-    // a none panorama image is rendered like a standard img
-    if ( ctxt.algorithm === "panorama" ) {
-        if ( ! isPanoImg(ctxt) ) {
-            ctxt.algorithm = defaultAlg;
-        }
-    }
-
-    // a small image is always rendered like a standard img
-    if ( ctxt.algorithm === "fullsize" || ctxt.algorithm === "zoom" ) {
-        if ( fitsInto(ctxt.orgImgSize, ctxt.screenSize) ) {
-            ctxt.algorithm = defaultAlg;
-        }
-    }
-
-    // default for img smaller than the screen: no magnification
-    if ( ctxt.algorithm === defaultAlg ) {
-        if  ( lessThan(ctxt.orgImgSize, ctxt.screenSize) ) {
-            ctxt.algorithm = "small-img";
-        }
-    }
-
-    // only small images are magnified
-    if ( ctxt.algorithm === "magnify" ) {
-        if ( ! lessThan(ctxt.orgImgSize, ctxt.screenSize) ) {
-            ctxt.algorithm = defaultAlg;
-        }
-    }
-
-    if ( ctxt.algorithm === defaultAlg ) {
-        ctxt.getMedia    = getImg(imgToUrlStd);
-        ctxt.renderMedia = renderImg(renderSizeStd, renderHtmlStd);
-    }
-    else if ( ctxt.algorithm === "small-img" ) {
-        TODO("small-img rendering config");
-    }
-    else if (algorithm === "magnify") {
-        TODO("magnify rendering config");
-    }
-    else if (algorithm === "fullsize") {
-        ctxt.getMedia    = getImg(imgToUrlFullsize);
-        ctxt.renderMedia = renderImg(renderSizeFullsize, renderHtmlFullsize);
-    }
-    else if (algorithm === "zoom") {
-        ctxt.getMedia    = getImg(imgToUrlFullsize);
-        ctxt.renderMedia = renderImg(renderSizeFullsize, renderHtmlZoom);
-    }
-    else if (algorithm === "panorama") {
-        ctxt.getMedia    = getImg(imgToUrlPano);
-        ctxt.renderMedia = renderImg(renderSizeStd, renderHtmlPano);
-    }
-
-    // --------------------
-    // default click position when zooming
-
-    ctxt.clickPos = halfGeo(ctxt.screenSize);
-
-}
-
-function isJpgImg(ctxt) {
-    return ["img", "imgfx", "icon", "iconp"].includes(ctxt.rType);
-}
-
-function isPanoImg(ctxt) {
-    return isJpgImg(ctxt) && (isPano(ctxt.orgImgSize));
-}
-
-// --------------------
-//
-// variants for image urls
-
-function imgToUrlStd(imgReq, orgGeo, imgGeo) {
-    console.log("imgToUrlStd: " + imgReqToUrl(imgReq));
-    return imgReqToUrl(imgReq);
-}
-
-function imgToUrlFullsize(imgReq, orgGeo, imgGeo) {
-    const url = imgReqToUrl(imgReq, readGeo("org"));
-    console.log("imgToUrlFullsize: " + url);
-    return url;
-}
-
-function imgToUrlPano(imgReq, orgGeo, imgGeo) {
-    if ( isPano(imgGeo) ) {
-        return imgReqToUrl(imgReq, resizeToScreenHeight(imgGeo));
-    }
-    return imgReqToUrl(imgReq);
-}
-
-// --------------------
-//
-// variants for image rendering sizes
-
-// resize image to fit into screen
-function renderSizeStd(ctxt) {
-    return ctxt.fitImgSize;
-}
-
-// no resize: original resolution
-function renderSizeFullsize(ctxt) {
-    return ctxt.orgImgGeo;
-}
-
-// --------------------
-//
-// variants for HTML rendering
-
-function renderHtmlStd(ctxt) {
-    console.log("renderHtmlStd");
-
-    const viewGeo = fitToScreenGeo(ctxt.renderSize, ctxt.algorithm);
-    const offset  = placeOnScreen(viewGeo);
-    const style   = styleGeo(viewGeo, offset, "hidden");
-
-    function initZoom(e) {
-        trc(1, "initZoom: start zooming image with id=" + this.id );
-
-        const clickPos = { w: e.offsetX,
-                           h: e.offsetY
-                         };
-        trc(1, "clickPos=" + showGeo(clickPos));
-        showZoomImg(ctxt.page, clickPos);
-    }
-
-    function addHandler(i) {
-        i.addEventListener("dblclick", initZoom);
-    }
-    dumpCtxt(ctxt, "renderHtmlStd");
-    currCtxt = ctxt;
-    insertImg(ctxt.id, ctxt.imgUrl, style, ctxt.renderSize, "img " + ctxt.algorithm, addHandler);
-}
-
-function renderHtmlFullsize(ctxt) {
-    console.log("renderHtmlFullsize: ");
-
-    const scrGeo = screenGeo();
-    const style  = styleGeo(scrGeo, nullGeo);
-
-    dumpCtxt(ctxt, "renderHtmlFullsize");
-    currCtxt = ctxt;
-    insertImg(ctxt.id, ctxt.imgUrl, style, ctxt.renderSize, "img fullsize", () => {});
-}
-
-function renderHtmlZoom(ctxt) {
-    console.log("renderHtmlZoom: ");
-
-    const orgGeo     = ctxt.orgImgSize;
-    const clickPos   = ctxt.clickPos;
-
-    const scrGeo     = screenGeo();
-
-    const viewGeo    = fitToScreenGeo(orgGeo, "shrink-to-fit");
-    const viewCenter = halfGeo(viewGeo);
-    const viewScale  = divGeo(viewGeo, orgGeo);
-    const viewOff    = placeOnScreen(viewGeo);
-
-    const orgOff     = placeOnScreen(orgGeo);
-    const orgScale   = oneGeo;
-
-    const clickDisp  = subGeo(viewCenter, clickPos);
-    const clickScale = divGeo(orgGeo, viewGeo);
-    const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
-
-    const style      = styleGeo(scrGeo, nullGeo, "hidden");
-
-    trc(1, `renderHtmlZoom: ${url}, ${showGeo(orgGeo)}, ${showGeo(clickPos)}`);
-
-    function finishZoom(e) {
-        trc(1,"finishZoom: back to normal view");
-        showNoTransImg(ctxt.page);
-    }
-
-    function animationEndFunction() {
-        trc(1, "animation of zoom-move finished");
-        const i = getCurrImgElem();
-        i.classList.remove("zoom-init");
-        i.classList.add("zoom-end");
-    }
-
-    function addHandler(i) {
-        i.addEventListener("dblclick",     finishZoom);
-        i.addEventListener("load",         toggleZoomAnimation);
-        i.addEventListener("animationend", animationEndFunction);
-    }
-
-    insertZoomCss("zoom-css", "zoom-move", viewGeo, viewOff, viewScale, orgGeo, clickOff, orgScale);
-
-    insertImg(ctxt.id, ctxt.imgUrl, style, null, "img zoom zoom-init", addHandler);
-}
-
-function renderHtmlPano(ctxt) {
-    console.log("renderHtmlPano: TODO");
-
-    loadPanoramaImg(ctxt.id, ctxt.imgUrl, ctxt.renderSize, ctxt.clickPos);
-}
-
-// --------------------
-
-function getImg(imgToUrl) {
-    return (ctxt) => {
-        const page   = ctxt.page;
-        const imgReq = page.imgReq;
-        const orgGeo = ctxt.orgImgSize;
-        const imgGeo = resizeToScreenHeight(orgGeo);
-        const imgUrl = imgToUrl(imgReq, orgGeo, imgGeo);
-
-        ctxt.imgReq     = imgReq;
-        ctxt.fitImgSize = imgGeo;
-        ctxt.imgUrl     = imgUrl;
-
-        trc(1, "getImg: imgUrl=" + imgUrl + ", geo=" + showGeo(imgGeo));
-
-        // image is loaded into cache
-        // alg continues after loadin is finished
-
-        picCache.onload = () => {
-            const id = nextImgId();
-            ctxt.id = id;
-
-            trc(1, `onload loadImg1: ${id}`);
-
-            ctxt.renderMedia(ctxt);
-            trans12(ctxt); // ctxt.transition(ctxt);
-        };
-        picCache.src = imgUrl; // the .onload handler is triggered here
+function mkShowImg() {
+    return {
+        class     : "no-magnify",
+        resizeA   : resizeToScreenHeight,
+        selA      : sndF,
+        transA    : getTransition,
+        durationA : slideDur,
+        loadA     : loadImgNew,         // continuation
     };
 }
-
-function renderImg(renderSize, renderHtml) {
-    return (ctxt) => {
-        ctxt.renderSize = renderSize(ctxt);
-        renderHtml(ctxt);
-
-        loadImg1(ctxt.id, ctxt.imgReq, ctxt.fitImgSize, ctxt.algorithm, ctxt.zoomPos);
-    };
-}
-
-// TODO: refactor transitions
-function trans12(ctxt) {
-    toggleImg12(ctxt.id, ctxt.noTrans || false);
-}
-
-// --------------------
 
 function mkShowNoTransImg() {
     return {
-        class     : "shrink-to-fit",
+        class     : "no-magnify",
         resizeA   : resizeToScreenHeight,
         selA      : sndF,
         transA    : cut,
@@ -1486,7 +1171,7 @@ function showMovie1(page, resizeAlg) {
     toggleImg12(id);
 }
 
-function showMovie(page)          { showMovie1(page, "shrink-to-fit"); }
+function showMovie(page)          { showMovie1(page, "no-magnify"); }
 function showMagnifiedMovie(page) { showMovie1(page,    "magnify"); }
 
 // ----------------------------------------
@@ -1836,8 +1521,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
 // ----------------------------------------
 
-function showPage(ctxt, algorithm) {
-    const page = ctxt.page;
+function showPage(page) {
     trc(1, "showPage:" + page);
 
     // store page as new currPage
@@ -1859,8 +1543,7 @@ function showPage(ctxt, algorithm) {
         showBlog(page);
     }
     else if ( ["img", "imgfx", "icon", "iconp"].includes(rty) ) {
-        // showImg(page);
-        showPageNew(ctxt, algorithm);
+        showImg(page);
     }
     else {
         trc(1, "showPage: illegal rType " + rty);
@@ -1875,27 +1558,8 @@ function showPath(path) {
     gotoUrl(jUrl);
 }
 
-// --------------------
-// create a new empty context
-
-function newCtxt() {
-    var ctxt = {};
-    lastCtxt = currCtxt;
-    currCtxt = ctxt;
-    trc1("newCtxt");
-    return ctxt;
-}
-
 function gotoUrl(url) {
-    ctxt = newCtxt();
-    ctxt.jsonUrl = url;
-
-    function cont(page) {
-        ctxt.page = page;
-        dumpCtxt(ctxt, "gotoUrl");
-        showPage(ctxt);
-    }
-    getJsonPage(url, cont, showErr);
+    getJsonPage(url, showPage, showErr);
 }
 
 function showNextPage(req) {
@@ -2143,9 +1807,9 @@ function toggleHelp() {
 function toggleFullImg() {
     if ( isPic() ) {
         if ( isFullImg() ) {
-            showPage(currCtxt);            // reset to normal size
+            showImg(currPage);            // reset to normal size
         } else {
-            showPage(currCtxt, "fullsize");    // show in full resolution
+            showFullSizeImg(currPage);    // show in full resolution
         }
     }
 }
@@ -2164,7 +1828,7 @@ function toggleMagnifiedImg() {
     if ( isPic() || isMovie() ) {
         if ( isTinyImgPage() ) {
             if ( isMagnifiedImg() ) {
-                showPage(currCtxt);
+                showPage(currPage);
             } else {
                 if ( isPic() ) {
                     showMagnifiedImg(currPage);
@@ -2693,11 +2357,6 @@ function buildMetaInfo (t, md) {
 
 function getJsonPage(url, processRes, processErr, processNext) {
     trc(1, "getJsonPage: " + url);
-
-    var ctxt = {};     // create a new ctxt
-    currCtxt = ctxt;   // and save reference in currCtxt
-
-    ctxt.jsonUrl = url;
 
     $.ajax({
         type: "GET",
