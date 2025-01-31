@@ -2512,3 +2512,106 @@ function isHiddenAnim(id) {
 }
 
 // ----------------------------------------
+
+
+function fade(start, end) {
+    function doit(dur) {
+        const kf = [
+            { opacity: start},
+            { opacity: end},
+        ];
+        const t = {
+            duration:   dur,
+            iterations: 1,
+            fill:      "forwards",
+        };
+        return { keyFrames: kf,
+                 timing:    t,
+               };
+    }
+    return doit;
+}
+
+const fadeout = fade(1, 0);
+const fadein  = fade(0, 1);
+const idAnim  = fade(1, 1);  // do nothing for a while
+
+function scale(s1, s2) {
+    function doit(dur) {
+        const kf = [
+            { transform: `scale(${s1})`},
+            { transform: `scale(${s2})`},
+        ];
+        const t = {
+            duration:   dur,
+            iterations: 1,
+            fill:      "forwards",
+        };
+        return { keyFrames: kf,
+                 timing:    t,
+               };
+    }
+    return doit;
+}
+
+const scalein  = scale(0,1);
+const scaleout = scale(1,0);
+
+const magnify  = (s) => { return scale(1, s); };
+const shrink   = (s) => { return scale(s, 1); };
+
+const magnify2 = magnify(2);
+const shrink2  = shrink(2);
+
+async function runAnim(e, a, cont) {
+
+    trc(1, "runAnim: animation = " + JSON.stringify(a));
+
+    // animation created, installed and returned
+    const animation = e.animate(a.keyFrames, a.timing);
+
+    // Wait for the animation to finish
+    await animation.finished;
+
+    // Commit animation state to style attribute
+    animation.commitStyles();
+
+    // Cancel the animation
+    animation.cancel();
+
+    trc(1, e.tagName + " " + e.id + ": animation finished");
+
+    // continue after finished animation
+    cont(e);
+}
+
+// run 2 animations sequentially
+
+function runAnimSeq2(a1, a2) {
+    async function doit(e1, e2, cont) {
+        runAnim(e1, a1, () => { runAnim(e2, a2, cont); });
+    }
+    return doit;
+}
+
+function fin() { trc(1, "continuation completed"); }
+
+function runAnimSeq(a1, a2) {
+    async function doit(e, cont) {
+        const cont2 = () => { runAnim(e, a2, cont); };
+        runAnim(e, a1, cont2);
+    }
+    return doit;
+}
+
+function runAnimSeq(a1, a2, a3) {
+    async function doit(e, cont) {
+        const cont3 = () => { runAnim(e, a3, cont); };
+        const cont2 = () => { runAnim(e, a2, cont3); };
+        runAnim(e, a1, cont2);
+    }
+    return doit;
+}
+
+
+// ----------------------------------------
