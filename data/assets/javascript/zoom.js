@@ -736,7 +736,15 @@ function setAnimDur(e, dur, delay) {
 }
 
 function clearImageElem(e) {
+    // e : <div id="image1/2" ...><img id="image1/2-img" ...></img></div>
+
+    // remove <img> element
     clearCont(e);
+
+    // set visibility to hidden
+    e.classList.value="hiddenImage";
+
+    // remove style attributes
     setCSS(e, {"animation-duration": '',
                "animation-delay":    '',
                "width":              '',
@@ -746,6 +754,7 @@ function clearImageElem(e) {
                "bottom":             '',
                "top":                '',
                "overflow":           '',
+               "opacity":            '',
               });
 }
 
@@ -2563,55 +2572,84 @@ const shrink   = (s) => { return scale(s, 1); };
 const magnify2 = magnify(2);
 const shrink2  = shrink(2);
 
-async function runAnim(e, a, cont) {
+function runAnim(e, a) {
 
-    trc(1, "runAnim: animation = " + JSON.stringify(a));
+    function doit(k) {
+        trc(1, "runAnim: animation = " + JSON.stringify(a));
 
-    // animation created, installed and returned
-    const animation = e.animate(a.keyFrames, a.timing);
+        var animation;
 
-    // Wait for the animation to finish
-    await animation.finished;
+        function k1() {
+            trc(1, e.tagName + " " + e.id + ": animation finished");
 
-    // Commit animation state to style attribute
-    animation.commitStyles();
+            // Commit animation state to style attribute
+            animation.commitStyles();
 
-    // Cancel the animation
-    animation.cancel();
+            // Cancel the animation
+            // animation.cancel();
 
-    trc(1, e.tagName + " " + e.id + ": animation finished");
+            trc(1, "continuation called");
+            k();
+        }
 
-    // continue after finished animation
-    cont(e);
+        // animation created, installed and returned
+        trc(1, "start anim");
+        animation = e.animate(a.keyFrames, a.timing);
+        trc(1, "anim started");
+        animation.onfinish = k1;
+    };
+    return doit;
 }
+
+// terminate continuation chain
+
+function fin() { trc(1, "continuation completed"); }
 
 // run 2 animations sequentially
 
 function runAnimSeq2(a1, a2) {
-    async function doit(e1, e2, cont) {
-        runAnim(e1, a1, () => { runAnim(e2, a2, cont); });
+    function seq(e1, e2) {
+        function doit(k) {
+            function k1() { runAnim(e2, a2)(k); }
+            runAnim(e1, a1)(k1);
+        }
+        return doit;
     }
-    return doit;
+    return seq;
 }
-
-function fin() { trc(1, "continuation completed"); }
 
 function runAnimSeq(a1, a2) {
-    async function doit(e, cont) {
-        const cont2 = () => { runAnim(e, a2, cont); };
-        runAnim(e, a1, cont2);
+    function seq(e) {
+        return runAnimSeq2(a1, a2)(e, e);
+    }
+    return seq;
+}
+
+function finishImg(e, a) {
+    function doit(k) {
+        function k1() {
+            clearImageElem(e);
+            k();
+        }
+        runAnim(e, a)(k1);
     }
     return doit;
 }
 
+/*
 function runAnimSeq(a1, a2, a3) {
-    async function doit(e, cont) {
+    function doit(e, cont) {
         const cont3 = () => { runAnim(e, a3, cont); };
         const cont2 = () => { runAnim(e, a2, cont3); };
         runAnim(e, a1, cont2);
     }
     return doit;
 }
+*/
 
+function tc(k) {
+    const e = getElem("image1");
+    runAnimSeq2(magnify2, shrink2)(e, e)(k);
+}
 
 // ----------------------------------------
