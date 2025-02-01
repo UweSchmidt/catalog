@@ -2605,51 +2605,52 @@ function runAnim(e, a) {
 
 function fin() { trc(1, "continuation completed"); }
 
-// run 2 animations sequentially
+// run 2 animations sequentially for 2 elemennts
 
 function runAnimSeq2(a1, a2) {
     function seq(e1, e2) {
         function doit(k) {
-            function k1() { runAnim(e2, a2)(k); }
-            runAnim(e1, a1)(k1);
+            runAnim(e1, a1)(() => { runAnim(e2, a2)(k); });
         }
         return doit;
     }
     return seq;
 }
 
+// run 2 animations sequentially for the same elemennts
+
 function runAnimSeq(a1, a2) {
-    function seq(e) {
+    return (e) => {
         return runAnimSeq2(a1, a2)(e, e);
-    }
-    return seq;
+    };
 }
+
+// run 2 animations for 2 different elemennts in parallel
+// syncronisation is doen with snd animation
+
+function runAnimPar2(a1, a2) {
+    function par(e1, e2) {
+        function doit(k) {
+            runAnim(e1, a1)(fin);
+            runAnim(e2, a2)(k);
+        };
+        return doit;
+    }
+    return par;
+}
+
+// --------------------
 
 function finishImg(e, a) {
     function doit(k) {
-        function k1() {
+        runAnim(e, a)(() => {
             clearImageElem(e);
             k();
-        }
-        runAnim(e, a)(k1);
+        });
     }
     return doit;
 }
 
-/*
-function runAnimSeq(a1, a2, a3) {
-    function doit(e, cont) {
-        const cont3 = () => { runAnim(e, a3, cont); };
-        const cont2 = () => { runAnim(e, a2, cont3); };
-        runAnim(e, a1, cont2);
-    }
-    return doit;
-}
-*/
-
-function tc(k) {
-    const e = getElem("image1");
-    runAnimSeq2(magnify2, shrink2)(e, e)(k);
-}
+function fadeoutImg(e, dur) { return finishImg(e, fadeout(dur)); }
 
 // ----------------------------------------
