@@ -738,24 +738,29 @@ function setAnimDur(e, dur, delay) {
 function clearImageElem(e) {
     // e : <div id="image1/2" ...><img id="image1/2-img" ...></img></div>
 
-    // remove <img> element
-    clearCont(e);
+    const id = e.id;
+    trc(1, "clearImageElem: id=" + id);
+    if (id === img1 || id === img2) {
 
-    // set visibility to hidden
-    e.classList.value="hiddenImage";
+        // remove <img> element
+        clearCont(e);
 
-    // remove style attributes
-    setCSS(e, {"animation-duration": '',
-               "animation-delay":    '',
-               "width":              '',
-               "height":             '',
-               "left":               '',
-               "right":              '',
-               "bottom":             '',
-               "top":                '',
-               "overflow":           '',
-               "opacity":            '',
-              });
+        // set visibility to hidden
+        e.classList.value="hiddenImage";
+
+        // remove style attributes
+        setCSS(e, {"animation-duration": '',
+                   "animation-delay":    '',
+                   "width":              '',
+                   "height":             '',
+                   "left":               '',
+                   "right":              '',
+                   "bottom":             '',
+                   "top":                '',
+                   "overflow":           '',
+                   "opacity":            '',
+                  });
+    }
 }
 
 // ----------------------------------------
@@ -2586,7 +2591,7 @@ function runAnim(e, a) {
             animation.commitStyles();
 
             // Cancel the animation
-            // animation.cancel();
+            animation.cancel();
 
             trc(1, "continuation called");
             k();
@@ -2599,6 +2604,10 @@ function runAnim(e, a) {
         animation.onfinish = k1;
     };
     return doit;
+}
+
+function animCurrent(a) {
+    return runAnim(getElem(cs.imgId), a);
 }
 
 // terminate continuation chain
@@ -2642,6 +2651,7 @@ function runAnimPar2(a1, a2) {
 // --------------------
 
 function finishImg(e, a) {
+
     function doit(k) {
         runAnim(e, a)(() => {
             clearImageElem(e);
@@ -2652,5 +2662,109 @@ function finishImg(e, a) {
 }
 
 function fadeoutImg(e, dur) { return finishImg(e, fadeout(dur)); }
+
+// ----------------------------------------
+// cs: current slide
+// ls: last slide
+
+var cs = { url   : "",
+           page  : {},
+           imgId : img1,
+         };
+var ls = {  url   : "",
+            page  : {},
+            imgId : img2,
+         };
+
+function gotoSlide(url) {
+    function doit(k) {
+
+        function jsonPage(page) {
+            trc(1, "jsonSlide: " + JSON.stringify(page));
+
+            // save old slide
+            ls = cs;
+            cs = { url:   url,
+                   page:  page,
+                   imgId: nextimg[ls.imgId],
+                 };
+            k();
+        }
+        getJsonPage(url, jsonPage, showErr);
+    }
+    return doit;
+}
+
+function insertSlide() {
+    function doit(k) {
+        trc(1, "insertSlide");
+
+        const page = cs.page;
+
+        // for old show funtions
+        lastPage = ls.page;
+        currPage = cs.page;
+
+        buildInfo();
+        setPageTitle();
+
+        const rty = getPageType(page);
+
+        if (rty == "json") {
+            showCol(page);
+            k();
+        }
+        else if (rty === "movie" || rty === "gif") {
+            showMovie(page);
+            k();
+        }
+        else if (rty === "page") {
+            showBlog(page);
+            k();
+        }
+        else if ( ["img", "imgfx", "icon", "iconp"].includes(rty) ) {
+            showImg(page);
+            k();
+        }
+        else {
+            trc(1, "insertSlide: illegal rType " + rty);
+        }
+    }
+    return doit;
+}
+
+// continuation composition
+
+function comp(f1, f2) {
+    function doit(k) {
+        f1(() => f2(k));
+    }
+    return doit;
+}
+
+//  composition of a list of continuations
+
+function compl(fs) {
+    var i = fs.length;
+    var f = idF;
+
+    while ( i > 0) {
+        i--;
+        f = comp(fs[i], f);
+    }
+    return f;
+}
+
+const u1 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0000.json";
+const u2 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0001.json";
+
+const k1 = compl(
+    [ gotoSlide(u1),
+      insertSlide(),
+    ]);
+
+function ttt(u) {
+    comp(gotoSlide(u), insertSlide())(fin);
+}
 
 // ----------------------------------------
