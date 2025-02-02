@@ -742,11 +742,11 @@ function clearImageElem(e) {
     trc(1, "clearImageElem: id=" + id);
     if (id === img1 || id === img2) {
 
+        // cancel animations
+        e.getAnimations({ subtree: true }).map((animation) => animation.finished);
+
         // remove <img> element
         clearCont(e);
-
-        // set visibility to hidden
-        e.classList.value="hiddenImage";
 
         // remove style attributes
         setCSS(e, {"animation-duration": '',
@@ -2548,7 +2548,7 @@ function fade(start, end) {
 
 const fadeout = fade(1, 0);
 const fadein  = fade(0, 1);
-const idAnim  = fade(1, 1);  // do nothing for a while
+const noAnim  = fade(1, 1);  // do nothing for a while
 
 function scale(s1, s2) {
     function doit(dur) {
@@ -2604,10 +2604,6 @@ function runAnim(e, a) {
         animation.onfinish = k1;
     };
     return doit;
-}
-
-function animCurrent(a) {
-    return runAnim(getElem(cs.imgId), a);
 }
 
 // terminate continuation chain
@@ -2667,13 +2663,15 @@ function fadeoutImg(e, dur) { return finishImg(e, fadeout(dur)); }
 // cs: current slide
 // ls: last slide
 
-var cs = { url   : "",
-           page  : {},
-           imgId : img1,
+var cs = { url       : "",
+           page      : {},
+           imgId     : img1,
+           slideType : "",
          };
-var ls = {  url   : "",
-            page  : {},
-            imgId : img2,
+var ls = { url       : "",
+           page      : {},
+           imgId     : img2,
+           slideType : "",
          };
 
 function gotoSlide(url) {
@@ -2695,9 +2693,9 @@ function gotoSlide(url) {
     return doit;
 }
 
-function insertSlide() {
+function switchSlide() {
     function doit(k) {
-        trc(1, "insertSlide");
+        trc(1, "switchSlide");
 
         const page = cs.page;
 
@@ -2709,6 +2707,7 @@ function insertSlide() {
         setPageTitle();
 
         const rty = getPageType(page);
+        cs.slideType = rty;
 
         if (rty == "json") {
             showCol(page);
@@ -2723,16 +2722,156 @@ function insertSlide() {
             k();
         }
         else if ( ["img", "imgfx", "icon", "iconp"].includes(rty) ) {
-            showImg(page);
-            k();
+            loadImgCache("no-magnify")(k);
         }
         else {
-            trc(1, "insertSlide: illegal rType " + rty);
+            trc(1, "switchSlide: illegal rType " + rty);
+            fin();
         }
     }
     return doit;
 }
 
+function loadImgCache(resizeAlg, zoomPos0) {
+    const scrGeo      = screenGeo();
+    const zoomPos     = zoomPos0   || halfGeo(scrGeo);
+
+    function doit(k) {
+        const page    = cs.page;
+        const imgReq  = page.imgReq;
+        const orgGeo  = readGeo(page.oirGeo[0]);  // original geo of image
+        const imgGeo  = resizeToScreenHeight(orgGeo);
+
+        const urlImg = ( ( resizeAlg === "fullsize"
+                           || resizeAlg === "zoom"
+                         )
+                         && fitsInto(screenGeo(), orgGeo)
+                       )
+              ? imgReqToUrl(imgReq, readGeo("org"))
+              : ( resizeAlg === "panorama" && isPano(imgGeo)
+                  ? imgReqToUrl(imgReq, resizeToScreenHeight(imgGeo))
+                  : imgReqToUrl(imgReq)
+                );
+
+        cs.urlImg = urlImg;
+
+        trc(1, "loadImgCache: urlImg=" + urlImg + ", geo=" + showGeo(imgGeo));
+
+        function k1() {
+            const id = cs.imgId;
+
+            trc(1, `onload loadImgCache: ${id}` );
+
+            const geo =
+                  ( resizeAlg === "fullsize"
+                    ||
+                    resizeAlg === "zoom"
+                  )
+                  ? orgGeo
+                  : imgGeo;
+
+            switchResizeImg(urlImg, geo, resizeAlg, zoomPos)(k);
+        };
+
+        picCache.onload = k1;
+        picCache.src    = urlImg; // the .onload handler is triggered here
+    }
+    return doit;
+}
+
+function switchResizeImg(url, geo, resizeAlg, pos) {
+    const id = cs.imgId;
+
+    function doit(k) {
+        if (resizeAlg === "fullsize") {
+            loadFullImg(id, url, geo);
+            k();
+        }
+        else if (resizeAlg === "zoom") {
+            loadZoomImg(id, url, geo, pos);
+            k();
+        }
+        else if (resizeAlg === "panorama") {
+            loadPanoramaImg(id, url, geo);
+            k();
+        }
+        else {
+            addZoomableImg(url, geo, resizeAlg)(k);
+        }
+    }
+    return doit;
+}
+
+function addZoomableImg(url, geo, resizeAlg) {
+
+    function doit(k) {
+        const id     = cs.imgId;
+        const imgGeo = fitToScreenGeo(geo, resizeAlg);
+        const offset = placeOnScreen(imgGeo);
+        const style  = styleGeo(imgGeo, offset, "hidden");
+
+        function initZoom(e) {
+            trc(1, "initZoom: start zooming image with id=" + this.id );
+
+            const pos = { w: e.offsetX,
+                          h: e.offsetY
+                        };
+            trc(1, "pos=" + showGeo(pos));
+            showZoomImg(currPage, pos);  // TODO
+        }
+
+        function addHandler(i) {
+            i.addEventListener("dblclick", initZoom);
+        }
+
+        addImgToDom(id, url, style, geo, "img " + resizeAlg, addHandler);
+        k();
+    }
+    return doit;
+}
+
+function addImgToDom(id, url, style, geo, cls, addHandler) {
+    // get element, clear contents and set style attributes
+
+    const e = clearCont(id);
+    setCSS(e, style);
+    const i = newImgElem(id, styleSize(geo), cls);
+    addHandler(i);
+    i.src   = url;
+    e.appendChild(i);
+}
+
+function animCurrent(a) {
+    function doit(k) {
+        const e = getElem(cs.imgId);
+        e.classList.value = "visibleImage";
+        runAnim(e, a)(k);
+    }
+    return doit;
+}
+
+function animLast(a) {
+    function doit(k) {
+        if ( ls.slideType != "") {
+            const e = getElem(ls.imgId);
+            runAnim(e, a)(() => {
+                e.classList.value = "hiddenImage";
+                clearImageElem(e);
+                k();
+            });
+        } else {
+            k();
+        }
+    }
+    return doit;
+}
+
+/*
+function animCurrent(a) { return animCxt(cs, a); }
+function animLast(a)    { return animCxt(ls, a); }
+*/
+// ------------------------------------------------------------
+//
 // continuation composition
 
 function comp(f1, f2) {
@@ -2755,16 +2894,27 @@ function compl(fs) {
     return f;
 }
 
+// --------------------
+//
+// some simple tests
+
 const u1 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0000.json";
 const u2 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0001.json";
 
-const k1 = compl(
-    [ gotoSlide(u1),
-      insertSlide(),
-    ]);
+function k1(u) {
+    return compl(
+        [ gotoSlide(u),
+          switchSlide(),
+          animLast(fadeout(3000)),
+          animCurrent(fadein(3000)),
+          animCurrent(magnify(0.5)(4000)),
+          animCurrent(noAnim(2000)),
+          animCurrent(shrink(0.5)(4000)),
+        ]);
+}
 
 function ttt(u) {
-    comp(gotoSlide(u), insertSlide())(fin);
+    comp(gotoSlide(u), switchSlide())(fin);
 }
 
 // ----------------------------------------
