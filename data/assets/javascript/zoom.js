@@ -814,6 +814,10 @@ function initShow() {
     initHandlers();
 
     setCSS(imgTab, {width : g.w, height : g.h});
+
+    clearImageElem(getElem(img1));
+    clearImageElem(getElem(img2));
+
     showPath(pathCollections());
 }
 
@@ -2978,16 +2982,24 @@ function transCrossFade(aout, ain) {
 
 function animTransition(dur) {
 
-    if ( dur === 0 ) {
-        return transCrossFade(fadeout(dur), fadein(dur));
+    function doit(k) {
+        // global context variables cs and ls need to be accessed here
+        // not earlier when animTranition is executed
+
+        var tr = transFadeOutIn(fadeout(dur), fadein(dur));
+
+        if ( dur === 0 ) {
+            tr = transCrossFade(fadeout(dur), fadein(dur));
+        }
+        else if ( ( isMediaSlide(cs.slideType) && isMediaSlide(ls.slideType) )
+                  ||
+                  ( isColSlide(cs.slideType) && isColSlide(ls.slideType) )
+                ) {
+            tr = transCrossFade(fadeout(dur), fadein(dur));
+        };
+        tr(k);
     }
-    if ( ( isMediaSlide(cs.slideType) && isMediaSlide(ls.slideType) )
-         ||
-         ( isColSlide(cs.slideType) && isColSlide(ls.slideType) )
-       ) {
-        return transCrossFade(fadeout(dur), fadein(dur));
-    }
-    return transFadeOutIn(fadeout(dur), fadein(dur));
+    return doit;
 }
 
 function animTransitionDefault() {
