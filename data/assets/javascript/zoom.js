@@ -734,8 +734,9 @@ function setAnimDur(e, dur, delay) {
                "animation-delay":    del + "s"
               });
 }
+/* old stuff
 
-function clearImageElem(e) {
+function clearImageElem0(e) {
     // e : <div id="image1/2" ...><img id="image1/2-img" ...></img></div>
 
     const id = e.id;
@@ -761,6 +762,17 @@ function clearImageElem(e) {
                    "opacity":            '',
                   });
     }
+}
+*/
+
+// <div id="image1/2" ...>...</div> is thrown away and
+// and a new but empty elem with same id is recreated
+
+function clearImageElem(e) {
+    const id = e.id;
+    const p  = e.parentElement;
+    e.remove();
+    p.insertBefore(newElem("div", id, {}, "hiddenImage"), p.children[0]);
 }
 
 // ----------------------------------------
@@ -2866,10 +2878,60 @@ function animLast(a) {
     return doit;
 }
 
-/*
-function animCurrent(a) { return animCxt(cs, a); }
-function animLast(a)    { return animCxt(ls, a); }
-*/
+function transFadeOutIn(aout, ain) {
+    return comp(animLast(aout), animCurrent(ain));
+}
+
+function transCrossFade(aout, ain) {
+    function doit(k) {
+        animLast(aout)(fin);
+        animCurrent(ain)(k);
+    }
+    return doit;
+}
+
+// --------------------
+
+function animTransition(dur) {
+
+    if ( dur === 0 ) {
+        return transCrossFade(fadeout(dur), fadein(dur));
+    }
+    if ( isMediaSlide(cs.slideType)
+         &&
+         isMediaSlide(ls.slideType)
+       ) {
+        return transCrossFade(fadeout(dur), fadein(dur));
+    }
+    return transFadeOutIn(fadeout(dur), fadein(dur));
+}
+
+function animTransitionDefault() {
+    return animTransition(animDur());
+}
+
+function animDur() {
+    return defaultTransDur * 1000;
+}
+
+// --------------------
+
+function isColSlide(slideType) {
+    return slideType === "json";
+}
+
+function isMediaSlide(slideType) {
+    return ["img", "imgfx",
+            "icon", "iconp",
+            "gif",
+            "movie",
+           ].includes(slideType);
+}
+
+function isBlogSlide(slideType) {
+    return slideType === "page";
+}
+
 // ------------------------------------------------------------
 //
 // continuation composition
@@ -2900,16 +2962,16 @@ function compl(fs) {
 
 const u1 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0000.json";
 const u2 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0001.json";
+const u3 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0002.json";
 
 function k1(u) {
     return compl(
         [ gotoSlide(u),
           switchSlide(),
-          animLast(fadeout(3000)),
-          animCurrent(fadein(3000)),
-          animCurrent(magnify(0.5)(4000)),
-          animCurrent(noAnim(2000)),
-          animCurrent(shrink(0.5)(4000)),
+          animTransitionDefault(),
+          animCurrent(magnify(0.5)(1000)),
+          animCurrent(noAnim(1000)),
+          animCurrent(shrink(0.5)(1000)),
         ]);
 }
 
