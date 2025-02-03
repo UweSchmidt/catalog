@@ -1164,6 +1164,8 @@ function showBlog(page) {
 
 // ----------------------------------------
 
+// old: the new fct is buildCollectionPage
+
 function showCol(page) {
     const colDescr = page.colDescr;
     const colReq   = colDescr.eReq;
@@ -1188,6 +1190,8 @@ function showCol(page) {
 
     toggleImg12(id);
 }
+
+// this is used by buildCollectionPage
 
 function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog) {
     // geometry for navigation grid
@@ -1515,10 +1519,12 @@ function showPath(path) {
     gotoUrl(jUrl);
 }
 
-function gotoUrl(url) {
+// TODO old stuff
+
+function gotoUrl0(url) {
     getJsonPage(url, showPage, showErr);
 }
-
+/*
 function showNextPage(req) {
     if (! nullReq(req)) {
         gotoUrl(jsonReqToUrl(req));
@@ -1526,6 +1532,13 @@ function showNextPage(req) {
     } else {
         trc(1, "showNextPage: req is empty");
         return false;
+    }
+}
+*/
+
+function showNextPage(req) {
+    if (! nullReq(req)) {
+        gotoUrl(jsonReqToUrl(req));
     }
 }
 
@@ -2669,6 +2682,26 @@ function finishImg(e, a) {
     return doit;
 }
 
+function animVisible(e, a) {
+
+    function doit(k) {
+        setCSS(e, {display: "block", opacity: 0});
+        runAnim(e, a)(k);
+    }
+    return doit;
+}
+
+function animNotVisible(e, a) {
+
+    function doit(k) {
+        runAnim(e, a)(() => {
+            setCSS(e, {display: none, opacity: ''});
+            k();
+        });
+    }
+    return doit;
+}
+
 function fadeoutImg(e, dur) { return finishImg(e, fadeout(dur)); }
 
 // ----------------------------------------
@@ -2679,24 +2712,40 @@ var cs = { url       : "",
            page      : {},
            imgId     : img1,
            slideType : "",
+           resizeAlg : "",
          };
 var ls = { url       : "",
            page      : {},
            imgId     : img2,
            slideType : "",
+           resizeAlg : "",
          };
 
-function gotoSlide(url) {
+function gotoUrl(url, resizeAlg, zoomPos) {
+    compl(
+        [ gotoSlide(url, resizeAlg, zoomPos),
+          switchSlide(),
+          animTransitionDefault(),
+        ])(fin);
+}
+
+function gotoSlide(url, resizeAlg, zoomPos) {
+
     function doit(k) {
 
         function jsonPage(page) {
             trc(1, "jsonSlide: " + JSON.stringify(page));
 
-            // save old slide
+            // save old slide context
             ls = cs;
-            cs = { url:   url,
-                   page:  page,
-                   imgId: nextimg[ls.imgId],
+
+            // build new slide context
+            cs = { url       : url,
+                   page      : page,
+                   imgId     : nextimg[ls.imgId],
+                   slideType : "",
+                   resizeAlg : resizeAlg || "no-magnify",
+                   zoomPos   : zoomPos   || halfGeo(screenGeo()),
                  };
             k();
         }
@@ -2722,8 +2771,7 @@ function switchSlide() {
         cs.slideType = rty;
 
         if (rty == "json") {
-            showCol(page);
-            k();
+            buildCollectionPage()(k);
         }
         else if (rty === "movie" || rty === "gif") {
             showMovie(page);
@@ -2734,7 +2782,7 @@ function switchSlide() {
             k();
         }
         else if ( ["img", "imgfx", "icon", "iconp"].includes(rty) ) {
-            loadImgCache("no-magnify")(k);
+            loadImgCache()(k);
         }
         else {
             trc(1, "switchSlide: illegal rType " + rty);
@@ -2744,28 +2792,64 @@ function switchSlide() {
     return doit;
 }
 
-function loadImgCache(resizeAlg, zoomPos0) {
-    const scrGeo      = screenGeo();
-    const zoomPos     = zoomPos0   || halfGeo(scrGeo);
+function buildCollectionPage() {
+    function doit(k) {
+        const page     = cs.page;
+        const id       = cs.imgId;
+
+        const colDescr = page.colDescr;
+        const colReq   = colDescr.eReq;
+        const colMeta  = colDescr.eMeta;
+        const colBlog  = getPageBlog(page);
+        const navIcons = page.navIcons;
+        const c1Icon   = page.c1Icon;
+        const colIcons = page.contIcons;
+        const iconReq  = { rType: "icon",
+                           rPathPos: colReq.rPathPos
+                         };
+        const g        = pxGeo(screenGeo());
+
+        const e        = getElem(id);
+        setCSS(e, { width:    g.w,
+                    height:   g.h,
+                    left:     "0px",
+                    top:      "0px",
+                    overflow: "auto"
+                  });
+        e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog));
+
+        k();   // continue with transition from last slide to this one
+    }
+    return doit;
+}
+
+function loadImgCache() {
 
     function doit(k) {
+        const scrGeo    = screenGeo();
+        const resizeAlg = cs.resizeAlg;
+        const zoomPos   = cs.zoomPos;
+
         const page    = cs.page;
         const imgReq  = page.imgReq;
         const orgGeo  = readGeo(page.oirGeo[0]);  // original geo of image
         const imgGeo  = resizeToScreenHeight(orgGeo);
 
         const urlImg = ( ( resizeAlg === "fullsize"
-                           || resizeAlg === "zoom"
+                           ||
+                           resizeAlg === "zoom"
                          )
                          && fitsInto(screenGeo(), orgGeo)
                        )
               ? imgReqToUrl(imgReq, readGeo("org"))
-              : ( resizeAlg === "panorama" && isPano(imgGeo)
+              : ( resizeAlg === "panorama"
+                  &&
+                  isPano(imgGeo)
                   ? imgReqToUrl(imgReq, resizeToScreenHeight(imgGeo))
                   : imgReqToUrl(imgReq)
                 );
 
-        cs.urlImg = urlImg;
+        cs.urlImg    = urlImg;  // save image url in context
 
         trc(1, "loadImgCache: urlImg=" + urlImg + ", geo=" + showGeo(imgGeo));
 
@@ -2897,9 +2981,9 @@ function animTransition(dur) {
     if ( dur === 0 ) {
         return transCrossFade(fadeout(dur), fadein(dur));
     }
-    if ( isMediaSlide(cs.slideType)
-         &&
-         isMediaSlide(ls.slideType)
+    if ( ( isMediaSlide(cs.slideType) && isMediaSlide(ls.slideType) )
+         ||
+         ( isColSlide(cs.slideType) && isColSlide(ls.slideType) )
        ) {
         return transCrossFade(fadeout(dur), fadein(dur));
     }
@@ -2921,8 +3005,10 @@ function isColSlide(slideType) {
 }
 
 function isMediaSlide(slideType) {
-    return ["img", "imgfx",
-            "icon", "iconp",
+    return ["img",
+            "imgfx",
+            "icon",
+            "iconp",
             "gif",
             "movie",
            ].includes(slideType);
@@ -2960,6 +3046,8 @@ function compl(fs) {
 //
 // some simple tests
 
+const c0 = "/docs/json/1600x1200/archive/collections/albums.json";
+const c1 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder.json";
 const u1 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0000.json";
 const u2 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0001.json";
 const u3 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0002.json";
