@@ -1529,24 +1529,7 @@ function showPath(path) {
     gotoUrl(jUrl);
 }
 
-// TODO old stuff
-
-function gotoUrl0(url) {
-    getJsonPage(url, showPage, showErr);
-}
-/*
-function showNextPage(req) {
-    if (! nullReq(req)) {
-        gotoUrl(jsonReqToUrl(req));
-        return true;
-    } else {
-        trc(1, "showNextPage: req is empty");
-        return false;
-    }
-}
-*/
-
-function showNextPage(req) {
+function showNextSlide(req) {
     if (! nullReq(req)) {
         gotoUrl(jsonReqToUrl(req));
     }
@@ -1685,47 +1668,43 @@ function getNavReq(nav, page) {
 
 function gotoPrev() {
     const req = getNavReq("prev");
-    return showNextPage(req);
+    showNextSlide(req);
 }
 
 function gotoNext() {
     const req = getNavReq("next");
-    return showNextPage(req);
+    showNextSlide(req);
 }
 
 function gotoPar() {
     const req = getNavReq("par");
-    return showNextPage(req);
+    showNextSlide(req);
 }
 
 // for slideshows
 function goForward() {
     const req = getNavReq("fwrd");
-    return showNextPage(req);
+    showNextSlide(req);
 }
 
-function gotoChild(i, page) {
-    page = page || currPage;
-    if (isColPage(page)) {
-        const c = page.contIcons[i];
+
+function gotoChild0() {
+    if ( isColSlide(cs.slideType) ) {
+        const c = cs.page.contIcons[0];
         if (c) {
-            return showNextPage(c.eReq);
+            showNextSlide(c.eReq);
         }
     }
-    return false;
 }
 
 // reload
 function stayHere() {
-    const req = getPageReq();
-    return showNextPage(req);
+    return showNextSlide(cs.slideReq);
 }
 
 // call catalog edit
-
 function openEdit() {
-    const page = currPage;
-    const req  = getPageReq();
+    const req  = getCurrSlideReq();
     const pPos = req.rPathPos;
     openEditPage(pPos[0], pPos[1]);
 }
@@ -1990,7 +1969,7 @@ function keyUp(e) {
          (e.keyCode == 190)    /* '.' , presenter right screen icon */
        ) {
         stopSlideShow();
-        gotoChild(0);
+        gotoChild0();
         return false;
     }
 }
@@ -2042,7 +2021,7 @@ function keyPressed (e) {
          isKey(e, 100, "d")
        ) {
         stopSlideShow();
-        gotoChild(0);
+        gotoChild0();
         return false;
     }
 
@@ -2375,7 +2354,7 @@ function advanceSlideShow() {
     const hasNext = ( slideShowType == "allColls")
           ? goForward()
           : ( isColPage()
-              ? gotoChild(0)
+              ? gotoChild0()
               : gotoNext()
             );
     if (! hasNext) {
@@ -2745,14 +2724,18 @@ function gotoSlide(url, resizeAlg, zoomPos) {
             ls = cs;
 
             // build new slide context
+            const req = page.imgReq || page.colDescr.eReq;
+
             cs = { url       : url,
                    page      : page,
                    imgId     : nextimg[ls.imgId],
                    slideType : "",
                    resizeAlg : resizeAlg || "no-magnify",
                    zoomPos   : zoomPos   || halfGeo(screenGeo()),
-                   slideType : getPageType(page),
+                   slideType : req.rType,
+                   slideReq  : req,
                  };
+
             k();
         }
         getJsonPage(url, jsonPage, showErr);
@@ -3044,6 +3027,8 @@ function addImgToDom(id, url, style, geo, cls, addHandler) {
     e.appendChild(i);
 }
 
+// --------------------
+
 function animCurrent(a) {
     function doit(k) {
         const e = getElem(cs.imgId);
@@ -3119,6 +3104,8 @@ function animDur() {
 }
 
 // --------------------
+//
+// slide predicates
 
 function isColSlide(slideType) {
     return slideType === "json";
