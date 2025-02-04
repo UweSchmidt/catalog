@@ -1066,6 +1066,8 @@ function showPanoramaImg(page)  { showImg1(page, "panorama");   }
 
 // ----------------------------------------
 
+// old, new: buildMovieSlide
+
 function loadMovie(id, url, geo, rType, resizeAlg) {
     const movGeo = fitToScreenGeo(geo, resizeAlg);
     const offset = pxGeo(placeOnScreen(movGeo));
@@ -1645,7 +1647,6 @@ function isPanoImg() {
 // page access functions
 
 function getPageType(page) {
-    page = page || currPage;
     return getPageReq(page).rType;
 }
 
@@ -2750,6 +2751,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                    slideType : "",
                    resizeAlg : resizeAlg || "no-magnify",
                    zoomPos   : zoomPos   || halfGeo(screenGeo()),
+                   slideType : getPageType(page),
                  };
             k();
         }
@@ -2763,6 +2765,7 @@ function switchSlide() {
         trc(1, "switchSlide");
 
         const page = cs.page;
+        const sType  = cs.slideType;
 
         // for old show funtions
         lastPage = ls.page;
@@ -2771,25 +2774,92 @@ function switchSlide() {
         buildInfo();
         setPageTitle();
 
-        const rty = getPageType(page);
-        cs.slideType = rty;
-
-        if (rty == "json") {
+        if (sType == "json") {
             buildCollectionSlide()(k);
         }
-        else if (rty === "movie" || rty === "gif") {
-            showMovie(page);
-            k();
+        else if (sType === "movie" || sType === "gif") {
+            buildMovieSlide()(k);
         }
-        else if (rty === "page") {
+        else if (sType === "page") {
             buildBlogSlide()(k);
         }
-        else if ( ["img", "imgfx", "icon", "iconp"].includes(rty) ) {
+        else if ( ["img", "imgfx", "icon", "iconp"].includes(sType) ) {
             loadImgCache()(k);
         }
         else {
-            trc(1, "switchSlide stop continuation: illegal rType " + rty);
+            trc(1, "switchSlide stop continuation: illegal slide type " + sType);
         }
+    }
+    return doit;
+}
+
+function buildMovieSlide() {
+    function doit(k) {
+        const page   = cs.page;
+        const id     = cs.imgId;
+        const rType  = cs.slideType;      // movie / gif
+        const rAlg   = cs.resizeAlg;      // magnify / no-magnify
+
+        const geo    = readGeo(page.oirGeo[0]);
+        const url    = toMediaUrl(page.img);   // url of the original media file, not the coll entry url
+
+        const movGeo = fitToScreenGeo(geo, rAlg);
+        const offset = pxGeo(placeOnScreen(movGeo));
+        const g      = pxGeo(movGeo);
+        const style  = { width  : g.w,
+                         height : g.h,
+                         left   : offset.w,
+                         top    : offset.h
+                       };
+
+        trc(1, `buildMovieSlide: url=${url}, geo=${showGeo(geo)}, movGeo=${showGeo(movGeo)}`);
+
+
+        // get element, clear contents and set style attributes
+        const e = getElem(id);   // ??? clearCont(id);
+        setCSS(e, style);
+
+        if (rType === "movie" ) {
+
+            const cls = "movie gif " + rAlg;
+            const v   = newElem("video", mkImgId(id), {}, cls);
+
+            v.width   = movGeo.w;
+            v.heigth  = movGeo.h;
+
+            if (videoAttrs.autoplay != null) {
+                v.autoplay = "autoplay";
+            }
+            if (videoAttrs.controls != null) {
+                v.controls = "controls";
+            }
+            if (videoAttrs.muted != null) {
+                v.muted = "muted";
+            }
+
+            const s = newElem("source");
+            s.src   = url;
+            s.type  = "video/mp4";
+
+            const w = newElem("span");
+            w.appendChild(newText("your browser does not support HTML5 video"));
+
+            v.appendChild(s);
+            v.appendChild(w);
+            e.appendChild(v);
+
+        }
+        else if ( rType === "gif" ) {
+
+            const css = { width:  g.w, height: g.h };
+            const cls = "movie gif " + rAlg;
+            const v2  = newImgElem(id, css, cls);
+
+            v2.src    = url;
+            e.appendChild(v2);
+        }
+
+        k();   // start slide transition
     }
     return doit;
 }
