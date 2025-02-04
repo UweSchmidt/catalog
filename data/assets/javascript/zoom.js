@@ -31,7 +31,7 @@ function constF(x) {
     return (y) => { return x; };
 }
 
-function idF(x) { return x; }
+function idF(x) { trc(1, "idF"); return x; }
 
 function fstF(x, y) { return x; }
 function sndF(x, y) { return y; }
@@ -824,6 +824,8 @@ function initShow() {
 // ----------------------------------------
 // display an ordinary image
 
+// old, new: addImgToDom
+
 function insertImg(id, url, style, geo, cls, addHandler) {
     // get element, clear contents and set style attributes
 
@@ -1136,6 +1138,8 @@ function showMovie(page)          { showMovie1(page, "no-magnify"); }
 function showMagnifiedMovie(page) { showMovie1(page,    "magnify"); }
 
 // ----------------------------------------
+
+// old, new: buildBlogSlide
 
 function showBlog(page) {
     const req = page.imgReq;
@@ -2635,10 +2639,6 @@ function runAnim(e, a) {
     return doit;
 }
 
-// terminate continuation chain
-
-function fin() { trc(1, "continuation completed"); }
-
 // run 2 animations sequentially for 2 elemennts
 
 function runAnimSeq2(a1, a2) {
@@ -2665,7 +2665,7 @@ function runAnimSeq(a1, a2) {
 function runAnimPar2(a1, a2) {
     function par(e1, e2) {
         function doit(k) {
-            runAnim(e1, a1)(fin);
+            runC(runAnim(e1, a1)); // run async continuation
             runAnim(e2, a2)(k);
         };
         return doit;
@@ -2726,11 +2726,11 @@ var ls = { url       : "",
          };
 
 function gotoUrl(url, resizeAlg, zoomPos) {
-    compl(
-        [ gotoSlide(url, resizeAlg, zoomPos),
-          switchSlide(),
-          animTransitionDefault(),
-        ])(fin);
+    runC(compl([ gotoSlide(url, resizeAlg, zoomPos),
+                 switchSlide(),
+                 animTransitionDefault(),
+               ])
+        );
 }
 
 function gotoSlide(url, resizeAlg, zoomPos) {
@@ -2775,28 +2775,61 @@ function switchSlide() {
         cs.slideType = rty;
 
         if (rty == "json") {
-            buildCollectionPage()(k);
+            buildCollectionSlide()(k);
         }
         else if (rty === "movie" || rty === "gif") {
             showMovie(page);
             k();
         }
         else if (rty === "page") {
-            showBlog(page);
-            k();
+            buildBlogSlide()(k);
         }
         else if ( ["img", "imgfx", "icon", "iconp"].includes(rty) ) {
             loadImgCache()(k);
         }
         else {
-            trc(1, "switchSlide: illegal rType " + rty);
-            fin();
+            trc(1, "switchSlide stop continuation: illegal rType " + rty);
         }
     }
     return doit;
 }
 
-function buildCollectionPage() {
+function buildBlogSlide() {
+    function doit(k) {
+        const page = cs.page;
+        const id   = cs.imgId;
+
+        const req  = page.imgReq;
+        const geo  = pxGeo(screenGeo());
+        const txt  = getPageBlog(page);
+
+        trc(1, "buildBlogPage: " + txt);
+
+        // get element, clear contents and set style attributes
+        const e  = clearCont(id);
+        setCSS(e, { width:  geo.w,
+                    height: geo.h,
+                    top:    "0px",
+                    left:   "0px"
+                  });
+
+        // build blog contents div
+        const b  = newElem("div", id + "-blog",
+                           { width:    geo.w,
+                             height:   geo.h,
+                             overflow: "auto"
+                           },
+                           "blog"
+                          );
+        b.innerHTML = txt;
+        e.appendChild(b);
+
+        k();  // show blog slide
+    }
+    return doit;
+}
+
+function buildCollectionSlide() {
     function doit(k) {
         const page     = cs.page;
         const id       = cs.imgId;
@@ -2972,7 +3005,7 @@ function transFadeOutIn(aout, ain) {
 
 function transCrossFade(aout, ain) {
     function doit(k) {
-        animLast(aout)(fin);
+        runC(animLast(aout)); // run async continuation
         animCurrent(ain)(k);
     }
     return doit;
@@ -2984,17 +3017,22 @@ function animTransition(dur) {
 
     function doit(k) {
         // global context variables cs and ls need to be accessed here
-        // not earlier when animTranition is executed
+        // not when animTranition is executed
 
+        // default transition: fadeout-fadein
         var tr = transFadeOutIn(fadeout(dur), fadein(dur));
 
         if ( dur === 0 ) {
+
+            // transition with duration 0 sec: only CSS settings needed
             tr = transCrossFade(fadeout(dur), fadein(dur));
         }
         else if ( ( isMediaSlide(cs.slideType) && isMediaSlide(ls.slideType) )
                   ||
                   ( isColSlide(cs.slideType) && isColSlide(ls.slideType) )
                 ) {
+
+            // both slides are media slides or both a collection slides: cross-fade
             tr = transCrossFade(fadeout(dur), fadein(dur));
         };
         tr(k);
@@ -3034,9 +3072,19 @@ function isBlogSlide(slideType) {
 //
 // continuation composition
 
+// identity continuation
+
+function idC(k) {
+    // trc(1, "idC");
+    k();
+}
+
+// continuation composition
+
 function comp(f1, f2) {
     function doit(k) {
-        f1(() => f2(k));
+        // trc(1, "comp.doit");
+        f1(() => { f2(k); });
     }
     return doit;
 }
@@ -3045,13 +3093,28 @@ function comp(f1, f2) {
 
 function compl(fs) {
     var i = fs.length;
-    var f = idF;
+    var f = idC;
 
     while ( i > 0) {
         i--;
         f = comp(fs[i], f);
     }
-    return f;
+    function doit(k) { f(k); }
+    return doit;
+}
+
+// terminate continuation chain
+
+var ccount = 0;
+
+function runC(c) {
+    var cid = ++ccount;
+
+    function fin() {
+        trc(1, `runC: (${cid}) terminated`);
+    }
+    trc(1, `runC: (${cid}) started`);
+    c(fin);
 }
 
 // --------------------
@@ -3076,7 +3139,7 @@ function k1(u) {
 }
 
 function ttt(u) {
-    comp(gotoSlide(u), switchSlide())(fin);
+    runC(comp(gotoSlide(u), switchSlide()));
 }
 
 // ----------------------------------------
