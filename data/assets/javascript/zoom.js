@@ -769,10 +769,17 @@ function clearImageElem0(e) {
 // and a new but empty elem with same id is recreated
 
 function clearImageElem(e) {
-    const id = e.id;
-    const p  = e.parentElement;
-    e.remove();
-    p.insertBefore(newElem("div", id, {}, "hiddenImage"), p.children[0]);
+    if ( typeof e === "string" ) {
+        return clearImageElem(getElem(e));
+    } else {
+        const id = e.id;
+        const p  = e.parentElement;
+        e.remove();
+
+        const ne = newElem("div", id, {}, "hiddenImage");
+        p.insertBefore(ne, p.children[0]);
+        return ne
+    }
 }
 
 // ----------------------------------------
@@ -815,8 +822,8 @@ function initShow() {
 
     setCSS(imgTab, {width : g.w, height : g.h});
 
-    clearImageElem(getElem(img1));
-    clearImageElem(getElem(img2));
+    clearImageElem(img1);
+    clearImageElem(img2);
 
     showPath(pathCollections());
 }
@@ -1704,8 +1711,7 @@ function stayHere() {
 
 // call catalog edit
 function openEdit() {
-    const req  = getCurrSlideReq();
-    const pPos = req.rPathPos;
+    const pPos  = cs.slideReq.pPos;
     openEditPage(pPos[0], pPos[1]);
 }
 
@@ -2736,6 +2742,9 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                    slideReq  : req,
                  };
 
+            // create a new empty slide container
+            clearImageElem(cs.imgId);
+
             k();
         }
         getJsonPage(url, jsonPage, showErr);
@@ -2798,8 +2807,8 @@ function buildMovieSlide() {
         trc(1, `buildMovieSlide: url=${url}, geo=${showGeo(geo)}, movGeo=${showGeo(movGeo)}`);
 
 
-        // get element, clear contents and set style attributes
-        const e = getElem(id);   // ??? clearCont(id);
+        // get slide container and set geomety attibutes
+        const e = getElem(id);
         setCSS(e, style);
 
         if (rType === "movie" ) {
@@ -2858,8 +2867,8 @@ function buildBlogSlide() {
 
         trc(1, "buildBlogPage: " + txt);
 
-        // get element, clear contents and set style attributes
-        const e  = clearCont(id);
+        // get slide container and set geomety attibutes
+        const e = getElem(id);
         setCSS(e, { width:  geo.w,
                     height: geo.h,
                     top:    "0px",
@@ -2899,13 +2908,15 @@ function buildCollectionSlide() {
                          };
         const g        = pxGeo(screenGeo());
 
-        const e        = getElem(id);
+        // get element, clear contents and set style attributes
+        const e = clearImageElem(id);
         setCSS(e, { width:    g.w,
                     height:   g.h,
                     left:     "0px",
                     top:      "0px",
                     overflow: "auto"
                   });
+
         e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog));
 
         k();   // continue with transition from last slide to this one
@@ -2969,11 +2980,7 @@ function switchResizeImg(url, geo, resizeAlg, pos) {
     const id = cs.imgId;
 
     function doit(k) {
-        if (resizeAlg === "fullsize") {
-            loadFullImg(id, url, geo);
-            k();
-        }
-        else if (resizeAlg === "zoom") {
+        if (resizeAlg === "zoom") {
             loadZoomImg(id, url, geo, pos);
             k();
         }
@@ -2981,9 +2988,25 @@ function switchResizeImg(url, geo, resizeAlg, pos) {
             loadPanoramaImg(id, url, geo);
             k();
         }
+        else if (resizeAlg === "fullsize") {
+            addFullImg(url, geo, resizeAlg)(k);      // pretty similar to addZoomableImg
+        }
         else {
             addZoomableImg(url, geo, resizeAlg)(k);
         }
+    }
+    return doit;
+}
+
+function addFullImg(url, geo, resizeAlg) {
+
+    function doit(k) {
+        const id     = cs.imgId;
+        const scrGeo = screenGeo();
+        const style  = styleGeo(scrGeo, nullGeo);
+
+        addImgToDom(id, url, style, geo, "img " + resizeAlg, () => {});
+        k();
     }
     return doit;
 }
@@ -3017,10 +3040,10 @@ function addZoomableImg(url, geo, resizeAlg) {
 }
 
 function addImgToDom(id, url, style, geo, cls, addHandler) {
-    // get element, clear contents and set style attributes
 
-    const e = clearCont(id);
+    const e = getElem(id);
     setCSS(e, style);
+
     const i = newImgElem(id, styleSize(geo), cls);
     addHandler(i);
     i.src   = url;
