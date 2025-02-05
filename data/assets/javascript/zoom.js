@@ -734,36 +734,6 @@ function setAnimDur(e, dur, delay) {
                "animation-delay":    del + "s"
               });
 }
-/* old stuff
-
-function clearImageElem0(e) {
-    // e : <div id="image1/2" ...><img id="image1/2-img" ...></img></div>
-
-    const id = e.id;
-    trc(1, "clearImageElem: id=" + id);
-    if (id === img1 || id === img2) {
-
-        // cancel animations
-        e.getAnimations({ subtree: true }).map((animation) => animation.finished);
-
-        // remove <img> element
-        clearCont(e);
-
-        // remove style attributes
-        setCSS(e, {"animation-duration": '',
-                   "animation-delay":    '',
-                   "width":              '',
-                   "height":             '',
-                   "left":               '',
-                   "right":              '',
-                   "bottom":             '',
-                   "top":                '',
-                   "overflow":           '',
-                   "opacity":            '',
-                  });
-    }
-}
-*/
 
 // <div id="image1/2" ...>...</div> is thrown away and
 // and a new but empty elem with same id is recreated
@@ -1768,6 +1738,23 @@ function toggleHelp() {
     }
 }
 
+// ------------------------------------------------------------
+//
+// new handlers
+
+function toggleFullSlide() {
+    if ( isImgSlide(cs.slideType) ) {
+        if ( cs.resizeAlg != "fullsize" ) {
+            gotoUrl(cs.url, "fullsize");
+        } else {
+            gotoUrl(cs.url, "no-magnify");
+        }
+    }
+}
+
+// ------------------------------------------------------------
+
+/*
 function toggleFullImg() {
     if ( isPic() ) {
         if ( isFullImg() ) {
@@ -1777,6 +1764,7 @@ function toggleFullImg() {
         }
     }
 }
+*/
 
 function toggleZoomImg(zoomPos) {
     if ( isPic() ) {
@@ -2080,7 +2068,7 @@ function keyPressed (e) {
 
     if ( isKey(e, 102, "f") ) {
         stopSlideShow();
-        toggleFullImg();
+        toggleFullSlide();
         return false;
     }
 
@@ -3141,6 +3129,14 @@ function isMediaSlide(slideType) {
             "iconp",
             "gif",
             "movie",
+           ].includes(slideType);
+}
+
+function isImgSlide(slideType) {
+    return ["img",
+            "imgfx",
+            "icon",
+            "iconp",
            ].includes(slideType);
 }
 
