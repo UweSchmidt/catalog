@@ -349,6 +349,10 @@ function screenGeo() {
     return theScreenGeo;
 }
 
+function shrinkToScreenGeo(geo) {
+    return shrinkGeo(geo, screenGeo());
+}
+
 function fitToScreenGeo(geo, blowUp) {
     return (blowUp === "magnify" ? resizeGeo : shrinkGeo)(geo, screenGeo());
 }
@@ -2618,12 +2622,54 @@ function zoomIn(v1Off, v1Scale, v2Off, v2Scale) {
         return { keyFrames: kf,
                  timing:    t,
                };
+
     }
     return doit;
 }
 
+
 function zoomOut(v1Off, v1Scale, v2Off, v2Scale) {
     return zoomIn(v2Off, v2Scale, v1Off, v1Scale);
+}
+
+function zoomIn1(geo0, off0, geo1, off1) {
+    geo0 = pxGeo(geo0);
+    off0 = pxGeo(off0);
+    geo1 = pxGeo(geo1);
+    off1 = pxGeo(off1);
+
+    function doit(dur) {
+        const delay = 2000;
+
+        const kf = [
+            { width  : geo0.w,
+              height : geo0.h,
+              left   : off0.w,
+              top    : off0.h,
+            },
+            { width  : geo1.w,
+              height : geo1.h,
+              left   : off1.w,
+              top    : off1.h,
+            },
+        ];
+        const t = {
+            duration:   dur,
+            easing:     'ease-in-out',
+            delay:      0,
+            iterations: 1,
+            fill:      "forwards",
+        };
+        return { keyFrames: kf,
+                 timing:    t,
+               };
+
+    }
+    return doit;
+}
+
+function zoomOut1(geo0, off0, geo1, off1) {
+    return zoomIn1(geo1, off1, geo0, off0);
 }
 
 // --------------------
@@ -3045,32 +3091,38 @@ function switchResizeImg(url, geo, resizeAlg, pos) {
     return doit;
 }
 
-function addZoomImg(url, orgGeo, resizeAlg, clickPos) {
+function addZoomImg(url, geo, resizeAlg, clickPos) {
 
     function doit(k) {
         const id         = cs.imgId;
         const scrGeo     = screenGeo();
 
-        const viewGeo    = fitToScreenGeo(orgGeo, "no-magnify");
-        const viewCenter = halfGeo(viewGeo);
-        const viewScale  = divGeo(viewGeo, orgGeo);
-        const viewOff    = placeOnScreen(viewGeo);
+        const imgGeo     = shrinkToScreenGeo(geo);
+        const offset     = placeOnScreen(imgGeo);
+        const style      = styleGeo(imgGeo, offset, "hidden");
 
-        const orgOff     = placeOnScreen(orgGeo);
+
+        const viewCenter = halfGeo(imgGeo);
+        const viewScale  = divGeo(imgGeo, geo);
+
+        const orgOff     = placeOnScreen(geo);
         const orgScale   = oneGeo;
 
         const clickDisp  = subGeo(viewCenter, clickPos);
-        const clickScale = divGeo(orgGeo, viewGeo);
+        const clickScale = divGeo(geo, imgGeo);
         const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
 
-        const style      = styleGeo(scrGeo, nullGeo);
+        const style2     = styleGeo(geo, clickOff, "hidden");
 
-        trc(1, `addZoomImg: ${url}, ${showGeo(orgGeo)}, ${showGeo(clickPos)}`);
+        trc(1, `addZoomImg: ${url}, ${showGeo(geo)}, ${showGeo(clickPos)}`);
 
         const dur = 2000;
 
-        cs.zoomInAnim  = zoomIn( viewOff, viewScale, clickOff, orgScale)(dur);
-        cs.zoomOutAnim = zoomOut(viewOff, viewScale, clickOff, orgScale)(dur);
+        // cs.zoomInAnim  = zoomIn( offset, viewScale, clickOff, orgScale)(dur);
+        // cs.zoomOutAnim = zoomOut(offset, viewScale, clickOff, orgScale)(dur);
+
+        cs.zoomInAnim  = zoomIn1( imgGeo, offset, scrGeo, clickOff, orgScale)(dur);
+        cs.zoomOutAnim = zoomOut1(imgGeo, offset, scrGeo, clickOff, orgScale)(dur);
 
         addImgToDom(id, url, style, null, "img " + resizeAlg, () => {});
         k();
@@ -3096,6 +3148,7 @@ function addZoomableImg(url, geo, resizeAlg) {
 
     function doit(k) {
         const id     = cs.imgId;
+
         const imgGeo = fitToScreenGeo(geo, resizeAlg);
         const offset = placeOnScreen(imgGeo);
         const style  = styleGeo(imgGeo, offset, "hidden");
@@ -3184,7 +3237,7 @@ function animTransition(dur) {
         // img -> zoom
         if ( cs.resizeAlg === "zoom" ) {
             const tr1 = transFadeOutIn(fadeout(100), fadein(0));
-            const tr2 = animElem(mkImgId(cs.imgId), cs.zoomInAnim);
+            const tr2 = animCurrent(cs.zoomInAnim);
             trc(1, "anim zoom: a=" + JSON.stringify(cs.zoomInAnim));
             tr = comp(tr1, tr2);
         }
