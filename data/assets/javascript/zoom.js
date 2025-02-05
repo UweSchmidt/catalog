@@ -1752,6 +1752,17 @@ function toggleFullSlide() {
     }
 }
 
+function toggleZoomSlide(zoomPos) {
+    if ( isImgSlide(cs.slideType) ) {
+        if ( cs.resizeAlg === "zoom" ) {
+
+            gotoUrl(cs.url, "fullsize");
+        } else {
+            gotoUrl(cs.url, "no-magnify");
+        }
+    }
+}
+
 // ------------------------------------------------------------
 
 /*
@@ -2533,13 +2544,14 @@ function isHiddenAnim(id) {
 }
 
 // ----------------------------------------
-
+//
+// animation construction
 
 function fade(start, end) {
     function doit(dur) {
         const kf = [
-            { opacity: start},
-            { opacity: end},
+            { opacity: start },
+            { opacity: end   },
         ];
         const t = {
             duration:   dur,
@@ -2560,8 +2572,8 @@ const noAnim  = fade(1, 1);  // do nothing for a while
 function scale(s1, s2) {
     function doit(dur) {
         const kf = [
-            { transform: `scale(${s1})`},
-            { transform: `scale(${s2})`},
+            { transform: `scale(${s1})` },
+            { transform: `scale(${s2})` },
         ];
         const t = {
             duration:   dur,
@@ -2583,6 +2595,38 @@ const shrink   = (s) => { return scale(s, 1); };
 
 const magnify2 = magnify(2);
 const shrink2  = shrink(2);
+
+function zoomIn(v1Off, v1Scale, v2Off, v2Scale) {
+    function doit(dur) {
+        const delay = 2000;
+
+        const kf = [
+            { transform: `matrix(${v1Scale.w}, 0, 0, ${v1Scale.h}, ${v1Off.w}, ${v1Off.h})`,
+              opacity:   1,
+            },
+            { transform: `matrix(${v2Scale.w}, 0, 0, ${v2Scale.h}, ${v2Off.w}, ${v2Off.h})`,
+              opacity:   1,
+            },
+        ];
+        const t = {
+            duration:   dur,
+            easing:     'ease-in-out',
+            delay:      0,
+            iterations: 1,
+            fill:      "forwards",
+        };
+        return { keyFrames: kf,
+                 timing:    t,
+               };
+    }
+    return doit;
+}
+
+function zoomOut(v1Off, v1Scale, v2Off, v2Scale) {
+    return zoomIn(v2Off, v2Scale, v1Off, v1Scale);
+}
+
+// --------------------
 
 function runAnim(e, a) {
 
@@ -2680,24 +2724,37 @@ function animNotVisible(e, a) {
     return doit;
 }
 
+// animate the img inside e
+
+function animElem(id, a) {
+    function doit(k) {
+        trc(1, "animElem.doit: id=" + id + ' ' + JSON.stringify(a));
+        const e = getElem(id);
+        runAnim(e, a)(k);
+    }
+    return doit;
+}
+
 function fadeoutImg(e, dur) { return finishImg(e, fadeout(dur)); }
 
 // ----------------------------------------
 // cs: current slide
 // ls: last slide
 
-var cs = { url       : "",
-           page      : {},
-           imgId     : img1,
-           slideType : "",
-           resizeAlg : "",
+var cs = { url         : "",
+           page        : {},
+           imgId       : img1,
+           slideType   : "",
+           slideReq    : {},
+           resizeAlg   : "",
+           zoomPos     : {},
+           zoomInAnim  : null,
+           zoomOutAnim : null,
+           zoomPos     : {},
+           zoomDur     : 2000,
          };
-var ls = { url       : "",
-           page      : {},
-           imgId     : img2,
-           slideType : "",
-           resizeAlg : "",
-         };
+
+var ls = {};
 
 function gotoUrl(url, resizeAlg, zoomPos) {
     runC(compl([ gotoSlide(url, resizeAlg, zoomPos),
@@ -2720,14 +2777,17 @@ function gotoSlide(url, resizeAlg, zoomPos) {
             // build new slide context
             const req = page.imgReq || page.colDescr.eReq;
 
-            cs = { url       : url,
-                   page      : page,
-                   imgId     : nextimg[ls.imgId],
-                   slideType : "",
-                   resizeAlg : resizeAlg || "no-magnify",
-                   zoomPos   : zoomPos   || halfGeo(screenGeo()),
-                   slideType : req.rType,
-                   slideReq  : req,
+            cs = { url         : url,
+                   page        : page,
+                   imgId       : nextimg[ls.imgId],
+                   slideType   : "",
+                   resizeAlg   : resizeAlg || "no-magnify",
+                   slideType   : req.rType,
+                   slideReq    : req,
+                   zoomInAnim  : null,
+                   zoomOutAnim : null,
+                   zoomPos     : zoomPos   || halfGeo(screenGeo()),
+                   zoomDur     : 2000
                  };
 
             // create a new empty slide container
@@ -2969,8 +3029,7 @@ function switchResizeImg(url, geo, resizeAlg, pos) {
 
     function doit(k) {
         if (resizeAlg === "zoom") {
-            loadZoomImg(id, url, geo, pos);
-            k();
+            addZoomImg(url, geo, resizeAlg, pos)(k);
         }
         else if (resizeAlg === "panorama") {
             loadPanoramaImg(id, url, geo);
@@ -2983,6 +3042,40 @@ function switchResizeImg(url, geo, resizeAlg, pos) {
             addZoomableImg(url, geo, resizeAlg)(k);
         }
     }
+    return doit;
+}
+
+function addZoomImg(url, orgGeo, resizeAlg, clickPos) {
+
+    function doit(k) {
+        const id         = cs.imgId;
+        const scrGeo     = screenGeo();
+
+        const viewGeo    = fitToScreenGeo(orgGeo, "no-magnify");
+        const viewCenter = halfGeo(viewGeo);
+        const viewScale  = divGeo(viewGeo, orgGeo);
+        const viewOff    = placeOnScreen(viewGeo);
+
+        const orgOff     = placeOnScreen(orgGeo);
+        const orgScale   = oneGeo;
+
+        const clickDisp  = subGeo(viewCenter, clickPos);
+        const clickScale = divGeo(orgGeo, viewGeo);
+        const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
+
+        const style      = styleGeo(scrGeo, nullGeo);
+
+        trc(1, `addZoomImg: ${url}, ${showGeo(orgGeo)}, ${showGeo(clickPos)}`);
+
+        const dur = 2000;
+
+        cs.zoomInAnim  = zoomIn( viewOff, viewScale, clickOff, orgScale)(dur);
+        cs.zoomOutAnim = zoomOut(viewOff, viewScale, clickOff, orgScale)(dur);
+
+        addImgToDom(id, url, style, null, "img " + resizeAlg, () => {});
+        k();
+
+    };
     return doit;
 }
 
@@ -3014,7 +3107,7 @@ function addZoomableImg(url, geo, resizeAlg) {
                           h: e.offsetY
                         };
             trc(1, "pos=" + showGeo(pos));
-            showZoomImg(currPage, pos);  // TODO
+            gotoUrl(cs.url, "zoom", pos);
         }
 
         function addHandler(i) {
@@ -3088,11 +3181,20 @@ function animTransition(dur) {
         // default transition: fadeout-fadein
         var tr = transFadeOutIn(fadeout(dur), fadein(dur));
 
-        if ( dur === 0 ) {
+        // img -> zoom
+        if ( cs.resizeAlg === "zoom" ) {
+            const tr1 = transFadeOutIn(fadeout(100), fadein(0));
+            const tr2 = animElem(mkImgId(cs.imgId), cs.zoomInAnim);
+            trc(1, "anim zoom: a=" + JSON.stringify(cs.zoomInAnim));
+            tr = comp(tr1, tr2);
+        }
+        // no animation
+        else if ( dur === 0 ) {
 
             // transition with duration 0 sec: only CSS settings needed
             tr = transCrossFade(fadeout(dur), fadein(dur));
         }
+        // crossfade transition for img -> img or col -> col
         else if ( ( isMediaSlide(cs.slideType) && isMediaSlide(ls.slideType) )
                   ||
                   ( isColSlide(cs.slideType) && isColSlide(ls.slideType) )
@@ -3159,7 +3261,7 @@ function idC(k) {
 
 function comp(f1, f2) {
     function doit(k) {
-        // trc(1, "comp.doit");
+        trc(1, "comp.doit");
         f1(() => { f2(k); });
     }
     return doit;
