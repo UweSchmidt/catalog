@@ -1763,7 +1763,6 @@ function toggleFullSlide() {
 function toggleZoomSlide(zoomPos) {
     if ( isImgSlide(cs.slideType) ) {
         if ( cs.resizeAlg === "zoom" ) {
-
             gotoUrl(cs.url, "fullsize");
         } else {
             gotoUrl(cs.url, "no-magnify");
@@ -1771,6 +1770,24 @@ function toggleZoomSlide(zoomPos) {
     }
 }
 
+function togglePanoSlide() {
+    if ( isImgSlide(cs.slideType) ) {
+        if ( isPanoSlide() ) {
+            if ( cs.resizeAlg != "panorama" ) {
+                gotoUrl(cs.url, "panorama");
+            } else {
+                gotoUrl(cs.url, "no-magnify");
+            }
+        }
+    }
+}
+
+function isPanoSlide() {
+    if ( isImgSlide(cs.slideType) ) {
+        const geo = readGeo(cs.page.oirGeo[0]);
+        return isPano(geo);
+    }
+}
 // ------------------------------------------------------------
 
 /*
@@ -1822,7 +1839,7 @@ function toggleZoomAnimation() {
 }
 
 
-function togglePanoAnimation() {
+function old_togglePanoAnimation() {
     trc(1, "togglePanoAnimation fired");
     if (isPanoImg()) {
         const i = getCurrImgElem();
@@ -1832,16 +1849,24 @@ function togglePanoAnimation() {
     }
 }
 
-function restartPanoAnimation() {
-    trc(1, "restartPanoAnimation fired");
-    if (isPanoImg()) {
-        const i = getCurrImgElem();
-        i.style.animationPlayState = null;
-        i.classList.remove("panorama");
-        setTimeout(() => {
-            i.classList.add("panorama");
-            togglePanoAnimation();
-        }, 1000);
+function togglePanoAnimation() {
+    trc(1, "togglePanoAnimation fired");
+    if ( cs.resizeAlg === "panorama" ) {
+        const i  = getCurrImgElem();
+        const as = i.getAnimations();
+
+        if ( as.length > 0 ) {
+            const a = as[0];
+            const ps = a.playState;
+            if ( ps === "paused" ) {
+                trc(1, "continue anim");
+                a.play();
+            }
+            else if ( ps === "running" ) {
+                trc(1, "pause anim");
+                a.pause();
+            }
+        }
     }
 }
 
@@ -2099,7 +2124,7 @@ function keyPressed (e) {
 
     if ( isKey(e, 97, "a") ) {
         stopSlideShow();
-        togglePanoImg();
+        togglePanoSlide();
         return false;
     }
 
@@ -2605,6 +2630,10 @@ const shrink   = (s) => { return scale(s, 1); };
 const magnify2 = magnify(2);
 const shrink2  = shrink(2);
 
+// --------------------
+//
+// animation for resizing from (geo0, off0) to (geo1, off1)
+
 function zoomIn1(geo0, off0, geo1, off1) {
     geo0 = pxGeo(geo0);
     off0 = pxGeo(off0);
@@ -2612,8 +2641,6 @@ function zoomIn1(geo0, off0, geo1, off1) {
     off1 = pxGeo(off1);
 
     function doit(dur) {
-        const delay = 2000;
-
         const kf = [
             { width  : geo0.w,
               height : geo0.h,
@@ -2644,6 +2671,37 @@ function zoomIn1(geo0, off0, geo1, off1) {
 function zoomOut1(geo0, off0, geo1, off1) {
     return zoomIn1(geo1, off1, geo0, off0);
 }
+
+// --------------------
+
+function panorama(dr, dr1, offset) {
+    // dr:  left or bottom      // horizontal / vertical pano
+    // dr1: top  or left
+
+    function doit(dur) {
+        var kf0 = { offset: 0.0 };   kf0[dr] =         "0px";
+        var kf1 = { offset: 0.45 };  kf1[dr] = offset + "px";
+        var kf2 = { offset: 0.55 };  kf2[dr] = offset + "px";
+        var kf3 = { offset: 1.0 };   kf3[dr] =         "0px";
+
+        const kf = [kf0, kf1, kf2, kf3];
+
+        const t = {
+            duration:   dur,
+            easing:     'ease-in-out',
+            delay:      2000,
+            direction:  "alternate",
+            iterations: 1,
+            fill:      "forwards",
+        };
+
+        return { keyFrames: kf,
+                 timing:    t,
+               };
+    }
+    return doit;
+}
+
 
 // --------------------
 
@@ -2970,8 +3028,7 @@ function switchResizeImg(url, geo, resizeAlg, pos) {
             addZoomImg(url, geo, resizeAlg, pos)(k);
         }
         else if (resizeAlg === "panorama") {
-            loadPanoramaImg(id, url, geo);        // TODO
-            animTransitionDefault()(k);
+            addPanoramaImg(url, geo, resizeAlg)(k);
         }
         else if (resizeAlg === "fullsize") {
             addFullImg(url, geo, resizeAlg)(k);      // pretty similar to addZoomableImg
@@ -2979,6 +3036,33 @@ function switchResizeImg(url, geo, resizeAlg, pos) {
         else {
             addZoomableImg(url, geo, resizeAlg)(k);
         }
+    }
+    return doit;
+}
+
+function addPanoramaImg(url, geo, resizeAlg) {
+
+    function doit(k) {
+        const id     = cs.imgId;
+        const scrGeo = screenGeo();
+
+        const isH    = isHorizontal(geo);
+        const offset = isH ? scrGeo.w - geo.w : scrGeo.h - geo.h;
+        const dr     = isH ? "left" : "bottom";
+        const dr1    = isH ? "top"  : "left";
+
+        const ar     = aspectRatio(geo);
+        const dur    = (2.5 * 7.0 * Math.max(ar, 1/ar)) * 1000;      // msec
+
+        const style  = styleGeo(scrGeo, nullGeo, "hidden");
+        let   style2 = { position: "absolute" };
+        style2[dr]   = "0px";
+        style2[dr1]  = "0px";
+
+        const a      = panorama(dr, dr1, offset)(dur);
+
+        addImgToDom(id, url, style, style2, "img " + resizeAlg, () => {});
+        animTransPanorama(a, cs.transDur)(k);
     }
     return doit;
 }
@@ -3010,8 +3094,8 @@ function addZoomImg(url, geo, resizeAlg, clickPos) {
         trc(1, `addZoomImg: ${url}, ${showGeo(geo)}, ${showGeo(clickPos)}`);
 
         const a =  zoomIn1( imgGeo, offset, geo, clickOff)(cs.zoomDur);
-        cs.zoomInAnim  = a;
-        // cs.zoomOutAnim = zoomOut1(imgGeo, offset, scrGeo, clickOff, orgScale)(dur);
+
+        trc(1, `addZoomImg: anim=${JSON.stringify(a)}`);
 
         addImgToDom(id, url, style, style2, "img " + resizeAlg, () => {});
 
@@ -3189,9 +3273,20 @@ function animTransMedia(dur) {
 }
 
 function animTransZoom(zoomAnim) {
+
     function doit(k) {
         const tr1 = transCrossFade(noAnim(500), fadein(500));  // transition to fullsize image slide
         const tr2 = animCurrentImg(zoomAnim);                     // zoom transition
+        comp(tr1, tr2)(k);
+    }
+    return doit;
+}
+
+function animTransPanorama(panoAnim, dur) {
+
+    function doit(k) {
+        const tr1 = transCrossFade(fadeout(dur), fadein(dur));
+        const tr2 = animCurrentImg(panoAnim);
         comp(tr1, tr2)(k);
     }
     return doit;
@@ -3207,8 +3302,6 @@ function animTransBlog(dur) {
     }
     return doit;
 }
-
-
 
 function animTransition(dur) {
 
