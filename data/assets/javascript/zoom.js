@@ -215,6 +215,10 @@ function isHorizontal(g) {
     return aspectRatio(g) > 1;
 }
 
+function isVertical(g) {
+    return aspectRatio(g) < 1;
+}
+
 function aspectRatio(g) {
     return g.w / g.h;
 }
@@ -3186,8 +3190,8 @@ function animTransMedia(dur) {
 
 function animTransZoom(zoomAnim) {
     function doit(k) {
-        const tr1 = transCrossFade(fadeout(1000), fadein(1000));  // transition to fullsize image slide
-        const tr2 = animCurrentImg(zoomAnim);                   // zoom transition
+        const tr1 = transCrossFade(noAnim(500), fadein(500));  // transition to fullsize image slide
+        const tr2 = animCurrentImg(zoomAnim);                     // zoom transition
         comp(tr1, tr2)(k);
     }
     return doit;
