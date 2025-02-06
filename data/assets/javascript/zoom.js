@@ -2793,6 +2793,7 @@ var cs = { url         : "",
            slideType   : "",
            slideReq    : {},
            resizeAlg   : "",
+           transDur    : 0,
            zoomPos     : {},
            zoomInAnim  : null,
            zoomOutAnim : null,
@@ -2803,11 +2804,7 @@ var cs = { url         : "",
 var ls = {};
 
 function gotoUrl(url, resizeAlg, zoomPos) {
-    runC(compl([ gotoSlide(url, resizeAlg, zoomPos),
-                 switchSlide(),
-                 animTransitionDefault(),
-               ])
-        );
+    runC(gotoSlide(url, resizeAlg, zoomPos));
 }
 
 function gotoSlide(url, resizeAlg, zoomPos) {
@@ -2828,6 +2825,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                    imgId       : nextimg[ls.imgId],
                    slideType   : "",
                    resizeAlg   : resizeAlg || "no-magnify",
+                   transDur    : defaultTransDur * 1000,     // transition dur in msec
                    slideType   : req.rType,
                    slideReq    : req,
                    zoomInAnim  : null,
@@ -2839,7 +2837,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
             // create a new empty slide container
             clearImageElem(cs.imgId);
 
-            k();
+            switchSlide()(k);
         }
         getJsonPage(url, jsonPage, showErr);
     }
@@ -2944,8 +2942,7 @@ function buildMovieSlide() {
             v2.src    = url;
             e.appendChild(v2);
         }
-
-        k();   // start slide transition
+        animTransitionDefault()(k);
     }
     return doit;
 }
@@ -2980,7 +2977,7 @@ function buildBlogSlide() {
         b.innerHTML = txt;
         e.appendChild(b);
 
-        k();  // show blog slide
+        animTransitionDefault()(k);
     }
     return doit;
 }
@@ -3013,7 +3010,7 @@ function buildCollectionSlide() {
 
         e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog));
 
-        k();   // continue with transition from last slide to this one
+        animTransCollection(cs.transDur)(k);
     }
     return doit;
 }
@@ -3078,8 +3075,8 @@ function switchResizeImg(url, geo, resizeAlg, pos) {
             addZoomImg(url, geo, resizeAlg, pos)(k);
         }
         else if (resizeAlg === "panorama") {
-            loadPanoramaImg(id, url, geo);
-            k();
+            loadPanoramaImg(id, url, geo);        // todo
+            animTransitionDefault()(k);
         }
         else if (resizeAlg === "fullsize") {
             addFullImg(url, geo, resizeAlg)(k);      // pretty similar to addZoomableImg
@@ -3125,8 +3122,8 @@ function addZoomImg(url, geo, resizeAlg, clickPos) {
         cs.zoomOutAnim = zoomOut1(imgGeo, offset, scrGeo, clickOff, orgScale)(dur);
 
         addImgToDom(id, url, style, null, "img " + resizeAlg, () => {});
-        k();
 
+        animTransitionDefault()(k);
     };
     return doit;
 }
@@ -3139,7 +3136,8 @@ function addFullImg(url, geo, resizeAlg) {
         const style  = styleGeo(scrGeo, nullGeo);
 
         addImgToDom(id, url, style, geo, "img " + resizeAlg, () => {});
-        k();
+
+        animTransitionDefault()(k);
     }
     return doit;
 }
@@ -3168,7 +3166,8 @@ function addZoomableImg(url, geo, resizeAlg) {
         }
 
         addImgToDom(id, url, style, geo, "img " + resizeAlg, addHandler);
-        k();
+
+        animTransitionDefault()(k);
     }
     return doit;
 }
@@ -3224,6 +3223,27 @@ function transCrossFade(aout, ain) {
 }
 
 // --------------------
+//
+// transition to a collection (cs.slideType === "json")
+
+function animTransCollection(dur) {
+
+    function doit(k) {
+        const lst = ls.slideType || "empty";
+
+        var tr = animCurrent(fadein(dur));    // initial transition
+
+        if ( lst === "json" ) {
+            tr = transCrossFade(fadeout(dur), fadein(dur));
+        }
+        else if ( lst != "empty" ) {
+            tr = transFadeOutIn(fadeout(dur), fadein(dur));
+        }
+        tr(k);
+    }
+    return doit;
+}
+
 
 function animTransition(dur) {
 
