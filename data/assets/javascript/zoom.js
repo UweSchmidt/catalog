@@ -2977,7 +2977,7 @@ function buildBlogSlide() {
         b.innerHTML = txt;
         e.appendChild(b);
 
-        animTransitionDefault()(k);
+        animTransBlog(cs.transDur)(k);
     }
     return doit;
 }
@@ -3260,6 +3260,18 @@ function animTransMedia(dur) {
     }
     return doit;
 }
+
+// transition to blog entry
+
+function animTransBlog(dur) {
+
+    function doit(k) {
+        const tr = transFadeOutIn(fadeout(dur), fadein(dur));  // col/blog -> img
+        tr(k);
+    }
+    return doit;
+}
+
 
 
 function animTransition(dur) {
