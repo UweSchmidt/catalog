@@ -2560,7 +2560,8 @@ function fade(start, end) {
         const t = {
             duration:   dur,
             iterations: 1,
-            fill:      "forwards",
+            easing:     'ease-in-out',
+            fill:       "forwards",
         };
         return { keyFrames: kf,
                  timing:    t,
@@ -2599,38 +2600,6 @@ const shrink   = (s) => { return scale(s, 1); };
 
 const magnify2 = magnify(2);
 const shrink2  = shrink(2);
-
-function zoomIn(v1Off, v1Scale, v2Off, v2Scale) {
-    function doit(dur) {
-        const delay = 2000;
-
-        const kf = [
-            { transform: `matrix(${v1Scale.w}, 0, 0, ${v1Scale.h}, ${v1Off.w}, ${v1Off.h})`,
-              opacity:   1,
-            },
-            { transform: `matrix(${v2Scale.w}, 0, 0, ${v2Scale.h}, ${v2Off.w}, ${v2Off.h})`,
-              opacity:   1,
-            },
-        ];
-        const t = {
-            duration:   dur,
-            easing:     'ease-in-out',
-            delay:      0,
-            iterations: 1,
-            fill:      "forwards",
-        };
-        return { keyFrames: kf,
-                 timing:    t,
-               };
-
-    }
-    return doit;
-}
-
-
-function zoomOut(v1Off, v1Scale, v2Off, v2Scale) {
-    return zoomIn(v2Off, v2Scale, v1Off, v1Scale);
-}
 
 function zoomIn1(geo0, off0, geo1, off1) {
     geo0 = pxGeo(geo0);
@@ -2753,7 +2722,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                    zoomInAnim  : null,
                    zoomOutAnim : null,
                    zoomPos     : zoomPos   || halfGeo(screenGeo()),
-                   zoomDur     : 2000
+                   zoomDur     : 4000                        // 4 sec
                  };
 
             // create a new empty slide container
@@ -3018,8 +2987,7 @@ function addZoomImg(url, geo, resizeAlg, clickPos) {
 
         const imgGeo     = shrinkToScreenGeo(geo);
         const offset     = placeOnScreen(imgGeo);
-        const style      = styleGeo(imgGeo, offset, "hidden");
-
+        const style      = styleGeo(scrGeo, nullGeo, "hidden");
 
         const viewCenter = halfGeo(imgGeo);
         const viewScale  = divGeo(imgGeo, geo);
@@ -3031,21 +2999,19 @@ function addZoomImg(url, geo, resizeAlg, clickPos) {
         const clickScale = divGeo(geo, imgGeo);
         const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
 
-        const style2     = styleGeo(geo, clickOff, "hidden");
+        // const style2     = styleGeo(imgGeo, clickOff, "hidden");
+        const style2     = styleGeo(imgGeo, offset, "hidden");
+        style2.position  = "absolute";
 
         trc(1, `addZoomImg: ${url}, ${showGeo(geo)}, ${showGeo(clickPos)}`);
 
-        const dur = 2000;
+        const a =  zoomIn1( imgGeo, offset, geo, clickOff)(cs.zoomDur);
+        cs.zoomInAnim  = a;
+        // cs.zoomOutAnim = zoomOut1(imgGeo, offset, scrGeo, clickOff, orgScale)(dur);
 
-        // cs.zoomInAnim  = zoomIn( offset, viewScale, clickOff, orgScale)(dur);
-        // cs.zoomOutAnim = zoomOut(offset, viewScale, clickOff, orgScale)(dur);
+        addImgToDom(id, url, style, style2, "img " + resizeAlg, () => {});
 
-        cs.zoomInAnim  = zoomIn1( imgGeo, offset, scrGeo, clickOff, orgScale)(dur);
-        cs.zoomOutAnim = zoomOut1(imgGeo, offset, scrGeo, clickOff, orgScale)(dur);
-
-        addImgToDom(id, url, style, null, "img " + resizeAlg, () => {});
-
-        animTransitionDefault()(k);  // TODO
+        animTransZoom(a)(k);
     };
     return doit;
 }
@@ -3055,9 +3021,11 @@ function addFullImg(url, geo, resizeAlg) {
     function doit(k) {
         const id     = cs.imgId;
         const scrGeo = screenGeo();
+        const offset = nullGeo();
         const style  = styleGeo(scrGeo, nullGeo);
+        const style2 = styleSize(geo);   // TODO set offset to center image
 
-        addImgToDom(id, url, style, geo, "img " + resizeAlg, () => {});
+        addImgToDom(id, url, style, style2, "img " + resizeAlg, () => {});
 
         animTransMedia(cs.transDur)(k);
     }
@@ -3072,6 +3040,7 @@ function addZoomableImg(url, geo, resizeAlg) {
         const imgGeo = fitToScreenGeo(geo, resizeAlg);
         const offset = placeOnScreen(imgGeo);
         const style  = styleGeo(imgGeo, offset, "hidden");
+        const style2 = styleSize(imgGeo);
 
         function initZoom(e) {
             trc(1, "initZoom: start zooming image with id=" + this.id );
@@ -3087,19 +3056,19 @@ function addZoomableImg(url, geo, resizeAlg) {
             i.addEventListener("dblclick", initZoom);
         }
 
-        addImgToDom(id, url, style, geo, "img " + resizeAlg, addHandler);
+        addImgToDom(id, url, style, style2, "img " + resizeAlg, addHandler);
 
         animTransMedia(cs.transDur)(k);
     }
     return doit;
 }
 
-function addImgToDom(id, url, style, geo, cls, addHandler) {
+function addImgToDom(id, url, style, style2, cls, addHandler) {
 
     const e = getElem(id);
     setCSS(e, style);
 
-    const i = newImgElem(id, styleSize(geo), cls);
+    const i = newImgElem(id, style2, cls);
     addHandler(i);
     i.src   = url;
     e.appendChild(i);
@@ -3109,7 +3078,31 @@ function addImgToDom(id, url, style, geo, cls, addHandler) {
 //
 // run an animation to show current slide element
 
+function animCurrent1(getE, a) {
+    function doit(k) {
+        const e = getE();
+        e.classList.value = "visibleImage";
+        anim(a)(e, k);
+    }
+    return doit;
+}
+
 function animCurrent(a) {
+    function getE() {
+        return getElem(cs.imgId);
+    }
+    return animCurrent1(getE, a);
+}
+
+function animCurrentImg(a) {
+    function getE() {
+        return getElem(mkImgId(cs.imgId));
+    }
+    return animCurrent1(getE, a);
+}
+
+
+function animCurrentX(a) {
 
     function doit(k) {
         const e = getElem(cs.imgId);
@@ -3118,6 +3111,7 @@ function animCurrent(a) {
     }
     return doit;
 }
+
 
 // run an animation to hide last slide element and cleanup element
 
@@ -3186,6 +3180,15 @@ function animTransMedia(dur) {
             tr = transFadeOutIn(fadeout(dur), fadein(dur));  // col/blog -> img
         }
         tr(k);
+    }
+    return doit;
+}
+
+function animTransZoom(zoomAnim) {
+    function doit(k) {
+        const tr1 = transCrossFade(fadeout(1000), fadein(1000));  // transition to fullsize image slide
+        const tr2 = animCurrentImg(zoomAnim);                   // zoom transition
+        comp(tr1, tr2)(k);
     }
     return doit;
 }
