@@ -2942,7 +2942,7 @@ function buildMovieSlide() {
             v2.src    = url;
             e.appendChild(v2);
         }
-        animTransitionDefault()(k);
+        animTransMedia(cs.transDur)(k);
     }
     return doit;
 }
@@ -3075,7 +3075,7 @@ function switchResizeImg(url, geo, resizeAlg, pos) {
             addZoomImg(url, geo, resizeAlg, pos)(k);
         }
         else if (resizeAlg === "panorama") {
-            loadPanoramaImg(id, url, geo);        // todo
+            loadPanoramaImg(id, url, geo);        // TODO
             animTransitionDefault()(k);
         }
         else if (resizeAlg === "fullsize") {
@@ -3123,7 +3123,7 @@ function addZoomImg(url, geo, resizeAlg, clickPos) {
 
         addImgToDom(id, url, style, null, "img " + resizeAlg, () => {});
 
-        animTransitionDefault()(k);
+        animTransitionDefault()(k);  // TODO
     };
     return doit;
 }
@@ -3137,7 +3137,7 @@ function addFullImg(url, geo, resizeAlg) {
 
         addImgToDom(id, url, style, geo, "img " + resizeAlg, () => {});
 
-        animTransitionDefault()(k);
+        animTransMedia(cs.transDur)(k);
     }
     return doit;
 }
@@ -3167,7 +3167,7 @@ function addZoomableImg(url, geo, resizeAlg) {
 
         addImgToDom(id, url, style, geo, "img " + resizeAlg, addHandler);
 
-        animTransitionDefault()(k);
+        animTransMedia(cs.transDur)(k);
     }
     return doit;
 }
@@ -3238,6 +3238,23 @@ function animTransCollection(dur) {
         }
         else if ( lst != "empty" ) {
             tr = transFadeOutIn(fadeout(dur), fadein(dur));
+        }
+        tr(k);
+    }
+    return doit;
+}
+
+// transition to image or movie
+
+function animTransMedia(dur) {
+
+    function doit(k) {
+        const lst = ls.slideType || "json";
+
+        var tr = transCrossFade(fadeout(dur), fadein(dur));  // img -> img
+
+        if ( ! isMediaSlide(lst) ) {
+            tr = transFadeOutIn(fadeout(dur), fadein(dur));  // col/blog -> img
         }
         tr(k);
     }
