@@ -2674,15 +2674,17 @@ function zoomOut1(geo0, off0, geo1, off1) {
 
 // --------------------
 
-function runAnim(e, a) {
+// run an animation a on element e and continue with k
 
-    function doit(k) {
-        trc(1, "runAnim: animation = " + JSON.stringify(a));
+function anim(a) {
+
+    function doit(e, k) {
+        trc(1, `anim start: id=${e.id}: a=${JSON.stringify(a)}`);
 
         var animation;
 
         function k1() {
-            trc(1, e.tagName + " " + e.id + ": animation finished");
+            trc(1, `anim end: id=${e.id}`);
 
             // Commit animation state to style attribute
             animation.commitStyles();
@@ -2702,86 +2704,6 @@ function runAnim(e, a) {
     };
     return doit;
 }
-
-// run 2 animations sequentially for 2 elemennts
-
-function runAnimSeq2(a1, a2) {
-    function seq(e1, e2) {
-        function doit(k) {
-            runAnim(e1, a1)(() => { runAnim(e2, a2)(k); });
-        }
-        return doit;
-    }
-    return seq;
-}
-
-// run 2 animations sequentially for the same elemennts
-
-function runAnimSeq(a1, a2) {
-    return (e) => {
-        return runAnimSeq2(a1, a2)(e, e);
-    };
-}
-
-// run 2 animations for 2 different elemennts in parallel
-// syncronisation is doen with snd animation
-
-function runAnimPar2(a1, a2) {
-    function par(e1, e2) {
-        function doit(k) {
-            runC(runAnim(e1, a1)); // run async continuation
-            runAnim(e2, a2)(k);
-        };
-        return doit;
-    }
-    return par;
-}
-
-// --------------------
-
-function finishImg(e, a) {
-
-    function doit(k) {
-        runAnim(e, a)(() => {
-            clearImageElem(e);
-            k();
-        });
-    }
-    return doit;
-}
-
-function animVisible(e, a) {
-
-    function doit(k) {
-        setCSS(e, {display: "block", opacity: 0});
-        runAnim(e, a)(k);
-    }
-    return doit;
-}
-
-function animNotVisible(e, a) {
-
-    function doit(k) {
-        runAnim(e, a)(() => {
-            setCSS(e, {display: none, opacity: ''});
-            k();
-        });
-    }
-    return doit;
-}
-
-// animate the img inside e
-
-function animElem(id, a) {
-    function doit(k) {
-        trc(1, "animElem.doit: id=" + id + ' ' + JSON.stringify(a));
-        const e = getElem(id);
-        runAnim(e, a)(k);
-    }
-    return doit;
-}
-
-function fadeoutImg(e, dur) { return finishImg(e, fadeout(dur)); }
 
 // ----------------------------------------
 // cs: current slide
@@ -3184,25 +3106,32 @@ function addImgToDom(id, url, style, geo, cls, addHandler) {
 }
 
 // --------------------
+//
+// run an animation to show current slide element
 
 function animCurrent(a) {
+
     function doit(k) {
         const e = getElem(cs.imgId);
         e.classList.value = "visibleImage";
-        runAnim(e, a)(k);
+        anim(a)(e, k);
     }
     return doit;
 }
 
+// run an animation to hide last slide element and cleanup element
+
 function animLast(a) {
+
     function doit(k) {
-        if ( ls.slideType != "") {
+        if ( ls.slideType != "") {         // not first slide
             const e = getElem(ls.imgId);
-            runAnim(e, a)(() => {
-                e.classList.value = "hiddenImage";
-                clearImageElem(e);
-                k();
-            });
+            anim(a)(e,
+                    () => {
+                        e.classList.value = "hiddenImage";
+                        clearImageElem(e);
+                        k();
+                    });
         } else {
             k();
         }
@@ -3229,14 +3158,14 @@ function transCrossFade(aout, ain) {
 function animTransCollection(dur) {
 
     function doit(k) {
-        const lst = ls.slideType || "empty";
+        const lst = ls.slideType || "";
 
         var tr = animCurrent(fadein(dur));    // initial transition
 
         if ( lst === "json" ) {
             tr = transCrossFade(fadeout(dur), fadein(dur));
         }
-        else if ( lst != "empty" ) {
+        else if ( lst != "" ) {
             tr = transFadeOutIn(fadeout(dur), fadein(dur));
         }
         tr(k);
@@ -3406,20 +3335,5 @@ const c1 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder.json";
 const u1 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0000.json";
 const u2 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0001.json";
 const u3 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0002.json";
-
-function k1(u) {
-    return compl(
-        [ gotoSlide(u),
-          switchSlide(),
-          animTransitionDefault(),
-          animCurrent(magnify(0.5)(1000)),
-          animCurrent(noAnim(1000)),
-          animCurrent(shrink(0.5)(1000)),
-        ]);
-}
-
-function ttt(u) {
-    runC(comp(gotoSlide(u), switchSlide()));
-}
 
 // ----------------------------------------
