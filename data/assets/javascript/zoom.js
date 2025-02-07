@@ -648,75 +648,7 @@ function getCurrImgElem() {
     return getElem(mkImgId(cs.imgId));
 }
 
-/* ---------------------------------------- */
-
-function currImgId() {
-    return cs.imgId;
-}
-
-function nextImgId() {
-    return nextimg[cs.imgId];
-}
-
 // ----------------------------------------
-// simplest transition: exchange images without animation
-
-function cut(id1, id2) {
-    trc(1, "cut: " + id1);
-    const e1 = getElem(id1);
-    const e2 = getElem(id2);
-
-    nextAnimClass(e2, "visibleImage", "hiddenImage");
-    nextAnimClass(e1, "hiddenImage", "visibleImage");
-    clearImageElem(e2);
-}
-
-// ----------------------------------------
-// crossfade images
-
-let defaultTransDur = 1.0;
-
-function crossFade(id1, id2, dur0) {
-    const e1 = getElem(id1);
-    const e2 = getElem(id2);
-    const dur = dur0 || defaultTransDur;
-    trc(1, `crossFade: ${id1}, ${dur}sec`);
-
-    setAnimDur(e2, dur);
-    nextAnimClass(e2, "visibleImage", "fadeoutImage")
-        || nextAnimClass(e2, "fadeinImage", "fadeoutImage");
-
-    setAnimDur(e1, dur);
-    nextAnimClass(e1, "hiddenImage", "fadeinImage");
-}
-
-// ----------------------------------------
-// fadeout fadein
-
-function fadeOutIn(id1, id2, dur0) {
-    const e1 = getElem(id1);
-    const e2 = getElem(id2);
-    const dur = (dur0 || defaultTransDur) / 1;
-    trc(1, `fadeOutIn: ${id1}, ${dur}sec`);
-
-    setAnimDur(e2, dur);
-    nextAnimClass(e2, "visibleImage", "fadeoutImage")
-        || nextAnimClass(e2, "fadeinImage", "fadeoutImage");
-
-    // setCSS(e1, {opacity: 0});
-    setAnimDur(e1, dur, dur);
-    nextAnimClass(e1, "hiddenImage", "fadeinImage");
-
-}
-
-// ----------------------------------------
-
-function setAnimDur(e, dur, delay) {
-    const del = delay || 0;
-    setCSS(e, {"animation-duration": dur + "s",
-               "animation-delay":    del + "s"
-              });
-}
 
 // <div id="image1/2" ...>...</div> is thrown away and
 // and a new but empty elem with same id is recreated
@@ -727,7 +659,7 @@ function clearImageElem(e) {
     } else {
         const id = e.id;
         const p  = e.parentElement;
-        cancelAnims(e);
+        // cancelAnims(e);
         e.remove();
 
         const ne = newElem("div", id, {}, "hiddenImage");
@@ -745,6 +677,8 @@ function cancelAnims(e) {
 }
 
 // ----------------------------------------
+
+let defaultTransDur = 1.0;
 
 function slowDownTransAnim() {
     defaultTransDur += 0.25;
@@ -766,10 +700,6 @@ function showAnimDur() {
 }
 
 /* ---------------------------------------- */
-/* global state */
-
-var lastPage = null;
-var currPage = null;
 
 var picCache = new Image();
 
@@ -1134,6 +1064,13 @@ function getNavReq(nav) {
     return cs.page.imgNavRefs[nav];
 }
 
+function getChild0Req() {
+    if ( isColSlide() ) {
+        const req = cs.page.contIcons[0].eReq;
+        if ( req ) { return req; }
+    }
+    return null;
+}
 // ----------------------------------------
 // event handler
 
@@ -1158,19 +1095,14 @@ function goForward() {
     showNextSlide(req);
 }
 
-
 function gotoChild0() {
-    if ( isColSlide() ) {
-        const c = cs.page.contIcons[0];
-        if (c) {
-            showNextSlide(c.eReq);
-        }
-    }
+    const req = getChild0Req();
+    showNextSlide(req);
 }
 
 // reload
 function stayHere() {
-    return showNextSlide(cs.slideReq, cs.resizeAlg, cs.zoomPos);
+    return showNextSlide(cs.slideReq);
 }
 
 // call catalog edit
@@ -1234,7 +1166,7 @@ function toggleHelp() {
 
 // ------------------------------------------------------------
 //
-// new handlers
+// event handlers for image animations
 
 function toggleFullSlide() {
     if ( isImgSlide() ) {
@@ -1267,26 +1199,6 @@ function togglePanoSlide() {
         }
     }
 }
-
-// ------------------------------------------------------------
-
-/*
-function toggleMagnifiedImg() {
-    if ( isPic() || isMovie() ) {
-        if ( isTinyImgPage() ) {
-            if ( isMagnifiedImg() ) {
-                showPage(currPage);
-            } else {
-                if ( isPic() ) {
-                    showMagnifiedImg(currPage);
-                } else {
-                    showMagnifiedMovie(currPage);
-                }
-            }
-        }
-    }
-}
-*/
 
 function togglePanoAnimation() {
     trc(1, "togglePanoAnimation fired");
@@ -1815,25 +1727,40 @@ function slideDur() {
     return t * slideShowSpeed;
 }
 
+function nextReqGlobal() {
+    return getNavReq("fwrd");
+}
+
+function nextReqLocal() {
+    return isColSlide()
+        ? getChild0Req()
+        : getNavReq("next");
+}
+
 function advanceSlideShow() {
-    trc(1, "advance SlideShow");
-    const hasNext = ( slideShowType == "allColls")
-          ? goForward()
-          : ( isColSlide()
-              ? gotoChild0()
-              : gotoNext()
-            );
-    if (! hasNext) {
+    trc(1, "advance SlideShow start");
+    const req =
+          (slideShowType === "allColls")
+          ? nextReqGlobal()
+          : nextReqLocal();
+
+    if (! req) {
         stopSlideShow();
         gotoPar();
-    } else {
+    }
+    else {
+        // install timer
         const ms = slideDur();
         slideShowTimer = setTimeout(advanceSlideShow, ms);
         trc(1, "advanceSlideShow timer set msec: " + ms + " (" + slideShowType + ")");
+
+        // show slide
+        showNextSlide(req);
     }
 }
 
 function stopSlideShow() {
+    trc(1, "stopSlideShow");
     if (slideShow) {
         if (typeof slideShowTimer != "undefined") {
             clearTimeout(slideShowTimer);
@@ -1847,6 +1774,7 @@ function stopSlideShow() {
 }
 
 function startSlideShow() {
+    trc(1, "startSlideShow");
     if (! slideShow) {
         slideShow = true;
         showStatus("Automatischer Bildwechsel gestartet");
@@ -2191,26 +2119,22 @@ function switchSlide() {
     function doit(k) {
         trc(1, "switchSlide");
 
-        const page = cs.page;
-        const sType  = cs.slideType;
-
-        // for old show funtions
-        lastPage = ls.page;
-        currPage = cs.page;
+        const page  = cs.page;
+        const sType = cs.slideType;
 
         buildInfo();
         setPageTitle();
 
-        if (sType == "json") {
+        if ( isColSlide() ) {
             buildCollectionSlide()(k);
         }
-        else if (sType === "movie" || sType === "gif") {
+        else if ( isMovieSlide() ) {
             buildMovieSlide()(k);
         }
-        else if (sType === "page") {
+        else if ( isBlogSlide() ) {
             buildBlogSlide()(k);
         }
-        else if ( ["img", "imgfx", "icon", "iconp"].includes(sType) ) {
+        else if ( isImgSlide() ) {
             loadImgCache()(k);
         }
         else {
@@ -2693,22 +2617,30 @@ function isColSlide(s) {
 function isMediaSlide(s) {
     s = s || cs;
     const t = s.slideType || "";
-    return ["img",
-            "imgfx",
-            "icon",
-            "iconp",
-            "gif",
-            "movie",
+    return [ "img",
+             "imgfx",
+             "icon",
+             "iconp",
+             "gif",
+             "movie",
            ].includes(t);
 }
 
 function isImgSlide(s) {
     s = s || cs;
     const t = s.slideType || "";
-    return ["img",
-            "imgfx",
-            "icon",
-            "iconp",
+    return [ "img",
+             "imgfx",
+             "icon",
+             "iconp",
+           ].includes(t);
+}
+
+function isMovieSlide(s) {
+    s = s || cs;
+    const t = s.slideType || "";
+    return [ "gif",
+             "movie",
            ].includes(t);
 }
 
