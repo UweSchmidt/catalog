@@ -1684,7 +1684,7 @@ function gotoChild0() {
 
 // reload
 function stayHere() {
-    return showNextSlide(cs.slideReq);
+    return showNextSlide(cs.slideReq, cs.resizeAlg, cs.zoomPos);
 }
 
 // call catalog edit
@@ -1924,18 +1924,17 @@ function toggleVideoAttr(a) {
 
 function setPageTitle() {
     let txt = "";
-    if ( isColPage() ) {
-        const cd = currPage.colDescr;
+    if ( isColSlide(cs.slideType) ) {
+        const cd = cs.page.colDescr;
         txt = cd.eMeta["Descr:Title"]
             ||
             baseName(cd.eReq.rPathPos);
     } else {
-        txt = baseName(currPage.img[0]);
+        txt = baseName(cs.page.img[0]);
     }
     const e = getElem(title);
     clearCont(e).appendChild(newText(txt));
 }
-
 
 // ----------------------------------------
 // keyboard input
@@ -2495,44 +2494,6 @@ function initHandlers() {
                                handleInfoAnim(id);
                            });
     }
-    for (let id of [img1, img2]) {
-        const e = getElem(id);
-        e.addEventListener("animationend",
-                           function () {
-                               handleImageAnim(id);
-                            });
-    }
-}
-
-// ----------------------------------------
-// image1 / image2 overlay animation
-
-function handleImageAnim(id) {
-    trc(1, `handleImageAnim: ${id}`);
-    const e = getElem(id);
-    nextAnimClass(e, "fadeinImage", "visibleImage");
-    nextAnimClass(e, "fadeoutImage", "hiddenImage")
-        && clearImageElem(e);
-}
-
-function hideImageElem(id) {
-    trc(1, "hideImageElem:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadeinImage",  "fadeoutImage");
-    nextAnimClass(e, "visibleImage", "fadeoutImage") && clearCont(e);
-}
-
-function showImageElem(id) {
-    trc(1, "showImageElem:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadeoutImage", "fadeinImage");
-    nextAnimClass(e, "hiddenImage",  "fadeinImage");
-}
-
-function isHiddenImage(id) {
-    trc(1, 'isHiddenImage: id=' + id);
-    const cs = getElem(id).classList;
-    return cs.contains("hiddenImage") || cs.contains("fadeoutImage");
 }
 
 // ----------------------------------------
@@ -3109,9 +3070,12 @@ function addFullImg(url, geo, resizeAlg) {
     function doit(k) {
         const id     = cs.imgId;
         const scrGeo = screenGeo();
-        const offset = nullGeo();
         const style  = styleGeo(scrGeo, nullGeo);
-        const style2 = styleSize(geo);   // TODO set offset to center image
+
+        // const offset = halfGeo(subGeo(scrGeo, geo)); // nice try
+        // const style2 = styleGeo(geo, offset);     // nice try, does not work
+        const style2 = styleSize(geo);
+        style2.position  = "absolute";
 
         addImgToDom(id, url, style, style2, "img " + resizeAlg, () => {});
 
@@ -3188,18 +3152,6 @@ function animCurrentImg(a) {
     }
     return animCurrent1(getE, a);
 }
-
-
-function animCurrentX(a) {
-
-    function doit(k) {
-        const e = getElem(cs.imgId);
-        e.classList.value = "visibleImage";
-        anim(a)(e, k);
-    }
-    return doit;
-}
-
 
 // run an animation to hide last slide element and cleanup element
 
@@ -3303,50 +3255,6 @@ function animTransBlog(dur) {
     return doit;
 }
 
-function animTransition(dur) {
-
-    function doit(k) {
-        // global context variables cs and ls need to be accessed here
-        // not when animTranition is executed
-
-        // default transition: fadeout-fadein
-        var tr = transFadeOutIn(fadeout(dur), fadein(dur));
-
-        // img -> zoom
-        if ( cs.resizeAlg === "zoom" ) {
-            const tr1 = transFadeOutIn(fadeout(100), fadein(0));
-            const tr2 = animCurrent(cs.zoomInAnim);
-            trc(1, "anim zoom: a=" + JSON.stringify(cs.zoomInAnim));
-            tr = comp(tr1, tr2);
-        }
-        // no animation
-        else if ( dur === 0 ) {
-
-            // transition with duration 0 sec: only CSS settings needed
-            tr = transCrossFade(fadeout(dur), fadein(dur));
-        }
-        // crossfade transition for img -> img or col -> col
-        else if ( ( isMediaSlide(cs.slideType) && isMediaSlide(ls.slideType) )
-                  ||
-                  ( isColSlide(cs.slideType) && isColSlide(ls.slideType) )
-                ) {
-
-            // both slides are media slides or both a collection slides: cross-fade
-            tr = transCrossFade(fadeout(dur), fadein(dur));
-        };
-        tr(k);
-    }
-    return doit;
-}
-
-function animTransitionDefault() {
-    return animTransition(animDur());
-}
-
-function animDur() {
-    return defaultTransDur * 1000;
-}
-
 // --------------------
 //
 // slide predicates
@@ -3392,7 +3300,7 @@ function idC(k) {
 
 function comp(f1, f2) {
     function doit(k) {
-        trc(1, "comp.doit");
+        // trc(1, "comp.doit");
         f1(() => { f2(k); });
     }
     return doit;
