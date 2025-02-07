@@ -654,35 +654,6 @@ function nextImgId() {
     return nextimg[cs.imgId];
 }
 
-function toggleImg12(id, noTrans)  {
-    const trans = getTransition(currPage,
-                                lastPage,
-                                noTrans ? true : false);
-    trans(id, nextimg[id]);
-}
-
-// ----------------------------------------
-// simplest transition: exchange images without animation
-
-function getTransition(cp, lp, noTrans) {
-    if ( noTrans || defaultTransDur === 0) {
-        return cut;
-    }
-    if (isImgPage(currPage)
-        && lastPage != null
-        && isImgPage(lastPage)
-       ) {
-        return crossFade;
-    }
-    if (isColPage(currPage)
-        && lastPage != null
-        && isColPage(lastPage)
-       ) {
-        return crossFade;
-    }
-    return fadeOutIn;
-}
-
 // ----------------------------------------
 // simplest transition: exchange images without animation
 
@@ -1147,16 +1118,6 @@ function isFullsizeImgPage(page) {
     return false;
 }
 
-function isPanoImgPage() {               // a panoaram image is larger
-    if ( isImgPage() ) {                 // tha the screen and has an
-        const req = currPage.imgReq;     // aspect ratio >= 2
-        if ( isPicReq(req) ) {
-            return isPano(readGeo(currPage.oirGeo[0]));
-            }
-        }
-    return false;
-}
-
 function isTinyImgPage() {
     if ( isImgPage() ) {
         const req = currPage.imgReq;
@@ -1169,75 +1130,31 @@ function isTinyImgPage() {
 }
 
 // ----------------------------------------
-// predicates for current visible part of DOM
-
-function isPic() {
-    const e = getCurrImgElem();
-    return e && e.classList.contains("img");
-}
-
-function isMovie() {
-    const e = getCurrImgElem();
-    return e && e.classList.contains("movie");
-}
-
-function isFullImg() {
-    const e = getCurrImgElem();
-    return e && e.classList.contains("fullsize");
-}
-
-function isZoomImg() {
-    const e = getCurrImgElem();
-    return e && e.classList.contains("zoom");
-}
-
-function isMagnifiedImg() {
-    const e = getCurrImgElem();
-    return e && e.classList.contains("magnify");
-}
-
-function isPanoImg() {
-    const e = getCurrImgElem();
-    return e && e.classList.contains("panorama");
-}
-
-// ----------------------------------------
 // page access functions
 
-function getPageType(page) {
-    return getPageReq(page).rType;
+function getSlideMeta() {
+    if ( isColSlide() ) {
+        return cs.page.colDescr.eMeta;
+    }
+    return cs.page.img[2];
 }
 
-function getPageReq(page) {
-    page = page || currPage;
-    return isColPage(page)
-        ? page.colDescr.eReq
-        : page.imgReq;
-}
-
-function getPageMeta(page) {
-    page = page || currPage;
-    return isColPage(page)
-        ? page.colDescr.eMeta
-        : page.img[2];
-}
-
-function getPageBlog(page) {
-    page = page || currPage;
-    const md = getPageMeta(page);   // new blog access: blog is part of metadata
+function getSlideBlog() {
+    const md = getSlideMeta();   // new blog access: blog is part of metadata
     const bt = md["Descr:Blog"];
     if (bt) {
         return bt;
     } // else {return "";}         // TODO cleanup, when server has been updated
-    return page.blogCont;      // old blog access: blog is in blogCont field;
+    return cs.page.blogCont;      // old blog access: blog is in blogCont field;
 }
 
-function getNavReq(nav, page) {
-    page = page || currPage;
-    return isColPage(page)
-        ? page.navIcons[nav].eReq
-        : page.imgNavRefs[nav];
+function getNavReq(nav) {
+    if ( isColSlide() ) {
+        return cs.page.navIcons[nav].eReq;
+    }
+    return cs.page.imgNavRefs[nav];
 }
+
 // ----------------------------------------
 // event handler
 
@@ -1264,7 +1181,7 @@ function goForward() {
 
 
 function gotoChild0() {
-    if ( isColSlide(cs.slideType) ) {
+    if ( isColSlide() ) {
         const c = cs.page.contIcons[0];
         if (c) {
             showNextSlide(c.eReq);
@@ -1297,7 +1214,7 @@ function openEditPage(path, pos) {
 // ----------------------------------------
 
 function buildInfo() {
-    const md = getPageMeta();
+    const md = getSlideMeta();
     const it = getElem(infoTab);
     buildMetaInfo(it, md);
 }
@@ -1341,7 +1258,7 @@ function toggleHelp() {
 // new handlers
 
 function toggleFullSlide() {
-    if ( isImgSlide(cs.slideType) ) {
+    if ( isImgSlide() ) {
         if ( cs.resizeAlg != "fullsize" ) {
             gotoUrl(cs.url, "fullsize");
         } else {
@@ -1351,7 +1268,7 @@ function toggleFullSlide() {
 }
 
 function toggleZoomSlide(zoomPos) {
-    if ( isImgSlide(cs.slideType) ) {
+    if ( isImgSlide() ) {
         if ( cs.resizeAlg === "zoom" ) {
             gotoUrl(cs.url, "fullsize");
         } else {
@@ -1361,7 +1278,7 @@ function toggleZoomSlide(zoomPos) {
 }
 
 function togglePanoSlide() {
-    if ( isImgSlide(cs.slideType) ) {
+    if ( isImgSlide() ) {
         if ( isPanoSlide() ) {
             if ( cs.resizeAlg != "panorama" ) {
                 gotoUrl(cs.url, "panorama");
@@ -1372,36 +1289,9 @@ function togglePanoSlide() {
     }
 }
 
-function isPanoSlide() {
-    if ( isImgSlide(cs.slideType) ) {
-        const geo = readGeo(cs.page.oirGeo[0]);
-        return isPano(geo);
-    }
-}
 // ------------------------------------------------------------
 
 /*
-function toggleFullImg() {
-    if ( isPic() ) {
-        if ( isFullImg() ) {
-            showImg(currPage);            // reset to normal size
-        } else {
-            showFullSizeImg(currPage);    // show in full resolution
-        }
-    }
-}
-*/
-
-function toggleZoomImg(zoomPos) {
-    if ( isPic() ) {
-        if ( isZoomImg() ) {
-            showNoTransImg(currPage);       // reset to normal size without animation
-        } else {
-            showZoomImg(currPage, zoomPos); // zoom into full resolution
-        }
-    }
-}
-
 function toggleMagnifiedImg() {
     if ( isPic() || isMovie() ) {
         if ( isTinyImgPage() ) {
@@ -1417,27 +1307,7 @@ function toggleMagnifiedImg() {
         }
     }
 }
-
-function toggleZoomAnimation() {
-    trc(1, "toggleZoomAnimation fired");
-    if ( isZoomImg() ) {
-        const i = getCurrImgElem();
-        const s = i.style.animationPlayState;
-        trc(1, "toggleZoomAnimation: " + s);
-        setCSS(i, { animationPlayState: (false ? "paused" : "running")        });
-    }
-}
-
-
-function old_togglePanoAnimation() {
-    trc(1, "togglePanoAnimation fired");
-    if (isPanoImg()) {
-        const i = getCurrImgElem();
-        const s = i.style.animationPlayState;
-        setCSS(i, { animationPlayState: (s === "running" ? "paused" : "running")
-                  });
-    }
-}
+*/
 
 function togglePanoAnimation() {
     trc(1, "togglePanoAnimation fired");
@@ -1456,16 +1326,6 @@ function togglePanoAnimation() {
                 trc(1, "pause anim");
                 a.pause();
             }
-        }
-    }
-}
-
-function togglePanoImg() {
-    if (isPanoImgPage()) {
-        if (isPanoImg()) {
-            stayHere();
-        } else {
-            showPanoramaImg(currPage);
         }
     }
 }
@@ -1514,7 +1374,7 @@ function toggleVideoAttr(a) {
 
 function setPageTitle() {
     let txt = "";
-    if ( isColSlide(cs.slideType) ) {
+    if ( isColSlide() ) {
         const cd = cs.page.colDescr;
         txt = cd.eMeta["Descr:Title"]
             ||
@@ -1704,13 +1564,13 @@ function keyPressed (e) {
         toggleFullSlide();
         return false;
     }
-
+    /*
     if ( isKey(e, 108, "l") ) {
         stopSlideShow();
         toggleMagnifiedImg();
         return false;
     }
-
+    */
     if ( isKey(e, 97, "a") ) {
         stopSlideShow();
         togglePanoSlide();
@@ -1966,7 +1826,7 @@ const slideShowDefaultSpeed = 5000;  // default: 5 sec in milliseconds
 var   slideShowSpeed = slideShowDefaultSpeed;  // default: 5 sec in milliseconds
 
 function slideDur() {
-    const md = getPageMeta();
+    const md = getSlideMeta();
     const d  = md["Descr:Duration"];
     let   t  = 1; // seconds
     if (d) {
@@ -1980,7 +1840,7 @@ function advanceSlideShow() {
     trc(1, "advance SlideShow");
     const hasNext = ( slideShowType == "allColls")
           ? goForward()
-          : ( isColPage()
+          : ( isColSlide()
               ? gotoChild0()
               : gotoNext()
             );
@@ -2458,7 +2318,7 @@ function buildBlogSlide() {
 
         const req  = page.imgReq;
         const geo  = pxGeo(screenGeo());
-        const txt  = getPageBlog(page);
+        const txt  = getSlideBlog();
 
         trc(1, "buildBlogPage: " + txt);
 
@@ -2494,7 +2354,7 @@ function buildCollectionSlide() {
         const colDescr = page.colDescr;
         const colReq   = colDescr.eReq;
         const colMeta  = colDescr.eMeta;
-        const colBlog  = getPageBlog(page);
+        const colBlog  = getSlideBlog();
         const navIcons = page.navIcons;
         const c1Icon   = page.c1Icon;
         const colIcons = page.contIcons;
@@ -2782,14 +2642,12 @@ function transCrossFade(aout, ain) {
 function animTransCollection(dur) {
 
     function doit(k) {
-        const lst = ls.slideType || "";
-
         var tr = animCurrent(fadein(dur));    // initial transition
 
-        if ( lst === "json" ) {
+        if ( isColSlide(ls) ) {
             tr = transCrossFade(fadeout(dur), fadein(dur));
         }
-        else if ( lst != "" ) {
+        else if ( isSlide(ls) ) {
             tr = transFadeOutIn(fadeout(dur), fadein(dur));
         }
         tr(k);
@@ -2802,11 +2660,9 @@ function animTransCollection(dur) {
 function animTransMedia(dur) {
 
     function doit(k) {
-        const lst = ls.slideType || "json";
-
         var tr = transCrossFade(fadeout(dur), fadein(dur));  // img -> img
 
-        if ( ! isMediaSlide(lst) ) {
+        if ( ! isMediaSlide(ls) ) {
             tr = transFadeOutIn(fadeout(dur), fadein(dur));  // col/blog -> img
         }
         tr(k);
@@ -2849,30 +2705,51 @@ function animTransBlog(dur) {
 //
 // slide predicates
 
-function isColSlide(slideType) {
-    return slideType === "json";
+function isColSlide(s) {
+    s = s || cs;
+    const t = s.slideType || "";
+    return t === "json";
 }
 
-function isMediaSlide(slideType) {
+function isMediaSlide(s) {
+    s = s || cs;
+    const t = s.slideType || "";
     return ["img",
             "imgfx",
             "icon",
             "iconp",
             "gif",
             "movie",
-           ].includes(slideType);
+           ].includes(t);
 }
 
-function isImgSlide(slideType) {
+function isImgSlide(s) {
+    s = s || cs;
+    const t = s.slideType || "";
     return ["img",
             "imgfx",
             "icon",
             "iconp",
-           ].includes(slideType);
+           ].includes(t);
 }
 
-function isBlogSlide(slideType) {
-    return slideType === "page";
+function isBlogSlide(s) {
+    s = s || cs;
+    const t = s.slideType || "";
+    return t === "page";
+}
+
+function isSlide(s) {
+    s = s || cs;
+    const t = s.slideType || "";
+    return t != "";
+}
+
+function isPanoSlide() {
+    if ( isImgSlide() ) {
+        const geo = readGeo(cs.page.oirGeo[0]);
+        return isPano(geo);
+    }
 }
 
 // ------------------------------------------------------------
