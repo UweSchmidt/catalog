@@ -211,6 +211,10 @@ function isPano(g) {
         && ( ar >= 2 || ar <= 0.5 );
 }
 
+function isTiny(g) {
+    return lessThan(g, screenGeo());
+}
+
 function isHorizontal(g) {
     return aspectRatio(g) > 1;
 }
@@ -723,12 +727,21 @@ function clearImageElem(e) {
     } else {
         const id = e.id;
         const p  = e.parentElement;
+        cancelAnims(e);
         e.remove();
 
         const ne = newElem("div", id, {}, "hiddenImage");
         p.insertBefore(ne, p.children[0]);
-        return ne
+        return ne;
     }
+}
+
+function cancelAnims(e) {
+    const as = e.getAnimations({ subtree: true });
+    as.forEach((a) => {
+        trc(1, "animation canceled");
+        a.cancel();
+    });
 }
 
 // ----------------------------------------
@@ -1093,40 +1106,6 @@ function showErr(errno, url, msg) {
         txt = 'Server Fehler: ' + errno + ', url=' + url;
     }
     showStatus('<span class="errormsg">' + txt + '</span>', 4);
-}
-
-// ----------------------------------------
-// predicates for currPage
-
-function isColPage(page) {
-    page = page || currPage;
-    return ! page.imgReq;
-}
-
-function isImgPage(page) {
-    page = page || currPage;
-    return ! isColPage(page);
-}
-
-function isFullsizeImgPage(page) {
-    page = page || currPage;
-    if ( isImgPage(page) ) {
-        if ( isPicReq(page.imgReq) ) {
-            return eqGeo(readGeo(page.oirGeo[1]), oneGeo);
-        }
-    }
-    return false;
-}
-
-function isTinyImgPage() {
-    if ( isImgPage() ) {
-        const req = currPage.imgReq;
-        if ( isPicReq(req) || isMovieReq(req) ) {
-            const orgGeo = readGeo(currPage.oirGeo[0]);
-            return lessThan(orgGeo, screenGeo());
-        }
-    }
-    return false;
 }
 
 // ----------------------------------------
