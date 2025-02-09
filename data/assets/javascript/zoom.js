@@ -20,6 +20,9 @@ const infoTab = "info-table";
 const help    = "help";
 const status  = "status";
 
+var statusEnabled = true;
+const statusDur   = 1500;      // default: status messages in msec
+
 // default video attributes
 
 const videoAttrs = { controls: "",
@@ -1820,28 +1823,23 @@ function showDur() {
 // ----------------------------------------
 // status line
 
-var statusEnabled = true;
-var statusTimer   = undefined;
-const statusDur   = 2.0 * 1000;      // default: status messages are shown for 2 seconds
-
 function showStatus(msg, dur) {
-    if (statusEnabled) {
-        dur = dur || 1;
-        dur = statusDur * dur;
-        hideStatus();
+    if ( statusEnabled ) {
+        dur = dur || statusDur;
+        const se = clearDomElem(status);
+        se.innerHTML = msg;
 
-        const s = getElem(status);
-        s.innerHTML = msg;
-        statusTimer = setTimeout(hideStatus, dur);
-        showAnimElem(status);
-    }
-}
+        const a = compl[ fadein(500),
+                         noAnim(dur),
+                         fadeout(500)
+                       ];
+        function getStatus() { return se; }
 
-function hideStatus() {
-    if (typeof statusTimer != "undefined") {
-        clearTimeout(statusTimer);
+        runC(compl([ animElement(getStatus, fadein(500)),
+                     animElement(getStatus, noAnim(dur)),
+                     animElement(getStatus, fadeout(500)),
+                   ]));
     }
-    hideAnimElem(status);
 }
 
 // ----------------------------------------
@@ -2486,10 +2484,11 @@ function addImgToDom(id, url, style, style2, cls, addHandler) {
 //
 // run an animation to show current slide element
 
-function animCurrent1(getE, a) {
+function animElement(getE, a) {
     function doit(k) {
         const e = getE();
         e.classList.value = "visibleImage";
+        trc(1, "animElement: " + e.id + ", " + JSON.stringify(a));
         anim(a)(e, k);
     }
     return doit;
@@ -2499,14 +2498,14 @@ function animCurrent(a) {
     function getE() {
         return getElem(cs.imgId);
     }
-    return animCurrent1(getE, a);
+    return animElement(getE, a);
 }
 
 function animCurrentImg(a) {
     function getE() {
         return getElem(mkImgId(cs.imgId));
     }
-    return animCurrent1(getE, a);
+    return animElement(getE, a);
 }
 
 // run an animation to hide last slide element and cleanup element
@@ -2673,7 +2672,7 @@ function isPanoSlide() {
 // identity continuation
 
 function idC(k) {
-    // trc(1, "idC");
+    trc(1, "idC");
     k();
 }
 
@@ -2681,7 +2680,7 @@ function idC(k) {
 
 function comp(f1, f2) {
     function doit(k) {
-        // trc(1, "comp.doit");
+        trc(1, "comp.doit");
         f1(() => { f2(k); });
     }
     return doit;
