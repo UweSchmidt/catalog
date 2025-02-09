@@ -650,19 +650,21 @@ function getCurrImgElem() {
 
 // ----------------------------------------
 
-// <div id="image1/2" ...>...</div> is thrown away and
-// and a new but empty elem with same id is recreated
+// element e with id is removed from DOM
+// and substituted by a new unvislibe element (display: none)
+// with same tagName and same id
 
-function clearImageElem(e) {
+function clearDomElem(e) {
     if ( typeof e === "string" ) {
-        return clearImageElem(getElem(e));
+        return clearDomElem(getElem(e));
     } else {
         const id = e.id;
+        const tn = e.tagName;
         const p  = e.parentElement;
-        // cancelAnims(e);
+        cancelAnims(e);
         e.remove();
 
-        const ne = newElem("div", id, {}, "hiddenImage");
+        const ne = newElem(tn, id, {}, "hiddenImage");
         p.insertBefore(ne, p.children[0]);
         return ne;
     }
@@ -714,8 +716,8 @@ function initShow() {
 
     setCSS(imgTab, {width : g.w, height : g.h});
 
-    clearImageElem(img1);
-    clearImageElem(img2);
+    clearDomElem(img1);
+    clearDomElem(img2);
 
     showPath(pathCollections());
 }
@@ -1827,6 +1829,7 @@ function showStatus(msg, dur) {
         dur = dur || 1;
         dur = statusDur * dur;
         hideStatus();
+
         const s = getElem(status);
         s.innerHTML = msg;
         statusTimer = setTimeout(hideStatus, dur);
@@ -2106,7 +2109,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                  };
 
             // create a new empty slide container
-            clearImageElem(cs.imgId);
+            clearDomElem(cs.imgId);
 
             switchSlide()(k);
         }
@@ -2267,7 +2270,7 @@ function buildCollectionSlide() {
         const g        = pxGeo(screenGeo());
 
         // get element, clear contents and set style attributes
-        const e = clearImageElem(id);
+        const e = clearDomElem(id);
         setCSS(e, { width:    g.w,
                     height:   g.h,
                     left:     "0px",
@@ -2516,7 +2519,7 @@ function animLast(a) {
             anim(a)(e,
                     () => {
                         e.classList.value = "hiddenImage";
-                        clearImageElem(e);
+                        clearDomElem(e);
                         k();
                     });
         } else {
