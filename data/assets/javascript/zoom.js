@@ -9,21 +9,23 @@ function trc (t, Text) {
 /* ---------------------------------------- */
 /* id's */
 
-const title       = "head-title";
+const title        = "head-title";
 
-const imgTab      = "imageTab";
-const img1Id      = "image1";
-const img2Id      = "image2";
-const nextimg     = {image1: img2Id, image2: img1Id};
+const imgTab       = "imageTab";
+const img1Id       = "image1";
+const img2Id       = "image2";
+const nextimg      = {image1: img2Id, image2: img1Id};
 
-const infoId      = "info";
-const infoTab     = "info-table";
+const infoId       = "info";
+const infoTab      = "info-table";
+var   infoVisible  = false;
 
-const helpId      = "help";
+const helpId       = "help";
+var   helpVisible  = false
 
-const statusId    = "status";      // status id
-var statusEnabled = true;
-const statusDur   = 1500;      // default: duration (msec) of showing status messages
+const statusId     = "status";      // status id
+var  statusEnabled = true;
+const statusDur    = 1500;      // default: duration (msec) of showing status messages
 
 
 const videoAttrs  = { controls: "",   // default video attributes
@@ -716,7 +718,7 @@ function initShow() {
     const g = pxGeo(screenGeo());
     console.log("initShow: screen geo=" + showGeo(g));
 
-    initHandlers();
+    // initHandlers(); // TODO cleanup
 
     setCSS(imgTab, {width : g.w, height : g.h});
 
@@ -1145,7 +1147,7 @@ function hideInfo() {
     hideAnimElem(infoId);
 }
 
-function toggleInfo() {
+function toggleInfoOld() {
     if (isHiddenAnim(infoId)) {
         showInfo();
     } else {
@@ -1162,7 +1164,7 @@ function hideHelp() {
     hideAnimElem(helpId);
 }
 
-function toggleHelp() {
+function toggleHelpOld() {
     if (isHiddenAnim(helpId)) {
         showHelp();
     } else {
@@ -1836,10 +1838,34 @@ function showStatus(msg, dur) {
     }
 }
 
+function toggleInfo() {
+    const ie = getElem(infoId);
+    cancelAnims(ie);
+
+    function getInfo() { return ie; }
+
+    const a = infoVisible ? fadeout(500) : fadein(500);
+    infoVisible = ! infoVisible;
+
+    runC(animElement(getInfo, a));
+}
+
+function toggleHelp() {
+    const ie = getElem(helpId);
+    cancelAnims(ie);
+
+    function getHelp() { return ie; }
+
+    const a = helpVisible ? fadeout(500) : fadein(500);
+    helpVisible = ! helpVisible;
+
+    runC(animElement(getHelp, a));
+}
+
 // ----------------------------------------
 
 function initHandlers() {
-    for (let id of [infoId, helpId, statusId]) {
+    for (let id of [infoId, helpId]) {
         const e = getElem(id);
         e.addEventListener("animationend",
                            function () {
