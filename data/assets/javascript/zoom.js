@@ -9,26 +9,27 @@ function trc (t, Text) {
 /* ---------------------------------------- */
 /* id's */
 
-const title   = "head-title";
-const imgTab  = "imageTab";
-const img1    = "image1";
-const img2    = "image2";
-const nextimg = {image1: img2, image2: img1};
+const title       = "head-title";
 
-const info    = "info";
-const infoTab = "info-table";
-const help    = "help";
-const status  = "status";
+const imgTab      = "imageTab";
+const img1Id      = "image1";
+const img2Id      = "image2";
+const nextimg     = {image1: img2Id, image2: img1Id};
 
+const infoId      = "info";
+const infoTab     = "info-table";
+
+const helpId      = "help";
+
+const statusId    = "status";      // status id
 var statusEnabled = true;
-const statusDur   = 1500;      // default: status messages in msec
+const statusDur   = 1500;      // default: duration (msec) of showing status messages
 
-// default video attributes
 
-const videoAttrs = { controls: "",
-                     autoplay: null,
-                     muted:    null
-                   };
+const videoAttrs  = { controls: "",   // default video attributes
+                      autoplay: null,
+                      muted:    null,
+                    };
 
 function constF(x) {
     return (y) => { return x; };
@@ -719,8 +720,8 @@ function initShow() {
 
     setCSS(imgTab, {width : g.w, height : g.h});
 
-    clearDomElem(img1);
-    clearDomElem(img2);
+    clearDomElem(img1Id);
+    clearDomElem(img2Id);
 
     showPath(pathCollections());
 }
@@ -1137,35 +1138,35 @@ function buildInfo() {
 
 function showInfo() {
     hideHelp();
-    showAnimElem(info);
+    showAnimElem(infoId);
 }
 
 function hideInfo() {
-    hideAnimElem(info);
+    hideAnimElem(infoId);
 }
 
 function toggleInfo() {
-    if (isHiddenAnim(info)) {
+    if (isHiddenAnim(infoId)) {
         showInfo();
     } else {
-        hideInfo(info);
+        hideInfo(infoId);
     }
 }
 
 function showHelp() {
     hideInfo();
-    showAnimElem(help);
+    showAnimElem(helpId);
 }
 
 function hideHelp() {
-    hideAnimElem(help);
+    hideAnimElem(helpId);
 }
 
 function toggleHelp() {
-    if (isHiddenAnim(help)) {
+    if (isHiddenAnim(helpId)) {
         showHelp();
     } else {
-        hideHelp(help);
+        hideHelp(helpId);
     }
 }
 
@@ -1460,13 +1461,6 @@ function keyPressed (e) {
         toggleFullSlide();
         return false;
     }
-    /*
-    if ( isKey(e, 108, "l") ) {
-        stopSlideShow();
-        toggleMagnifiedImg();
-        return false;
-    }
-    */
     if ( isKey(e, 97, "a") ) {
         stopSlideShow();
         togglePanoSlide();
@@ -1826,7 +1820,7 @@ function showDur() {
 function showStatus(msg, dur) {
     if ( statusEnabled ) {
         dur = dur || statusDur;
-        const se = clearDomElem(status);
+        const se = clearDomElem(statusId);
         se.innerHTML = msg;
 
         const a = compl[ fadein(500),
@@ -1845,7 +1839,7 @@ function showStatus(msg, dur) {
 // ----------------------------------------
 
 function initHandlers() {
-    for (let id of [info, help, status]) {
+    for (let id of [infoId, helpId, statusId]) {
         const e = getElem(id);
         e.addEventListener("animationend",
                            function () {
@@ -2061,7 +2055,7 @@ function anim(a) {
 
 var cs = { url         : "",
            page        : {},
-           imgId       : img1,
+           imgId       : img1Id,
            slideType   : "",
            slideReq    : {},
            resizeAlg   : "",
