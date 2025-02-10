@@ -349,6 +349,11 @@ function resizeToScreenWidth(g) {
     return resizeToWidth(g, screenGeo());
 }
 
+// --------------------
+
+// store current screen geo
+// this may change, when browser window is resized
+
 var theScreenGeo = { w : 0, h : 0 };
 
 function screenGeo() {
@@ -362,6 +367,8 @@ function screenGeo() {
     }
     return theScreenGeo;
 }
+
+// --------------------
 
 function shrinkToScreenGeo(geo) {
     return shrinkGeo(geo, screenGeo());
@@ -708,6 +715,12 @@ function showAnimDur() {
 }
 
 /* ---------------------------------------- */
+
+// when slide images are loaded,
+// this variable is used as cache
+// and code exec is suspended until
+// the requesed image is loaded into this var
+// --> no blackouts during image transitions
 
 var picCache = new Image();
 
@@ -1128,48 +1141,6 @@ function openEditPage(path, pos) {
           );
     trc(1, "openEditPage: url=" + url);
     window.open(url, "_blank");
-}
-
-// ----------------------------------------
-
-function buildInfo() {
-    const md = getSlideMeta();
-    const it = getElem(infoTab);
-    buildMetaInfo(it, md);
-}
-
-function showInfo() {
-    hideHelp();
-    showAnimElem(infoId);
-}
-
-function hideInfo() {
-    hideAnimElem(infoId);
-}
-
-function toggleInfoOld() {
-    if (isHiddenAnim(infoId)) {
-        showInfo();
-    } else {
-        hideInfo(infoId);
-    }
-}
-
-function showHelp() {
-    hideInfo();
-    showAnimElem(helpId);
-}
-
-function hideHelp() {
-    hideAnimElem(helpId);
-}
-
-function toggleHelpOld() {
-    if (isHiddenAnim(helpId)) {
-        showHelp();
-    } else {
-        hideHelp(helpId);
-    }
 }
 
 // ------------------------------------------------------------
@@ -1689,6 +1660,12 @@ function buildMetaInfo (t, md) {
     }
 }
 
+function buildInfo() {
+    const md = getSlideMeta();
+    const it = getElem(infoTab);
+    buildMetaInfo(it, md);
+}
+
 // ----------------------------------------
 
 function getJsonPage(url, processRes, processErr, processNext) {
@@ -1860,59 +1837,6 @@ function toggleHelp() {
     helpVisible = ! helpVisible;
 
     runC(animElement(getHelp, a));
-}
-
-// ----------------------------------------
-
-function initHandlers() {
-    for (let id of [infoId, helpId]) {
-        const e = getElem(id);
-        e.addEventListener("animationend",
-                           function () {
-                               handleInfoAnim(id);
-                           });
-    }
-}
-
-// ----------------------------------------
-// info, help & status animation
-
-function handleInfoAnim(id) {
-    trc(1, "handleInfoanim:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadeinInfo", "visibleInfo");
-    nextAnimClass(e, "fadeoutInfo", "hiddenInfo");
-}
-
-function nextAnimClass(e, cur, nxt) {
-    const cs = e.classList;
-    if (cs.contains(cur)) {
-        cs.remove(cur);
-        cs.add(nxt);
-        trc(1, "nextAnim: cur=" + cur +", nxt=" + nxt + ", cs=" + cs.toString());
-        return true;
-    }
-    return false;
-}
-
-function hideAnimElem(id) {
-    // trc(1, "showAnimElem:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadeinInfo",  "fadeoutInfo");
-    nextAnimClass(e, "visibleInfo", "fadeoutInfo");
-}
-
-function showAnimElem(id) {
-    // trc(1, "toggleAnimElem:" + id);
-    const e = getElem(id);
-    nextAnimClass(e, "fadeoutInfo", "fadeinInfo");
-    nextAnimClass(e, "hiddenInfo",  "fadeinInfo");
-}
-
-function isHiddenAnim(id) {
-    // trc(1, 'isHiddenAnim: id=' + id);
-    const cs = getElem(id).classList;
-    return cs.contains("hiddenInfo") || cs.contains("fadeoutInfo");
 }
 
 // ----------------------------------------
