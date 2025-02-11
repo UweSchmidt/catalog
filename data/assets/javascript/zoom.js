@@ -1943,16 +1943,14 @@ function panorama(dr, dr1, offset) {
 
     function doit(dur) {
         var kf0 = { offset: 0.0 };   kf0[dr] =         "0px";
-        var kf1 = { offset: 0.45 };  kf1[dr] = offset + "px";
-        var kf2 = { offset: 0.55 };  kf2[dr] = offset + "px";
-        var kf3 = { offset: 1.0 };   kf3[dr] =         "0px";
+        var kf1 = { offset: 1.0 };   kf1[dr] = offset + "px";
 
-        const kf = [kf0, kf1, kf2, kf3];
+        const kf = [kf0, kf1];
 
         const t = {
             duration:   dur,
             easing:     'ease-in-out',
-            delay:      2000,
+            delay:      1000,
             direction:  "alternate",
             iterations: 1,
             fill:      "forwards",
@@ -2311,7 +2309,7 @@ function addPanoramaImg(url, geo, resizeAlg) {
         const dr1    = isH ? "top"  : "left";
 
         const ar     = aspectRatio(geo);
-        const dur    = (2.5 * 7.0 * Math.max(ar, 1/ar)) * 1000;      // msec
+        const dur    = 10 * Math.abs(offset); // 10 * number of pixels to move
 
         const style  = styleGeo(scrGeo, nullGeo, "hidden");
         let   style2 = { position: "absolute" };
