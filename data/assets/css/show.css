@@ -181,6 +181,7 @@ div.blog li, div.blog pre {
   left:0px;
 
   overflow: auto;
+  z-index: 9;
 
   /* display: none; */
 }
@@ -200,6 +201,7 @@ div.blog li, div.blog pre {
   left:0px;
 
   overflow: auto;
+  z-index: 10;
 
   /* display: none; */
 }
@@ -219,7 +221,7 @@ div.blog li, div.blog pre {
   right:0px;
 
   overflow: auto;
-
+  z-index: 11;
   /* display: none; */
 }
 
