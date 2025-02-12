@@ -9,7 +9,9 @@ function trc (t, Text) {
 /* ---------------------------------------- */
 /* id's */
 
-const title        = "head-title";
+const version      = "PhotoShow (zoom.html) 0.5.11.0 2025-02-11";
+
+const titleId      = "head-title";
 
 const imgTab       = "imageTab";
 const img1Id       = "image1";
@@ -1276,7 +1278,7 @@ function setPageTitle() {
     } else {
         txt = baseName(cs.page.img[0]);
     }
-    const e = getElem(title);
+    const e = getElem(titleId);
     clearCont(e).appendChild(newText(txt));
 }
 
@@ -1397,9 +1399,7 @@ function keyPressed (e) {
         return false;
     }
 
-    if ( isKey(e, 118, "v")
-         ||
-         isKey(e, 100, "d")
+    if ( isKey(e, 100, "d")
        ) {
         stopSlideShow();
         gotoChild0();
@@ -1466,6 +1466,11 @@ function keyPressed (e) {
 
     if ( isKey(e, 113, "q") ) {
         togglePanoAnimation();
+        return false;
+    }
+
+    if ( isKey(e, 118, "v") ) {
+        showVersion();
         return false;
     }
 
@@ -1812,9 +1817,8 @@ function speedUpSlideShow() {
     showDur();
 }
 
-function showDur() {
-    const s =  Math.round(slideShowSpeed / 100) / 10;
-    showStatus('Automatischer Bildwechsel nach ' + s + " sec.");
+function showVersion() {
+    showStatus(version);
 }
 
 // ----------------------------------------
