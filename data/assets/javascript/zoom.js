@@ -165,6 +165,12 @@ function roundGeo(g) {
            };
 }
 
+function absGeo(g) {
+    return { w : Math.abs(g.w),
+             h : Math.abs(g.h)
+           };
+}
+
 function pxGeo(g) {
     const g1 = roundGeo(g);
     return { w : g1.w + "px",
@@ -209,6 +215,12 @@ function fitsInto(g1, g2) {
 
 function lessThan(g1, g2) {
     return g1.w < g2.w && g1.h < g2.h;
+}
+
+function similarGeo(g1, g2, d) {
+    d = d || 10;
+    const g = absGeo(subGeo(g1, g2));
+    return g.w <= d && g.h <= d;
 }
 
 function isPano(g) {
@@ -420,6 +432,18 @@ function bestFitIconGeo() {
         return readGeo("160x120"); // iMac 27''
 
     return readGeo("256x144");     // eizo 4k display
+}
+
+function getImgGeo2(cxt) {
+    return readGeo(cxt.page.oirGeo[2]);
+}
+
+function similarGeoOnScreen() {
+    const d = 0.03 * screenGeo().w;  // threshold 3% of screen width in comparison
+    const g1 = getImgGeo2(cs);
+    const g2 = getImgGeo2(ls);
+
+    return similarGeo(g1, g2, d);    // similar image geometies on screen
 }
 
 /* ---------------------------------------- */
@@ -1843,7 +1867,7 @@ function toggleHelp() {
 //
 // animation construction
 
-function fade(start, end) {
+function fade(start, end, ease) {
     function doit(dur) {
         const kf = [
             { opacity: start },
@@ -1852,7 +1876,7 @@ function fade(start, end) {
         const t = {
             duration:   dur,
             iterations: 1,
-            easing:     'ease-in-out',
+            easing:     ease || 'ease-in-out',
             fill:       "forwards",
         };
         return { keyFrames: kf,
@@ -1862,9 +1886,13 @@ function fade(start, end) {
     return doit;
 }
 
-const fadeout = fade(1, 0);
-const fadein  = fade(0, 1);
-const noAnim  = fade(1, 1);  // do nothing for a while
+const fadeout1 = fade(1, 0, "ease-in");
+const fadein1  = fade(0, 1, "ease-out");
+
+const fadeout  = fade(1, 0);
+const fadein   = fade(0, 1);
+
+const noAnim   = fade(1, 1);  // do nothing for a while
 
 function scale(s1, s2) {
     function doit(dur) {
@@ -2457,6 +2485,7 @@ function animLast(a) {
     function doit(k) {
         if ( ls.slideType != "") {         // not first slide
             const e = getElem(ls.imgId);
+            setCSS(e, {"z-index": -1})     // move image behind new image to be shown
             anim(a)(e,
                     () => {
                         e.classList.value = "hiddenImage";
@@ -2507,10 +2536,20 @@ function animTransCollection(dur) {
 function animTransMedia(dur) {
 
     function doit(k) {
+        // trc(1, "animTransMedia: dur=" + dur);
         var tr = transCrossFade(fadeout(dur), fadein(dur));  // img -> img
 
-        if ( ! isMediaSlide(ls) ) {
-            tr = transFadeOutIn(fadeout(dur), fadein(dur));  // col/blog -> img
+        if ( isMediaSlide(ls) ) {
+            if ( similarGeoOnScreen() ) {
+                // similar image geometies
+                // smoother crossfade
+
+                trc(1, "animTransMedia: smoother transition");
+                tr = transCrossFade(fadeout1(dur), fadein1(dur));
+            }
+        }
+        else {
+            tr = transCrossFade(fadeout(dur), fadein(dur));
         }
         tr(k);
     }
