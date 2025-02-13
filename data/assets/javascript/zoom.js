@@ -741,16 +741,6 @@ function showAnimDur() {
 }
 
 /* ---------------------------------------- */
-
-// when slide images are loaded,
-// this variable is used as cache
-// and code exec is suspended until
-// the requesed image is loaded into this var
-// --> no blackouts during image transitions
-
-var picCache = new Image();
-
-/* ---------------------------------------- */
 /* initialization */
 
 function initShow() {
@@ -2303,6 +2293,7 @@ function loadImgCache() {
             switchResizeImg(urlImg, geo, resizeAlg, zoomPos)(k);
         };
 
+        var picCache = new Image();
         picCache.onload = k1;
         picCache.src    = urlImg; // the .onload handler is triggered here
     }
