@@ -18,17 +18,20 @@ const img1Id       = "image1";
 const img2Id       = "image2";
 const nextimg      = {image1: img2Id, image2: img1Id};
 
-const infoId       = "info";
-const infoTab      = "info-table";
-var   infoVisible  = false;
+const infoDescr    = { id:      "info",
+                       visible: false,
+                       tab:     "info-table",
+                     };
 
-const helpId       = "help";
-var   helpVisible  = false
+const helpDescr    = { id:      "help",
+                       visible: false,
+                     };
 
-const statusId     = "status";      // status id
-var  statusEnabled = true;
-const statusDur    = 1500;      // default: duration (msec) of showing status messages
-
+const statusDescr  = { id:      "status",
+                       visible: false,
+                       enabled: true,
+                       dur:     1500,
+                     };
 
 const videoAttrs  = { controls: "",   // default video attributes
                       autoplay: null,
@@ -1072,7 +1075,7 @@ function showErr(errno, url, msg) {
     } else {
         txt = 'Server Fehler: ' + errno + ', url=' + url;
     }
-    showStatus('<span class="errormsg">' + txt + '</span>', 4);
+    showStatus('<span class="errormsg">' + txt + '</span>');
 }
 
 // ----------------------------------------
@@ -1681,7 +1684,7 @@ function buildMetaInfo (t, md) {
 
 function buildInfo() {
     const md = getSlideMeta();
-    const it = getElem(infoTab);
+    const it = getElem(infoDescr.tab);
     buildMetaInfo(it, md);
 }
 
@@ -1815,44 +1818,52 @@ function showVersion() {
 // status line
 
 function showStatus(msg, dur) {
-    if ( statusEnabled ) {
-        dur = dur || statusDur;
-
-        const se = clearDomElem(statusId);
+    if ( statusDescr.enabled ) {
+        dur = dur || statusDescr.dur;
+        statusDescr.visible = false;
+        const se = clearDomElem(statusDescr.id);
         se.innerHTML = msg;
 
         function getStatus() { return se; }
 
-        runC(compl([ animElement(getStatus, fadein8(500)),
+        runC(compl([ toggleOverlay(statusDescr),
                      animElement(getStatus, noAnim8(dur)),
-                     animElement(getStatus, fadeout8(500)),
-                   ]));
+                     toggleOverlay(statusDescr),
+                   ])
+            );
     }
 }
 
-function toggleInfo() {
-    const ie = getElem(infoId);
-    cancelAnims(ie);
+function toggleOverlay(o) {
 
-    function getInfo() { return ie; }
+    function doit(k) {
+        const ie = getElem(o.id);
+        cancelAnims(ie);
 
-    const a = infoVisible ? fadeout8(500) : fadein8(500);
-    infoVisible = ! infoVisible;
+        function getO() { return ie; }
 
-    runC(animElement(getInfo, a));
+        // fadein
+        var a    = fadein8(500);
+        var css1 = { display: "block", opacity: 0.0 }
+        var css2 = { }
+
+        if ( o.visible ) {
+            // fadeout
+            var a = fadeout8(500);
+            var css1 = { }
+            var css2 = { display: "none", opacity: '' }
+        }
+
+        o.visible = ! o.visible;
+
+        animElement1(getO, a, css1, css2)(k);
+
+    }
+    return doit;
 }
 
-function toggleHelp() {
-    const ie = getElem(helpId);
-    cancelAnims(ie);
-
-    function getHelp() { return ie; }
-
-    const a = helpVisible ? fadeout8(500) : fadein8(500);
-    helpVisible = ! helpVisible;
-
-    runC(animElement(getHelp, a));
-}
+function toggleInfo() { runC(toggleOverlay(infoDescr)); }
+function toggleHelp() { runC(toggleOverlay(helpDescr)); }
 
 // ----------------------------------------
 //
@@ -2450,49 +2461,60 @@ function addImgToDom(id, url, style, style2, cls, addHandler) {
 //
 // run an animation to show current slide element
 
-function animElement(getE, a) {
+function animElement2( getE,     // element getter fct
+                       a,        // animation
+                       doS,      // configure elem before anim start
+                       doE       // configure elem after anim has finished
+                     ) {
+
     function doit(k) {
         const e = getE();
-        e.classList.value = "visibleImage";
-        trc(1, "animElement: " + e.id + ", " + JSON.stringify(a));
-        anim(a)(e, k);
+        if ( e ) {
+            doS(e);
+            trc(1, "animElement2: " + e.id + ", " + JSON.stringify(a));
+
+            function k1() {
+                doE(e);
+                k();
+            }
+
+            anim(a)(e, k1);
+        }
+        else {
+            trc(1, "animElement2: no element found");
+            k();
+        }
     }
     return doit;
 }
 
+function animElement1(getE, a, cssS, cssE) {
+    return animElement2(getE, a,
+                        (e) => { setCSS(e, cssS); },
+                        (e) => { setCSS(e, cssE); }
+                       );
+}
+
+function animElement(getE, a) {
+    return animElement1(getE, a, { display: "block" }, {});
+}
+
 function animCurrent(a) {
-    function getE() {
-        return getElem(cs.imgId);
-    }
-    return animElement(getE, a);
+    return animElement( () => { return getElem(cs.imgId); }, a);
 }
 
 function animCurrentImg(a) {
-    function getE() {
-        return getElem(mkImgId(cs.imgId));
-    }
-    return animElement(getE, a);
+    return animElement( () => { return getElem(mkImgId(cs.imgId)); }, a );
 }
 
 // run an animation to hide last slide element and cleanup element
 
 function animLast(a) {
-
-    function doit(k) {
-        if ( ls.slideType != "") {         // not first slide
-            const e = getElem(ls.imgId);
-            setCSS(e, {"z-index": -1})     // move image behind new image to be shown
-            anim(a)(e,
-                    () => {
-                        e.classList.value = "hiddenImage";
-                        clearDomElem(e);
-                        k();
-                    });
-        } else {
-            k();
-        }
-    }
-    return doit;
+    return animElement2( ()  => { return getElem(ls.imgId) || null; },   // get elem of last pic
+                         a,
+                         (e) => { setCSS(e, { "z-index": -1 }); },       // push it down the render stack
+                         (e) => { clearDomElem(e); }                     // throw it away
+                       );
 }
 
 function transFadeOutIn(aout, ain) {
