@@ -1817,18 +1817,15 @@ function showVersion() {
 function showStatus(msg, dur) {
     if ( statusEnabled ) {
         dur = dur || statusDur;
+
         const se = clearDomElem(statusId);
         se.innerHTML = msg;
 
-        const a = compl[ fadein(500),
-                         noAnim(dur),
-                         fadeout(500)
-                       ];
         function getStatus() { return se; }
 
-        runC(compl([ animElement(getStatus, fadein(500)),
-                     animElement(getStatus, noAnim(dur)),
-                     animElement(getStatus, fadeout(500)),
+        runC(compl([ animElement(getStatus, fadein8(500)),
+                     animElement(getStatus, noAnim8(dur)),
+                     animElement(getStatus, fadeout8(500)),
                    ]));
     }
 }
@@ -1839,7 +1836,7 @@ function toggleInfo() {
 
     function getInfo() { return ie; }
 
-    const a = infoVisible ? fadeout(500) : fadein(500);
+    const a = infoVisible ? fadeout8(500) : fadein8(500);
     infoVisible = ! infoVisible;
 
     runC(animElement(getInfo, a));
@@ -1851,7 +1848,7 @@ function toggleHelp() {
 
     function getHelp() { return ie; }
 
-    const a = helpVisible ? fadeout(500) : fadein(500);
+    const a = helpVisible ? fadeout8(500) : fadein8(500);
     helpVisible = ! helpVisible;
 
     runC(animElement(getHelp, a));
@@ -1880,13 +1877,17 @@ function fade(start, end, ease) {
     return doit;
 }
 
-const fadeout1 = fade(1, 0, "ease-in");
 const fadein1  = fade(0, 1, "ease-out");
+const fadeout1 = fade(1, 0, "ease-in");
 
-const fadeout  = fade(1, 0);
 const fadein   = fade(0, 1);
+const fadeout  = fade(1, 0);
 
-const noAnim   = fade(1, 1);  // do nothing for a while
+const fadein8  = fade(0, 0.7);       // show an overlay with opacity 0.8
+const fadeout8 = fade(0.7, 0);
+const noAnim8  = fade(0.7, 0.7);
+
+const noAnim   = fade(1, 1);         // a simple delay: do nothing for a while
 
 function scale(s1, s2) {
     function doit(dur) {
