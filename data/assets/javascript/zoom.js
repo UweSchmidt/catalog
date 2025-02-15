@@ -1171,7 +1171,7 @@ function toggleFullSlide() {
         if ( cs.resizeAlg != "fullsize" ) {
             gotoUrl(cs.url, "fullsize");
         } else {
-            gotoUrl(cs.url, "no-magnify");
+            gotoUrl(cs.url, "downsize");
         }
     }
 }
@@ -1181,7 +1181,7 @@ function toggleZoomSlide(zoomPos) {
         if ( cs.resizeAlg === "zoom" ) {
             gotoUrl(cs.url, "fullsize");
         } else {
-            gotoUrl(cs.url, "no-magnify");
+            gotoUrl(cs.url, "downsize");
         }
     }
 }
@@ -1192,7 +1192,7 @@ function togglePanoSlide() {
             if ( cs.resizeAlg != "panorama" ) {
                 gotoUrl(cs.url, "panorama");
             } else {
-                gotoUrl(cs.url, "no-magnify");
+                gotoUrl(cs.url, "downsize");
             }
         }
     }
@@ -2072,7 +2072,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                    page        : page,
                    imgId       : nextimg[ls.imgId],
                    slideType   : "",
-                   resizeAlg   : resizeAlg || "no-magnify",
+                   resizeAlg   : resizeAlg || "downsize",
                    transDur    : defaultTransDur * 1000,     // transition dur in msec
                    slideType   : req.rType,
                    slideReq    : req,
@@ -2123,15 +2123,10 @@ function switchSlide() {
 
 function buildMovieSlide() {
     function doit(k) {
-        const page   = cs.page;
-        const id     = cs.imgId;
-        const rType  = cs.slideType;      // movie / gif
-        const rAlg   = cs.resizeAlg;      // magnify / no-magnify
+        const geo    = readGeo(cs.page.oirGeo[0]);
+        const url    = toMediaUrl(cs.page.img);   // url of the original media file, not the coll entry url
 
-        const geo    = readGeo(page.oirGeo[0]);
-        const url    = toMediaUrl(page.img);   // url of the original media file, not the coll entry url
-
-        const movGeo = fitToScreenGeo(geo, rAlg);
+        const movGeo = fitToScreenGeo(geo, cs.resizeAlg);
         const offset = pxGeo(placeOnScreen(movGeo));
         const g      = pxGeo(movGeo);
         const style  = { width  : g.w,
@@ -2144,13 +2139,13 @@ function buildMovieSlide() {
 
 
         // get slide container and set geomety attibutes
-        const e = getElem(id);
+        const e = getElem(cs.imgId);
         setCSS(e, style);
 
-        if (rType === "movie" ) {
+        if (cs.slideType === "movie" ) {
 
-            const cls = "movie gif " + rAlg;
-            const v   = newElem("video", mkImgId(id), {}, cls);
+            const cls = "movie gif " + cs.resizeAlg;
+            const v   = newElem("video", mkImgId(cs.imgId), {}, cls);
 
             v.width   = movGeo.w;
             v.heigth  = movGeo.h;
@@ -2177,11 +2172,11 @@ function buildMovieSlide() {
             e.appendChild(v);
 
         }
-        else if ( rType === "gif" ) {
+        else if ( cs.slideType === "gif" ) {
 
             const css = { width:  g.w, height: g.h };
-            const cls = "movie gif " + rAlg;
-            const v2  = newImgElem(id, css, cls);
+            const cls = "movie gif " + cs.resizeAlg;
+            const v2  = newImgElem(cs.imgId, css, cls);
 
             v2.src    = url;
             e.appendChild(v2);
