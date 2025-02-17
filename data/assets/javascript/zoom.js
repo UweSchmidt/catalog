@@ -160,6 +160,16 @@ function divGeo(g1, g2) {
     }
 }
 
+function maxGeo(g1, g2) {
+    if (typeof g2 === "number") {
+        return maxGeo(g1, { w : g2, h : g2} )
+    } else {
+        return { w : Math.max(g1.w, g2.w),
+                 h : Math.max(g1.h, g2.h)
+               };
+    }
+}
+
 function halfGeo(g) {
     return divGeo(g,2);
 }
@@ -368,6 +378,12 @@ function resizeToScreenHeightPano(g) {
 
 function resizeToScreenWidth(g) {
     return resizeToWidth(g, cs.screenGeo);
+}
+
+function resizeToPano(g) {
+    return maxGeo( resizeToScreenHeight(g),
+                   resizeToScreenWidth(g)
+                 );
 }
 
 // --------------------
@@ -2121,7 +2137,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                 }
 
                 cs.isLargeImg = lessThan(cs.screenGeo, cs.orgGeo);
-                if ( cs.isLargeImg
+                if ( ! cs.isLargeImg
                      &&
                      ( cs.resizeAlg === "fullsize"
                        ||
@@ -2132,7 +2148,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                 }
 
                 cs.isPanoImg = isPano(cs.orgGeo);
-                if ( cs.isPanoImg
+                if ( ! cs.isPanoImg
                      &&
                      cs.resizeAlg === "panorama"
                    ) {
