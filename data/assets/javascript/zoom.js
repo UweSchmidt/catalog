@@ -2161,15 +2161,19 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.resizeAlg = "tinyimg";
                 }
 
+                if ( cs.isPanoImg ) {
+                    cs.panoGeo = resizeToPano(cs.orgGeo);
+                }
+
                 // last rule
                 if ( cs.resizeAlg === "default" ) {
                     cs.resizeAlg = "downsize";
                 }
 
-                cs.fitGeo    = fitToScreenGeo(cs.orgGeo, cs.resizeAlg), // size scaled down to fit into screen
+                cs.fitGeo    = fitToScreenGeo(cs.orgGeo, cs.resizeAlg); // size scaled down to fit into screen
 
-                cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo), // default zoom position
-                cs.zoomDur   = 4000                                // default zoom duration 4 sec
+                cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo);      // default zoom position
+                cs.zoomDur   = 4000;                                    // default zoom duration 4 sec
             }
 
             // create a new empty slide container
@@ -2339,7 +2343,6 @@ function loadImgCache() {
         const imgReq  = cs.page.imgReq;
 
         let reqGeo    = bestFitToScreenGeo();
-        let imgGeo    = cs.fitGeo;
 
         if ( cs.resizeAlg === "fullsize"
              ||
@@ -2348,23 +2351,21 @@ function loadImgCache() {
              cs.resizeAlg === "tinyimg"
            ) {
             reqGeo = readGeo("org");
-            imgGeo = cs.orgGeo;
         }
         if ( cs.resizeAlg === "panorama") {
-            reqGeo = imgGeo = resizeToPano(cs.orgGeo);
+            reqGeo = cs.panoGeo;
         }
 
         cs.urlImg = imgReqToUrl(imgReq, reqGeo);
 
         trc(1, "loadImgCacheNew: urlImg=" + cs.urlImg +
-            ", reqGeo=" + showGeo(reqGeo) +
-            ", imgGeo=" + showGeo(imgGeo)
+            ", reqGeo=" + showGeo(reqGeo)
            );
 
         function k1() {
             trc(1, `onload loadImgCache: ${cs.imgId}` );
 
-            switchResizeImg(cs.urlImg, imgGeo, cs.resizeAlg)(k);
+            switchResizeImg(cs.urlImg)(k);
         };
 
         var picCache = new Image();
@@ -2374,34 +2375,35 @@ function loadImgCache() {
     return doit;
 }
 
-function switchResizeImg(url, geo, resizeAlg) {
+function switchResizeImg(url) {
 
     function doit(k) {
-        if (resizeAlg === "zoom") {
-            addZoomImg(url, geo, resizeAlg)(k);
+        if (cs.resizeAlg === "zoom") {
+            addZoomImg(url, cs.orgGeo, cs.resizeAlg)(k);
         }
-        else if (resizeAlg === "panorama") {
-            addPanoramaImg(url, geo, resizeAlg)(k);
+        else if (cs.resizeAlg === "panorama") {
+            addPanoramaImg()(k);
         }
-        else if (resizeAlg === "fullsize") {
-            addFullImg(url, geo, resizeAlg)(k);
+        else if (cs.resizeAlg === "fullsize") {
+            addFullImg(url, cs.orgGeo, cs.resizeAlg)(k);
         }
-        else if ( resizeAlg === "downsize" ) {
-            addZoomableImg(url, geo, resizeAlg)(k);
+        else if ( cs.resizeAlg === "downsize" ) {
+            addZoomableImg(url, cs.fitGeo, cs.resizeAlg)(k);
         }
-        else if ( resizeAlg === "tinyimg" ) {
-            addTinyImg(url, geo, resizeAlg)(k);
+        else if ( cs.resizeAlg === "tinyimg" ) {
+            addTinyImg(url, cs.orgGeo, cs.resizeAlg)(k);
         }
         else {
-            trc(1, "switchSlide stop continuation: illegal resizeAlg " + resizeAlg);
+            trc(1, "switchSlide stop continuation: illegal resizeAlg " + cs.resizeAlg);
         }
     }
     return doit;
 }
 
-function addPanoramaImg(url, geo, resizeAlg) {
+function addPanoramaImg() {
 
     function doit(k) {
+        const geo    = cs.panoGeo;
         const isH    = isHorizontal(geo);
         const offset = isH ? cs.screenGeo.w - geo.w : cs.screenGeo.h - geo.h;
         const dr     = isH ? "left" : "bottom";
@@ -2417,7 +2419,7 @@ function addPanoramaImg(url, geo, resizeAlg) {
 
         const a      = panorama(dr, dr1, offset)(dur);
 
-        addImgToDom(cs.imgId, url, style, style2, "img " + resizeAlg, () => {});
+        addImgToDom(cs.imgId, cs.urlImg, style, style2, "img panorama", () => {});
         animTransPanorama(a, cs.transDur)(k);
     }
     return doit;
