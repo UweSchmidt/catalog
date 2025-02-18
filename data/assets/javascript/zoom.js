@@ -2365,7 +2365,7 @@ function loadImgCache() {
         function k1() {
             trc(1, `onload loadImgCache: ${cs.imgId}` );
 
-            switchResizeImg(cs.urlImg)(k);
+            switchResizeImg()(k);
         };
 
         var picCache = new Image();
@@ -2375,23 +2375,23 @@ function loadImgCache() {
     return doit;
 }
 
-function switchResizeImg(url) {
+function switchResizeImg() {
 
     function doit(k) {
-        if (cs.resizeAlg === "zoom") {
-            addZoomImg(url, cs.orgGeo, cs.resizeAlg)(k);
+        if ( cs.resizeAlg === "zoom") {
+            addZoomImg()(k);
         }
-        else if (cs.resizeAlg === "panorama") {
+        else if ( cs.resizeAlg === "panorama" ) {
             addPanoramaImg()(k);
         }
-        else if (cs.resizeAlg === "fullsize") {
-            addFullImg(url, cs.orgGeo, cs.resizeAlg)(k);
+        else if ( cs.resizeAlg === "fullsize" ) {
+            addFullImg()(k);
         }
         else if ( cs.resizeAlg === "downsize" ) {
-            addZoomableImg(url, cs.fitGeo, cs.resizeAlg)(k);
+            addZoomableImg()(k);
         }
         else if ( cs.resizeAlg === "tinyimg" ) {
-            addTinyImg(url, cs.orgGeo, cs.resizeAlg)(k);
+            addTinyImg()(k);
         }
         else {
             trc(1, "switchSlide stop continuation: illegal resizeAlg " + cs.resizeAlg);
@@ -2419,15 +2419,16 @@ function addPanoramaImg() {
 
         const a      = panorama(dr, dr1, offset)(dur);
 
-        addImgToDom(cs.imgId, cs.urlImg, style, style2, "img panorama", () => {});
+        addImgToDom(style, style2, () => {});
         animTransPanorama(a, cs.transDur)(k);
     }
     return doit;
 }
 
-function addZoomImg(url, geo, resizeAlg) {
+function addZoomImg() {
 
     function doit(k) {
+        const geo        = cs.orgGeo;
         const imgGeo     = cs.fitGeo;
         const offset     = placeOnScreen(imgGeo);
         const style      = styleGeo(cs.screenGeo, nullGeo, "hidden");
@@ -2446,36 +2447,38 @@ function addZoomImg(url, geo, resizeAlg) {
         const style2     = styleGeo(imgGeo, offset, "hidden");
         style2.position  = "absolute";
 
-        trc(1, `addZoomImg: ${url}, ${showGeo(geo)}, ${showGeo(cs.zoomPos)}`);
+        trc(1, `addZoomImg: ${cs.urlImg}, ${showGeo(geo)}, ${showGeo(cs.zoomPos)}`);
 
         const a =  zoomIn1( imgGeo, offset, geo, clickOff)(cs.zoomDur);
 
         trc(1, `addZoomImg: anim=${JSON.stringify(a)}`);
 
-        addImgToDom(cs.imgId, url, style, style2, "img " + resizeAlg, () => {});
+        addImgToDom(style, style2, () => {});
 
         animTransZoom(a)(k);
     };
     return doit;
 }
 
-function addTinyImg(url, geo, resizeAlg) {
+function addTinyImg() {
 
     function doit(k) {
+        const geo    = cs.orgGeo;
         const offset = placeOnScreen(geo);
         const style  = styleGeo(geo, offset, "hidden");
         const style2 = styleSize(geo);
 
-        addImgToDom(cs.imgId, url, style, style2, "img " + resizeAlg, () => {});
+        addImgToDom(style, style2, () => {});
 
         animTransMedia(cs.transDur)(k);
     }
     return doit;
 }
 
-function addFullImg(url, geo, resizeAlg) {
+function addFullImg() {
 
     function doit(k) {
+        const geo    = cs.orgGeo;
         const style  = styleGeo(cs.screenGeo, nullGeo);
 
         // const offset = halfGeo(subGeo(cs.screenGeo, geo)); // nice try
@@ -2483,14 +2486,14 @@ function addFullImg(url, geo, resizeAlg) {
         const style2 = styleSize(geo);
         style2.position  = "absolute";
 
-        addImgToDom(cs.imgId, url, style, style2, "img " + resizeAlg, () => {});
+        addImgToDom(style, style2, () => {});
 
         animTransMedia(cs.transDur)(k);
     }
     return doit;
 }
 
-function addZoomableImg(url, geo, resizeAlg) {
+function addZoomableImg() {
 
     function doit(k) {
         const imgGeo = cs.fitGeo;
@@ -2512,21 +2515,22 @@ function addZoomableImg(url, geo, resizeAlg) {
             i.addEventListener("dblclick", initZoom);
         }
 
-        addImgToDom(cs.imgId, url, style, style2, "img " + resizeAlg, addHandler);
+        addImgToDom(style, style2, addHandler);
 
         animTransMedia(cs.transDur)(k);
     }
     return doit;
 }
 
-function addImgToDom(id, url, style, style2, cls, addHandler) {
+function addImgToDom(style, style2, addHandler) {
 
-    const e = getElem(id);
+    const e = getElem(cs.imgId);
     setCSS(e, style);
 
-    const i = newImgElem(id, style2, cls);
+    const i = newImgElem(cs.imgId, style2, "img " + cs.resizeAlg);
     addHandler(i);
-    i.src   = url;
+    i.src   = cs.urlImg;
+
     e.appendChild(i);
 }
 
