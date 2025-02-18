@@ -1724,7 +1724,7 @@ function getJsonPage(url, processRes, processErr, processNext) {
         type: "GET",
         url: url
     }).done(function (res) {
-        trc(1, "getJsonPage: new page=" + res);
+        trc(1, "getJsonPage: got new page from server");
         processRes(res);
     }).fail(function (err) {
         trc(1, "getJsonPage: server error=" + err + ", status=" + err.status);
@@ -2045,7 +2045,7 @@ function anim(a) {
             // Cancel the animation
             animation.cancel();
 
-            trc(1, "continuation called");
+            // trc(1, "continuation called");
             k();
         }
 
@@ -2103,7 +2103,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
     function doit(k) {
 
         function jsonPage(page) {
-            trc(1, "jsonSlide: " + JSON.stringify(page));
+            // trc(1, "jsonSlide: " + JSON.stringify(page));
 
             // save old slide context
             ls = cs;
@@ -2174,6 +2174,9 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo);      // default zoom position
                 cs.zoomDur   = 4000;                                    // default zoom duration 4 sec
+
+                trc(1, "jsonSlide: slide context  initialized");
+
             }
 
             // create a new empty slide container
@@ -2358,7 +2361,7 @@ function loadImgCache() {
 
         cs.urlImg = imgReqToUrl(imgReq, reqGeo);
 
-        trc(1, "loadImgCacheNew: urlImg=" + cs.urlImg +
+        trc(1, "loadImgCache: urlImg=" + cs.urlImg +
             ", reqGeo=" + showGeo(reqGeo)
            );
 
@@ -2761,7 +2764,7 @@ function checkResizeAlg(alg) {
 // identity continuation
 
 function idC(k) {
-    trc(1, "idC");
+    // trc(1, "idC");
     k();
 }
 
@@ -2769,7 +2772,7 @@ function idC(k) {
 
 function comp(f1, f2) {
     function doit(k) {
-        trc(1, "comp.doit");
+        // trc(1, "comp.doit");
         f1(() => { f2(k); });
     }
     return doit;
