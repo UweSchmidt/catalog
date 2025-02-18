@@ -1197,7 +1197,7 @@ function toggleFullSlide() {
         if ( cs.resizeAlg != "fullsize" ) {
             thisSlideWith("fullsize");
         } else {
-            thisSlideWith("downsize");
+            thisSlideWith("default");
         }
     }
 }
@@ -1208,7 +1208,7 @@ function toggleZoomSlide(zoomPos) {
         if ( cs.resizeAlg === "zoom" ) {
             thisSlideWith("zoom", zoomPos);
         } else {
-            thisSlideWith("downsize");
+            thisSlideWith("default");
         }
     }
 }
@@ -1219,7 +1219,7 @@ function togglePanoSlide() {
             if ( cs.resizeAlg != "panorama" ) {
                 thisSlideWith("panorama");
             } else {
-                thisSlideWith("downsize");
+                thisSlideWith("default");
             }
         }
     }
@@ -2061,10 +2061,14 @@ function anim(a) {
 // ----------------------------------------
 
 function thisSlideWith(resizeAlg, zoomPos) {
+    resizeAlg = checkResizeAlg(resizeAlg);
+
     const geo =
           ( resizeAlg === "fullscreen"
             ||
             resizeAlg === "zoom"
+            ||
+            resizeAlg === "tinyimg"
           )
           ? readGeo("org")
           : bestFitToScreenGeo();
@@ -2107,11 +2111,13 @@ function gotoSlide(url, resizeAlg, zoomPos) {
             // build new slide context
             const req  = page.imgReq || page.colDescr.eReq;
 
+            resizeAlg = checkResizeAlg(resizeAlg);
+
             cs = { url         : url,
                    page        : page,
                    imgId       : nextimg[ls.imgId],
                    slideType   : "",
-                   resizeAlg   : resizeAlg || "downsize",    // default is "downsize"
+                   resizeAlg   : checkResizeAlg(resizeAlg),  // set a decent default resize alg
                    transDur    : defaultTransDur * 1000,     // transition dur in msec
                    slideType   : req.rType,
                    slideReq    : req,
@@ -2128,14 +2134,6 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 // normalize resize algs
 
-                cs.isTinyImg = lessThan(cs.orgGeo, cs.screenGeo);
-                if ( cs.isTinyImg
-                     &&
-                     cs.resizeAlg === "downsize"
-                   ) {
-                    cs.resizeAlg = "tinyimg";
-                }
-
                 cs.isLargeImg = lessThan(cs.screenGeo, cs.orgGeo);
                 if ( ! cs.isLargeImg
                      &&
@@ -2144,7 +2142,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                        cs.resizeAlg === "zoom"
                      )
                    ) {
-                    cs.resizeAlg = "downsize";
+                    cs.resizeAlg = "default";
                 }
 
                 cs.isPanoImg = isPano(cs.orgGeo);
@@ -2152,6 +2150,19 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                      &&
                      cs.resizeAlg === "panorama"
                    ) {
+                    cs.resizeAlg = "default";
+                }
+
+                cs.isTinyImg = lessThan(cs.orgGeo, cs.screenGeo);
+                if ( cs.isTinyImg
+                     &&
+                     cs.resizeAlg === "default"
+                   ) {
+                    cs.resizeAlg = "tinyimg";
+                }
+
+                // last rule
+                if ( cs.resizeAlg === "default" ) {
                     cs.resizeAlg = "downsize";
                 }
 
@@ -2326,49 +2337,39 @@ function loadImgCache() {
 
     function doit(k) {
         const imgReq  = cs.page.imgReq;
-        const orgGeo  = cs.orgGeo;
-        const imgGeo  = resizeToScreenHeight(orgGeo);
 
-        const urlImg  =
-              ( cs.resizeAlg === "fullsize"
-                ||
-                cs.resizeAlg === "zoom"
-                ||
-                cs.resizeAlg === "tinyimg"
-              )
-              ? imgReqToUrl(imgReq, readGeo("org"))
-              : ( cs.resizeAlg === "panorama"
-                  &&
-                  isPano(imgGeo)
-                  ? imgReqToUrl(imgReq, resizeToScreenHeight(imgGeo)) // TODO vertical panorama (e.g. trees)
-                  : imgReqToUrl(imgReq)
-                );
+        let reqGeo    = bestFitToScreenGeo();
+        let imgGeo    = cs.fitGeo;
 
-        cs.urlImg    = urlImg;  // save image url in context
+        if ( cs.resizeAlg === "fullsize"
+             ||
+             cs.resizeAlg === "zoom"
+             ||
+             cs.resizeAlg === "tinyimg"
+           ) {
+            reqGeo = readGeo("org");
+            imgGeo = cs.orgGeo;
+        }
+        if ( cs.resizeAlg === "panorama") {
+            reqGeo = imgGeo = resizeToPano(cs.orgGeo);
+        }
 
-        trc(1, "loadImgCache: urlImg=" + urlImg + ", geo=" + showGeo(imgGeo));
+        cs.urlImg = imgReqToUrl(imgReq, reqGeo);
+
+        trc(1, "loadImgCacheNew: urlImg=" + cs.urlImg +
+            ", reqGeo=" + showGeo(reqGeo) +
+            ", imgGeo=" + showGeo(imgGeo)
+           );
 
         function k1() {
-            const id = cs.imgId;
+            trc(1, `onload loadImgCache: ${cs.imgId}` );
 
-            trc(1, `onload loadImgCache: ${id}` );
-
-            const geo =
-                  ( cs.resizeAlg === "fullsize"
-                    ||
-                    cs.resizeAlg === "zoom"
-                    ||
-                    cs.resizeAlg === "tinyimg"
-                  )
-                  ? cs.orgGeo
-                  : imgGeo;
-
-            switchResizeImg(urlImg, geo, cs.resizeAlg)(k);
+            switchResizeImg(cs.urlImg, imgGeo, cs.resizeAlg)(k);
         };
 
         var picCache = new Image();
         picCache.onload = k1;
-        picCache.src    = urlImg; // the .onload handler is triggered here
+        picCache.src    = cs.urlImg;   // the .onload handler is triggered here
     }
     return doit;
 }
@@ -2425,7 +2426,7 @@ function addPanoramaImg(url, geo, resizeAlg) {
 function addZoomImg(url, geo, resizeAlg) {
 
     function doit(k) {
-        const imgGeo     = shrinkToScreenGeo(geo);
+        const imgGeo     = cs.fitGeo;
         const offset     = placeOnScreen(imgGeo);
         const style      = styleGeo(cs.screenGeo, nullGeo, "hidden");
 
@@ -2490,9 +2491,7 @@ function addFullImg(url, geo, resizeAlg) {
 function addZoomableImg(url, geo, resizeAlg) {
 
     function doit(k) {
-        const id     = cs.imgId;
-
-        const imgGeo = fitToScreenGeo(geo, resizeAlg);
+        const imgGeo = cs.fitGeo;
         const offset = placeOnScreen(imgGeo);
         const style  = styleGeo(imgGeo, offset, "hidden");
         const style2 = styleSize(imgGeo);
@@ -2650,7 +2649,7 @@ function animTransZoom(zoomAnim) {
 
     function doit(k) {
         const tr1 = transCrossFade(noAnim(500), fadein(500));  // transition to fullsize image slide
-        const tr2 = animCurrentImg(zoomAnim);                     // zoom transition
+        const tr2 = animCurrentImg(zoomAnim);                  // zoom transition
         comp(tr1, tr2)(k);
     }
     return doit;
@@ -2734,6 +2733,19 @@ function isPanoSlide() {
         const geo = getOrgGeo();
         return isPano(geo);
     }
+}
+
+function checkResizeAlg(alg) {
+    if ( [ "downsize",
+           "fullsize",
+           "zoom",
+           "tinyimg",
+           "panorama",
+           "default"
+         ].includes(alg) ) {
+        return alg;
+    }
+    return "default";
 }
 
 // ------------------------------------------------------------
