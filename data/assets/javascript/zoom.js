@@ -2161,6 +2161,13 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.resizeAlg = "tinyimg";
                 }
 
+                if ( ! cs.isTinyImg
+                     &&
+                     cs.resizeAlg === "magnify"
+                   ) {
+                    cs.resizeAlg = "default";
+                }
+
                 if ( cs.isPanoImg ) {
                     cs.panoGeo = resizeToPano(cs.orgGeo);
                 }
@@ -2174,6 +2181,8 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo);      // default zoom position
                 cs.zoomDur   = 4000;                                    // default zoom duration 4 sec
+
+                cs.magDur    = 1000;                                    // mduration of magnifying tiny img
 
                 trc(1, "jsonSlide: slide context  initialized");
 
@@ -2352,6 +2361,8 @@ function loadImgCache() {
              cs.resizeAlg === "zoom"
              ||
              cs.resizeAlg === "tinyimg"
+             ||
+             cs.resizeAlg === "magnify"
            ) {
             reqGeo = readGeo("org");
         }
@@ -2395,6 +2406,9 @@ function switchResizeImg() {
         }
         else if ( cs.resizeAlg === "tinyimg" ) {
             addTinyImg()(k);
+        }
+        else if ( cs.resizeAlg === "magnify" ) {
+            addMagnifiedImg()(k);
         }
         else {
             trc(1, "switchSlide stop continuation: illegal resizeAlg " + cs.resizeAlg);
@@ -2452,7 +2466,7 @@ function addZoomImg() {
 
         trc(1, `addZoomImg: ${cs.urlImg}, ${showGeo(geo)}, ${showGeo(cs.zoomPos)}`);
 
-        const a =  zoomIn1( imgGeo, offset, geo, clickOff)(cs.zoomDur);
+        const a =  zoomIn1(imgGeo, offset, geo, clickOff)(cs.zoomDur);
 
         trc(1, `addZoomImg: anim=${JSON.stringify(a)}`);
 
@@ -2471,9 +2485,48 @@ function addTinyImg() {
         const style  = styleGeo(geo, offset, "hidden");
         const style2 = styleSize(geo);
 
-        addImgToDom(style, style2, () => {});
+        function initMagnify(e) {
+            trc(1, "initZoom: start magnifying image with id=" + cs.imgId );
+            thisSlideWith("magnify");
+        }
+
+        function addHandler(i) {
+            i.addEventListener("dblclick", initMagnify);
+        }
+
+        addImgToDom(style, style2, addHandler);
 
         animTransMedia(cs.transDur)(k);
+    }
+    return doit;
+}
+
+function addMagnifiedImg() {
+
+    function doit(k) {
+        const geo0    = cs.orgGeo;
+        const offset0 = placeOnScreen(geo0);
+        const scale0  = oneGeo;
+
+        const geo     = cs.fitGeo;
+        const offset  = placeOnScreen(geo);
+
+        const viewCenter = halfGeo(geo0);
+        const viewScale  = divGeo(geo, geo0);
+
+        const style  = styleGeo(cs.screenGeo, nullGeo, "hidden");
+        const style2 = styleGeo(geo, offset, "hidden");
+        style2.position = "absolute";
+
+        trc(1, `addMagnifiedImg: ${cs.urlImg}, ${showGeo(geo)}, ${showGeo(cs.zoomPos)}`);
+
+        const a      = zoomIn1(geo0, offset0, geo, cs.zoomPos)(cs.magDur);
+
+        trc(1, `addMagnifiedImg: anim=${JSON.stringify(a)}`);
+
+        addImgToDom(style, style2, () => {});
+
+        animTransZoom(a)(k);
     }
     return doit;
 }
@@ -2664,6 +2717,17 @@ function animTransZoom(zoomAnim) {
     return doit;
 }
 
+function animTransMagnify(zoomAnim) {
+
+    function doit(k) {
+        // const tr1 = transCrossFade(noAnim(500), fadein(500));  // transition to fullsize image slide
+        const tr2 = animCurrentImg(zoomAnim);                  // zoom transition
+        tr2(k);
+        // comp(tr1, tr2)(k);
+    }
+    return doit;
+}
+
 function animTransPanorama(panoAnim, dur) {
 
     function doit(k) {
@@ -2749,6 +2813,7 @@ function checkResizeAlg(alg) {
            "fullsize",
            "zoom",
            "tinyimg",
+           "magnify",
            "panorama",
            "default"
          ].includes(alg) ) {
