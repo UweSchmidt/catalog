@@ -152,37 +152,6 @@ function leGeo(g1, g2) { return g1.w <=  g2.w && g1.h <=  g2.h; }
 
 // --------------------
 
-function styleSize(geo) {
-    if ( ! geo )
-        return {};
-
-    const gpx = pxGeo(geo);
-    return {
-        width  : gpx.w,
-        height : gpx.h
-    };
-}
-
-function stylePos(geo) {
-    const gpx = pxGeo(geo);
-    return {
-        left   : gpx.w,
-        top    : gpx.h
-    };
-}
-
-function styleGeo(geo, off, ov) {
-    const res = styleSize(geo);
-    const opx = pxGeo(off);
-
-    res.left     = opx.w;
-    res.top      = opx.h;
-    res.position = "absolute";
-    res.overflow = ov || "auto";
-
-    return res;
-}
-
 function similarGeo(g1, g2, d) {
     d = d || 10;
     const g = absGeo(subGeo(g1, g2));
@@ -245,28 +214,6 @@ function resizeGeo(s, d) {
                };
 }
 
-function resize(s, d) {
-    const resized = resizeGeo(s, d);
-    const scale   = divGeo(resized, s);
-    const offset  = halfGeo(subGeo(d, resized));
-    const aspectS = s.w / s.h;
-    const aspectD = d.w / d.h;
-
-
-    return {
-        org:     s,
-        target:  d,
-        resized: resized,
-        scale:   scale,
-        offset:  offset,
-        aspectr: aspectS,
-
-        isLandscape:  aspectS >= aspectD,
-        isPortrait:   aspectS <= aspectD,
-        fits:         eqGeo(resized, d),
-    };
-}
-
 function resizeToHeight(s, d) {
     return resizeGeo(s, {w: infiniteWidth, h: d.h});
 }
@@ -279,10 +226,6 @@ function resizeToPano(g) {
     return maxGeo( resizeToHeight(g, cs.screenGeo),
                    resizeToWidth (g, cs.screenGeo)
                  );
-}
-
-function resizeToScreen(g) {
-    return resize(g, cs.screenGeo);
 }
 
 // --------------------
@@ -499,6 +442,29 @@ function clearCont(e) {
         trc(1, "clearCont:" + JSON.stringify(e));
         return e;
     }
+}
+
+function cssSize(g, res) {
+    res = res || {};
+    const gpx  = pxGeo(g);
+
+    res.width  = gpx.w;
+    res.height = gpx.h;
+    return res;
+}
+
+function cssPos(off, res) {
+    res = res || {};
+    const gpx  = pxGeo(off);
+
+    res.left     = gpx.w;
+    res.top      = gpx.h;
+    res.position = "absolute";
+    return res;
+}
+
+function cssGeo(g, off, res) {
+    return cssPos(off, cssSize(g, res));
 }
 
 function setCSS(e, attrs, val) {
@@ -2123,13 +2089,8 @@ function buildMovieSlide() {
 
         const url    = toMediaUrl(cs.page.img);
 
-        const offset = pxGeo(placeOnScreen(cs.fitGeo));
-        const g      = pxGeo(cs.fitGeo);
-        const style  = { width  : g.w,
-                         height : g.h,
-                         left   : offset.w,
-                         top    : offset.h
-                       };
+        const offset = placeOnScreen(cs.fitGeo);
+        const style  = cssGeo(cs.fitGeo, placeOnScreen(cs.fitGeo));
 
         // get slide container and set geomety attibutes
         const e = getElem(cs.imgId);
@@ -2167,7 +2128,7 @@ function buildMovieSlide() {
         }
         else if ( cs.slideType === "gif" ) {
 
-            const css = { width:  g.w, height: g.h };
+            const css = cssSize(cs.fitGeo);
             const cls = "movie gif " + cs.resizeAlg;
             const v2  = newImgElem(cs.imgId, css, cls);
 
@@ -2321,7 +2282,7 @@ function addPanoramaImg() {
         const ar     = aspectRatio(geo);
         const dur    = 10 * Math.abs(offset); // 10 * number of pixels to move
 
-        const style  = styleGeo(cs.screenGeo, nullGeo, "hidden");
+        const style  = cssGeo(cs.screenGeo, nullGeo, {overflow: "hidden"});
         let   style2 = { position: "absolute" };
         style2[dr]   = "0px";
         style2[dr1]  = "0px";
@@ -2340,7 +2301,7 @@ function addZoomImg() {
         const geo        = cs.orgGeo;
         const imgGeo     = cs.fitGeo;
         const offset     = placeOnScreen(imgGeo);
-        const style      = styleGeo(cs.screenGeo, nullGeo, "hidden");
+        const style      = cssGeo(cs.screenGeo, nullGeo, {overflow: "hidden"});
 
         const viewCenter = halfGeo(imgGeo);
         const viewScale  = divGeo(imgGeo, geo);
@@ -2352,9 +2313,7 @@ function addZoomImg() {
         const clickScale = divGeo(geo, imgGeo);
         const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
 
-        // const style2     = styleGeo(imgGeo, clickOff, "hidden");
-        const style2     = styleGeo(imgGeo, offset, "hidden");
-        style2.position  = "absolute";
+        const style2     = cssGeo(imgGeo, offset, {overflow: "hidden"});
 
         trc(1, `addZoomImg: ${cs.urlImg}, ${showGeo(geo)}, ${showGeo(cs.zoomPos)}`);
 
@@ -2377,11 +2336,11 @@ function addTinyMagImg(geo0, geo, resizeAlg) {
         const offset0 = placeOnScreen(geo0);
         const offset  = placeOnScreen(geo);
 
-        const style   = styleGeo(cs.screenGeo, nullGeo);
+        const style   = cssGeo(cs.screenGeo, nullGeo);
         const style2  =
               toggle
-              ? styleGeo(geo0, offset0)
-              : styleGeo(geo,   offset);
+              ? cssGeo(geo0, offset0)
+              : cssGeo(geo,   offset);
 
         trc(1, `addTinyMagImg: ${cs.urlImg}, ${toggle}, ${showGeo(geo0)}, ${showGeo(geo)}`);
 
@@ -2413,11 +2372,8 @@ function addMagnifiedImg() { return addTinyMagImg(cs.orgGeo, cs.fitGeo, "tinyimg
 function addFullImg() {
 
     function doit(k) {
-        const geo    = cs.orgGeo;
-        const style  = styleGeo(cs.screenGeo, nullGeo);
-
-        const style2 = styleSize(geo);
-        style2.position  = "absolute";
+        const style  = cssGeo (cs.screenGeo, nullGeo);
+        const style2 = cssSize(cs.orgGeo, {position: "absolute"});
 
         addImgToDom(style, style2, () => {});
 
@@ -2431,8 +2387,8 @@ function addZoomableImg() {
     function doit(k) {
         const imgGeo = cs.fitGeo;
         const offset = placeOnScreen(imgGeo);
-        const style  = styleGeo(imgGeo, offset, "hidden");
-        const style2 = styleSize(imgGeo);
+        const style  = cssGeo(imgGeo, offset, {overflow: "hidden"});
+        const style2 = cssSize(imgGeo);
 
         function initZoom(e) {
             trc(1, "initZoom: start zooming image with id=" + cs.imgId );
