@@ -1694,6 +1694,11 @@ function speedUpSlideShow() {
     showDur();
 }
 
+function showDur() {
+    const s =  Math.round(slideShowSpeed / 100) / 10;
+    showStatus('Automatischer Bildwechsel nach ' + s + " sec.");
+}
+
 function showVersion() {
     showStatus(version);
 }
