@@ -101,97 +101,56 @@ function intercalate(s, xs) {
 /* geometry ops */
 
 const infiniteWidth = 1000000;
-const nullGeo = { w : 0, h : 0 };
-const oneGeo  = { w : 1, h : 1 };
+const nullGeo       = { w : 0, h : 0 };
+const oneGeo        = { w : 1, h : 1 };
 
-function eqGeo(g1, g2) {
-    return g1.w === g2.w && g1.h === g2.h;
-}
+// --------------------
 
-function addGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return { w : g1.w + g2,   // geo + scalar
-                 h : g1.h + g2
-               };
+function mapGeo(op) {
 
-    } else {
-        return { w : g1.w + g2.w,
-                 h : g1.h + g2.h
-               };
+    function doit(g) {
+        return {w: op(g.w), h: op(g.h)};
     }
+    return doit;
 }
 
-function subGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return { w : g1.w - g2,   // geo - scalar
-                 h : g1.h - g2
-               };
+const roundGeo = mapGeo( (x) => { return Math.round(x); } );
+const absGeo   = mapGeo( (x) => { return Math.round(x); } );
+const toPxGeo  = mapGeo( (x) => { return x + "px"; } );
 
-    } else {
-        return { w : g1.w - g2.w,
-                 h : g1.h - g2.h
-               };
+function halfGeo(g) { return divGeo(g,2); }
+function pxGeo  (g) { return toPxGeo(roundGeo(g)); }
+
+// --------------------
+
+function lift2(op) {
+
+    function doit(g1, g2) {
+        if ( typeof g1 === "number" ) {                 // scalar `op` geo
+            return lift2(op)({w: g1, h: g1}, g2);
+        }
+
+        if ( typeof g2 === "number" ) {                 // geo `op` scalar
+            return lift2(op)(g1, {w: g2, h: g2});
+        }
+
+        return {w: op(g1.w, g2.w), h: op(g1.h, g2.h)};  // geo `op` geo
     }
+    return doit;
 }
 
-function mulGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return { w : g1.w * g2,   // geo + scalar
-                 h : g1.h * g2
-               };
+const addGeo = lift2( (x, y) => { return x + y; } );
+const subGeo = lift2( (x, y) => { return x - y; } );
+const mulGeo = lift2( (x, y) => { return x * y; } );
+const divGeo = lift2( (x, y) => { return x / y; } );
+const maxGeo = lift2( (x, y) => { return Math.max(x, y); } );
+const minGeo = lift2( (x, y) => { return Math.min(x, y); } );
 
-    } else {
-        return { w : g1.w * g2.w,
-                 h : g1.h * g2.h
-               };
-    }
-}
+function eqGeo(g1, g2) { return g1.w === g2.w && g1.h === g2.h; }
+function ltGeo(g1, g2) { return g1.w  <  g2.w && g1.h  <  g2.h; }
+function leGeo(g1, g2) { return g1.w <=  g2.w && g1.h <=  g2.h; }
 
-function divGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return { w : g1.w / g2,   // geo + scalar
-                 h : g1.h / g2
-               };
-
-    } else {
-        return { w : g1.w / g2.w,
-                 h : g1.h / g2.h
-               };
-    }
-}
-
-function maxGeo(g1, g2) {
-    if (typeof g2 === "number") {
-        return maxGeo(g1, { w : g2, h : g2} )
-    } else {
-        return { w : Math.max(g1.w, g2.w),
-                 h : Math.max(g1.h, g2.h)
-               };
-    }
-}
-
-function halfGeo(g) {
-    return divGeo(g,2);
-}
-
-function roundGeo(g) {
-    return { w : Math.round(g.w),
-             h : Math.round(g.h)
-           };
-}
-
-function absGeo(g) {
-    return { w : Math.abs(g.w),
-             h : Math.abs(g.h)
-           };
-}
-
-function pxGeo(g) {
-    const g1 = roundGeo(g);
-    return { w : g1.w + "px",
-             h : g1.h + "px"
-           };
-}
+// --------------------
 
 function styleSize(geo) {
     if ( ! geo )
@@ -224,14 +183,6 @@ function styleGeo(geo, off, ov) {
     return res;
 }
 
-function fitsInto(g1, g2) {
-    return g1.w <= g2.w && g1.h <= g2.h;
-}
-
-function lessThan(g1, g2) {
-    return g1.w < g2.w && g1.h < g2.h;
-}
-
 function similarGeo(g1, g2, d) {
     d = d || 10;
     const g = absGeo(subGeo(g1, g2));
@@ -240,12 +191,12 @@ function similarGeo(g1, g2, d) {
 
 function isPano(g) {
     const ar = aspectRatio(g);
-    return fitsInto(cs.screenGeo, g)
+    return leGeo(cs.screenGeo, g)
         && ( ar >= 2 || ar <= 0.5 );
 }
 
 function isTiny(g) {
-    return lessThan(g, cs.screenGeo);
+    return ltGeo(g, cs.screenGeo);
 }
 
 function isHorizontal(g) {
@@ -278,14 +229,6 @@ function showGeo(geo) {
 
 function isOrgGeo(geo) {
     return showGeo(geo) === "org";
-}
-
-function toPx(obj) {
-    const res = {};
-    for (k in obj) {
-        res[k] = obj[k] + "px";
-    }
-    return res;
 }
 
 // computes the maximum geo with aspect ratio of s
@@ -2074,7 +2017,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                  };
 
             if ( isMediaSlide() ) {
-                cs.orgGeo    = readGeo(cs.page.oirGeo[0]);              // size of original media
+                cs.orgGeo    = readGeo(cs.page.oirGeo[0]);         // size of original media
 
                 cs.reqGeo    = readGeo(cs.page.oirGeo[2]);
                 if ( isOrgGeo(readGeo(cs.page.oirGeo[1])) ) {      // size scaled down copy to fill the screen
@@ -2083,7 +2026,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 // normalize resize algs
 
-                cs.isLargeImg = lessThan(cs.screenGeo, cs.orgGeo);
+                cs.isLargeImg = ltGeo(cs.screenGeo, cs.orgGeo);
                 if ( ! cs.isLargeImg
                      &&
                      ( cs.resizeAlg === "fullsize"
@@ -2102,7 +2045,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.resizeAlg = "default";
                 }
 
-                cs.isTinyImg = lessThan(cs.orgGeo, cs.screenGeo);
+                cs.isTinyImg = ltGeo(cs.orgGeo, cs.screenGeo);
                 if ( cs.isTinyImg
                      &&
                      cs.resizeAlg === "default"
@@ -2128,10 +2071,10 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 cs.fitGeo    = resizeGeo(cs.orgGeo, cs.screenGeo); // size scaled down to fit into screen
 
-                cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo);      // default zoom position
-                cs.zoomDur   = 4000;                                    // default zoom duration 4 sec
+                cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo); // default zoom position
+                cs.zoomDur   = 4000;                               // default zoom duration 4 sec
 
-                cs.magDur    = 1000;                                    // mduration of magnifying tiny img
+                cs.magDur    = 1000;                               // mduration of magnifying tiny img
 
                 trc(1, "jsonSlide: slide context  initialized");
 
