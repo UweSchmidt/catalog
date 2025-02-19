@@ -2473,8 +2473,6 @@ function addFullImg() {
         const geo    = cs.orgGeo;
         const style  = styleGeo(cs.screenGeo, nullGeo);
 
-        // const offset = halfGeo(subGeo(cs.screenGeo, geo)); // nice try
-        // const style2 = styleGeo(geo, offset);     // nice try, does not work
         const style2 = styleSize(geo);
         style2.position  = "absolute";
 
@@ -2649,17 +2647,6 @@ function animTransZoom(zoomAnim) {
         const tr1 = transCrossFade(noAnim(500), fadein(500));  // transition to fullsize image slide
         const tr2 = animCurrentImg(zoomAnim);                  // zoom transition
         comp(tr1, tr2)(k);
-    }
-    return doit;
-}
-
-function animTransMagnify(zoomAnim) {
-
-    function doit(k) {
-        // const tr1 = transCrossFade(noAnim(500), fadein(500));  // transition to fullsize image slide
-        const tr2 = animCurrentImg(zoomAnim);                  // zoom transition
-        tr2(k);
-        // comp(tr1, tr2)(k);
     }
     return doit;
 }
