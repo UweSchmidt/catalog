@@ -216,9 +216,9 @@ function styleGeo(geo, off, ov) {
     const res = styleSize(geo);
     const opx = pxGeo(off);
 
-    res.left = opx.w;
-    res.top  = opx.h;
-
+    res.left     = opx.w;
+    res.top      = opx.h;
+    res.position = "absolute";
     res.overflow = ov || "auto";
 
     return res;
@@ -288,13 +288,6 @@ function toPx(obj) {
     return res;
 }
 
-function shrinkGeo(s, d) {
-    if ( fitsInto(s,d) )
-        return s;
-    else
-        return resizeGeo(s, d);
-}
-
 // computes the maximum geo with aspect ratio of s
 // that fits into d
 
@@ -331,27 +324,6 @@ function resize(s, d) {
     };
 }
 
-function resizeWidth(g, w) {
-    return resize(g, {w: w, h: infiniteWidth});
-}
-
-function resizeHeight(g, h) {
-    return resize(g, {w: infiniteWidth, h: h});
-}
-
-function resizeToScreen(g) {
-    return resize(g, cs.screenGeo);
-}
-
-function resizeToScreenH(g) {
-    return resizeHeight(g, cs.screenGeo.h);
-}
-
-function resizeToScreenW(g) {
-    return resizeWidth(g, cs.screenGeo.w);
-}
-
-
 function resizeToHeight(s, d) {
     return resizeGeo(s, {w: infiniteWidth, h: d.h});
 }
@@ -360,30 +332,14 @@ function resizeToWidth(s, d) {
     return resizeGeo(s, {w: d.w, h: infiniteWidth});
 }
 
-function resizeToScreenHeight(g) {
-    return resizeToHeight(g, cs.screenGeo);
-}
-
-function resizeToScreenHeight1(g) {
-    if ( fitsInto(cs.screenGeo, g) )
-        return readGeo("org");
-    return resizeToScreenHeight(g);
-}
-
-function resizeToScreenHeightPano(g) {
-    if ( ! isPano(g) )
-        return g;
-    return resizeToScreenHeight(g);
-}
-
-function resizeToScreenWidth(g) {
-    return resizeToWidth(g, cs.screenGeo);
-}
-
 function resizeToPano(g) {
-    return maxGeo( resizeToScreenHeight(g),
-                   resizeToScreenWidth(g)
+    return maxGeo( resizeToHeight(g, cs.screenGeo),
+                   resizeToWidth (g, cs.screenGeo)
                  );
+}
+
+function resizeToScreen(g) {
+    return resize(g, cs.screenGeo);
 }
 
 // --------------------
@@ -405,19 +361,11 @@ function screenGeo() {
     return theScreenGeo;
 }
 
-// --------------------
-
-function shrinkToScreenGeo(geo) {
-    return shrinkGeo(geo, cs.screenGeo);
-}
-
-function fitToScreenGeo(geo, blowUp) {
-    return (blowUp === "magnify" ? resizeGeo : shrinkGeo)(geo, cs.screenGeo);
-}
-
 function placeOnScreen(geo) {
     return halfGeo(subGeo(cs.screenGeo, geo));
 }
+
+// --------------------
 
 const geoOrg = readGeo("org");
 
@@ -2094,6 +2042,7 @@ var cs = { url         : "",
            zoomPos     : {},
            zoomPos     : {},
            zoomDur     : 2000,
+           magDur      : 1000,
          };
 
 var ls = {};
@@ -2177,7 +2126,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.resizeAlg = "downsize";
                 }
 
-                cs.fitGeo    = fitToScreenGeo(cs.orgGeo, cs.resizeAlg); // size scaled down to fit into screen
+                cs.fitGeo    = resizeGeo(cs.orgGeo, cs.screenGeo); // size scaled down to fit into screen
 
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo);      // default zoom position
                 cs.zoomDur   = 4000;                                    // default zoom duration 4 sec
@@ -2477,59 +2426,46 @@ function addZoomImg() {
     return doit;
 }
 
-function addTinyImg() {
+function addTinyMagImg(geo0, geo, resizeAlg) {
 
     function doit(k) {
-        const geo    = cs.orgGeo;
-        const offset = placeOnScreen(geo);
-        const style  = styleGeo(geo, offset, "hidden");
-        const style2 = styleSize(geo);
+        const toggle  = cs.urlImg === ls.urlImg;
 
-        function initMagnify(e) {
-            trc(1, "initZoom: start magnifying image with id=" + cs.imgId );
-            thisSlideWith("magnify");
+        const offset0 = placeOnScreen(geo0);
+        const offset  = placeOnScreen(geo);
+
+        const style   = styleGeo(cs.screenGeo, nullGeo);
+        const style2  =
+              toggle
+              ? styleGeo(geo0, offset0)
+              : styleGeo(geo,   offset);
+
+        trc(1, `addTinyMagImg: ${cs.urlImg}, ${toggle}, ${showGeo(geo0)}, ${showGeo(geo)}`);
+
+        function resizeHandler(e) {
+            trc(1, "resizeHandler: alg =" + resizeAlg);
+            thisSlideWith(resizeAlg);
         }
 
         function addHandler(i) {
-            i.addEventListener("dblclick", initMagnify);
+            i.addEventListener("dblclick", resizeHandler);
         }
 
         addImgToDom(style, style2, addHandler);
 
-        animTransMedia(cs.transDur)(k);
+        if ( toggle ) {
+            const a = zoomIn1(geo0, offset0, geo, offset)(cs.magDur);
+            animTransZoom(a)(k);            // toggle tiny/magnified
+        }
+        else {
+            animTransMedia(cs.transDur)(k); // img displayed the 1. time
+        }
     }
     return doit;
 }
 
-function addMagnifiedImg() {
-
-    function doit(k) {
-        const geo0    = cs.orgGeo;
-        const offset0 = placeOnScreen(geo0);
-        const scale0  = oneGeo;
-
-        const geo     = cs.fitGeo;
-        const offset  = placeOnScreen(geo);
-
-        const viewCenter = halfGeo(geo0);
-        const viewScale  = divGeo(geo, geo0);
-
-        const style  = styleGeo(cs.screenGeo, nullGeo, "hidden");
-        const style2 = styleGeo(geo, offset, "hidden");
-        style2.position = "absolute";
-
-        trc(1, `addMagnifiedImg: ${cs.urlImg}, ${showGeo(geo)}, ${showGeo(cs.zoomPos)}`);
-
-        const a      = zoomIn1(geo0, offset0, geo, cs.zoomPos)(cs.magDur);
-
-        trc(1, `addMagnifiedImg: anim=${JSON.stringify(a)}`);
-
-        addImgToDom(style, style2, () => {});
-
-        animTransZoom(a)(k);
-    }
-    return doit;
-}
+function addTinyImg()      { return addTinyMagImg(cs.fitGeo, cs.orgGeo, "magnify"); }
+function addMagnifiedImg() { return addTinyMagImg(cs.orgGeo, cs.fitGeo, "tinyimg"); }
 
 function addFullImg() {
 
