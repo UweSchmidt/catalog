@@ -714,7 +714,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             if ( isHeader ) {
                 const r = newElem("div",
                                   { width:  iG.w,
-                                    heigth: iG.h,
+                                    height: iG.h,
                                     border: cssBorder
                                   },
                                   "collection-header-icon");
