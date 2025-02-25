@@ -100,7 +100,6 @@ function intercalate(s, xs) {
 /* ---------------------------------------- */
 /* geometry ops */
 
-const infiniteWidth = 1000000;
 const nullGeo       = { w : 0, h : 0 };
 const oneGeo        = { w : 1, h : 1 };
 
@@ -115,7 +114,7 @@ function mapGeo(op) {
 }
 
 const roundGeo = mapGeo( (x) => { return Math.round(x); } );
-const absGeo   = mapGeo( (x) => { return Math.round(x); } );
+const absGeo   = mapGeo( (x) => { return Math.abs(x); } );
 const toPxGeo  = mapGeo( (x) => { return x + "px"; } );
 
 function halfGeo(g) { return divGeo(g,2); }
@@ -123,15 +122,15 @@ function pxGeo  (g) { return toPxGeo(roundGeo(g)); }
 
 // --------------------
 
-function lift2(op) {
+function liftGeo(op) {
 
     function doit(g1, g2) {
         if ( typeof g1 === "number" ) {                 // scalar `op` geo
-            return lift2(op)({w: g1, h: g1}, g2);
+            return liftGeo(op)({w: g1, h: g1}, g2);
         }
 
         if ( typeof g2 === "number" ) {                 // geo `op` scalar
-            return lift2(op)(g1, {w: g2, h: g2});
+            return liftGeo(op)(g1, {w: g2, h: g2});
         }
 
         return {w: op(g1.w, g2.w), h: op(g1.h, g2.h)};  // geo `op` geo
@@ -139,12 +138,12 @@ function lift2(op) {
     return doit;
 }
 
-const addGeo = lift2( (x, y) => { return x + y; } );
-const subGeo = lift2( (x, y) => { return x - y; } );
-const mulGeo = lift2( (x, y) => { return x * y; } );
-const divGeo = lift2( (x, y) => { return x / y; } );
-const maxGeo = lift2( (x, y) => { return Math.max(x, y); } );
-const minGeo = lift2( (x, y) => { return Math.min(x, y); } );
+const addGeo = liftGeo( (x, y) => { return x + y; } );
+const subGeo = liftGeo( (x, y) => { return x - y; } );
+const mulGeo = liftGeo( (x, y) => { return x * y; } );
+const divGeo = liftGeo( (x, y) => { return x / y; } );
+const maxGeo = liftGeo( (x, y) => { return Math.max(x, y); } );
+const minGeo = liftGeo( (x, y) => { return Math.min(x, y); } );
 
 function eqGeo(g1, g2) { return g1.w === g2.w && g1.h === g2.h; }
 function ltGeo(g1, g2) { return g1.w  <  g2.w && g1.h  <  g2.h; }
@@ -203,29 +202,37 @@ function isOrgGeo(geo) {
 // computes the maximum geo with aspect ratio of s
 // that fits into d
 
-function resizeGeo(s, d) {
-    if (s.w * d.h >= d.w * s.h)
-        return { w : d.w,
+function fitsInto(s, d) {
+    if (s.w * d.h >= d.w * s.h)            // s.w / s.h >= d.w / d.h
+        return { w : d.w,                  // s is more landscape than d
                  h : div(d.w * s.h, s.w)
                };
     else
-        return { w : div(d.h * s.w, s.h),
+        return { w : div(d.h * s.w, s.h),  // s is more portrait than d
                  h : d.h
                };
 }
 
+// computes the minimum geo with aspect ratio of s
+// that covers d
+
+function fills(s, d) {
+    if (s.w * d.h >= d.w * s.h)            // s.w / s.h >= d.w / d.h
+        return { h : d.h,                  // s is more landscape than d
+                 w : div(d.h * s.w, s.h)
+               };
+    else
+        return { h : div(d.w * s.h, s.w),  // s is more portrait than d
+                 w : d.w
+               };
+}
+
 function resizeToHeight(s, d) {
-    return resizeGeo(s, {w: infiniteWidth, h: d.h});
+    return fills(s, {w: 0, h: d.h});
 }
 
 function resizeToWidth(s, d) {
-    return resizeGeo(s, {w: d.w, h: infiniteWidth});
-}
-
-function resizeToPano(g) {
-    return maxGeo( resizeToHeight(g, cs.screenGeo),
-                   resizeToWidth (g, cs.screenGeo)
-                 );
+    return fills(s, {w: d.w, h: 0});
 }
 
 // --------------------
@@ -251,6 +258,12 @@ function placeOnScreen(geo) {
     return halfGeo(subGeo(cs.screenGeo, geo));
 }
 
+function resizeToPano(g) {
+    return maxGeo( resizeToHeight(g, cs.screenGeo),
+                   resizeToWidth (g, cs.screenGeo)
+                 );
+}
+
 // --------------------
 
 const geoOrg = readGeo("org");
@@ -271,7 +284,7 @@ const serverSupportedGeos =
 function bestFitToGeo (s) {
     for (let v of serverSupportedGeos) {
         const g = readGeo(v);
-        if (g.w >= s.w && g.h >= s.h)
+        if ( leGeo(s, g) ) // (g.w >= s.w && g.h >= s.h)
             return g;
     }
     return geoOrg;
@@ -285,10 +298,10 @@ function bestFitIconGeo() {
     const w = cs.screenGeo.w;
     if (w <= 1280)
         return readGeo("120x90");
-    if (w <= 1400)               // cannon beamer geo 1400x1050
+    if (w <= 1400)                 // cannon beamer geo 1400x1050
         return readGeo("140x105");
     if (w <= 2560)
-        return readGeo("160x120"); // iMac 27''
+        return readGeo("160x120"); // iMac 27'' and MacBook Pro 1800x1126
 
     return readGeo("256x192");     // eizo 4k display
 }
@@ -2045,7 +2058,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.resizeAlg = "downsize";
                 }
 
-                cs.fitGeo    = resizeGeo(cs.orgGeo, cs.screenGeo); // size scaled down to fit into screen
+                cs.fitGeo    = fitsInto(cs.orgGeo, cs.screenGeo); // size scaled down to fit into screen
 
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo); // default zoom position
                 cs.zoomDur   = 4000;                               // default zoom duration 4 sec
