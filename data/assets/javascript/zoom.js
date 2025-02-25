@@ -290,7 +290,7 @@ function bestFitIconGeo() {
     if (w <= 2560)
         return readGeo("160x120"); // iMac 27''
 
-    return readGeo("256x144");     // eizo 4k display
+    return readGeo("256x192");     // eizo 4k display
 }
 
 function getResizedGeo(cxt) {
@@ -664,7 +664,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
     const gapGeo   = mulGeo(subGeo(gridGeo, 1), gap);
     const navGeo   = addGeo(mulGeo(ico2GeoB, gridGeo), gapGeo);
 
-    const numCols = Math.max(div(cs.screenGeo.w - 2 * padding, iconGeoB.w + gap));
+    const numCols  = Math.max(div(cs.screenGeo.w - 2 * padding, iconGeoB.w + gap));
 
     // geometry in px
     const iG       = pxGeo(iconGeo);
@@ -748,7 +748,12 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
         function buildHeadLine() {
             if ( isHeader ) {
                 const r  = newElem("div", {}, "collection-header-title");
-                const t1 = colMeta["Descr:Title"];
+                const t1 = ( colMeta["Descr:Title"]
+                             ||
+                             colMeta["Descr:TitleEnglish"]
+                             ||
+                             colMeta["Descr:TitleLatin"]
+                           );
                 const t2 = colMeta["Descr:Subtitle"];
                 const t3 = colMeta["Descr:Comment"];
                 const t4 = colMeta["Descr:GPSPositionDeg"];
