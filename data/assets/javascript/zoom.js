@@ -1919,33 +1919,7 @@ function zoomIn1(tr) {
 
 // --------------------
 
-function panorama(dr, dr1, offset) {
-    // dr:  left or bottom      // horizontal / vertical pano
-    // dr1: top  or left
-
-    function doit(dur) {
-        var kf0 = { offset: 0.0 };   kf0[dr] =         "0px";
-        var kf1 = { offset: 1.0 };   kf1[dr] = offset + "px";
-
-        const kf = [kf0, kf1];
-
-        const t = {
-            duration:   dur,
-            easing:     'ease-in-out',
-            delay:      1000,
-            direction:  "alternate",
-            iterations: 1,
-            fill:      "forwards",
-        };
-
-        return { keyFrames: kf,
-                 timing:    t,
-               };
-    }
-    return doit;
-}
-
-function panorama1(tr) {
+function panorama(tr) {
 
     function doit(dur) {
         const a = zoomIn1(tr)(dur);
@@ -2349,31 +2323,6 @@ function switchResizeImg() {
     return doit;
 }
 
-function addPanoramaImgOld() {
-
-    function doit(k) {
-        const geo    = cs.panoGeo;
-        const isH    = isHorizontal(geo);
-        const offset = isH ? cs.screenGeo.w - geo.w : cs.screenGeo.h - geo.h;
-        const dr     = isH ? "left" : "bottom";
-        const dr1    = isH ? "top"  : "left";
-
-        const ar     = aspectRatio(geo);
-        const dur    = 10 * Math.abs(offset); // 10 * number of pixels to move
-
-        const style  = cssGeo(cs.screenGeo, nullGeo, {overflow: "hidden"});
-        let   style2 = { position: "absolute" };
-        style2[dr]   = "0px";
-        style2[dr1]  = "0px";
-
-        const a      = panorama(dr, dr1, offset)(dur);
-
-        addImgToDom(style, style2, () => {});
-        animTransPanorama(a, cs.transDur)(k);
-    }
-    return doit;
-}
-
 function addPanoramaImg() {
 
     function doit(k) {
@@ -2387,11 +2336,11 @@ function addPanoramaImg() {
         const move   = Math.max(dist.w, dist.h);
         const dur    = 10 * Math.abs(move);        // 10 * number of pixels to move
 
-        const style  = cssGeo(cs.screenGeo, nullGeo, { overflow: "hidden"   });
+        const style  = { overflow: "hidden" };
         let   style2 = cssGeo(cs.panoGeo,   off0,    { position: "absolute" });
 
         const tr     = mkTrans(mkRect(cs.panoGeo, off0), mkRect(cs.panoGeo, off1));
-        const a      = panorama1(tr)(dur);
+        const a      = panorama(tr)(dur);
 
         addImgToDom(style, style2, () => {});
         animTransPanorama(a, cs.transDur)(k);
@@ -2405,7 +2354,7 @@ function addZoomImg() {
         const geo        = cs.orgGeo;
         const imgGeo     = cs.fitGeo;
         const offset     = placeOnScreen(imgGeo);
-        const style      = cssGeo(cs.screenGeo, nullGeo, {overflow: "hidden"});
+        const style      = {overflow: "hidden"};
 
         const viewCenter = halfGeo(imgGeo);
         const viewScale  = divGeo(imgGeo, geo);
@@ -2441,7 +2390,7 @@ function addTinyMagImg(geo0, geo, resizeAlg) {
         const offset0 = placeOnScreen(geo0);
         const offset  = placeOnScreen(geo);
 
-        const style   = cssGeo(cs.screenGeo, nullGeo);
+        const style   = {};
         const style2  =
               toggle
               ? cssGeo(geo0, offset0)
@@ -2478,7 +2427,7 @@ function addMagnifiedImg() { return addTinyMagImg(cs.orgGeo, cs.fitGeo, "tinyimg
 function addFullImg() {
 
     function doit(k) {
-        const style  = cssGeo (cs.screenGeo, nullGeo);
+        const style  = {};
         const style2 = cssSize(cs.orgGeo, {position: "absolute"});
 
         addImgToDom(style, style2, () => {});
@@ -2493,7 +2442,7 @@ function addFillImg() {
     function doit(k) {
         const imgGeo = cs.fillGeo;
         const offset = placeOnScreen(imgGeo);
-        const style  = cssGeo(cs.screenGeo, nullGeo, {overflow: "hidden"});
+        const style  = {overflow: "hidden"};
         const style2 = cssGeo(imgGeo, offset);
 
         addImgToDom(style, style2, () => {});
@@ -2508,7 +2457,7 @@ function addZoomableImg() {
     function doit(k) {
         const imgGeo = cs.fitGeo;
         const offset = placeOnScreen(imgGeo);
-        const style  = cssGeo(cs.screenGeo, nullGeo, {overflow: "hidden"});
+        const style  = {overflow: "hidden"};
         const style2 = cssGeo(imgGeo, offset);
 
         function initZoom(e) {
@@ -2533,9 +2482,10 @@ function addZoomableImg() {
 }
 
 function addImgToDom(style, style2, addHandler) {
+    const style1 = cssGeo(cs.screenGeo, nullGeo, style);
 
     const e = getElem(cs.imgId);
-    setCSS(e, style);
+    setCSS(e, style1);
 
     const i = newImgElem(cs.imgId, style2, "img " + cs.resizeAlg);
     addHandler(i);
