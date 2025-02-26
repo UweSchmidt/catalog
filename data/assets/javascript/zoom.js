@@ -98,20 +98,65 @@ function intercalate(s, xs) {
 }
 
 /* ---------------------------------------- */
-/* geometry ops */
+/* geometry data structures */
 
-const nullGeo       = { w : 0, h : 0 };
-const oneGeo        = { w : 1, h : 1 };
+function mkGeo(w, h) {        // size of a rectangle
+    return { w: w,
+             h: h
+           };
+}
+
+function isGeo(g) {
+    return (typeof g === "object")
+        && g.hasOwnProperty("w")
+        && g.hasOwnProperty("h");
+}
+
+const mkOff = mkGeo;
+const isOff = isGeo;
+
+// --------------------
+
+function mkRect(geo, off) {
+    return { geo: geo,
+             off: off
+           };
+}
+
+function isRect(r) {
+    return (typeof r === "object")
+        && r.hasOwnProperty("geo")
+        && r.hasOwnProperty("off");
+}
+
+// --------------------
+
+function mkTrans(start, finish) {
+    return { start:  start,
+             finish: finish
+           };
+}
+
+function isTrans(t) {
+    return (typeof t === "object")
+        && t.hasOwnProperty("start")
+        && t.hasOwnProperty("finish");
+}
+
+function invertTrans(t) { return mkTrans(t.finish, t.start); }
+
+// --------------------
+
+const nullGeo       = mkGeo(0, 0);
+const oneGeo        = mkGeo(1, 1);
 
 // --------------------
 
 function mapGeo(op) {
-
-    function doit(g) {
-        return {w: op(g.w), h: op(g.h)};
-    }
-    return doit;
+    return (g) => { return mkGeo(op(g.w), op(g.h)); };
 }
+
+const mapOff = mapGeo;
 
 const roundGeo = mapGeo( (x) => { return Math.round(x); } );
 const absGeo   = mapGeo( (x) => { return Math.abs(x); } );
@@ -1751,14 +1796,14 @@ function toggleOverlay(o) {
 
         // fadein
         var a    = fadein8(500);
-        var css1 = { display: "block", opacity: 0.0 }
-        var css2 = { }
+        var css1 = { display: "block", opacity: 0.0 };
+        var css2 = {};
 
         if ( o.visible ) {
             // fadeout
             var a = fadeout8(500);
-            var css1 = { }
-            var css2 = { display: "none", opacity: '' }
+            var css1 = {};
+            var css2 = { display: "none", opacity: '' };
         }
 
         o.visible = ! o.visible;
@@ -1838,11 +1883,11 @@ const shrink2  = shrink(2);
 //
 // animation for resizing from (geo0, off0) to (geo1, off1)
 
-function zoomIn1(geo0, off0, geo1, off1) {
-    geo0 = pxGeo(geo0);
-    off0 = pxGeo(off0);
-    geo1 = pxGeo(geo1);
-    off1 = pxGeo(off1);
+function zoomIn1(tr) {
+    geo0 = pxGeo(tr.start.geo);
+    off0 = pxGeo(tr.start.off);
+    geo1 = pxGeo(tr.finish.geo);
+    off1 = pxGeo(tr.finish.off);
 
     function doit(dur) {
         const kf = [
@@ -1870,10 +1915,6 @@ function zoomIn1(geo0, off0, geo1, off1) {
 
     }
     return doit;
-}
-
-function zoomOut1(geo0, off0, geo1, off1) {
-    return zoomIn1(geo1, off1, geo0, off0);
 }
 
 // --------------------
@@ -1904,6 +1945,15 @@ function panorama(dr, dr1, offset) {
     return doit;
 }
 
+function panorama1(tr) {
+
+    function doit(dur) {
+        const a = zoomIn1(tr)(dur);
+        a.timing.delay = 500;
+        return a;
+    }
+    return doit;
+}
 
 // --------------------
 
@@ -2015,15 +2065,17 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 // normalize resize algs
 
-                cs.isLargeImg = ltGeo(cs.screenGeo, cs.orgGeo);
+                cs.isLargeImg = ltGeo(cs.screenGeo, cs.orgGeo);    // org image covers whole screen
                 if ( ! cs.isLargeImg
                      &&
                      ( cs.resizeAlg === "fullsize"
                        ||
                        cs.resizeAlg === "zoom"
+                       ||
+                       cs.resizeAlg === "fill"
                      )
                    ) {
-                    cs.resizeAlg = "default";
+                    cs.resizeAlg = "default";                      // too small for zoom, fullscreen or fill
                 }
 
                 cs.isPanoImg = isPano(cs.orgGeo);
@@ -2055,10 +2107,11 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 // last rule
                 if ( cs.resizeAlg === "default" ) {
-                    cs.resizeAlg = "downsize";
+                    cs.resizeAlg = "fitsinto";
                 }
 
-                cs.fitGeo    = fitsInto(cs.orgGeo, cs.screenGeo); // size scaled down to fit into screen
+                cs.fitGeo    = fitsInto(cs.orgGeo, cs.screenGeo);  // size scaled down to fit into screen
+                cs.fillGeo   = fills   (cs.orgGeo, cs.screenGeo);  // size scaled down to cover whole screen
 
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo); // default zoom position
                 cs.zoomDur   = 4000;                               // default zoom duration 4 sec
@@ -2277,7 +2330,10 @@ function switchResizeImg() {
         else if ( cs.resizeAlg === "fullsize" ) {
             addFullImg()(k);
         }
-        else if ( cs.resizeAlg === "downsize" ) {
+        else if ( cs.resizeAlg === "fill" ) {
+            addFillImg()(k);
+        }
+        else if ( cs.resizeAlg === "fitsinto" ) {
             addZoomableImg()(k);
         }
         else if ( cs.resizeAlg === "tinyimg" ) {
@@ -2293,7 +2349,7 @@ function switchResizeImg() {
     return doit;
 }
 
-function addPanoramaImg() {
+function addPanoramaImgOld() {
 
     function doit(k) {
         const geo    = cs.panoGeo;
@@ -2311,6 +2367,31 @@ function addPanoramaImg() {
         style2[dr1]  = "0px";
 
         const a      = panorama(dr, dr1, offset)(dur);
+
+        addImgToDom(style, style2, () => {});
+        animTransPanorama(a, cs.transDur)(k);
+    }
+    return doit;
+}
+
+function addPanoramaImg() {
+
+    function doit(k) {
+        const geo    = cs.panoGeo;
+        const isH    = isHorizontal(cs.panoGeo);
+
+        const off0   = isH ? nullGeo : subGeo(cs.panoGeo, cs.screenGeo);
+        const off1   = isH ? subGeo(cs.screenGeo, cs.panoGeo) : nullGeo;  // negative offset
+
+        const dist   = subGeo(off0, off1);
+        const move   = Math.max(dist.w, dist.h);
+        const dur    = 10 * Math.abs(move);        // 10 * number of pixels to move
+
+        const style  = cssGeo(cs.screenGeo, nullGeo, { overflow: "hidden"   });
+        let   style2 = cssGeo(cs.panoGeo,   off0,    { position: "absolute" });
+
+        const tr     = mkTrans(mkRect(cs.panoGeo, off0), mkRect(cs.panoGeo, off1));
+        const a      = panorama1(tr)(dur);
 
         addImgToDom(style, style2, () => {});
         animTransPanorama(a, cs.transDur)(k);
@@ -2340,7 +2421,8 @@ function addZoomImg() {
 
         trc(1, `addZoomImg: ${cs.urlImg}, ${showGeo(geo)}, ${showGeo(cs.zoomPos)}`);
 
-        const a =  zoomIn1(imgGeo, offset, geo, clickOff)(cs.zoomDur);
+        const tr = mkTrans(mkRect(imgGeo, offset), mkRect(geo,clickOff));
+        const a  = zoomIn1(tr)(cs.zoomDur);
 
         trc(1, `addZoomImg: anim=${JSON.stringify(a)}`);
 
@@ -2379,7 +2461,8 @@ function addTinyMagImg(geo0, geo, resizeAlg) {
         addImgToDom(style, style2, addHandler);
 
         if ( toggle ) {
-            const a = zoomIn1(geo0, offset0, geo, offset)(cs.magDur);
+            const tr = mkTrans(mkRect(geo0, offset0), mkRect(geo, offset));
+            const a  = zoomIn1(tr)(cs.zoomDur);
             animTransZoom(a)(k);            // toggle tiny/magnified
         }
         else {
@@ -2405,13 +2488,28 @@ function addFullImg() {
     return doit;
 }
 
+function addFillImg() {
+
+    function doit(k) {
+        const imgGeo = cs.fillGeo;
+        const offset = placeOnScreen(imgGeo);
+        const style  = cssGeo(cs.screenGeo, nullGeo, {overflow: "hidden"});
+        const style2 = cssGeo(imgGeo, offset);
+
+        addImgToDom(style, style2, () => {});
+        animTransMedia(cs.transDur)(k);
+
+    }
+    return doit;
+}
+
 function addZoomableImg() {
 
     function doit(k) {
         const imgGeo = cs.fitGeo;
         const offset = placeOnScreen(imgGeo);
-        const style  = cssGeo(imgGeo, offset, {overflow: "hidden"});
-        const style2 = cssSize(imgGeo);
+        const style  = cssGeo(cs.screenGeo, nullGeo, {overflow: "hidden"});
+        const style2 = cssGeo(imgGeo, offset);
 
         function initZoom(e) {
             trc(1, "initZoom: start zooming image with id=" + cs.imgId );
@@ -2654,7 +2752,8 @@ function isPanoSlide() {
 }
 
 function checkResizeAlg(alg) {
-    if ( [ "downsize",
+    if ( [ "fitsinto",
+           "fill",
            "fullsize",
            "zoom",
            "tinyimg",
