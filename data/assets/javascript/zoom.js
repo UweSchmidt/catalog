@@ -297,7 +297,7 @@ function placeCenter(g, s) {
 }
 
 function placeAt(g, s) {                  // g: org image geo, s: screen geo
-    const i = ( cs.resizeAlg === "fitsinto"
+    const i = ( ls.resizeAlg === "fitsinto"
                 ? cs.fitsinto.geo
                 : cs.fill.geo
               );
@@ -2439,13 +2439,13 @@ function addPanoramaImg() {
 function addZoomImg() {
 
     function doit(k) {
-
+        const r      = ls.resizeAlg == "fill" ? cs.fill : cs.fitsinto;
         const style  = {overflow: "hidden"};
-        const style2 = cssRect(cs.fitsinto, {overflow: "hidden"});
+        const style2 = cssRect(r, {overflow: "hidden"});
 
         trc(1, `addZoomImg: ${cs.urlImg}`);
 
-        const tr = mkTrans(cs.fitsinto, cs.zoom);
+        const tr = mkTrans(r, cs.zoom);
         const a  = moveAndScale(tr)(cs.zoomDur);
 
         trc(1, `addZoomImg: anim=${JSON.stringify(a)}`);
