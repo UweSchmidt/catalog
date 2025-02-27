@@ -250,10 +250,10 @@ function isOrgGeo(geo) {
 function fitsInto(s, d) {
     if (s.w * d.h >= d.w * s.h)            // s.w / s.h >= d.w / d.h
         return { w : d.w,                  // s is more landscape than d
-                 h : div(d.w * s.h, s.w)
+                 h : d.w * s.h / s.w
                };
     else
-        return { w : div(d.h * s.w, s.h),  // s is more portrait than d
+        return { w : d.h * s.w / s.h,      // s is more portrait than d
                  h : d.h
                };
 }
@@ -264,10 +264,10 @@ function fitsInto(s, d) {
 function fills(s, d) {
     if (s.w * d.h >= d.w * s.h)            // s.w / s.h >= d.w / d.h
         return { h : d.h,                  // s is more landscape than d
-                 w : div(d.h * s.w, s.h)
+                 w : d.h * s.w / s.h
                };
     else
-        return { h : div(d.w * s.h, s.w),  // s is more portrait than d
+        return { h : d.w * s.h / s.w,  // s is more portrait than d
                  w : d.w
                };
 }
@@ -286,6 +286,13 @@ function pano(s, d) {
     return maxGeo( resizeToHeight(s, d),
                    resizeToWidth (s, d)
                  );
+}
+
+function cutoffArea(s0, d) {
+    const s1 = fills(s0, d);     // resize s0 to cover whole d
+    const d1 = subGeo(s1, d);    // area not covered
+    const rs = divGeo(d1, s1);   // area rel to d
+    return Math.max(rs.w, rs.h);
 }
 
 // --------------------
@@ -2187,6 +2194,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.panoramaS = panoStart (cs.orgGeo);
                     cs.panoramaF = panoFinish(cs.orgGeo);
                 }
+                cs.fillCutoff = cutoffArea(cs.fill.geo, cs.screenGeo);
 
                 trc(1, "jsonSlide: slide context  initialized");
 
