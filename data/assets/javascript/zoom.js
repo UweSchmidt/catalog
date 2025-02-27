@@ -1108,6 +1108,12 @@ function openEditPage(path, pos) {
     window.open(url, "_blank");
 }
 
+function sameAsLastSlide() {
+    const ppc = rPathPosToUrl(cs.slideReq.rPathPos);
+    const ppl = rPathPosToUrl(ls.slideReq.rPathPos) || "";
+    return ppc === ppl;
+}
+
 // ------------------------------------------------------------
 //
 // event handlers for image animations
@@ -1883,7 +1889,7 @@ const shrink2  = shrink(2);
 //
 // animation for resizing from (geo0, off0) to (geo1, off1)
 
-function zoomIn1(tr) {
+function moveAndScale(tr) {
     geo0 = pxGeo(tr.start.geo);
     off0 = pxGeo(tr.start.off);
     geo1 = pxGeo(tr.finish.geo);
@@ -1922,7 +1928,7 @@ function zoomIn1(tr) {
 function panorama(tr) {
 
     function doit(dur) {
-        const a = zoomIn1(tr)(dur);
+        const a = moveAndScale(tr)(dur);
         a.timing.delay = 500;
         return a;
     }
@@ -2086,6 +2092,9 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 cs.fitGeo    = fitsInto(cs.orgGeo, cs.screenGeo);  // size scaled down to fit into screen
                 cs.fillGeo   = fills   (cs.orgGeo, cs.screenGeo);  // size scaled down to cover whole screen
+
+                cs.fitOffset = placeOnScreen(cs.fitGeo);
+                cs.fillOffset= placeOnScreen(cs.fillGeo);
 
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo); // default zoom position
                 cs.zoomDur   = 4000;                               // default zoom duration 4 sec
@@ -2308,7 +2317,7 @@ function switchResizeImg() {
             addFillImg()(k);
         }
         else if ( cs.resizeAlg === "fitsinto" ) {
-            addZoomableImg()(k);
+            addFitIntoImg()(k);
         }
         else if ( cs.resizeAlg === "tinyimg" ) {
             addTinyImg()(k);
@@ -2371,7 +2380,7 @@ function addZoomImg() {
         trc(1, `addZoomImg: ${cs.urlImg}, ${showGeo(geo)}, ${showGeo(cs.zoomPos)}`);
 
         const tr = mkTrans(mkRect(imgGeo, offset), mkRect(geo,clickOff));
-        const a  = zoomIn1(tr)(cs.zoomDur);
+        const a  = moveAndScale(tr)(cs.zoomDur);
 
         trc(1, `addZoomImg: anim=${JSON.stringify(a)}`);
 
@@ -2411,7 +2420,7 @@ function addTinyMagImg(geo0, geo, resizeAlg) {
 
         if ( toggle ) {
             const tr = mkTrans(mkRect(geo0, offset0), mkRect(geo, offset));
-            const a  = zoomIn1(tr)(cs.zoomDur);
+            const a  = moveAndScale(tr)(cs.zoomDur);
             animTransZoom(a)(k);            // toggle tiny/magnified
         }
         else {
@@ -2440,19 +2449,36 @@ function addFullImg() {
 function addFillImg() {
 
     function doit(k) {
+        const same   = ( sameAsLastSlide()
+                         &&
+                         ls.resizeAlg === "fitsinto"
+                       );
         const imgGeo = cs.fillGeo;
         const offset = placeOnScreen(imgGeo);
         const style  = {overflow: "hidden"};
-        const style2 = cssGeo(imgGeo, offset);
+
+        const style2 = ( same
+                         ? cssGeo(cs.fitGeo, cs.fitOffset)
+                         : cssGeo(imgGeo, offset)
+                       );
 
         addImgToDom(style, style2, () => {});
-        animTransMedia(cs.transDur)(k);
 
+        if ( same ) {
+            const tr = mkTrans( mkRect(cs.fitGeo, cs.fitOffset),
+                                mkRect(imgGeo, offset)
+                              );
+            const a  = moveAndScale(tr)(cs.zoomDur / 2);
+            animTransZoom(a)(k);
+        }
+        else {
+            animTransMedia(cs.transDur)(k);
+        }
     }
     return doit;
 }
 
-function addZoomableImg() {
+function addFitIntoImg() {
 
     function doit(k) {
         const imgGeo = cs.fitGeo;
@@ -2508,7 +2534,7 @@ function animElement2( getE,     // element getter fct
         const e = getE();
         if ( e ) {
             doS(e);
-            trc(1, "animElement2: " + e.id + ", " + JSON.stringify(a));
+            trc(1, "animElement2: " + e.id);
 
             function k1() {
                 doE(e);
@@ -2611,10 +2637,19 @@ function animTransMedia(dur) {
     return doit;
 }
 
+function animFitFill() {
+    function doit(k) {
+        const tr = mkTrans(mkRect(cs.fitGeo, cs.fitOffset), mkRect(cs.fillGeo, cs.fillOffset));
+        const a  = moveAndScale(tr)(cs.zoomDur);
+        animCurrentImg(a)(k);
+    }
+    return doit;
+}
+
 function animTransZoom(zoomAnim) {
 
     function doit(k) {
-        const tr1 = transCrossFade(noAnim(500), fadein(500));  // transition to fullsize image slide
+        const tr1 = transCrossFade(noAnim(600), fadein(500));  // transition to fullsize image slide
         const tr2 = animCurrentImg(zoomAnim);                  // zoom transition
         comp(tr1, tr2)(k);
     }
@@ -2764,15 +2799,5 @@ function runC(c) {
     trc(1, `runC: (${cid}) started`);
     c(fin);
 }
-
-// --------------------
-//
-// some simple tests
-
-const c0 = "/docs/json/1600x1200/archive/collections/albums.json";
-const c1 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder.json";
-const u1 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0000.json";
-const u2 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0001.json";
-const u3 = "/docs/json/1600x1200/archive/collections/albums/EinPaarBilder/pic-0002.json";
 
 // ----------------------------------------
