@@ -1128,6 +1128,17 @@ function toggleFullSlide() {
     }
 }
 
+function toggleFitFill() {
+    if ( isImgSlide() ) {
+        if ( cs.resizeAlg == "fitsinto" ) {
+            thisSlideWith("fill");
+        }
+        else if ( cs.resizeAlg == "fill" ) {
+            thisSlideWith("fitsinto");
+        }
+    }
+}
+
 // just for testing, currently not used
 function toggleZoomSlide(zoomPos) {
     if ( isImgSlide() ) {
@@ -1356,6 +1367,13 @@ function keyPressed (e) {
        ) {
         stopSlideShow();
         stayHere();
+        return false;
+    }
+
+    if ( isKey(e, 121, "y")
+       ) {
+        stopSlideShow();
+        toggleFitFill();
         return false;
     }
 
@@ -2481,10 +2499,17 @@ function addFillImg() {
 function addFitIntoImg() {
 
     function doit(k) {
+        const same   = ( sameAsLastSlide()
+                         &&
+                         ls.resizeAlg === "fill"
+                       );
         const imgGeo = cs.fitGeo;
         const offset = placeOnScreen(imgGeo);
         const style  = {overflow: "hidden"};
-        const style2 = cssGeo(imgGeo, offset);
+        const style2 = ( same
+                         ? cssGeo(cs.fillGeo, cs.fillOffset)
+                         : cssGeo(imgGeo, offset)
+                       );
 
         function initZoom(e) {
             trc(1, "initZoom: start zooming image with id=" + cs.imgId );
@@ -2502,7 +2527,16 @@ function addFitIntoImg() {
 
         addImgToDom(style, style2, addHandler);
 
-        animTransMedia(cs.transDur)(k);
+        if ( same ) {
+            const tr = mkTrans( mkRect(cs.fillGeo, cs.fillOffset),
+                                mkRect(imgGeo, offset)
+                              );
+            const a  = moveAndScale(tr)(cs.zoomDur / 2);
+            animTransZoom(a)(k);
+        }
+        else  {
+            animTransMedia(cs.transDur)(k);
+        }
     }
     return doit;
 }
