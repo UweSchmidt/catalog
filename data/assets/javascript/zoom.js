@@ -2125,11 +2125,6 @@ function gotoSlide(url, resizeAlg, zoomPos) {
             if ( isMediaSlide() ) {
                 cs.orgGeo    = readGeo(cs.page.oirGeo[0]);         // size of original media
 
-                cs.reqGeo    = readGeo(cs.page.oirGeo[2]);
-                if ( isOrgGeo(readGeo(cs.page.oirGeo[1])) ) {      // size scaled down copy to fill the screen
-                    cs.reqGeo = cs.orgGeo;                         // hack: server delivers wrong geo
-                }
-
                 // normalize resize algs
 
                 cs.isLargeImg = ltGeo(cs.screenGeo, cs.orgGeo);    // org image covers whole screen
@@ -2193,13 +2188,6 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.panoramaF = panoFinish(cs.orgGeo);
                 }
 
-                cs.fitGeo    = fitsInto(cs.orgGeo, cs.screenGeo);  // size scaled down to fit into screen
-                cs.fillGeo   = fills   (cs.orgGeo, cs.screenGeo);  // size scaled down to cover whole screen
-
-                cs.fitOffset = placeOnScreen(cs.fitGeo);
-                cs.fillOffset= placeOnScreen(cs.fillGeo);
-
-
                 trc(1, "jsonSlide: slide context  initialized");
 
             }
@@ -2257,8 +2245,8 @@ function buildMovieSlide() {
             const cls = "movie gif " + cs.resizeAlg;
             const v   = newElem("video", mkImgId(cs.imgId), {}, cls);
 
-            v.width   = cs.fitGeo.w;
-            v.heigth  = cs.fitGeo.h;
+            v.width   = cs.fitsinto.geo.w;
+            v.heigth  = cs.fitsinto.geo.h;
 
             if (videoAttrs.autoplay != null) {
                 v.autoplay = "autoplay";
@@ -2284,7 +2272,7 @@ function buildMovieSlide() {
         }
         else if ( cs.slideType === "gif" ) {
 
-            const css = cssSize(cs.fitGeo);
+            const css = cssSize(cs.fitsinto.geo);
             const cls = "movie gif " + cs.resizeAlg;
             const v2  = newImgElem(cs.imgId, css, cls);
 
@@ -2381,9 +2369,7 @@ function loadImgCache() {
 
         cs.urlImg = imgReqToUrl(imgReq, reqGeo);
 
-        trc(1, "loadImgCache: urlImg=" + cs.urlImg +
-            ", reqGeo=" + showGeo(reqGeo)
-           );
+        trc(1, "loadImgCache: urlImg=" + cs.urlImg);
 
         function k1() {
             trc(1, `onload loadImgCache: ${cs.imgId}` );
@@ -2510,48 +2496,23 @@ function addFullImg() {
 
     function doit(k) {
         const style  = {};
-        const style2 = cssSize(cs.orgGeo, {position: "absolute"});
+        const style2 = cssSize(cs.full.geo, {position: "absolute"});
 
         addImgToDom(style, style2, () => {});
-
         animTransMedia(cs.transDur)(k);
     }
     return doit;
 }
 
-function addFillImg() {
+function addFillFit(fitsinto, fill) {
 
     function doit(k) {
         const same   = ( sameAsLastSlide()
                          &&
-                         ls.resizeAlg === "fitsinto"
+                         ls.resizeAlg === fitsinto
                        );
         const style  = {overflow: "hidden"};
-        const style2 = cssRect( same ? cs.fitsinto : cs.fill);
-
-        addImgToDom(style, style2, () => {});
-
-        if ( same ) {
-            const tr = mkTrans(cs.fitsinto, cs.fill);
-            const a  = moveAndScale(tr)(cs.zoomDur / 2);
-            animTransZoom(a)(k);
-        }
-        else {
-            animTransMedia(cs.transDur)(k);
-        }
-    }
-    return doit;
-}
-
-function addFitIntoImg() {
-
-    function doit(k) {
-        const same   = ( sameAsLastSlide()
-                         &&
-                         ls.resizeAlg === "fill"
-                       );
-        const style  = {overflow: "hidden"};
-        const style2 = cssRect(same ? cs.fill : cs.fitsinto);
+        const style2 = cssRect( same ? cs[fitsinto] : cs[fill]);
 
         function initZoom(e) {
             trc(1, "initZoom: start zooming image with id=" + cs.imgId );
@@ -2570,16 +2531,20 @@ function addFitIntoImg() {
         addImgToDom(style, style2, addHandler);
 
         if ( same ) {
-            const tr = mkTrans(cs.fill, cs.fitsinto);
+            const tr = mkTrans(cs[fitsinto], cs[fill]);
             const a  = moveAndScale(tr)(cs.zoomDur / 2);
             animTransZoom(a)(k);
         }
-        else  {
+        else {
             animTransMedia(cs.transDur)(k);
         }
     }
     return doit;
 }
+
+function addFillImg   () { return addFillFit("fitsinto", "fill"); }
+function addFitIntoImg() { return addFillFit("fill", "fitsinto"); }
+
 
 function addImgToDom(style, style2, addHandler) {
     const style1 = cssRect(mkRect(cs.screenGeo, nullGeo), style);
@@ -2713,7 +2678,7 @@ function animTransMedia(dur) {
 
 function animFitFill() {
     function doit(k) {
-        const tr = mkTrans(mkRect(cs.fitGeo, cs.fitOffset), mkRect(cs.fillGeo, cs.fillOffset));
+        const tr = mkTrans(cs.fitsinto, cs.fill);
         const a  = moveAndScale(tr)(cs.zoomDur);
         animCurrentImg(a)(k);
     }
