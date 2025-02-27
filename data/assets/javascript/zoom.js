@@ -292,12 +292,26 @@ function pano(s, d) {
 //
 // algorithms for placing image on screen
 
-function placeCenter(g, s) { return halfGeo(subGeo(s, g)); }
-
-function placeAt(g, s) {
-    const pos = cs.zoomPos;
-    // TODO : copy from addZoomImg
+function placeCenter(g, s) {
     return halfGeo(subGeo(s, g));
+}
+
+function placeAt(g, s) {                  // g: org image geo, s: screen geo
+    const i = ( cs.resizeAlg === "fitsinto"
+                ? cs.fitsinto.geo
+                : cs.fill.geo
+              );
+
+    const viewCenter = halfGeo(i);
+    const viewScale  = divGeo(i, g);
+
+    const orgOff     = halfGeo(subGeo(s, g));
+
+    const clickDisp  = subGeo(viewCenter, cs.zoomPos);
+    const clickScale = divGeo(g, i);
+    const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
+
+    return clickOff;
 }
 
 function placeStart(g, s) {
@@ -2171,6 +2185,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                 cs.fitsinto  = fitIntoScreen(cs.orgGeo);
                 cs.fill      = fillScreen   (cs.orgGeo);
                 cs.tiny      = orgOnScreen  (cs.orgGeo);
+                cs.full      = cs.tiny;
                 cs.zoom      = zoomOnScreen (cs.orgGeo);
 
                 if ( cs.isPanoImg ) {
@@ -2438,32 +2453,18 @@ function addPanoramaImg() {
 function addZoomImg() {
 
     function doit(k) {
-        const geo        = cs.orgGeo;
-        const imgGeo     = cs.fitGeo;
-        const offset     = placeOnScreen(imgGeo);
-        const style      = {overflow: "hidden"};
 
-        const viewCenter = halfGeo(imgGeo);
-        const viewScale  = divGeo(imgGeo, geo);
+        const style  = {overflow: "hidden"};
+        const style2 = cssRect(cs.fitsinto, {overflow: "hidden"});
 
-        const orgOff     = placeOnScreen(geo);
-        const orgScale   = oneGeo;
+        trc(1, `addZoomImg: ${cs.urlImg}`);
 
-        const clickDisp  = subGeo(viewCenter, cs.zoomPos);
-        const clickScale = divGeo(geo, imgGeo);
-        const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
-
-        const style2     = cssGeo(imgGeo, offset, {overflow: "hidden"});
-
-        trc(1, `addZoomImg: ${cs.urlImg}, ${showGeo(geo)}, ${showGeo(cs.zoomPos)}`);
-
-        const tr = mkTrans(mkRect(imgGeo, offset), mkRect(geo,clickOff));
+        const tr = mkTrans(cs.fitsinto, cs.zoom);
         const a  = moveAndScale(tr)(cs.zoomDur);
 
         trc(1, `addZoomImg: anim=${JSON.stringify(a)}`);
 
         addImgToDom(style, style2, () => {});
-
         animTransZoom(a)(k);
     };
     return doit;
@@ -2581,7 +2582,7 @@ function addFitIntoImg() {
 }
 
 function addImgToDom(style, style2, addHandler) {
-    const style1 = cssGeo(cs.screenGeo, nullGeo, style);
+    const style1 = cssRect(mkRect(cs.screenGeo, nullGeo), style);
 
     const e = getElem(cs.imgId);
     setCSS(e, style1);
