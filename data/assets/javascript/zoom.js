@@ -267,7 +267,7 @@ function fills(s, d) {
                  w : d.h * s.w / s.h
                };
     else
-        return { h : d.w * s.h / s.w,  // s is more portrait than d
+        return { h : d.w * s.h / s.w,      // s is more portrait than d
                  w : d.w
                };
 }
@@ -2365,15 +2365,21 @@ function loadImgCache() {
 
         trc(1, "loadImgCache: urlImg=" + cs.urlImg);
 
-        function k1() {
-            trc(1, `onload loadImgCache: ${cs.imgId}` );
-
+        if ( cs.urlImg === (ls.urlImg || "") ) {
+            trc(1, `loadImgCache: already cached ${cs.imgId}` );
             switchResizeImg()(k);
-        };
+        }
+        else {
+            function k1() {
+                trc(1, `onload loadImgCache: ${cs.imgId}` );
 
-        var picCache = new Image();
-        picCache.onload = k1;
-        picCache.src    = cs.urlImg;   // the .onload handler is triggered here
+                switchResizeImg()(k);
+            };
+
+            var picCache = new Image();
+            picCache.onload = k1;
+            picCache.src    = cs.urlImg;   // the .onload handler is triggered here
+        }
     }
     return doit;
 }
