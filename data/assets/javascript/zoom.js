@@ -323,13 +323,13 @@ function placeAt(g, s) {                  // g: org image geo, s: screen geo
 
 function placeStart(g, s) {
     const isH = isHorizontal(g);
-    const off = isH ? nullGeo : subGeo(cs.panoGeo, cs.screenGeo);
+    const off = isH ? nullGeo : subGeo(cs.panoramaS.geo, cs.screenGeo);
     return off;
 }
 
 function placeFinish(g, s) {
     const isH = isHorizontal(g);
-    const off = isH ? subGeo(cs.screenGeo, cs.panoGeo) : nullGeo;  // negative offset
+    const off = isH ? subGeo(cs.screenGeo, cs.panoramaS.geo) : nullGeo;  // negative offset
     return off;
 }
 
@@ -372,16 +372,6 @@ function screenGeo() {
         setCSS(imgTab, {width : w1 + "px", height : h1 + "px"});
     }
     return theScreenGeo;
-}
-
-function placeOnScreen(geo) {
-    return halfGeo(subGeo(cs.screenGeo, geo));
-}
-
-function resizeToPano(g) {
-    return maxGeo( resizeToHeight(g, cs.screenGeo),
-                   resizeToWidth (g, cs.screenGeo)
-                 );
 }
 
 // --------------------
@@ -2170,10 +2160,6 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.resizeAlg = "default";
                 }
 
-                if ( cs.isPanoImg ) {
-                    cs.panoGeo = resizeToPano(cs.orgGeo);
-                }
-
                 // last rule
                 if ( cs.resizeAlg === "default" ) {
                     cs.resizeAlg = "fitsinto";
@@ -2372,7 +2358,7 @@ function loadImgCache() {
             reqGeo = readGeo("org");
         }
         if ( cs.resizeAlg === "panorama") {
-            reqGeo = cs.panoGeo;
+            reqGeo = roundGeo(cs.panoramaS.geo);
         }
 
         cs.urlImg = imgReqToUrl(imgReq, reqGeo);
