@@ -369,7 +369,7 @@ function screenGeo() {
     if ( w1 != theScreenGeo.w || h1 != theScreenGeo.h ) { // screenGeo has changed
         theScreenGeo.w = w1;
         theScreenGeo.h = h1;
-        setCSS(imgTab, {width : w1 + "px", height : h1 + "px"});
+        setCSS(imgTab, cssSize(theScreenGeo));
     }
     return theScreenGeo;
 }
@@ -590,7 +590,6 @@ function cssGeo(g, off, res) { return cssPos(off, cssSize(g, res)); }
 
 function cssRect(r, res)     { return cssGeo(r.geo, r.off, res); }
 
-
 function setCSS(e, attrs, val) {
     if (typeof e === "string") {  // e is an id
         setCSS(getElem(e), attrs, val);
@@ -748,12 +747,12 @@ function showAnimDur() {
 /* initialization */
 
 function initShow() {
-    const g = pxGeo(screenGeo());
+    const g = screenGeo();
     console.log("initShow: screen geo=" + showGeo(g));
 
     // initHandlers(); // TODO cleanup
 
-    setCSS(imgTab, {width : g.w, height : g.h});
+    setCSS(imgTab, cssSize(g));
 
     clearDomElem(img1Id);
     clearDomElem(img2Id);
