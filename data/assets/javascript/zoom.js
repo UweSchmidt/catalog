@@ -1442,6 +1442,12 @@ function keyPressed (e) {
         return false;
     }
 
+    if ( isKey(e, 89, "Y")
+       ) {
+        toggleDefaultAlg();
+        return false;
+    }
+
     if ( isKey(e, 115, "s") ) {
         startStopSlideShow("thisColl");
         return false;
@@ -1855,6 +1861,13 @@ function showVersion() {
     showStatus(version);
 }
 
+function toggleDefaultAlg() {
+    defaultAlg = ( defaultAlg === "fitsinto"
+                   ? "fill"
+                   : "fitsinto"
+                 );
+}
+
 // ----------------------------------------
 // status line
 
@@ -2092,6 +2105,9 @@ var cs = { url         : "",
 
 var ls = {};
 
+var defaultAlg    = "fitsinto";
+var defaultCutoff = 0.17;
+
 function gotoSlide(url, resizeAlg, zoomPos) {
 
     function doit(k) {
@@ -2160,11 +2176,6 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.resizeAlg = "default";
                 }
 
-                // last rule
-                if ( cs.resizeAlg === "default" ) {
-                    cs.resizeAlg = "fitsinto";
-                }
-
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo); // default zoom position
                 cs.zoomDur   = 4000;                               // default zoom duration 4 sec
 
@@ -2181,6 +2192,20 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.panoramaF = panoFinish(cs.orgGeo);
                 }
                 cs.fillCutoff = cutoffArea(cs.fill.geo, cs.screenGeo);
+                trc(1, "jsonSlide: fillCutoff=" + cs.fillCutoff);
+
+                // last rule
+                if ( cs.resizeAlg === "default" ) {
+                    if ( defaultAlg === "fill"
+                         &&
+                         cs.fillCutoff <= defaultCutoff
+                       ) {
+                        cs.resizeAlg = "fill";
+                    }
+                    else {
+                        cs.resizeAlg = "fitsinto";
+                    }
+                }
 
                 trc(1, "jsonSlide: slide context  initialized");
 
