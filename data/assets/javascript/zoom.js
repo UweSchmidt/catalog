@@ -2118,6 +2118,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                    slideReq    : req,
                    screenGeo   : screenGeo(),
                  };
+            cs.screen = mkRect(cs.screenGeo, nullGeo);
 
             if ( isMediaSlide() ) {
                 cs.orgGeo    = readGeo(cs.page.oirGeo[0]);         // size of original media
@@ -2281,27 +2282,18 @@ function buildMovieSlide() {
 function buildBlogSlide() {
 
     function doit(k) {
-        const geo  = pxGeo(cs.screenGeo);
-        const txt  = getSlideBlog();
+        const txt    = getSlideBlog();
+        const style  = cssRect(cs.screen);
+        const style2 = cssGeo(cs.screenGeo, { overflow: "auto" });
 
         trc(1, "buildBlogPage: " + txt);
 
         // get slide container and set geomety attibutes
         const e = getElem(cs.imgId);
-        setCSS(e, { width:  geo.w,
-                    height: geo.h,
-                    top:    "0px",
-                    left:   "0px"
-                  });
+        setCSS(e, style);
 
         // build blog contents div
-        const b  = newElem("div", cs.imgId + "-blog",
-                           { width:    geo.w,
-                             height:   geo.h,
-                             overflow: "auto"
-                           },
-                           "blog"
-                          );
+        const b  = newElem("div", cs.imgId + "-blog", style2, "blog");
         b.innerHTML = txt;
         e.appendChild(b);
 
@@ -2319,22 +2311,16 @@ function buildCollectionSlide() {
         const navIcons = cs.page.navIcons;
         const c1Icon   = cs.page.c1Icon;
         const colIcons = cs.page.contIcons;
-        const iconReq  = { rType: "icon",
+        const iconReq  = { rType:    "icon",
                            rPathPos: colReq.rPathPos
                          };
-        const g        = pxGeo(cs.screenGeo);
+        const style    = cssRect(cs.screen, { overflow: "auto" });
 
         // get element, clear contents and set style attributes
         const e = clearDomElem(cs.imgId);
-        setCSS(e, { width:    g.w,
-                    height:   g.h,
-                    left:     "0px",
-                    top:      "0px",
-                    overflow: "auto"
-                  });
+        setCSS(e, style);
 
         e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog));
-
         animTransCollection(cs.transDur)(k);
     }
     return doit;
