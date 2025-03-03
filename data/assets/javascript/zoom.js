@@ -2194,7 +2194,6 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                 cs.fillCutoff = cutoffArea(cs.fill.geo, cs.screenGeo);
                 trc(1, "jsonSlide: fillCutoff=" + cs.fillCutoff);
 
-                // last rule
                 if ( cs.resizeAlg === "default" ) {
                     if ( defaultAlg === "fill"
                          &&
