@@ -2176,21 +2176,26 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     cs.resizeAlg = "default";
                 }
 
+                cs.sameAsLast = sameAsLastSlide();
+
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo); // default zoom position
                 cs.zoomDur   = 4000;                               // default zoom duration 4 sec
 
                 cs.magDur    = 1000;                               // duration of magnifying tiny img
 
-                cs.fitsinto  = fitIntoScreen(cs.orgGeo);
                 cs.fill      = fillScreen   (cs.orgGeo);
-                cs.tiny      = orgOnScreen  (cs.orgGeo);
-                cs.full      = cs.tiny;
+                cs.fitsinto  = fitIntoScreen(cs.orgGeo);
+                cs.fullsize  = orgOnScreen  (cs.orgGeo);
+                cs.tinyimg   = cs.fullsize;
+                cs.magnify   = cs.fitsinto;
                 cs.zoom      = zoomOnScreen (cs.orgGeo);
 
                 if ( cs.isPanoImg ) {
                     cs.panoramaS = panoStart (cs.orgGeo);
                     cs.panoramaF = panoFinish(cs.orgGeo);
+                    cs.panorama  = cs.panoramaE;
                 }
+
                 cs.fillCutoff = cutoffArea(cs.fill.geo, cs.screenGeo);
                 trc(1, "jsonSlide: fillCutoff=" + cs.fillCutoff);
 
@@ -2204,6 +2209,11 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                     else {
                         cs.resizeAlg = "fitsinto";
                     }
+                }
+
+                cs.rect  = cs[cs.resizeAlg];
+                if ( cs.sameAsLast ) {
+                    cs.moveScaleTrans = mkTrans(ls.rect, cs.rect);
                 }
 
                 trc(1, "jsonSlide: slide context  initialized");
@@ -2397,6 +2407,7 @@ function switchResizeImg() {
 
     function doit(k) {
         if ( cs.resizeAlg === "zoom") {
+            // addZoomImg()(k);
             addZoomImg()(k);
         }
         else if ( cs.resizeAlg === "panorama" ) {
@@ -2445,67 +2456,53 @@ function addPanoramaImg() {
     return doit;
 }
 
-function addZoomImg() {
+function addMoveScale(addHandler) {
 
     function doit(k) {
-        const r      = ls.resizeAlg == "fill" ? cs.fill : cs.fitsinto;
         const style  = {overflow: "hidden"};
-        const style2 = cssRect(r, {overflow: "hidden"});
+        const style2 = cssRect( cs.sameAsLast
+                                ? cs.moveScaleTrans.start
+                                : cs.rect,
+                                {overflow: "hidden"}
+                              );
 
-        trc(1, `addZoomImg: ${cs.urlImg}`);
+        addImgToDom(style, style2, addHandler);
 
-        const tr = mkTrans(r, cs.zoom);
-        const a  = moveAndScale(tr)(cs.zoomDur);
-
-        trc(1, `addZoomImg: anim=${JSON.stringify(a)}`);
-
-        addImgToDom(style, style2, () => {});
-        animTransZoom(a)(k);
+        if ( cs.sameAsLast ) {
+            const a = moveAndScale(cs.moveScaleTrans)(cs.zoomDur);
+            trc(1, `addMoveScale: anim=${JSON.stringify(a)}`);
+            animTransZoom(a)(k);
+        }
+        else {
+            animTransMedia(cs.transDur)(k); // img displayed the 1. time
+        }
     };
     return doit;
 }
 
-function addTinyMagImg(r0, r1, resizeAlg) {
+function addResize(resizeAlg) {
 
-    function doit(k) {
-        const toggle  = cs.urlImg === ls.urlImg;
-
-        const style   = {};
-        const style2  = cssRect(toggle ? r0 : r1);
-
-        trc(1, `addTinyMagImg: ${cs.urlImg}, ${toggle}`);
+    function addHandler(i) {
 
         function resizeHandler(e) {
             trc(1, "resizeHandler: alg =" + resizeAlg);
             thisSlideWith(resizeAlg);
         }
 
-        function addHandler(i) {
-            i.addEventListener("dblclick", resizeHandler);
-        }
-
-        addImgToDom(style, style2, addHandler);
-
-        if ( toggle ) {
-            const tr = mkTrans(r0, r1);
-            const a  = moveAndScale(tr)(cs.zoomDur);
-            animTransZoom(a)(k);            // toggle tiny/magnified
-        }
-        else {
-            animTransMedia(cs.transDur)(k); // img displayed the 1. time
-        }
+        i.addEventListener("dblclick", resizeHandler);
     }
-    return doit;
+    return addHandler;
 }
 
-function addTinyImg()      { return addTinyMagImg(cs.fitsinto, cs.tiny, "magnify"); }
-function addMagnifiedImg() { return addTinyMagImg(cs.tiny, cs.fitsinto, "tinyimg"); }
+function addZoomImg()      { return addMoveScale(addResize("default")); }
+function addTinyImg()      { return addMoveScale(addResize("magnify")); }
+function addMagnifiedImg() { return addMoveScale(addResize("tinyimg")); }
 
 function addFullImg() {
 
     function doit(k) {
         const style  = {};
-        const style2 = cssSize(cs.full.geo, {position: "absolute"});
+        const style2 = cssSize(cs.fullsize.geo, {position: "absolute"});
 
         addImgToDom(style, style2, () => {});
         animTransMedia(cs.transDur)(k);
@@ -2785,13 +2782,13 @@ function isPanoSlide() {
 }
 
 function checkResizeAlg(alg) {
-    if ( [ "fitsinto",
-           "fill",
+    if ( [ "fill",
+           "fitsinto",
            "fullsize",
-           "zoom",
            "tinyimg",
            "magnify",
            "panorama",
+           "zoom",
            "default"
          ].includes(alg) ) {
         return alg;
