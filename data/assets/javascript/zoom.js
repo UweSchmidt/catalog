@@ -312,14 +312,19 @@ function placeCenter(g, s) {
     return halfGeo(subGeo(s, g));
 }
 
-function placeAt(g, s) {                  // g: org image geo, s: screen geo
+function placeAt(g, s) {
     const i = ( ls.resizeAlg === "fitsinto"
                 ? cs.fitsinto.geo
                 : cs.fill.geo
               );
+    return placeAt1(i, g, s);
+}
+
+function placeAt1(i, g, s) {                  // i: geo last image, g: org image geo, s: screen geo
+
+    // why does this work?
 
     const viewCenter = halfGeo(i);
-
     const orgOff     = halfGeo(subGeo(s, g));
 
     const clickDisp  = subGeo(viewCenter, cs.zoomPos);
@@ -345,7 +350,7 @@ function placeFinish(g, s) {
 //
 // compute scaled geo and offset for a geo (of an image)
 
-function placeGeo(resizeAlg,placeAlg) {
+function placeGeo(resizeAlg, placeAlg) {
 
     function doit(geo) {
         const sgeo = cs.screenGeo;
