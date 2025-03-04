@@ -1189,16 +1189,6 @@ function sameAsLastSlide() {
 //
 // event handlers for image animations
 
-function toggleFullSlide() {
-    if ( isImgSlide() ) {
-        if ( cs.resizeAlg != "fullsize" ) {
-            thisSlideWith("fullsize");
-        } else {
-            thisSlideWith("default");
-        }
-    }
-}
-
 function toggleFitFill() {
     if ( isImgSlide() ) {
         if ( cs.resizeAlg == "fitsinto" ) {
@@ -1494,11 +1484,6 @@ function keyPressed (e) {
         return false;
     }
 
-    if ( isKey(e, 102, "f") ) {
-        stopSlideShow();
-        toggleFullSlide();
-        return false;
-    }
     if ( isKey(e, 97, "a") ) {
         stopSlideShow();
         togglePanoSlide();
@@ -2076,9 +2061,7 @@ function thisSlideWith(resizeAlg, zoomPos) {
     resizeAlg = checkResizeAlg(resizeAlg);
 
     const geo =
-          ( resizeAlg === "fullscreen"
-            ||
-            resizeAlg === "zoom"
+          ( resizeAlg === "zoom"
             ||
             resizeAlg === "tinyimg"
           )
@@ -2148,14 +2131,12 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                 cs.isLargeImg = ltGeo(cs.screenGeo, cs.orgGeo);    // org image covers whole screen
                 if ( ! cs.isLargeImg
                      &&
-                     ( cs.resizeAlg === "fullsize"
-                       ||
-                       cs.resizeAlg === "zoom"
+                     ( cs.resizeAlg === "zoom"
                        ||
                        cs.resizeAlg === "fill"
                      )
                    ) {
-                    cs.resizeAlg = "default";                      // too small for zoom, fullscreen or fill
+                    cs.resizeAlg = "default";                      // too small for zoom or fill
                 }
 
                 cs.isPanoImg = isPano(cs.orgGeo);
@@ -2188,8 +2169,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 cs.fill      = fillScreen   (cs.orgGeo);
                 cs.fitsinto  = fitIntoScreen(cs.orgGeo);
-                cs.fullsize  = orgOnScreen  (cs.orgGeo);
-                cs.tinyimg   = cs.fullsize;
+                cs.tinyimg   = orgOnScreen  (cs.orgGeo);
                 cs.magnify   = cs.fitsinto;
                 cs.zoom      = zoomOnScreen (cs.orgGeo);
 
@@ -2369,9 +2349,7 @@ function loadImgCache() {
 
         let reqGeo    = bestFitToScreenGeo();
 
-        if ( cs.resizeAlg === "fullsize"
-             ||
-             cs.resizeAlg === "zoom"
+        if ( cs.resizeAlg === "zoom"
              ||
              cs.resizeAlg === "tinyimg"
              ||
@@ -2415,9 +2393,6 @@ function switchResizeImg() {
         }
         else if ( cs.resizeAlg === "panorama" ) {
             addPanoramaImg()(k);
-        }
-        else if ( cs.resizeAlg === "fullsize" ) {
-            addFullImg()(k);
         }
         else if ( cs.resizeAlg === "fill" ) {
             addFillImg()(k);
@@ -2503,19 +2478,6 @@ function addPanoramaImg() {
 
         addImgToDom(style, style2, () => {});
         animTransPanorama(a, cs.transDur)(k);
-    }
-    return doit;
-}
-
-// TODO: remove when image zoom is complete
-function addFullImg() {
-
-    function doit(k) {
-        const style  = {};
-        const style2 = cssSize(cs.fullsize.geo, {position: "absolute"});
-
-        addImgToDom(style, style2, () => {});
-        animTransMedia(cs.transDur)(k);
     }
     return doit;
 }
@@ -2662,7 +2624,7 @@ function animFitFill() {
 function animTransZoom(zoomAnim) {
 
     function doit(k) {
-        const tr1 = transCrossFade(noAnim(600), fadein(500));  // transition to fullsize image slide
+        const tr1 = transCrossFade(noAnim(600), fadein(500));
         const tr2 = animCurrentImg(zoomAnim);                  // zoom transition
         comp(tr1, tr2)(k);
     }
@@ -2752,7 +2714,6 @@ function isPanoSlide() {
 function checkResizeAlg(alg) {
     if ( [ "fill",
            "fitsinto",
-           "fullsize",
            "tinyimg",
            "magnify",
            "panorama",
