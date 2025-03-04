@@ -295,6 +295,12 @@ function cutoffArea(s0, d) {
     return Math.max(rs.w, rs.h);
 }
 
+function zoomDist(g0, g1) {
+    const da = absGeo(subGeo(g0, g1));
+    const dr = divGeo(da, cs.screenGeo);
+    return Math.max(dr.w, dr.h);
+}
+
 // --------------------
 //
 // algorithms for placing image on screen
@@ -2099,8 +2105,7 @@ var cs = { url         : "",
            screenGeo   : {},
            zoomPos     : {},
            zoomPos     : {},
-           zoomDur     : 2000,
-           magDur      : 1000,
+           zoomDur     : 1000,
          };
 
 var ls = {};
@@ -2179,9 +2184,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                 cs.sameAsLast = sameAsLastSlide();
 
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo); // default zoom position
-                cs.zoomDur   = 4000;                               // default zoom duration 4 sec
-
-                cs.magDur    = 1000;                               // duration of magnifying tiny img
+                cs.zoomDur   = 1000;                               // default zoom duration 4 sec
 
                 cs.fill      = fillScreen   (cs.orgGeo);
                 cs.fitsinto  = fitIntoScreen(cs.orgGeo);
@@ -2435,6 +2438,54 @@ function switchResizeImg() {
     return doit;
 }
 
+function addMoveScale(addHandler) {
+
+    function doit(k) {
+        const style  = {overflow: "hidden"};
+        const style2 = cssRect( cs.sameAsLast
+                                ? cs.moveScaleTrans.start
+                                : cs.rect,
+                                {overflow: "hidden"}
+                              );
+
+        addImgToDom(style, style2, addHandler);
+
+        if ( cs.sameAsLast ) {
+            const d = zoomDist( cs.moveScaleTrans.start.geo,
+                                cs.moveScaleTrans.finish.geo
+                              );
+            const a = moveAndScale(cs.moveScaleTrans)(d * cs.zoomDur);
+            trc(1, `addMoveScale: anim=${JSON.stringify(a)}`);
+            animTransZoom(a)(k);
+        }
+        else {
+            animTransMedia(cs.transDur)(k); // img displayed the 1. time
+        }
+    };
+    return doit;
+}
+
+function addResize(resizeAlg) {
+
+    function addHandler(i) {
+
+        function resizeHandler(e) {
+            const pos = mkGeo(e.offsetX, e.offsetY);
+            trc(1, "resizeHandler: alg =" + resizeAlg + ", pos = " + showGeo(pos));
+            thisSlideWith(resizeAlg, pos);
+        }
+
+        i.addEventListener("dblclick", resizeHandler);
+    }
+    return addHandler;
+}
+
+function addZoomImg()      { return addMoveScale(addResize("default")); }
+function addTinyImg()      { return addMoveScale(addResize("magnify")); }
+function addMagnifiedImg() { return addMoveScale(addResize("tinyimg")); }
+function addFillImg()      { return addMoveScale(addResize("zoom"));    }
+function addFitIntoImg()   { return addMoveScale(addResize("zoom"));    }
+
 function addPanoramaImg() {
 
     function doit(k) {
@@ -2456,48 +2507,7 @@ function addPanoramaImg() {
     return doit;
 }
 
-function addMoveScale(addHandler) {
-
-    function doit(k) {
-        const style  = {overflow: "hidden"};
-        const style2 = cssRect( cs.sameAsLast
-                                ? cs.moveScaleTrans.start
-                                : cs.rect,
-                                {overflow: "hidden"}
-                              );
-
-        addImgToDom(style, style2, addHandler);
-
-        if ( cs.sameAsLast ) {
-            const a = moveAndScale(cs.moveScaleTrans)(cs.zoomDur);
-            trc(1, `addMoveScale: anim=${JSON.stringify(a)}`);
-            animTransZoom(a)(k);
-        }
-        else {
-            animTransMedia(cs.transDur)(k); // img displayed the 1. time
-        }
-    };
-    return doit;
-}
-
-function addResize(resizeAlg) {
-
-    function addHandler(i) {
-
-        function resizeHandler(e) {
-            trc(1, "resizeHandler: alg =" + resizeAlg);
-            thisSlideWith(resizeAlg);
-        }
-
-        i.addEventListener("dblclick", resizeHandler);
-    }
-    return addHandler;
-}
-
-function addZoomImg()      { return addMoveScale(addResize("default")); }
-function addTinyImg()      { return addMoveScale(addResize("magnify")); }
-function addMagnifiedImg() { return addMoveScale(addResize("tinyimg")); }
-
+// TODO: remove when image zoom is complete
 function addFullImg() {
 
     function doit(k) {
@@ -2509,48 +2519,6 @@ function addFullImg() {
     }
     return doit;
 }
-
-function addFillFit(fitsinto, fill) {
-
-    function doit(k) {
-        const same   = ( sameAsLastSlide()
-                         &&
-                         ls.resizeAlg === fitsinto
-                       );
-        const style  = {overflow: "hidden"};
-        const style2 = cssRect( same ? cs[fitsinto] : cs[fill]);
-
-        function initZoom(e) {
-            trc(1, "initZoom: start zooming image with id=" + cs.imgId );
-
-            const pos = { w: e.offsetX,
-                          h: e.offsetY
-                        };
-            trc(1, "pos=" + showGeo(pos));
-            thisSlideWith("zoom", pos);
-        }
-
-        function addHandler(i) {
-            i.addEventListener("dblclick", initZoom);
-        }
-
-        addImgToDom(style, style2, addHandler);
-
-        if ( same ) {
-            const tr = mkTrans(cs[fitsinto], cs[fill]);
-            const a  = moveAndScale(tr)(cs.zoomDur / 2);
-            animTransZoom(a)(k);
-        }
-        else {
-            animTransMedia(cs.transDur)(k);
-        }
-    }
-    return doit;
-}
-
-function addFillImg   () { return addFillFit("fitsinto", "fill"); }
-function addFitIntoImg() { return addFillFit("fill", "fitsinto"); }
-
 
 function addImgToDom(style, style2, addHandler) {
     const style1 = cssRect(mkRect(cs.screenGeo, nullGeo), style);
