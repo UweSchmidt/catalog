@@ -295,9 +295,12 @@ function cutoffArea(s0, d) {
     return Math.max(rs.w, rs.h);
 }
 
-function zoomDist(g0, g1) {
-    const da = absGeo(subGeo(g0, g1));
-    const dr = divGeo(da, cs.screenGeo);
+function zoomDist(r0, r1) {
+    const zoomDist = halfGeo(absGeo(subGeo(r0.geo, r1.geo)));           // zoom distance
+    const center0  = addGeo(r0.off, halfGeo(r0.geo));
+    const center1  = addGeo(r1.off, halfGeo(r1.geo));
+    const moveDist = absGeo(subGeo(center0, center1));                  // move distance
+    const dr       = divGeo(addGeo(zoomDist, moveDist), cs.screenGeo);  // rel. to screen size
     return Math.max(dr.w, dr.h);
 }
 
@@ -316,7 +319,6 @@ function placeAt(g, s) {                  // g: org image geo, s: screen geo
               );
 
     const viewCenter = halfGeo(i);
-    const viewScale  = divGeo(i, g);
 
     const orgOff     = halfGeo(subGeo(s, g));
 
@@ -2165,7 +2167,7 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                 cs.sameAsLast = sameAsLastSlide();
 
                 cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo); // default zoom position
-                cs.zoomDur   = 1000;                               // default zoom duration 4 sec
+                cs.zoomDur   = 2000;                               // default zoom duration 4 sec
 
                 cs.fill      = fillScreen   (cs.orgGeo);
                 cs.fitsinto  = fitIntoScreen(cs.orgGeo);
@@ -2426,8 +2428,8 @@ function addMoveScale(addHandler) {
         addImgToDom(style, style2, addHandler);
 
         if ( cs.sameAsLast ) {
-            const d = zoomDist( cs.moveScaleTrans.start.geo,
-                                cs.moveScaleTrans.finish.geo
+            const d = zoomDist( cs.moveScaleTrans.start,
+                                cs.moveScaleTrans.finish
                               );
             const a = moveAndScale(cs.moveScaleTrans)(d * cs.zoomDur);
             trc(1, `addMoveScale: anim=${JSON.stringify(a)}`);
