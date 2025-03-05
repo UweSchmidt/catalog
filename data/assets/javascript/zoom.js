@@ -346,6 +346,17 @@ function placeFinish(g, s) {
     return off;
 }
 
+function screenOffsetToRelOffset(co, r) {  // co: click offset in screen cocrds
+    const co1 = subGeo(co, r.off);          // r: rectangle
+    return divGeo(co1, r.geo);              // offset relative to rectangle size
+}
+
+function moveRectRelative(ro, r) { // ro: offset relative to rectangle size
+    const ro1 = subGeo(halfGeo(oneGeo), ro);
+    const off = addGeo(r.off, mulGeo(ro1, r.geo));
+    return mkRect(r.geo, off);
+}
+
 // --------------------
 //
 // compute scaled geo and offset for a geo (of an image)
