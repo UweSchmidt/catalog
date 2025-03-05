@@ -2469,8 +2469,12 @@ function addResize(resizeAlg) {
         function resizeHandler(e) {
             const pos = mkGeo(e.offsetX, e.offsetY);
             const off = screenOffsetToRelOffset(pos, cs.rect);
+            const alg = ( ( e.altKey && cs.resizeAlg === "zoom" )
+                          ? "zoom"
+                          : resizeAlg
+                        );
             trc(1, "resizeHandler: alg =" + resizeAlg + ", offset = " + showGeo(off));
-            thisSlideWith(resizeAlg, off);
+            thisSlideWith(alg, off);
         }
 
         i.addEventListener("dblclick", resizeHandler);
