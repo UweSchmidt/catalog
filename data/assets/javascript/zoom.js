@@ -346,9 +346,9 @@ function placeFinish(g, s) {
     return off;
 }
 
-function screenOffsetToRelOffset(co, r) {  // co: click offset in screen cocrds
-    const co1 = subGeo(co, r.off);          // r: rectangle
-    return divGeo(co1, r.geo);              // offset relative to rectangle size
+function screenOffsetToRelOffset(co, r) {  // co: click pos in img element
+    // trc(1,"screenOffsettoreloffset co=" + showGeo(co) + ", r.geo=" + showGeo(r.geo) + ", r.off=" + showGeo(r.off));
+    return divGeo(co, r.geo);              // offset relative to image size
 }
 
 function moveRectRelative(ro, r) { // ro: offset relative to rectangle size
@@ -375,9 +375,14 @@ function placeGeo(resizeAlg, placeAlg) {
 const fillScreen    = placeGeo(fills,    placeCenter);        // cover screen with image
 const fitIntoScreen = placeGeo(fitsInto, placeCenter);        // show whole image on screen
 const orgOnScreen   = placeGeo(noScale,  placeCenter);        // don't resize image an show center part
-const zoomOnScreen  = placeGeo(noScale,  placeAt);            // don't resize image an show center part
+// const zoomOnScreen  = placeGeo(noScale,  placeAt);            // don't resize image an show center part
 const panoStart     = placeGeo(pano,     placeStart);
 const panoFinish    = placeGeo(pano,     placeFinish);
+
+function zoomOnScreen(geo) {
+    const rect = orgOnScreen(geo);
+    return moveRectRelative(cs.zoomPos, rect);
+}
 
 // --------------------
 
@@ -2105,7 +2110,6 @@ var cs = { url         : "",
            transDur    : 0,
            screenGeo   : {},
            zoomPos     : {},
-           zoomPos     : {},
            zoomDur     : 1000,
          };
 
@@ -2182,8 +2186,8 @@ function gotoSlide(url, resizeAlg, zoomPos) {
 
                 cs.sameAsLast = sameAsLastSlide();
 
-                cs.zoomPos   = zoomPos   || halfGeo(cs.screenGeo); // default zoom position
-                cs.zoomDur   = 2000;                               // default zoom duration 4 sec
+                cs.zoomPos   = zoomPos   || halfGeo(oneGeo); // default relative zoom position
+                cs.zoomDur   = 2000;                         // default zoom duration 4 sec
 
                 cs.fill      = fillScreen   (cs.orgGeo);
                 cs.fitsinto  = fitIntoScreen(cs.orgGeo);
@@ -2464,8 +2468,9 @@ function addResize(resizeAlg) {
 
         function resizeHandler(e) {
             const pos = mkGeo(e.offsetX, e.offsetY);
-            trc(1, "resizeHandler: alg =" + resizeAlg + ", pos = " + showGeo(pos));
-            thisSlideWith(resizeAlg, pos);
+            const off = screenOffsetToRelOffset(pos, cs.rect);
+            trc(1, "resizeHandler: alg =" + resizeAlg + ", offset = " + showGeo(off));
+            thisSlideWith(resizeAlg, off);
         }
 
         i.addEventListener("dblclick", resizeHandler);
