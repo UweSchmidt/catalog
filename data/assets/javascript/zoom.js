@@ -2428,7 +2428,8 @@ function addMoveScale(addHandler) {
             const d = zoomDist( cs.moveScaleTrans.start,
                                 cs.moveScaleTrans.finish
                               );
-            const a = moveAndScale(cs.moveScaleTrans)(d * cs.zoomDur);
+            const t = Math.sqrt(d) * cs.zoomDur;
+            const a = moveAndScale(cs.moveScaleTrans)(t);
             trc(1, `addMoveScale: anim=${JSON.stringify(a)}`);
             animTransZoom(a)(k);
         }
