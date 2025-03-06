@@ -312,28 +312,6 @@ function placeCenter(g, s) {
     return halfGeo(subGeo(s, g));
 }
 
-function placeAt(g, s) {
-    const i = ( ls.resizeAlg === "fitsinto"
-                ? cs.fitsinto.geo
-                : cs.fill.geo
-              );
-    return placeAt1(i, g, s);
-}
-
-function placeAt1(i, g, s) {                  // i: geo last image, g: org image geo, s: screen geo
-
-    // why does this work?
-
-    const viewCenter = halfGeo(i);
-    const orgOff     = halfGeo(subGeo(s, g));
-
-    const clickDisp  = subGeo(viewCenter, cs.zoomPos);
-    const clickScale = divGeo(g, i);
-    const clickOff   = addGeo(orgOff, mulGeo(clickDisp, clickScale));
-
-    return clickOff;
-}
-
 function placeStart(g, s) {
     const isH = isHorizontal(g);
     const off = isH ? nullGeo : subGeo(cs.panoramaS.geo, cs.screenGeo);
@@ -375,7 +353,6 @@ function placeGeo(resizeAlg, placeAlg) {
 const fillScreen    = placeGeo(fills,    placeCenter);        // cover screen with image
 const fitIntoScreen = placeGeo(fitsInto, placeCenter);        // show whole image on screen
 const orgOnScreen   = placeGeo(noScale,  placeCenter);        // don't resize image an show center part
-// const zoomOnScreen  = placeGeo(noScale,  placeAt);            // don't resize image an show center part
 const panoStart     = placeGeo(pano,     placeStart);
 const panoFinish    = placeGeo(pano,     placeFinish);
 
