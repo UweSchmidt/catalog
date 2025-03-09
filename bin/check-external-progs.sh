@@ -16,8 +16,8 @@ which -s pandoc || \
 which -s exiftool || \
     notThere "exiftool not found, try 'brew install exiftool'"
 
-which -s convert || \
-    notThere "convert not found, try 'brew install imagemagick'"
+which -s magick || \
+    notThere "magick not found, try 'brew install imagemagick'"
 
 which -s composite || \
     notThere "composite not found, try 'brew install imagemagick'"

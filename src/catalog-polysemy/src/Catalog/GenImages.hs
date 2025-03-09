@@ -405,7 +405,7 @@ buildResize3 vico rot d'g s'geo d s'
   where
     -- combine options
     convert cmd   = cmd
-                    & addPipe "convert"
+                    & addPipe "magick"
                     & addQuiet
 
     composite cmd = cmd
@@ -490,7 +490,7 @@ buildResize3 vico rot d'g s'geo d s'
 
     -- exif Orientation field of original is handled
     -- by convert, but convert does not update the
-    -- Orientation value propperly
+    -- Orientation value properly
     -- so an Orientation field is explicitly removed
     -- from the generated image by a call of  exiftool
     --
