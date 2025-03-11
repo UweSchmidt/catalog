@@ -117,7 +117,7 @@ import qualified Data.Text                as T
 
 -- ----------------------------------------
 
-imageMagick :: String
+imageMagick :: Text
 imageMagick = "magick"
 
 -- ----------------------------------------
