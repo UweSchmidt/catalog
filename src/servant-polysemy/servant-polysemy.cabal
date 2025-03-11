@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name:          servant-polysemy
-version:       0.5.11.6
+version:       0.5.11.7
 synopsis:      Servant server for catalog done with polysemy
 homepage:      https://github.com/UweSchmidt/apps/catalog
 license:       BSD3
