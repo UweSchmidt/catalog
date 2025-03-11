@@ -47,7 +47,7 @@ bump data/assets/html/edit.html
 bump data/assets/html/edit-4.5.0.html
 bump data/assets/html/show.html
 bump data/assets/html/zoom.html
-bump data/assets/html/zoom.js
+bump data/assets/javascript/zoom.js
 bump data/assets/javascript/rpc-servant.js
 
 set -x
