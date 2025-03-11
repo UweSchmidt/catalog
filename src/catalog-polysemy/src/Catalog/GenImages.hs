@@ -117,6 +117,11 @@ import qualified Data.Text                as T
 
 -- ----------------------------------------
 
+imageMagick :: String
+imageMagick = "magick"
+
+-- ----------------------------------------
+
 type Eff'Img r = ( EffIStore   r   -- any effects missing?
                  , EffError    r   -- yes, EffJournal
                  , EffLogging  r
@@ -405,7 +410,7 @@ buildResize3 vico rot d'g s'geo d s'
   where
     -- combine options
     convert cmd   = cmd
-                    & addPipe "magick"
+                    & addPipe imageMagick
                     & addQuiet
 
     composite cmd = cmd
@@ -609,7 +614,7 @@ buildIconScript dst fopt t =
   toBash ccmd
   where
     ccmd =
-      mkCexec "convert"
+      mkCexec imageMagick
       & addImgSize
       & addBG
       & addText
@@ -733,7 +738,7 @@ fontListScript =
   toBash cmd
   where
     cmd =
-      mkCexec "convert"
+      mkCexec imageMagick
       & addOptVal "-list" "font"
       & addPipe "grep"
       & addOptVal "-e" "Font:"
