@@ -118,7 +118,7 @@ import qualified Data.Text                as T
 -- ----------------------------------------
 
 imageMagick :: Text
-imageMagick = "magick"
+imageMagick = "convert"   -- convert is deprecated, but magick has different CLIg
 
 -- ----------------------------------------
 
