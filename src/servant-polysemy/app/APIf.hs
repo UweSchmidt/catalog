@@ -365,7 +365,7 @@ instance HasExt ICO where
 data JSStatic
 
 instance Accept JSStatic where
-  contentType _ = "application" // "json"
+  contentType _ = "application" // "javascript"
 
 instance MimeRender JSStatic LazyByteString where
   mimeRender _ = id
