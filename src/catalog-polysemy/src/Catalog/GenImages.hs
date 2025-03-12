@@ -68,6 +68,7 @@ import Data.TextPath
        ( path2MimeType )
 
 import Data.Prim
+{-
        ( (.~)
        , (^.)
        , msgPath
@@ -97,6 +98,7 @@ import Data.Prim
        , IsoString(isoString)
        , Field1(_1)
        )
+-}
 import Data.CT       -- build shell commands
        ( addFlag
        , addOptVal
@@ -118,7 +120,7 @@ import qualified Data.Text                as T
 -- ----------------------------------------
 
 imageMagick :: Text
-imageMagick = "convert"   -- convert is deprecated, but magick has different CLIg
+imageMagick = "magick"
 
 -- ----------------------------------------
 
@@ -171,11 +173,11 @@ getThumbnailImage src dst = do
     `catch`
     ( \ e ->
         log'warn $
-    T.unwords [ "getThumbnailImage: no Thumbnail found in "
-               , sp <> ","
-               , "reason:"
-               , e
-               ]
+        T.unwords [ "getThumbnailImage: no Thumbnail found in "
+                  , sp <> ","
+                  , "reason:"
+                  , e
+                  ]
     )
   where
     extractImage :: Eff'Img r => TextPath -> TextPath -> Sem r ()
@@ -400,9 +402,9 @@ buildResize3 vico rot d'g s'geo d s'
   | otherwise =
       mempty
       & convert
-      & addRotate
 --    & addStrip           -- hack: throw away all exif data (even color space info)
       & addRest
+      & addRotate
       & addVideo
       & addVal d           -- final destination
       & delOrient          -- throw away exif data for orientation
@@ -414,7 +416,8 @@ buildResize3 vico rot d'g s'geo d s'
                     & addQuiet
 
     composite cmd = cmd
-                    & addPipe "composite"
+                    & addPipe imageMagick
+                    & addFlag "composite"
                     & addQuiet
 
     addRest cmd
@@ -423,40 +426,34 @@ buildResize3 vico rot d'g s'geo d s'
       | otherwise = cmd & addOthers
 
     addPads cmd   = cmd
-                    & addResize1
+                    & addFlag s
                     & addQuality
                     & addInterlace
-                    & addVal s
+                    & addResize1
 
     addCrops cmd  = cmd
-                      -- reducing amount of intermediate data
+                    & addFlag s
                     & (if isThumbnail then addQuality else id)
                     & addCrop
-                    & addVal s
                     & toStdout
                     & convert
-                    & addResize
+                    & fromStdin
                     & addQuality
                     & addInterlace
-                    & fromStdin
+                    & addResize
 
     addOthers cmd = cmd
+                    & addFlag s
                     & addResize
-                    & addVal s
-
-      & ( if isEmpty vico
-          then id
-          else addVideo
-        )
 
     addVideo cmd
      | isEmpty vico = cmd
      | otherwise    = cmd
-                    & toStdout
-                    & composite
-                    & addOptVal "-gravity" "center"
-                    & addVal vico
-                    & fromStdin
+                      & toStdout
+                      & composite
+                      & addOptVal "-gravity" "center"
+                      & addFlag vico
+                      & fromStdin
 
     -- add options
     -- ERROR: corvert 7.1 destroys some images, when piping miff format data
@@ -464,8 +461,8 @@ buildResize3 vico rot d'g s'geo d s'
     -- this is used for icons with a fixed aspect ratio
     -- first a crop is done, then a resize
     -- workaround: take jpg as intermediate format
-    toStdout      = addVal "jpg:-"
-    fromStdin     = addVal "jpg:-"
+    toStdout      = addVal  "jpg:-"
+    fromStdin     = addFlag "jpg:-"
 
     addCrop       = addOptVal "-crop"
                     ( toText cw   <> "x" <> toText ch
@@ -755,4 +752,22 @@ pandocScript sp =
       & addOptVal "-t" "html"
       & addVal sp
 
-------------------------------------------------------------------------
+-- ------------------------------------------------------------------------
+--
+-- some test
+
+{-
+if1, if2 :: Text
+if1 = "./photos/tests/uz8_xxx.JPG"
+if2 = "./assets/icons/video-play-3-64.png"
+
+tt1, tt2, tt3, tt4, tt5, tt6 :: Text
+tt1 = buildIconScript if1 "myfont" "Emil sein Bild"
+tt2 = toBash $ buildResizeCmd "" 0 (GeoAR 160 120 Pad) geo'org "./tt2.jpg" if1
+tt3 = toBash $ buildResizeCmd "" 1 (GeoAR 160 120 Pad) geo'org "./tt3.jpg" if1
+tt4 = toBash $ buildResizeCmd "" 1 (GeoAR 160 120 Crop) (Geo 100 100) "./tt4.jpg" if1
+tt5 = toBash $ buildResizeCmd "" 2 (GeoAR 160 120 Fix) (Geo 100 100) "./tt5.jpg" if1
+tt6 = toBash $ buildResizeCmd if2 0 (GeoAR 160 120 Pad) geo'org "./tt6.jpg" if1
+-- -}
+
+-- ------------------------------------------------------------------------
