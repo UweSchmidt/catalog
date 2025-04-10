@@ -207,7 +207,6 @@ import APIf
        , CatalogAPI
        , BaseName(BaseName)
        , HTMLStatic
-       , JSStatic
        , ICO
        , Geo'(..)
        )
@@ -237,8 +236,6 @@ catalogServer env runReadC runModyC runBGC =
     ( root'html
       :<|>
       favicon'ico
-      :<|>
-      rpc'js
       :<|>
       ( get'gpscache'json
         :<|>
@@ -316,12 +313,6 @@ catalogServer env runReadC runModyC runBGC =
       where
         bn :: BaseName ICO
         bn = BaseName "favicon.ico"
-
-    rpc'js :: Handler LazyByteString
-    rpc'js = staticDoc' $ staticPath p'javascript bn
-      where
-        bn :: BaseName JSStatic
-        bn = BaseName "rpc-servant.js"
 
     dynDoc' :: Path -> Handler LazyByteString
     dynDoc' p = runModyC . staticFile $ p ^. isoText

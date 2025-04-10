@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module APIf where
 
@@ -20,7 +21,8 @@ import Prelude.Compat
        )
 
 import Network.HTTP.Media
-       ( (//)
+       ( MediaType
+       , (//)
        , (/:)
        )
 
@@ -111,8 +113,6 @@ type RootAPI
   = Capture "root" (BaseName HTMLStatic) :> Get '[HTMLStatic] LazyByteString
     :<|>
     "favicon.ico" :> Get '[ICO] LazyByteString
-    :<|>
-    "rpc.js" :> Get '[JSStatic] LazyByteString
     :<|> ( "get-gps-cache" :> Get '[OctetStream] LazyByteString
            :<|>
            "put-gps-cache" :> ReqBody '[OctetStream] LazyByteString
@@ -335,12 +335,15 @@ defaultParseError input = Left ("could not parse: `" <> input <> "'")
 data JPEG
 
 instance Accept JPEG where
+  contentType   :: Proxy JPEG -> MediaType
   contentType _ = "image" // "jpeg"
 
 instance MimeRender JPEG LazyByteString where
+  mimeRender :: Proxy JPEG -> LazyByteString -> LazyByteString
   mimeRender _ = id
 
 instance HasExt JPEG where
+  theExt   :: Proxy JPEG -> Text
   theExt _ = ".jpg"
 
 -- ----------------------------------------
@@ -350,12 +353,15 @@ instance HasExt JPEG where
 data ICO
 
 instance Accept ICO where
+  contentType   :: Proxy ICO -> MediaType
   contentType _ = "image" // "x-icon"
 
 instance MimeRender ICO LazyByteString where
+  mimeRender :: Proxy ICO -> LazyByteString -> LazyByteString
   mimeRender _ = id
 
 instance HasExt ICO where
+  theExt   :: Proxy ICO -> Text
   theExt _ = ".ico"
 
 -- ----------------------------------------
@@ -365,15 +371,18 @@ instance HasExt ICO where
 data JSStatic
 
 instance Accept JSStatic where
+  contentType   :: Proxy JSStatic -> MediaType
   contentType _ = "application" // "javascript"
 
 instance MimeRender JSStatic LazyByteString where
+  mimeRender   :: Proxy JSStatic -> LazyByteString -> LazyByteString
   mimeRender _ = id
 
 -- instance MimeUnrender JSStatic LazyByteString where
 --  mimeUnrender _ = id
 
 instance HasExt JSStatic where
+  theExt   :: Proxy JSStatic -> Text
   theExt _ = ".js"
 
 -- --------------------
@@ -383,12 +392,15 @@ instance HasExt JSStatic where
 data HTMLStatic
 
 instance Accept HTMLStatic where
+  contentType   :: Proxy HTMLStatic -> MediaType
   contentType _ = "text" // "html" /: ("charset", "utf-8")
 
 instance MimeRender HTMLStatic LazyByteString where
+  mimeRender :: Proxy HTMLStatic -> LazyByteString -> LazyByteString
   mimeRender _ = id
 
 instance HasExt HTMLStatic where
+  theExt   :: Proxy HTMLStatic -> Text
   theExt _ = ".html"
 
 
