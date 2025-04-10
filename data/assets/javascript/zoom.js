@@ -764,6 +764,9 @@ function initShow() {
     clearDomElem(img2Id);
 
     showPath(pathCollections());
+
+    // turn on hiding mouse curser when mouse isn't moved for a few seconds
+    HideCursor && HideCursor.waitThenHideMouse();
 }
 
 // ----------------------------------------
@@ -2778,5 +2781,30 @@ function runC(c) {
     trc(1, `runC: (${cid}) started`);
     c(fin);
 }
+
+// ----------------------------------------
+//
+// from https://stackoverflow.com/questions/3354239/hiding-the-mouse-cursor-when-idle-using-javascript
+// 4. answer
+
+var HideCursor = {
+    INI: {
+        MOUSE_IDLE: 3000
+    },
+    hideMouse: function() {
+        trc(1, "hide mouse cursor");
+        $("#imageTab").css('cursor', 'none');
+        $("#imageTab").on("mousemove", HideCursor.waitThenHideMouse);
+    },
+    waitThenHideMouse: function() {
+        $("#imageTab").css('cursor', 'default');
+        $("#imageTab").off("mousemove", HideCursor.waitThenHideMouse);
+        setTimeout(HideCursor.hideMouse, HideCursor.INI.MOUSE_IDLE);
+    },
+    showMouse: function() {
+        $("#imageTab").off("mousemove", HideCursor.waitThenHideMouse);
+        $("#imageTab").css('cursor', 'default');
+    },
+};
 
 // ----------------------------------------
