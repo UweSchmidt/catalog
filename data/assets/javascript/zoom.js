@@ -2448,6 +2448,8 @@ function addResize(resizeAlg) {
     function addHandler(i) {
 
         function resizeHandler(e) {
+            stopSlideShow();
+
             const pos = mkGeo(e.offsetX, e.offsetY);
             const off = screenOffsetToRelOffset(pos, cs.rect);
             const alg = ( ( e.altKey && cs.resizeAlg === "zoom" )
