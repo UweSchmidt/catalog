@@ -1594,6 +1594,7 @@ const metaInfo = {
     "Composite:Megapixels":         "Megapixel",
     "File:FileSize":                "Dateigröße",
     "File:RefJpg":                  "Bild-Kopie",
+    "Descr:Audio":                  "Audio URL",
     "Gif:AnimationIterations":      "Animation: Wiederh.",
     "Gif:Duration":                 "Animation: Dauer",
     "Gif:FrameCount":               "Animation: # Bilder",
