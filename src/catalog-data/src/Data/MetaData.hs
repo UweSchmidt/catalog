@@ -100,6 +100,7 @@ module Data.MetaData
   , descrKeywords
   , descrWeb
   , descrWikipedia
+  , descrAudio
   , descrGoogleMaps
   , descrComment
   , descrCommentImg
@@ -283,6 +284,7 @@ data MetaKey
   | Composite'SubSecDateTimeOriginal
   | Descr'Access
   | Descr'Address
+  | Descr'Audio
   | Descr'CatalogVersion
   | Descr'CatalogWrite
   | Descr'Comment
@@ -440,6 +442,7 @@ descrTitle
   , descrKeywords
   , descrWeb
   , descrWikipedia
+  , descrAudio
   , descrGoogleMaps
   , descrComment
   , descrCommentImg
@@ -460,6 +463,7 @@ keysAttrDescr :: [MetaKey]
 keysAttrDescr@[
   descrAccess
   , descrAddress
+  , descrAudio
   , descrCatalogVersion
   , descrCatalogWrite
   , descrComment
