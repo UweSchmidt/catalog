@@ -150,11 +150,10 @@ googleMapsGPSdec = prism' pos2mapsUrl
     -- generate a Google maps url
     pos2mapsUrl :: GPSposDec -> String
     pos2mapsUrl pos =
-      "https://www.google.com/maps/@"
+      "https://www.google.com/maps/search/"
       <> "?api=1"
-      <> "&map_action=map"
-      <> "&center=" <> (ppString # pos)
-      <> "&zoom=17"                       -- default: 15
+      <> "&query=" <> (ppString # pos)
+      <> "&zoom=16"                       -- default: 15
       <> "&basemap=satellite"             -- or roadmap, terrain
 
 
@@ -168,6 +167,11 @@ googleMapsGPSdec = prism' pos2mapsUrl
       <|>
       -- new maps format .1b
       try ( anyStringThen "&ll=" *> parserPosDec <*
+            char '&' <* manyChars anySingle
+          )
+      <|>
+      -- search maps format .1c
+      try ( anyStringThen "&query=" *> parserPosDec <*
             char '&' <* manyChars anySingle
           )
       <|>
