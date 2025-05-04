@@ -302,6 +302,25 @@ span.rating {
 
 /* -------------------- */
 
+#audio-control {
+  border: 1px solid #333;
+  padding: 1ex;
+  color: #eee;
+  background-color: rgb(102,102,102);
+
+  visibility: visible;
+  /* opacity: 0.8; */
+
+  position: absolute;
+  top:  0px;
+  right:0px;
+
+  z-index: 8;
+  /* display: none; */
+}
+
+/* -------------------- */
+
 img.gif {
   background-color: #eee;
 }

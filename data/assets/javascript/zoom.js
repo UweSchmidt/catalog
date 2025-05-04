@@ -33,10 +33,17 @@ const statusDescr  = { id:      "status",
                        dur:     1500,
                      };
 
+const audioDescr  = { id: "audio-control",
+                      visible: false,
+                    };
+
 const videoAttrs  = { controls: "",   // default video attributes
                       autoplay: null,
                       muted:    null,
                     };
+
+/* ---------------------------------------- */
+/* functional basics */
 
 function constF(x) {
     return (y) => { return x; };
@@ -1184,7 +1191,8 @@ function openEditPage(path, pos) {
 
 function sameAsLastSlide() {
     const ppc = rPathPosToUrl(cs.slideReq.rPathPos);
-    const ppl = rPathPosToUrl(ls.slideReq.rPathPos) || "";
+    const lll = ls?.slideReq?.rPathPos;
+    const ppl = lll ? rPathPosToUrl(lll) : "";
     return ppc === ppl;
 }
 
@@ -1444,6 +1452,11 @@ function keyPressed (e) {
     if ( isKey(e, 89, "Y")
        ) {
         toggleDefaultAlg();
+        return false;
+    }
+
+    if ( isKey(e, 122, "z") ) {
+        hasAudioControl() && toggleAudio();
         return false;
     }
 
@@ -1725,6 +1738,44 @@ function buildInfo() {
     buildMetaInfo(it, md);
 }
 
+function buildAudio() {
+    trc(1, "buildAudio");
+    const ac = getElem(audioDescr.id);
+    if ( ! sameAsLastSlide() ) {
+        trc(1, "buildAudio: clearCont");
+        audioDescr.visible = false;
+        clearCont(ac);
+
+        if ( isImgSlide() ) {
+            const md = getSlideMeta();
+            const url = md["Descr:Audio"];
+
+            function err(e) {
+                trc(1, "audio url error: " + e.type);
+                showStatus("Soundfile konnte nicht geladen werden: " + url);
+                clearCont(ac);
+            };
+
+            if ( url ) {
+                trc(1, "buildAudio: url=" + url);
+                const src = newElem("source");
+                src.src   = url;
+                src.type  = "audio/mpeg";
+                // src.addEventListener("error", err);  // ??? doesn't work
+
+                src.onerror = err; // ???
+
+                const ctl = newElem("audio");
+                ctl.controls = "true";
+                ctl.appendChild(src);
+
+                ac.appendChild(ctl);
+                toggleAudio();
+            }
+        }
+    }
+}
+
 // ----------------------------------------
 
 function getJsonPage(url, processRes, processErr, processNext) {
@@ -1911,8 +1962,12 @@ function toggleOverlay(o) {
     return doit;
 }
 
-function toggleInfo() { runC(toggleOverlay(infoDescr)); }
-function toggleHelp() { runC(toggleOverlay(helpDescr)); }
+function hasAudioControl() {
+    return getElem(audioDescr.id).children.length !== 0;
+}
+function toggleInfo()  { runC(toggleOverlay(infoDescr));  }
+function toggleHelp()  { runC(toggleOverlay(helpDescr));  }
+function toggleAudio() { runC(toggleOverlay(audioDescr)); }
 
 // ----------------------------------------
 //
@@ -2221,6 +2276,7 @@ function switchSlide() {
         trc(1, "switchSlide");
 
         buildInfo();
+        buildAudio();
         setPageTitle();
 
         if ( isColSlide() ) {
