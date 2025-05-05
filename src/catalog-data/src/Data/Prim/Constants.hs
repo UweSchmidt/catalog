@@ -95,11 +95,12 @@ p'exifcache    = p'docroot `snocPath` "exif-meta"
 p'zipcache     = p'docroot `snocPath` "zip-cache"
 p'gen'icon     = (p'docroot `snocPath` "generated") `snocPath` "icon"
 
-
-p'bootstrap
+p'audio
+  , p'bootstrap
   , p'cache
   , p'iconsgen  :: Path
 
+p'audio     = mkPath "audio"
 p'bootstrap = mkPath "bootstrap"
 p'cache     = mkPath "cache" -- old url scheme
 p'iconsgen  = (p'cache `concPath` p'icons) `snocPath` "generated" -- old url scheme

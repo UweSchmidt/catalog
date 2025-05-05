@@ -136,6 +136,7 @@ import Data.Prim
        , p'html
        , p'icons
        , p'javascript
+       , p'audio
        , p'bootstrap
        , p'css
        , p'icons
@@ -224,7 +225,9 @@ catalogServer :: CatEnv
               -> (forall a . CatApp a -> Handler ())
               -> Server CatalogAPI
 catalogServer env runReadC runModyC runBGC =
-  ( bootstrap
+  ( audio
+    :<|>
+    bootstrap
     :<|>
     ( assets'css
       :<|>
@@ -274,6 +277,7 @@ catalogServer env runReadC runModyC runBGC =
     static p = do
       serveDirectoryWebApp (mountPath ++ showPath p)
 
+    audio             = static p'audio
     bootstrap         = static p'bootstrap
     assets'css        = static p'css
     assets'icons      = static p'icons

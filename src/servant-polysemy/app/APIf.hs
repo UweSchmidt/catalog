@@ -77,7 +77,9 @@ import qualified Data.Text as T
 -- the complete API
 
 type CatalogAPI
-  = ( BootstrapAPI
+  = ( AudioAPI
+      :<|>
+      BootstrapAPI
       :<|>
       AssetsAPI
       :<|>
@@ -93,8 +95,12 @@ type CatalogAPI
 -- static files API
 
 -- static bootstrap files
-type BootstrapAPI
-  = "bootstrap" :> Raw
+type AudioAPI
+  = "audio" :> Raw
+
+-- static bootstrap files
+type BootstrapAPI =
+  "bootstrap" :> Raw
 
 -- static asset files (css, icons, javascript)
 type AssetsAPI
