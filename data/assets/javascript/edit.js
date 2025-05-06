@@ -2266,7 +2266,7 @@ function setMetaData() {
     }
      */
 
-    var metadata = readMetaDataBox();
+    var metadata = normalizeAudioUrl(readMetaDataBox());
 
     /*
     if (jQuery.isEmptyObject(metadata)) {
@@ -2297,6 +2297,32 @@ function setRating(rating) {
     console.log(ixs);
 
     setRatingsOnServer(cid, cpath, ixs, rating);
+}
+
+function extternalUrl(s) {
+    const re = /^https?:\/\//;
+    return re.test(s);
+
+}
+
+function localAudioUrl(s) {
+    const re = /^\/audio\//;
+    return re.test(s);
+}
+
+function alreadyEncodedLocalAudioUrl(s) {
+    const r=/^(%[A-F0-9]{2}|[-_.!()~*'A-Za-z0-9;\/?:@&=+$,#])*$/;
+    return localAudioUrl(s) && r.test(s);
+}
+
+function normalizeAudioUrl(md) {
+    const au = md["Descr:Audio"];
+    if ( au ) {
+        if ( ! alreadyEncodedLocalAudioUrl(au) ) {
+            md["Descr:Audio"] = encodeURI(au);
+        }
+    }
+    return md;
 }
 
 // ----------------------------------------
