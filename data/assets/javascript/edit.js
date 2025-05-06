@@ -2316,8 +2316,11 @@ function alreadyEncodedLocalAudioUrl(s) {
 }
 
 function normalizeAudioUrl(md) {
-    const au = md["Descr:Audio"];
+    let au = md["Descr:Audio"];
     if ( au ) {
+        if ( (/^[.]\//).test(au) ) {
+            au = au.substring(1);
+        }
         if ( ! alreadyEncodedLocalAudioUrl(au) ) {
             md["Descr:Audio"] = encodeURI(au);
         }
