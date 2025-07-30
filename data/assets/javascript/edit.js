@@ -780,6 +780,7 @@ function isNotSortableCollection(md) {
 // set write protection flag for collection entries
 // set ratings for collection entries
 
+/*
 var contChain = () => {};
 
 function showNewCollectionCont(cont) {
@@ -806,92 +807,102 @@ function showNewCollectionCont(cont) {
         contChain();
     };
 }
+*/
 
-function showNewCollection(path, colVal) {
-    console.log("showNewCollection " + path);
-    // insert into global state
-    insCol(path, colVal);
+function showNewCollectionC(path, colVal) {
+    return (cont) => {
+        console.log("showNewCollectionC " + path);
 
-    // compute colId and colName from path
-    var o  = splitPath(path);
-    var md = colVal.metadata;
-    console.log(o);
-    console.log(colVal);
-    console.log(md);
+        // insert into global state
+        insCol(path, colVal);
 
-    var io = isAlreadyOpen(path);
-
-    if ( io[0] ) {
-        // nothing to do, collection is already there
-        // but we need the id attr value
-        o.colId = io[1];
-        console.log("collection already open");
-        console.log(o.colId);
-
-        // switch to the collection
-        // it's already loaded
-        setActiveTab(o.colId);
-    } else {
-        // create the tab
-
-        o.colId   = path2id(o.path);
+        // compute colId and colName from path
+        var o  = splitPath(path);
+        var md = colVal.metadata;
         console.log(o);
+        console.log(colVal);
+        console.log(md);
 
-        // no-write collection ?
-        var ro = isWriteProtectedCollection(md);
-        var sr = isNotSortableCollection(md);
-        var nd = isNoDeleteCollection(md);
-        var gn = collectionIsGenerated(o.path);
-        var fx = collectionIsFix(o.path);
-        var ct = md["Descr:Title"];
+        var io = isAlreadyOpen(path);
 
-        // add the tab panel
-        var t = $('#prototype-tabpanel').children("div").clone();
+        if ( io[0] ) {
+            // nothing to do, collection is already there
+            // but we need the id attr value
+            o.colId = io[1];
+            console.log("collection already open");
+            console.log(o.colId);
 
-        t.find('div.tab-panel').empty();
-        t.attr('id', o.colId).attr('data-path', o.path);
-
-        if ( ro ) { t.addClass("no-write");  }
-        if ( sr ) { t.addClass("no-sort");   }
-        if ( nd ) { t.addClass("no-delete"); }
-        if ( gn ) { t.addClass("generated"); }
-        $('#theCollections').append(t);
-
-        // create a new tab from prototype
-        var tb = $('#prototype-tab').find("li").clone();
-
-        var tt = "path: " + o.path;
-        if (ct) { tt = "title: " + ct + "\n" + tt; }
-        if (ro) { tt = tt + "\naccess: no-write"; };
-
-        tb.find('a')
-            .attr('href', '#' + o.colId)
-            .attr('aria-controls', o.colId)
-            .attr('title', tt);
-        tb.find('.coltab-name')
-            .empty()
-            .append(o.name);
-
-        if ( fx ) {  // hide close button
-            tb.find('.coltab-delete')
-                .addClass("hidden-bs450");
+            // switch to the collection
+            // it's already loaded
+            setActiveTab(o.colId);
+            cont();
         } else {
-            tb.find('.coltab-delete')
-                .find('button')
-                .on('click', function (e) {
-                    closeCollection(o.colId);
-                });
+            // create the tab
+
+            o.colId   = path2id(o.path);
+            console.log(o);
+
+            // no-write collection ?
+            var ro = isWriteProtectedCollection(md);
+            var sr = isNotSortableCollection(md);
+            var nd = isNoDeleteCollection(md);
+            var gn = collectionIsGenerated(o.path);
+            var fx = collectionIsFix(o.path);
+            var ct = md["Descr:Title"];
+
+            // add the tab panel
+            var t = $('#prototype-tabpanel').children("div").clone();
+
+            t.find('div.tab-panel').empty();
+            t.attr('id', o.colId).attr('data-path', o.path);
+
+            if ( ro ) { t.addClass("no-write");  }
+            if ( sr ) { t.addClass("no-sort");   }
+            if ( nd ) { t.addClass("no-delete"); }
+            if ( gn ) { t.addClass("generated"); }
+            $('#theCollections').append(t);
+
+            // create a new tab from prototype
+            var tb = $('#prototype-tab').find("li").clone();
+
+            var tt = "path: " + o.path;
+            if (ct) { tt = "title: " + ct + "\n" + tt; }
+            if (ro) { tt = tt + "\naccess: no-write"; };
+
+            tb.find('a')
+                .attr('href', '#' + o.colId)
+                .attr('aria-controls', o.colId)
+                .attr('title', tt);
+            tb.find('.coltab-name')
+                .empty()
+                .append(o.name);
+
+            if ( fx ) {  // hide close button
+                tb.find('.coltab-delete')
+                    .addClass("hidden-bs450");
+            } else {
+                tb.find('.coltab-delete')
+                    .find('button')
+                    .on('click', function (e) {
+                        closeCollection(o.colId);
+                    });
+            }
+
+            $('#collectionTab').append(tb);
+            markAccess(o.colId, ro);
+
+            // make the collection visible
+            setActiveTab(o.colId);
+
+            // fill the collection
+            insertEntriesC(o.colId, colVal.entries)(
+                () => {
+                    console.log("showNewCollectionC finished: " + path);
+                    cont();
+                }
+            );
         }
-
-        $('#collectionTab').append(tb);
-        markAccess(o.colId, ro);
-
-        // make the collection visible
-        setActiveTab(o.colId);
-
-        // fill the collection
-        insertEntries(o.colId, colVal.entries);
-    }
+    };
 }
 
 // search collection for path
@@ -1824,9 +1835,11 @@ function getSearchPath() {
 
 function openAncestorCollections(p) {
     statusClear();
-    openCols(allAncestorCollections(p));
+    openColsC(allAncestorCollections(p))(
+        () => { console.log("openAncatorCollections finished: " + p); }
+    );
 }
-
+/* old
 function openCols(ps, ff) {
     console.log("openCols: ps=" + ps);
     if (ps.length != 0) {
@@ -1841,6 +1854,34 @@ function openCols(ps, ff) {
     } else {
         if ( ff ) { ff(); }  // invoke final callback
     }
+}
+    */
+
+function openColC(p) {
+    return (cont) => {
+        getColFromServer(p,
+                         (path, colVal) => {
+                             console.log("openColC: got collection  from server: " + path);
+                             showNewCollectionC(path, colVal)(cont);
+                         }
+                        );
+    };
+}
+
+function openColsC(ps) {
+    return (cont) => {
+        var ix = ps.length;
+        var rc = cont;
+
+        while ( ix > 0 ) {
+            --ix;
+            let p  = ps[ix];
+            let c0 = rc;
+            let c1 = openColC(p);
+            rc = (k) => { c1(() => { c0(k); }); };
+        }
+        rc(cont);
+    };
 }
 
 function markGlobalDia() {
@@ -1863,12 +1904,15 @@ function openSystemCollections() {
     statusClear();
     getSearchPath();
     cs = addToCols(cs, globalCollectionPath);
-    openCols(cs, markGlobalDia);
+    openColsC(cs)(markGlobalDia);
 }
 
 function openCollection(path) {
     statusClear();
-    getColFromServer(path, showNewCollectionCont(() => {}));
+    openColC(path)(
+        () => {
+            console.log("openCollection finished: " + path);
+        });
 }
 
 function updateCollection(path) {
