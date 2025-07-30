@@ -311,6 +311,7 @@ function setDiaRating(dia, rating) {
     console.log(dia);
     var stars = $(dia).find('div.dia-stars');
     stars.attr('data-rating', rating);
+    console.log(stars);
     var j = 0;
     for (j = 0; j <= 5; ++j) {
         var cls = j <= rating ? "dia-marked" : "dia-unmarked";
@@ -796,15 +797,16 @@ function showNewCollectionCont(cont) {
             cont();
         };
 
-    // show collection and build contChain
-    // this is a normal function call
-    showNewCollection(path, colVal);
+        // show collection and build contChain
+        // this is a normal function call
+        showNewCollection(path, colVal);
 
-    // call cont chain for setting write protection flags
-    // this is an async function call
-    contChain();
+        // call cont chain for setting write protection flags
+        // this is an async function call
+        contChain();
+    };
 }
-                                     }
+
 function showNewCollection(path, colVal) {
     console.log("showNewCollection " + path);
     // insert into global state
@@ -1061,6 +1063,7 @@ function insertEntries(colId, entries) {
     // in clipboard and subcollections remove is possible
     // not in the rest of the collections
     // clipboard collections are never write protected
+
     if ( ! isPathPrefix(pathClipboard(), path) ) {
         col.find('div.dia button.dia-btn-remove')
             .addClass(hiddenclass);
@@ -1188,6 +1191,330 @@ function newEntry(colId, colPath, entry, i) {
     return p;
 }
 
+// ----------------------------------------
+// ----------------------------------------
+
+
+function insertEntriesC(colId, entries) {
+
+    function initCol() {
+        console.log('insertEntriesC');
+        console.log(colId);
+        console.log(entries);
+
+        var col1 = $('#' + colId);
+        col1.empty();
+        return col1;
+    }
+
+    return (cont) => {
+        let colPath = collectionPath(colId);
+        let col     = initCol();
+
+        let addHandlerC = (k) => {
+            addColHandlers(col, colPath, colId);
+            k();
+        };
+
+        var ix = entries.length;
+        var insC = addHandlerC;
+
+        while ( ix > 0 ) {
+            --ix;
+            let e = entries[ix];
+            let ins0 = insC;
+            let ins1 = insertEntryC(colId, colPath, e, ix);
+            insC = (k) => {
+                ins1(() => { ins0(k); });
+            };
+        }
+
+        insC(cont);
+    };
+}
+
+function insertEntryC(colId, colPath, entry, i) {
+    return (cont) => {
+        var ref = splitPath(entry.ref);
+        var p   = insertEntryNew(colId, colPath, entry, i, ref);
+
+        let c1 = () => { setDiaRatingC(colId, colPath, i)(cont); };
+        let c2 = () => { setColAccessC(entry, p, ref)(c1); };
+        c2();
+    };
+}
+
+function setColAccessC(entry, p, ref) {
+    return (cont) => {
+        if ( entry.ColEntry === "COL" ) {
+            console.log("setColAccessC for " + ref.path);
+            getIsWriteableFromServer(ref.path,
+                                     (ro) => {
+                                         setDiaColAccess(p, ro);
+                                         cont();
+                                     });
+        } else {
+            cont();
+        }
+    };
+}
+
+function setDiaRatingC(colId, colPath, i) {
+    return (cont) => {
+        getRatingFromServer(colPath, i,
+                            (rating) => {
+                                console.log(`setDiaRatingC: (${colPath}, ${i}) = ${rating}`);
+                                setRatingInCollection(colId, i, rating);
+                                cont();
+                            }
+                           );
+    };
+}
+
+function ttt()  {
+    var path = "/archive/collections/albums/tests";
+    var id1  = path2id(path);
+    var es  = openCollections[path].entries;
+    insertEntriesC(id1, es)(() => { console.log("ttt finished"); });
+}
+
+function addColHandlers(col, path, colId) {
+    console.log("addColHandlers: " + col);
+    // set handler for showing edit buttons
+    col.find('div.dia')
+        .hover(function () {
+            $(this)
+                .find('.dia-btn-group')
+                .removeClass(hiddenclass);
+        }, function () {
+            $(this)
+                .find('.dia-btn-group')
+                .addClass(hiddenclass);
+        });
+
+    // install handler at rating stars
+    col.find('div.dia div.dia-stars a.star')
+        .on('click', function (e) {
+            console.log('rating button');
+            console.log(e.target); // target is glyphicon-star span elem
+            var o = diaButton(e);
+            var s = $(e.target)
+                    .closest('a.star')
+                    .attr('data-star');
+            var newRating = parseInt(s) || 0;
+            var curRating = o.rating;
+            if ( curRating === 1 && newRating === 1) {
+                // 1 star set and 1 star pressed
+                // -> remove star
+                newRating = 0;
+            }
+            setEntryMark(o.dia);
+            setRating(newRating);
+            getAllRatingsFromServer(colId, () => {});
+        });
+
+    // set handler for button groups
+    col.find('div.dia button.dia-btn-remove')
+        .on('click', diaBtnRemove);
+    /*
+    col.find('div.dia button.dia-btn-movefromclipboard')
+        .on('click', diaBtnMoveFromClipboard);
+    col.find('div.dia button.dia-btn-copyfromclipboard')
+        .on('click', diaBtnCopyFromClipboard);
+     */
+    col.find('div.dia button.dia-btn-movetoclipboard')
+        .on('click', diaBtnMoveToClipboard);
+    col.find('div.dia button.dia-btn-copytoclipboard')
+        .on('click', diaBtnCopyToClipboard);
+    col.find('div.dia button.dia-btn-rename')
+        .on('click', diaBtnRename);
+    col.find('div.dia button.dia-btn-writeprotected')
+        .on('click', diaBtnWriteProtected);
+    col.find('div.dia button.dia-btn-sort')
+        .on('click', diaBtnSort);
+    col.find('div.dia button.dia-btn-view')
+        .on('click', diaBtnView);
+    col.find('div.dia button.dia-btn-meta')
+        .on('click', diaBtnMeta);
+    col.find('div.dia button.dia-btn-title')
+        .on('click', diaBtnTitle);
+    col.find('div.dia button.dia-btn-colimg')
+        .on('click', diaBtnColimg);
+    col.find('div.dia.data-md button.dia-btn-colblog')
+        .on('click', diaBtnColimg);
+    // all col dias and .md img dias get this handler
+    col.find('div.dia.data-md button.dia-btn-blog')
+        .on('click', diaBtnBlog);
+
+    //collections don't have all buttons
+    col.find('div.dia.colmark button.dia-btn-colimg')
+        .addClass(hiddenclass);
+    col.find('div.dia.colmark button.dia-btn-blog')
+        .removeClass(hiddenclass)
+        .attr('title', 'Edit blog text for this collection');
+    col.find('div.dia.colmark button.dia-btn-view')
+        .attr('title', 'Preview image and/or blog text for this collection');
+
+
+    // hide write protect button for generated collections
+    col.find('div.dia.colmark')
+        .each(function (i, e) {
+            var cname = getDiaName(e);
+            var cpath = path + "/" + cname;
+            console.log('hide lock button ', cpath);
+            if (collectionIsGenerated(cpath)) {
+                $(e).find('button.dia-btn-writeprotected')
+                .addClass(hiddenclass);
+            }
+        });
+
+    // images don't have all buttons
+    col.find('div.dia.imgmark button.dia-btn-rename')
+        .addClass(hiddenclass);
+    col.find('div.dia.imgmark button.dia-btn-writeprotected')
+        .addClass(hiddenclass);
+
+    // .md text files don't have meta data
+    col.find('div.dia.imgmark.data-md button.dia-btn-meta')
+        .addClass(hiddenclass);
+    col.find('div.dia.imgmark.data-md button.dia-btn-title')
+        .addClass(hiddenclass);
+    // redefine colimg button to set colblog entry
+    col.find('div.dia.imgmark.data-md button.dia-btn-colimg')
+        .attr('title', "Take this text as blog text for the current collection");
+    col.find('div.dia.imgmark.data-md button.dia-btn-view')
+        .attr('title', "Preview this blog text");
+    col.find('div.dia.imgmark.data-md button.dia-btn-blog')
+        .removeClass(hiddenclass);
+
+    // clipboard has a special set of image buttons
+    if (colId === idClipboard()) {
+        col.find('div.dia button.dia-btn-movefromclipboard')
+            .addClass(hiddenclass);
+        col.find('div.dia button.dia-btn-copyfromclipboard')
+            .addClass(hiddenclass);
+        col.find('div.dia button.dia-btn-movetoclipboard')
+            .addClass(hiddenclass);
+        col.find('div.dia button.dia-btn-copytoclipboard')
+            .addClass(hiddenclass);
+    }
+
+    // in clipboard and subcollections remove is possible
+    // not in the rest of the collections
+    // clipboard collections are never write protected
+
+    if ( ! isPathPrefix(pathClipboard(), path) ) {
+        col.find('div.dia button.dia-btn-remove')
+            .addClass(hiddenclass);
+    } else {
+        col.find('div.dia button.dia-btn-writeprotected')
+            .addClass(hiddenclass);
+    }
+}
+
+
+function insertEntryNew(colId, colPath, entry, i, ref) {
+    console.log("insertEntryNew: colId=" + colId);
+    console.log(entry);
+    var p = $("#prototype-dia").children("div").clone();
+
+    setDiaNo(p, i);
+
+    // old url scheme
+    var sc = iconSize('');
+    var mk = '';
+    var tt = '';
+    // var ref = splitPath(entry.ref);
+
+    if (entry.ColEntry === "IMG") {
+        setDiaImgName(p, entry.part);
+        // add the part extension as class to the entry
+        // "data-jpg" for images,
+        // "data-md" for blog entries (markdown text .md or .txt)
+        // in preview modal box this info becomes important
+
+        var ep = splitPath(entry.part);
+        var ex = ep.ext;
+        if (ep.ext == "txt" || ep.ext == "md") {
+            ex = "data-md";
+        } else {
+            ex = "data-jpg";
+        }
+        p.addClass(ex);
+
+        // if img is a video, add extra "data-mp4" class as marker
+        // only supported in edit-4.5.0 and later
+
+        if (ep.ext == "mp4" && is450()) {
+            p.addClass("data-mp4");
+        }
+
+        sc = sc + ref.cpath + "/" + entry.part;
+        mk = "imgmark";
+        tt = "image: " + entry.ref;
+    }
+    if (entry.ColEntry === "COL") {
+        setDiaColName(p, ref.name);
+
+        // collections always have a .jpg as preview
+        p.addClass('data-jpg')
+         .addClass('data-md');
+
+
+        // this ref is a dummy
+        // the real ref of a collection is inserted later
+        // by a server call
+        // but we need a legal src ref
+
+        sc = sc + "/assets/icons/generated/brokenImage.jpg";
+        mk = "colmark";
+        tt = "collection: " + entry.ref;
+    }
+
+    // check whether src ref has extension .jpg
+    var scref = splitPath(sc);
+    if (scref.ext !== "jpg" && scref.ext !== "JPG") {
+        sc = sc + ".jpg";
+    }
+    // set img/col mark
+    setMark(p, mk);
+
+    if ( entry.ColEntry === "COL") {
+
+        // if entry is a collection add open collection event handler
+        p.find("div.dia-name a")
+            .on('click', function (e) {
+                e.preventDefault();
+                openCollection(ref.path);
+            });
+
+        // wriable marker set later by an extra server call
+    };
+
+    // url for entry icon with new url scheme
+    var newIconRef = iconRef(iconSize(), colPath, entry, i);
+
+    console.log("new iconRef: " + newIconRef);
+    p.find("img.dia-src")
+        .attr('src', newIconRef);
+
+    removeMarkCount(p);
+
+    // set the icon title
+    p.find("img.dia-src")
+        .attr("title", tt);
+
+    // add event handler for marking
+    p.find("div.dia-img")
+        .on('click', toggleSlideMark)
+        .css('cursor','pointer');
+
+
+    // insert p into DOM
+    $('#' + colId).append(p);
+}
+
+// ----------------------------------------
 // ----------------------------------------
 
 function checkAndRefreshCol(path, refresh, force) {
@@ -1318,12 +1645,16 @@ function refreshCollection2(path, colVal, force) {
     // only if the collection content has changed
     // update the entries
     var changed = updCol(path, colVal);
-    if ( changed || force) {
+    if ( changed || force ) {
         var io = isAlreadyOpen(path);
         // check whether collection is already there
         if ( io[0]) {
             o.colId = io[1];
-            insertEntries(o.colId, colVal.entries);
+            insertEntriesC(o.colId, colVal.entries)(
+                () => {
+                    console.log("refreshCollection2 finished: " + path);
+                }
+            );
         }
     } else {
         unmarkAll(collectionId(path));
@@ -1608,12 +1939,12 @@ function hasRating(pred) {
 }
 
 function eqInt(i) {
-    var p = function (j) {return j === i;}
+    var p = function (j) {return j === i;};
     return p;
 }
 
 function geInt(i) {
-    var p = function (j) {return j >= i;}
+    var p = function (j) {return j >= i;};
     return p;
 }
 
