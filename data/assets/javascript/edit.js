@@ -930,279 +930,6 @@ function setActiveTab(colId) {
     document.querySelector("#edit-collections-container").scrollTop = 0;
 }
 
-function insertEntries(colId, entries) {
-    console.log('insertEntries');
-    console.log(colId);
-    console.log(entries);
-    var path = collectionPath(colId);
-
-    var col = $('#' + colId);
-    col.empty();
-    entries.forEach(function (e, i) {
-        insertEntry(colId, path, e, i);
-    });
-
-    var contChain1 = contChain;
-
-    contChain = () => {
-        console.log("setAllRatings for " + path);
-
-        // insert the ratings
-        // this async call must be  syncronized
-        getAllRatingsFromServer(colId, contChain1);
-    };
-
-    // set handler for showing edit buttons
-    col.find('div.dia')
-        .hover(function () {
-            $(this)
-                .find('.dia-btn-group')
-                .removeClass(hiddenclass);
-        }, function () {
-            $(this)
-                .find('.dia-btn-group')
-                .addClass(hiddenclass);
-        });
-
-    // install handler at rating stars
-    col.find('div.dia div.dia-stars a.star')
-        .on('click', function (e) {
-            console.log('rating button');
-            console.log(e.target); // target is glyphicon-star span elem
-            var o = diaButton(e);
-            var s = $(e.target)
-                    .closest('a.star')
-                    .attr('data-star');
-            var newRating = parseInt(s) || 0;
-            var curRating = o.rating;
-            if ( curRating === 1 && newRating === 1) {
-                // 1 star set and 1 star pressed
-                // -> remove star
-                newRating = 0;
-            }
-            setEntryMark(o.dia);
-            setRating(newRating);
-            getAllRatingsFromServer(colId, () => {});
-        });
-
-    // set handler for button groups
-    col.find('div.dia button.dia-btn-remove')
-        .on('click', diaBtnRemove);
-    /*
-    col.find('div.dia button.dia-btn-movefromclipboard')
-        .on('click', diaBtnMoveFromClipboard);
-    col.find('div.dia button.dia-btn-copyfromclipboard')
-        .on('click', diaBtnCopyFromClipboard);
-     */
-    col.find('div.dia button.dia-btn-movetoclipboard')
-        .on('click', diaBtnMoveToClipboard);
-    col.find('div.dia button.dia-btn-copytoclipboard')
-        .on('click', diaBtnCopyToClipboard);
-    col.find('div.dia button.dia-btn-rename')
-        .on('click', diaBtnRename);
-    col.find('div.dia button.dia-btn-writeprotected')
-        .on('click', diaBtnWriteProtected);
-    col.find('div.dia button.dia-btn-sort')
-        .on('click', diaBtnSort);
-    col.find('div.dia button.dia-btn-view')
-        .on('click', diaBtnView);
-    col.find('div.dia button.dia-btn-meta')
-        .on('click', diaBtnMeta);
-    col.find('div.dia button.dia-btn-title')
-        .on('click', diaBtnTitle);
-    col.find('div.dia button.dia-btn-colimg')
-        .on('click', diaBtnColimg);
-    col.find('div.dia.data-md button.dia-btn-colblog')
-        .on('click', diaBtnColimg);
-    // all col dias and .md img dias get this handler
-    col.find('div.dia.data-md button.dia-btn-blog')
-        .on('click', diaBtnBlog);
-
-    //collections don't have all buttons
-    col.find('div.dia.colmark button.dia-btn-colimg')
-        .addClass(hiddenclass);
-    col.find('div.dia.colmark button.dia-btn-blog')
-        .removeClass(hiddenclass)
-        .attr('title', 'Edit blog text for this collection');
-    col.find('div.dia.colmark button.dia-btn-view')
-        .attr('title', 'Preview image and/or blog text for this collection');
-
-
-    // hide write protect button for generated collections
-    col.find('div.dia.colmark')
-        .each(function (i, e) {
-            var cname = getDiaName(e);
-            var cpath = path + "/" + cname;
-            console.log('hide lock button ', cpath);
-            if (collectionIsGenerated(cpath)) {
-                $(e).find('button.dia-btn-writeprotected')
-                .addClass(hiddenclass);
-            }
-        });
-
-    // images don't have all buttons
-    col.find('div.dia.imgmark button.dia-btn-rename')
-        .addClass(hiddenclass);
-    col.find('div.dia.imgmark button.dia-btn-writeprotected')
-        .addClass(hiddenclass);
-
-    // .md text files don't have meta data
-    col.find('div.dia.imgmark.data-md button.dia-btn-meta')
-        .addClass(hiddenclass);
-    col.find('div.dia.imgmark.data-md button.dia-btn-title')
-        .addClass(hiddenclass);
-    // redefine colimg button to set colblog entry
-    col.find('div.dia.imgmark.data-md button.dia-btn-colimg')
-        .attr('title', "Take this text as blog text for the current collection");
-    col.find('div.dia.imgmark.data-md button.dia-btn-view')
-        .attr('title', "Preview this blog text");
-    col.find('div.dia.imgmark.data-md button.dia-btn-blog')
-        .removeClass(hiddenclass);
-
-    // clipboard has a special set of image buttons
-    if (colId === idClipboard()) {
-        col.find('div.dia button.dia-btn-movefromclipboard')
-            .addClass(hiddenclass);
-        col.find('div.dia button.dia-btn-copyfromclipboard')
-            .addClass(hiddenclass);
-        col.find('div.dia button.dia-btn-movetoclipboard')
-            .addClass(hiddenclass);
-        col.find('div.dia button.dia-btn-copytoclipboard')
-            .addClass(hiddenclass);
-    }
-
-    // in clipboard and subcollections remove is possible
-    // not in the rest of the collections
-    // clipboard collections are never write protected
-
-    if ( ! isPathPrefix(pathClipboard(), path) ) {
-        col.find('div.dia button.dia-btn-remove')
-            .addClass(hiddenclass);
-    } else {
-        col.find('div.dia button.dia-btn-writeprotected')
-            .addClass(hiddenclass);
-    }
-}
-
-function insertEntry(colId, colPath, entry, i) {
-    var e = newEntry(colId, colPath, entry, i);
-    $('#' + colId).append(e);
-}
-
-function newEntry(colId, colPath, entry, i) {
-    console.log("newEntry: colId=" + colId);
-    console.log(entry);
-    var p = $("#prototype-dia").children("div").clone();
-
-    setDiaNo(p, i);
-
-    // old url scheme
-    var sc = iconSize('');
-    var mk = '';
-    var tt = '';
-    var ref = splitPath(entry.ref);
-
-    if (entry.ColEntry === "IMG") {
-        setDiaImgName(p, entry.part);
-        // add the part extension as class to the entry
-        // "data-jpg" for images,
-        // "data-md" for blog entries (markdown text .md or .txt)
-        // in preview modal box this info becomes important
-
-        var ep = splitPath(entry.part);
-        var ex = ep.ext;
-        if (ep.ext == "txt" || ep.ext == "md") {
-            ex = "data-md";
-        } else {
-            ex = "data-jpg";
-        }
-        p.addClass(ex);
-
-        // if img is a video, add extra "data-mp4" class as marker
-        // only supported in edit-4.5.0 and later
-
-        if (ep.ext == "mp4" && is450()) {
-            p.addClass("data-mp4");
-        }
-
-        sc = sc + ref.cpath + "/" + entry.part;
-        mk = "imgmark";
-        tt = "image: " + entry.ref;
-    }
-    if (entry.ColEntry === "COL") {
-        setDiaColName(p, ref.name);
-        // collections always have a .jpg as preview
-        p.addClass('data-jpg')
-         .addClass('data-md');
-
-
-        // this ref is a dummy
-        // the real ref of a collection is inserted later
-        // by a server call
-        // but we need a legal src ref
-
-        sc = sc + "/assets/icons/generated/brokenImage.jpg";
-        mk = "colmark";
-        tt = "collection: " + entry.ref;
-    }
-
-    // check whether src ref has extension .jpg
-    var scref = splitPath(sc);
-    if (scref.ext !== "jpg" && scref.ext !== "JPG") {
-        sc = sc + ".jpg";
-    }
-    // set img/col mark
-    setMark(p, mk);
-
-    if ( entry.ColEntry === "COL") {
-        // if entry is a collection add open collection event handler
-        p.find("div.dia-name a")
-            .on('click', function (e) {
-                e.preventDefault();
-                openCollection(ref.path);
-            });
-
-        // getIsWriteable... is an async function
-        // which must be syncronized
-
-        // copy chain to local variable
-        var contChain1 = contChain;
-
-        // extend global contChain with server call
-        contChain = () => {
-            console.log("setDiaColAccess for " + ref.path);
-            getIsWriteableFromServer(ref.path,
-                                     function (ro) {
-                                         setDiaColAccess(p, ro);
-                                         contChain1();
-                                     });
-
-        };
-
-    }
-
-    // url for entry icon with new url scheme
-    var newIconRef = iconRef(iconSize(), colPath, entry, i);
-
-    console.log("new iconRef: " + newIconRef);
-    p.find("img.dia-src")
-        .attr('src', newIconRef);
-
-    removeMarkCount(p);
-
-    // set the icon title
-    p.find("img.dia-src")
-        .attr("title", tt);
-
-    // add event handler for marking
-    p.find("div.dia-img")
-        .on('click', toggleSlideMark)
-        .css('cursor','pointer');
-
-    return p;
-}
-
-// ----------------------------------------
 // ----------------------------------------
 
 
@@ -1247,7 +974,7 @@ function insertEntriesC(colId, entries) {
 function insertEntryC(colId, colPath, entry, i) {
     return (cont) => {
         var ref = splitPath(entry.ref);
-        var p   = insertEntryNew(colId, colPath, entry, i, ref);
+        var p   = insertEntry(colId, colPath, entry, i, ref);
 
         let c1 = () => { setDiaRatingC(colId, colPath, i)(cont); };
         let c2 = () => { setColAccessC(entry, p, ref)(c1); };
@@ -1280,13 +1007,6 @@ function setDiaRatingC(colId, colPath, i) {
                             }
                            );
     };
-}
-
-function ttt()  {
-    var path = "/archive/collections/albums/tests";
-    var id1  = path2id(path);
-    var es  = openCollections[path].entries;
-    insertEntriesC(id1, es)(() => { console.log("ttt finished"); });
 }
 
 function addColHandlers(col, path, colId) {
@@ -1327,12 +1047,12 @@ function addColHandlers(col, path, colId) {
     // set handler for button groups
     col.find('div.dia button.dia-btn-remove')
         .on('click', diaBtnRemove);
-    /*
-    col.find('div.dia button.dia-btn-movefromclipboard')
-        .on('click', diaBtnMoveFromClipboard);
-    col.find('div.dia button.dia-btn-copyfromclipboard')
-        .on('click', diaBtnCopyFromClipboard);
-     */
+
+    // col.find('div.dia button.dia-btn-movefromclipboard')
+    //    .on('click', diaBtnMoveFromClipboard);
+    // col.find('div.dia button.dia-btn-copyfromclipboard')
+    //    .on('click', diaBtnCopyFromClipboard);
+
     col.find('div.dia button.dia-btn-movetoclipboard')
         .on('click', diaBtnMoveToClipboard);
     col.find('div.dia button.dia-btn-copytoclipboard')
@@ -1423,9 +1143,8 @@ function addColHandlers(col, path, colId) {
     }
 }
 
-
-function insertEntryNew(colId, colPath, entry, i, ref) {
-    console.log("insertEntryNew: colId=" + colId);
+function insertEntry(colId, colPath, entry, i, ref) {
+    console.log("insertEntry: colId=" + colId);
     console.log(entry);
     var p = $("#prototype-dia").children("div").clone();
 
@@ -1525,7 +1244,6 @@ function insertEntryNew(colId, colPath, entry, i, ref) {
     $('#' + colId).append(p);
 }
 
-// ----------------------------------------
 // ----------------------------------------
 
 function checkAndRefreshCol(path, refresh, force) {
@@ -1833,30 +1551,6 @@ function getSearchPath() {
 // the root collection is not shown until the clipboard is there
 
 
-function openAncestorCollections(p) {
-    statusClear();
-    openColsC(allAncestorCollections(p))(
-        () => { console.log("openAncatorCollections finished: " + p); }
-    );
-}
-/* old
-function openCols(ps, ff) {
-    console.log("openCols: ps=" + ps);
-    if (ps.length != 0) {
-        var p = ps.shift();  // split 1. element from path list
-        getColFromServer(p,
-                         (path, colVal) => {
-                             showNewCollectionCont(
-                                 () => { openCols(ps, ff)}
-                             )(path, colVal);
-                         }
-                        );
-    } else {
-        if ( ff ) { ff(); }  // invoke final callback
-    }
-}
-    */
-
 function openColC(p) {
     return (cont) => {
         getColFromServer(p,
@@ -1913,6 +1607,13 @@ function openCollection(path) {
         () => {
             console.log("openCollection finished: " + path);
         });
+}
+
+function openAncestorCollections(p) {
+    statusClear();
+    openColsC(allAncestorCollections(p))(
+        () => { console.log("openAncatorCollections finished: " + p); }
+    );
 }
 
 function updateCollection(path) {
