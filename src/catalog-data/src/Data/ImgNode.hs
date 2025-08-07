@@ -7,8 +7,8 @@ module Data.ImgNode
        , ImgRef
        , ColEntry'(..)
        , ColEntries'
-       , ColEntryM
-       , ColEntriesM
+       , ColEntryM'
+       , ColEntriesM'
        , DirEntries'
        , mkImgParts
        , mkImgPart
@@ -511,7 +511,7 @@ emptyImgRef = ImgRef mempty mempty
 --
 -- the obvious solution is
 --
--- > type ColEntriesM ref = Seq (ColEntry' ref, MetaData)
+-- > type ColEntriesM' ref = Seq (ColEntry' ref, MetaData)
 --
 -- the need for this occurs only for collections
 -- presented as slideshows
@@ -522,46 +522,46 @@ emptyImgRef = ImgRef mempty mempty
 -- and a few isos and lenses to transform between
 -- the entries in the col sequence and the old representation
 
-data ColEntryM   ref = IE  !(ImgRef' ref)
-                     | CE  !ref
-                     | IEM !(ImgRef' ref) MetaData
-                     | CEM !ref           MetaData
+data ColEntryM'   ref = IE  !(ImgRef' ref)
+                      | CE  !ref
+                      | IEM !(ImgRef' ref) MetaData
+                      | CEM !ref           MetaData
 
-type ColEntriesM ref = Seq (ColEntryM ref)
+type ColEntriesM' ref = Seq (ColEntryM' ref)
 
-deriving instance Functor     ColEntryM
-deriving instance Foldable    ColEntryM
-deriving instance Traversable ColEntryM
+deriving instance Functor     ColEntryM'
+deriving instance Foldable    ColEntryM'
+deriving instance Traversable ColEntryM'
 
-instance Show ref => Show (ColEntryM ref) where
-  show :: Show ref => ColEntryM ref -> String
+instance Show ref => Show (ColEntryM' ref) where
+  show :: Show ref => ColEntryM' ref -> String
   show r
     | isEmpty m  = show i
     | otherwise  = show t
     where
       t@(i, m) = r ^. isoColEntryTuple
 
-instance (ToJSON ref) => ToJSON (ColEntryM ref) where
-  toJSON :: ToJSON ref => ColEntryM ref -> J.Value
+instance (ToJSON ref) => ToJSON (ColEntryM' ref) where
+  toJSON :: ToJSON ref => ColEntryM' ref -> J.Value
   toJSON cs
     | isEmpty m = toJSON i
     | otherwise = toJSON t
     where
       t@(i, m) = cs ^. isoColEntryTuple
 
-instance (FromJSON ref) => FromJSON (ColEntryM ref) where
+instance (FromJSON ref) => FromJSON (ColEntryM' ref) where
   parseJSON v =
     ( fmap toCE  . parseJSON $ v)   -- old style: a single ColEntry without MetaData
     <|>
     ( fmap toCEM . parseJSON $ v)   -- new style: a pair of (ColEntry, MetaData)
     where
-      toCE :: ColEntry' ref -> ColEntryM ref
+      toCE :: ColEntry' ref -> ColEntryM' ref
       toCE r = isoColEntryTuple # (r, mempty)
 
-      toCEM :: (ColEntry' ref, MetaData) -> ColEntryM ref
+      toCEM :: (ColEntry' ref, MetaData) -> ColEntryM' ref
       toCEM t = isoColEntryTuple # t
 
-isoColEntryTuple :: Iso' (ColEntryM ref) (ColEntry' ref, MetaData)
+isoColEntryTuple :: Iso' (ColEntryM' ref) (ColEntry' ref, MetaData)
 isoColEntryTuple = iso isoTo isoFrom
   where
     isoTo (IE  i)   = (ImgEnt i, mempty)
@@ -578,22 +578,22 @@ isoColEntryTuple = iso isoTo isoFrom
       | otherwise   = CEM c m
 {-# INLINE isoColEntryTuple  #-}
 
-mkColImgRefM :: ref -> Name -> ColEntryM ref
+mkColImgRefM :: ref -> Name -> ColEntryM' ref
 mkColImgRefM i n = IE $ ImgRef i n
 {-# INLINE mkColImgRefM #-}
 
-theColEntry :: Lens' (ColEntryM ref) (ColEntry' ref)
+theColEntry :: Lens' (ColEntryM' ref) (ColEntry' ref)
 theColEntry = isoColEntryTuple . _1
 {-# INLINE theColEntry #-}
 
-theColMeta :: Lens' (ColEntryM ref) MetaData
+theColMeta :: Lens' (ColEntryM' ref) MetaData
 theColMeta = isoColEntryTuple . _2
 {-# INLINE theColMeta #-}
 
 colEntryM ::
   (ref -> Name -> a) ->
   (ref -> a) ->
-  ColEntryM ref ->
+  ColEntryM' ref ->
   a
 colEntryM imgRef colRef r = r ^. theColEntry . to (colEntry imgRef colRef)
 {-# INLINE colEntryM #-}
@@ -601,7 +601,7 @@ colEntryM imgRef colRef r = r ^. theColEntry . to (colEntry imgRef colRef)
 colEntryM' ::
   (ImgRef' ref -> a) ->
   (ref -> a) ->
-  ColEntryM ref ->
+  ColEntryM' ref ->
   a
 colEntryM' imgRef colRef r = r ^. theColEntry . to (colEntry' imgRef colRef)
 {-# INLINE colEntryM' #-}

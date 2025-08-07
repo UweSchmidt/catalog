@@ -28,15 +28,16 @@ import Data.Map as M
 
 -- ----------------------------------------
 
-type ImgTree    = DirTree ImgNode' ObjId
-type UplNode    = UpLink  ImgNode' ObjId
-type ImgNode    = ImgNode'    ObjId
-type ColEntry   = ColEntry'   ObjId
-type ColEntries = ColEntries' ObjId
-type DirEntries = DirEntries' ObjId
-
-type ImgNodeP   = ImgNode' Path
-type ImgTreeP   = DirTree ImgNode' Path
+type ImgTree     = DirTree ImgNode' ObjId
+type UplNode     = UpLink  ImgNode' ObjId
+type ImgNode     = ImgNode'         ObjId
+type ColEntry    = ColEntry'        ObjId
+type ColEntries  = ColEntries'      ObjId
+type ColEntryM   = ColEntryM'       ObjId
+type ColEntriesM = ColEntriesM'     ObjId
+type DirEntries  = DirEntries'      ObjId
+type ImgNodeP    = ImgNode'         Path
+type ImgTreeP    = DirTree ImgNode' Path
 
 -- ----------------------------------------
 
