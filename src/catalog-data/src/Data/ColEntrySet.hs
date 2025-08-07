@@ -4,10 +4,10 @@ module Data.ColEntrySet
        , ColEntrySet
        , memberColEntrySet
        , singletonColEntrySet
-       , fromListColEntrySet
-       , fromSeqColEntrySet
-       , toListColEntrySet
-       , toSeqColEntrySet
+--       , fromListColEntrySet
+--       , fromSeqColEntrySet
+--       , toListColEntrySet
+--       , toSeqColEntrySet
        , diffColEntrySet
        , intersectColEntrySet
        )
@@ -25,12 +25,12 @@ import Data.Prim
        )
 import Data.ImgNode
        ( colEntry
-       , ColEntries'
+--       , ColEntries'
        , ColEntry'
        )
 
 import qualified Data.Set        as S
-import qualified Data.Sequence   as Seq
+-- import qualified Data.Sequence   as Seq
 
 -- ----------------------------------------
 
@@ -66,21 +66,21 @@ singletonColEntrySet :: ColEntry' ref -> ColEntrySet' ref
 singletonColEntrySet = CES . S.singleton
 {-# INLINE singletonColEntrySet  #-}
 
-fromListColEntrySet :: Ord ref => [ColEntry' ref] -> ColEntrySet' ref
-fromListColEntrySet = CES . S.fromList
-{-# INLINE fromListColEntrySet  #-}
+-- fromListColEntrySet :: Ord ref => [ColEntry' ref] -> ColEntrySet' ref
+-- fromListColEntrySet = CES . S.fromList
+-- {-# INLINE fromListColEntrySet  #-}
 
-fromSeqColEntrySet :: Ord ref => ColEntries' ref -> ColEntrySet' ref
-fromSeqColEntrySet cs = CES $ foldMap S.singleton cs
-{-# INLINE fromSeqColEntrySet  #-}
+-- fromSeqColEntrySet :: Ord ref => ColEntries' ref -> ColEntrySet' ref
+-- fromSeqColEntrySet cs = CES $ foldMap S.singleton cs
+-- {-# INLINE fromSeqColEntrySet  #-}
 
-toListColEntrySet :: ColEntrySet' ref -> [ColEntry' ref]
-toListColEntrySet (CES s) = S.toList s
-{-# INLINE toListColEntrySet  #-}
+-- toListColEntrySet :: ColEntrySet' ref -> [ColEntry' ref]
+-- toListColEntrySet (CES s) = S.toList s
+-- {-# INLINE toListColEntrySet  #-}
 
-toSeqColEntrySet :: ColEntrySet' ref -> ColEntries' ref
-toSeqColEntrySet (CES s) = foldMap Seq.singleton s
-{-# INLINE toSeqColEntrySet  #-}
+-- toSeqColEntrySet :: ColEntrySet' ref -> ColEntries' ref
+-- toSeqColEntrySet (CES s) = foldMap Seq.singleton s
+-- {-# INLINE toSeqColEntrySet  #-}
 
 memberColEntrySet :: Ord ref
                   => ColEntry' ref
