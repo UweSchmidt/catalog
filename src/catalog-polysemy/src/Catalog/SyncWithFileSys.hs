@@ -85,20 +85,21 @@ import Catalog.TimeStamp
 
 import Data.ImgTree
        ( ColEntries
-       , ColEntry
+       , ColEntryM
        , ImgNode'(IMG)
        , ImgRef
        , ImgRef'(ImgRef, _iname)
-       , colEntry'
+       , colEntryM'
        , isColColRef
        , isDIR
        , isIMG
        , isROOT
        , isoImgParts
-       , mkColColRef
-       , mkColImgRef'
+       , mkColColRefM
+       , mkColImgRefM'
        , mkImgPart
        , mkImgParts
+       , theColEntry
        , theColColRef
        , theColImgRef
        , theImgCheckSum
@@ -174,7 +175,7 @@ buildImgRefUpdates old'refs upd'refs =
 
 buildNewColEntries :: ImgRefMap -> ImgRefMap -> ImgRefUpdateMap -> ColEntries
 buildNewColEntries new'refs old'refs upd'refs =
-  foldr (\ ir acc -> mkColImgRef' ir Seq.<| acc) mempty res
+  foldr (\ ir acc -> mkColImgRefM' ir Seq.<| acc) mempty res
   where
     res = new `S.difference` old `S.difference` upd
     new = foldr S.union mempty new'refs
@@ -211,10 +212,10 @@ collectImgRefs =
       log'trc        $  msgPath p "collectImgRefs: used refs in coll "
       let imref      =  im ^.. traverse
       let beref      =  be ^.. traverse
-      let (crs, irs) =  partition isColColRef (cs ^. isoSeqList)
-      let irs1       =  irs ^.. traverse . theColImgRef
+      let (crs, irs) =  partition (^. theColEntry . to isColColRef) (cs ^. isoSeqList)
+      let irs1       =  irs ^.. traverse . theColEntry . theColImgRef
       let irs2       =  S.fromList $ imref <> beref <> irs1
-      subs           <- traverse go (crs ^.. traverse . theColColRef)
+      subs           <- traverse go (crs ^.. traverse . theColEntry . theColColRef)
       return         $  M.insert i irs2 $ M.unions subs
 
     -- collect all defined ImgRef's by traversing the dir hierachy
@@ -277,17 +278,17 @@ updateImgRefs um i0
           Nothing
 
       where
-        mustBeUpdated :: ColEntry -> Bool
-        mustBeUpdated = colEntry' (`M.member` um) (const False)
+        mustBeUpdated :: ColEntryM -> Bool
+        mustBeUpdated = colEntryM' (`M.member` um) (const False)
 
-        upd :: ColEntry -> ColEntries
-        upd ce = colEntry'
+        upd :: ColEntryM -> ColEntries
+        upd ce = colEntryM'
           (\ ir' -> case M.lookup ir' um of
                       Nothing         -> Seq.singleton ce
                       Just Nothing    -> mempty
-                      Just (Just ur') -> Seq.singleton . mkColImgRef' $ ur'
+                      Just (Just ur') -> Seq.singleton . mkColImgRefM' $ ur'
           )
-          (Seq.singleton . mkColColRef)
+          (Seq.singleton . mkColColRefM)
           ce
 
 -- ----------------------------------------
@@ -369,7 +370,7 @@ syncDirP ts p = do
 
     log'syncAD refs
       | null refs = log'info "syncDir: no images added"
-      | otherwise = traverse_ (colEntry' logIref logCref) refs
+      | otherwise = traverse_ (colEntryM' logIref logCref) refs
       where
         logIref ref = do
           tp <- buildImgPath0 ref

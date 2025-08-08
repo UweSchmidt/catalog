@@ -60,18 +60,19 @@ import Data.ImageStore
        ( theImgTree )
 
 import Data.ImgTree
-       ( ColEntry
+       ( ColEntryM
        , ImgNode
        , ImgRef
        , ImgRef'(ImgRef)
        , ObjIds
-       , colEntry'
+       , colEntryM'
        , entries
        , isDIR
        , isIMG
        , isoDirEntries
        , isoImgPartsMap
        , nodeVal
+       , theColEntry
        , theColColRef
        , theParts
        )
@@ -153,7 +154,7 @@ cleanupImgRefs i0 = do
           <> " removed in "
         adjustColBlog (const Nothing) i
 
-      es' <- filterSeqM (isOK checkColEntry) es
+      es' <- filterSeqM (isOK checkColEntryM) es
       when (Seq.length es' < Seq.length es) $ do
         warn'Obj i $
           "cleanupImgRefs: col enties "
@@ -191,10 +192,10 @@ cleanupImgRefs i0 = do
 
     -- check a ColEntry ref for existence
     -- only the ImgRef's are checked, not the ColRef's
-    checkColEntry :: (EffIStore r, EffError r, Member NonDet r)
-                   => ColEntry -> Sem r ColEntry
-    checkColEntry ce =
-      colEntry' imgRef colRef ce
+    checkColEntryM :: (EffIStore r, EffError r, Member NonDet r)
+                   => ColEntryM -> Sem r ColEntryM
+    checkColEntryM ce =
+      colEntryM' imgRef colRef ce
       where
         colRef _ =
           return ce
@@ -380,7 +381,7 @@ checkUpLinkObjIds =
         colA go i md im be es = do
           s0 <- toObjIds i
                 <$>
-                traverse getImgParent (es ^.. traverse . theColColRef)
+                traverse getImgParent (es ^.. traverse . theColEntry . theColColRef)
 
           s1 <- foldColEntries go i md im be es
           return $

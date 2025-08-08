@@ -15,7 +15,9 @@ module Data.ImgNode
        , mkColImgRef
        , mkColImgRef'
        , mkColImgRefM
+       , mkColImgRefM'
        , mkColColRef
+       , mkColColRefM
        , mkDirEntries
        , emptyImg
        , emptyImgDir
@@ -158,7 +160,7 @@ data ImgNode' ref = IMG  !ImgParts
                   | COL  !MetaData               -- collection meta data
                          !(Maybe (ImgRef' ref))  -- optional image
                          !(Maybe (ImgRef' ref))  -- optional blog entry
-                         !(ColEntries'    ref)   -- the list of images
+                         !(ColEntriesM'   ref)   -- the list of images
                                                  -- and subcollections
 
 -- ----------------------------------------
@@ -310,7 +312,7 @@ theImgCol :: Prism' (ImgNode' ref)
                     ( MetaData
                     , Maybe (ImgRef' ref)
                     , Maybe (ImgRef' ref)
-                    , ColEntries' ref
+                    , ColEntriesM' ref
                     )
 theImgCol =
   prism (\ (x1, x2, x3, x4) -> COL x1 x2 x3 x4)
@@ -332,7 +334,7 @@ theColBlog :: Traversal' (ImgNode' ref) (Maybe (ImgRef' ref))
 theColBlog = theImgCol . _3
 {-# INLINE theColBlog #-}
 
-theColEntries :: Traversal' (ImgNode' ref) (ColEntries' ref)
+theColEntries :: Traversal' (ImgNode' ref) (ColEntriesM' ref)
 theColEntries = theImgCol . _4
 {-# INLINE theColEntries #-}
 
@@ -533,6 +535,11 @@ deriving instance Functor     ColEntryM'
 deriving instance Foldable    ColEntryM'
 deriving instance Traversable ColEntryM'
 
+instance Eq ref => Eq (ColEntryM' ref) where
+  (==) :: Eq ref => ColEntryM' ref -> ColEntryM' ref -> Bool
+  (==) = (==) `on` (^. theColEntry)
+
+
 instance Show ref => Show (ColEntryM' ref) where
   show :: Show ref => ColEntryM' ref -> String
   show r
@@ -605,6 +612,14 @@ colEntryM' ::
   a
 colEntryM' imgRef colRef r = r ^. theColEntry . to (colEntry' imgRef colRef)
 {-# INLINE colEntryM' #-}
+
+mkColColRefM :: ref -> ColEntryM' ref
+mkColColRefM = CE
+{-# INLINE mkColColRefM #-}
+
+mkColImgRefM' :: ImgRef' ref -> ColEntryM' ref
+mkColImgRefM' = IE
+{-# INLINE mkColImgRefM' #-}
 
 -- --------------------
 
@@ -739,6 +754,7 @@ instance (FromJSON ref) => FromJSON (DirEntries' ref) where
   {-# INLINE parseJSON #-}
 
 mkDirEntries :: Seq ref -> DirEntries' ref
+
 mkDirEntries = DE
 {-# INLINE mkDirEntries #-}
 
@@ -759,9 +775,9 @@ delDirEntry r (DE rs) =
     !rs' = Seq.filter (/= r) rs
 {-# INLINE delDirEntry #-}
 
-delColEntry :: (Eq ref) => ref -> ColEntries' ref -> ColEntries' ref
+delColEntry :: (Eq ref) => ref -> ColEntriesM' ref -> ColEntriesM' ref
 delColEntry r =
-    Seq.filter (\ ce -> ce ^. theColObjId /= r)
+    Seq.filter (\ ce -> ce ^. theColEntry . theColObjId /= r)
 {-# INLINE delColEntry #-}
 
 -- ----------------------------------------

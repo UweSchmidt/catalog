@@ -26,9 +26,10 @@ import Data.ImgNode
        ( ImgRef'(ImgRef)
        , ImgRef
        , theColEntries
+       , theColEntry
        , theParts
        , theColObjId
-       , colEntry'
+       , colEntryM'
        , theColBlog
        , theColImg
        , theMetaData
@@ -246,7 +247,7 @@ normPathPos :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 normPathPos r =
   ( do pos <- pureMaybe (r ^. rPos)
        ce  <- colEntryAt pos (r ^. rColNode)
-       colEntry'
+       colEntryM'
          (const $ return r)
          (normPathPosC r)
          ce
@@ -288,7 +289,7 @@ denormPathPos r =
   where
     lookupOId oid pnd =
       Seq.findIndexL
-      ((== oid) . (^. theColObjId))
+      ((== oid) . (^. theColEntry . theColObjId))
       (pnd ^. theColEntries)
 
 -- --------------------
@@ -303,7 +304,7 @@ setImgRef :: (Eff'ISE r, EffNonDet r)
 setImgRef r = do
   pos <- pureMaybe (r ^. rPos)
   ce  <- colEntryAt pos (r ^. rColNode)
-  colEntry'
+  colEntryM'
       (\ ir -> return (r & rVal . _2 %~ (ir, )))
       (const mzero)
       ce
@@ -946,7 +947,7 @@ toChildren r =
   traverse normC $ zip [0..] (r ^. rColNode . theColEntries . isoSeqList)
   where
     normC (i, ce) =
-      colEntry'
+      colEntryM'
         (const $ return (r & rPos .~ Just i))
         (normPathPosC r)
         ce

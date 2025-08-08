@@ -59,7 +59,7 @@ import Data.ImageStore
        )
 import Data.ImgTree
        ( ColEntries
-       , ColEntry
+       , ColEntryM
        , DirEntries
        , ImgNode
        , ImgRef
@@ -67,7 +67,7 @@ import Data.ImgTree
        , ImgTree
        , ObjIds
        , UplNode
-       , colEntry'
+       , colEntryM'
        , entryAt
        , isDIR
        , isIMG
@@ -310,24 +310,24 @@ mapImgStore2ObjId = mapImgStore mkObjId
 -- search, sort and merge ops for collections
 
 findAllColEntries :: Eff'ISE r
-                  => (ColEntry -> Sem r Bool)    -- ^ the filter predicate
+                  => (ColEntryM -> Sem r Bool)    -- ^ the filter predicate
                   -> ObjId                       -- ^ the collection
-                  -> Sem r [(Int, ColEntry)]     -- ^ the list of entries with pos
+                  -> Sem r [(Int, ColEntryM)]     -- ^ the list of entries with pos
 findAllColEntries p i = do
   es <- getImgVals i theColEntries
   filterM (p . snd) $ zip [0..] (es ^. isoSeqList)
 {-# INLINE findAllColEntries #-}
 
 findFstColEntry  :: Eff'ISE r
-                 => (ColEntry -> Sem r Bool)
+                 => (ColEntryM -> Sem r Bool)
                  -> ObjId
-                 -> Sem r (Maybe (Int, ColEntry))
+                 -> Sem r (Maybe (Int, ColEntryM))
 findFstColEntry p i = listToMaybe <$> findAllColEntries p i
 {-# INLINE findFstColEntry #-}
 
 
 sortColEntries :: Eff'ISE r
-               => (ColEntry -> Sem r a)
+               => (ColEntryM -> Sem r a)
                -> (a -> a -> Ordering)
                -> ColEntries
                -> Sem r ColEntries
@@ -351,7 +351,7 @@ mergeColEntries es1 es2 =
 -- get the collection entry at an index pos
 -- if it's not there an error is thrown
 
-colEntryAt :: Eff'ISE r => Int -> ImgNode -> Sem r ColEntry
+colEntryAt :: Eff'ISE r => Int -> ImgNode -> Sem r ColEntryM
 colEntryAt pos n =
   maybe
     (throw $ "colEntryAt: illegal index in collection: " <> pos ^. isoText)
@@ -370,7 +370,7 @@ processColEntryAt :: Eff'ISE r
                   -> Sem r a
 processColEntryAt imgRef colRef pos n =
   colEntryAt pos n >>=
-  colEntry' imgRef colRef
+  colEntryM' imgRef colRef
 
 
 -- process a collection image entry at an index pos

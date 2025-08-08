@@ -67,7 +67,7 @@ import Data.ImgTree
        ( ImgNodeP )
 
 import Data.ImgNode
-       ( colEntry
+       ( colEntryM
        , isCOL
        , isDIR
        , isIMG
@@ -75,6 +75,7 @@ import Data.ImgNode
        , isoImgParts
        , theColColRef
        , theColEntries
+       , theColEntry
        , theDirEntries
        , theImgMeta
        , theImgName
@@ -349,7 +350,7 @@ evalLs p = do
   where
     subcols :: ImgNodeP -> [Path]
     subcols n
-      | isCOL  n  =        n ^.. theColEntries . traverse . theColColRef
+      | isCOL  n  =        n ^.. theColEntries . traverse . theColEntry . theColColRef
       | isROOT n  =        n ^.. theRootImgCol <> n ^.. theRootImgDir
       | isDIR  n  = sort $ n ^.. theDirEntries . traverse
       | otherwise = []
@@ -571,7 +572,7 @@ evalDownload1 rt geo d genSqn overwrite = evalDownload'
 
       -- download all collection entries
       forM_ (zip [(0::Int) ..] $ n ^. theColEntries . isoSeqList) $
-        \ (i, ce) -> colEntry (dli p i) evalDownload' ce
+        \ (i, ce) -> colEntryM (dli p i) evalDownload' ce
 
         where
           d' = d <> p ^. isoText
@@ -767,7 +768,7 @@ setGeoAddress force p e
   | isCOL e = do
       setImgAddress                             -- process COL metadata
       traverse_
-        (setGeoAddress' . colEntry const id)    -- process COL entries
+        (setGeoAddress' . colEntryM const id)   -- process COL entries
         (e ^. theColEntries)                    -- recurse into sub COLs
                                                 -- or process IMG entries
   | isDIR e = do

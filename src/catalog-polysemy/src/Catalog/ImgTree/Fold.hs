@@ -22,6 +22,7 @@ import Data.ImgTree
        , ObjIds
        , nodeVal
        , singleObjId
+       , theColEntry
        , theColColRef
        , theColObjId
        )
@@ -280,7 +281,7 @@ foldCol :: Monoid a
 foldCol go _i _md im be es = do
   s1 <- fold <$> traverse (go . _iref) im
   s2 <- fold <$> traverse (go . _iref) be
-  s3 <- fold <$> traverse (go . (^. theColObjId)) es
+  s3 <- fold <$> traverse (go . (^. theColEntry . theColObjId)) es
   return $
     s1 <> s2 <> s3
 {-# INLINE foldCol #-}
@@ -290,7 +291,7 @@ foldColEntries :: Monoid a
          => (ObjId -> Sem r a) -> p1 -> p2 -> p3 -> p4 -> ColEntries
          -> Sem r a
 foldColEntries go _i _md _im _be es =
-  fold <$> traverse (go . (^. theColObjId)) es
+  fold <$> traverse (go . (^. theColEntry . theColObjId)) es
 {-# INLINE foldColEntries #-}
 
 -- traverse only the subcollections
@@ -298,7 +299,7 @@ foldColColEntries :: Monoid a
                   => (ObjId -> Sem r a) -> p1 -> p2 -> p3 -> p4 -> ColEntries
                   -> Sem r a
 foldColColEntries go _i _md _im _be es =
-  fold <$> traverse go (es ^.. traverse . theColColRef)
+  fold <$> traverse go (es ^.. traverse . theColEntry . theColColRef)
 {-# INLINE foldColColEntries #-}
 
 -- ----------------------------------------

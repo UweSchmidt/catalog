@@ -64,12 +64,13 @@ import Data.ImgTree
        , isoImgPartsMap
        , theParts
        , theColEntries
-       , colEntry
-       , mkColColRef
+       , theColEntry
+       , colEntryM
        , thePartNamesI
-       , mkColImgRef
-       , ColEntry
+       , mkColImgRefM
+       , mkColColRefM
        , ColEntry'(ImgEnt)
+       , ColEntryM
        , DirEntries
        , ImgParts
        , ColEntries
@@ -303,7 +304,7 @@ genCollectionsByDir di = do
           trc'Obj i $ "genCol img:\n" <> prettyJSONText [] res
           return $ isoSeqList # res
             where
-              res = map (mkColImgRef i) $ sort (pts ^.. thePartNamesI)
+              res = map (mkColImgRefM i) $ sort (pts ^.. thePartNamesI)
 
         -- generate a coresponding collection with all entries
         -- entries are sorted by name
@@ -331,7 +332,7 @@ genCollectionsByDir di = do
           setColBlogToFstTxtEntry False ic
           trc'Obj ic "genCol dir: col blog set"
 
-          return $ Seq.singleton $ mkColColRef ic
+          return $ Seq.singleton $ mkColColRefM ic
 
 -- ----------------------------------------
 --
@@ -344,9 +345,9 @@ sortByName =
 
     -- collections come first and are sorted by name
     -- images are sorted by name and part name
-    getVal :: Eff'ISE r => ColEntry -> Sem r (Either Name (Name, Name))
+    getVal :: Eff'ISE r => ColEntryM -> Sem r (Either Name (Name, Name))
     getVal =
-      colEntry
+      colEntryM
       (\ j n1 -> (\ n -> Right (n, n1))  <$> getImgName j)
       (fmap Left . getImgName)
 
@@ -362,7 +363,7 @@ sortByDate =
     -- if that fails, by name
 
     getVal =
-      colEntry
+      colEntryM
       (\ j n1 -> do
           md  <- getMetaData j
           let t = lookupCreate parseTime md
@@ -378,17 +379,17 @@ sortByDate =
 -- add a collection in front of a col entry list
 
 insertColByCons :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
-insertColByCons i = adjustColEntries (Seq.singleton (mkColColRef i) <>)
+insertColByCons i = adjustColEntries (Seq.singleton (mkColColRefM i) <>)
 
 -- add a collection at the end of a col entry list
 
 insertColByAppend :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
-insertColByAppend i = adjustColEntries (<> Seq.singleton (mkColColRef i))
+insertColByAppend i = adjustColEntries (<> Seq.singleton (mkColColRefM i))
 
 -- insert a collection and sort entries by name
 
 insertColByName :: Eff'ISEJL r => ObjId -> ObjId -> Sem r ()
-insertColByName i = adjustColByName $ Seq.singleton $ mkColColRef i
+insertColByName i = adjustColByName $ Seq.singleton $ mkColColRefM i
 
 adjustColByName :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
 adjustColByName = adjustColBy sortByName
@@ -410,11 +411,11 @@ adjustColBy sortCol cs parent'i = do
 
 -- ----------------------------------------
 
-findFstTxtEntry :: Eff'ISEJL r => ObjId -> Sem r (Maybe (Int, ColEntry))
+findFstTxtEntry :: Eff'ISEJL r => ObjId -> Sem r (Maybe (Int, ColEntryM))
 findFstTxtEntry = findFstColEntry isTxtEntry
   where
     isTxtEntry =
-      colEntry
+      colEntryM
       (\ i n -> do
           nd <- getImgVal i
           let ty = nd ^? theParts . isoImgPartsMap . ix n . theMimeType
@@ -429,7 +430,9 @@ findFstTxtEntry = findFstColEntry isTxtEntry
 setColBlogToFstTxtEntry :: Eff'ISEJL r => Bool -> ObjId -> Sem r ()
 setColBlogToFstTxtEntry rm i = do
   fte <- findFstTxtEntry i
-  maybe (return ()) setEntry fte
+  maybe (return ())
+        (\(pos, r) -> setEntry (pos, r ^. theColEntry))
+        fte
   where
     setEntry (pos, ImgEnt ir) = do
       log'trc $ "setColBlogToFstTxtEntry: " <> toText (i, pos, ir)
@@ -548,9 +551,9 @@ colEntries2dateMap es = do
   foldlM add1 IM.empty es
   where
 
-    add1 :: Eff'ISE r => DateMap -> ColEntry -> Sem r DateMap
+    add1 :: Eff'ISE r => DateMap -> ColEntryM -> Sem r DateMap
     add1 acc ce = do
-      meta <- getMetaData (ce ^. theColObjId)
+      meta <- getMetaData (ce ^. theColEntry . theColObjId)
       let mdate = (^. isoDateInt) <$> lookupCreate parseDate meta
       return $
         maybe acc

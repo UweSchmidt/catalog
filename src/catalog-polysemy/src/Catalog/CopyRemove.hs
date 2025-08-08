@@ -70,6 +70,7 @@ import Catalog.ImgTree.Modify
 --                         )
 import Data.ImgTree
        ( colEntry'
+       , colEntryM'
        , isCOL
        , isColColRef
        , isIMG
@@ -79,6 +80,7 @@ import Data.ImgTree
        , theColBlog
        , theColColRef
        , theColEntries
+       , theColEntry
        , theColImg
        , theColMetaData
        , theMetaData
@@ -86,6 +88,7 @@ import Data.ImgTree
        , theParts
        , nodeVal
        , ColEntry'(ColEnt, ImgEnt)
+       , ColEntryM
        , ImgNode'(COL)
        , ImgRef
        , ImgRef'(ImgRef)
@@ -170,7 +173,7 @@ copyColEntries pf =
       where
         colA go i md im be cs = do
           dst'i  <- mkObjId . pf <$> objid2path i
-          dst'cs <- mapM copy cs
+          dst'cs <- mapM copyM cs
           adjustColEntries (const dst'cs) dst'i
           adjustColImg     (const im    ) dst'i
           adjustColBlog    (const be    ) dst'i
@@ -178,6 +181,11 @@ copyColEntries pf =
           -- recurse into subcollections
           foldColEntries go i md im be cs
           where
+
+            copyM :: Eff'ISEJL r => ColEntryM -> Sem r ColEntryM
+            copyM r = do
+              ce <- copy (r ^. theColEntry)
+              return ( r & theColEntry .~ ce )
 
             copy :: Eff'ISEJL r => ColEntry -> Sem r ColEntry
             copy ce =
@@ -211,12 +219,12 @@ rmRec = foldMT imgA dirA foldRoot colA
 
     colA go i _md _im _be cs = do
       log'trc $ "colA: " <> toText cs
-      let cs' = Seq.filter isColColRef cs      -- remove all images
+      let cs' = Seq.filter (^. theColEntry . to isColColRef) cs      -- remove all images
       adjustColEntries (const cs') i       -- store remaining collections
 
       log'trc $ "colA: " <> toText cs'
       traverse_ go $
-        cs' ^.. traverse . theColColRef    -- remove the remaining collections
+        cs' ^.. traverse . theColEntry . theColColRef    -- remove the remaining collections
 
       unlessM (isROOT <$> (getImgParent i >>= getImgVal)) $
         rmImgNode i                        -- remove node unless it's
@@ -306,7 +314,7 @@ cleanupCollections i0 = do
 
         cleanupEs :: Eff'ISEJL r => ObjId -> ColEntries -> Sem r ()
         cleanupEs i' es = do
-          es' <- filterSeqM cleanupE es
+          es' <- filterSeqM (cleanupE . (^. theColEntry)) es
           unless (length es' == length es) $
             adjustColEntries (const es') i'
           where
@@ -398,7 +406,7 @@ cleanupRefs' adjIR adjCE =
           traverse_ cleanupSubCol es
           where
             cleanupSubCol =
-              colEntry' (const $ return ()) go
+              colEntryM' (const $ return ()) go
 
         removeEmptySubCols :: Eff'ISEJL r => Sem r ()
         removeEmptySubCols = do
@@ -410,9 +418,9 @@ cleanupRefs' adjIR adjCE =
         emptySubCols :: Eff'ISEJL r => ColEntries -> Sem r [ObjId]
         emptySubCols = foldM checkESC []
           where
-            checkESC :: Eff'ISEJL r => [ObjId] -> ColEntry -> Sem r [ObjId]
+            checkESC :: Eff'ISEJL r => [ObjId] -> ColEntryM -> Sem r [ObjId]
             checkESC res =
-              colEntry'
+              colEntryM'
               (\ _i -> return res)
               (\ ci -> do cn <- getImgVal ci
                           return $

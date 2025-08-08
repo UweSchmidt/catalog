@@ -46,7 +46,7 @@ import Data.ImageStore
 
 import Data.ImgTree
        ( ColEntries
-       , ColEntry
+       , ColEntryM
        , DirEntries
        , ImgNode
        , ImgParts
@@ -58,7 +58,7 @@ import Data.ImgTree
        , entryAt
        , isCOL
        , isDIR
-       , mkColColRef
+       , mkColColRefM
        , mkNode
        , nodeVal
        , removeImgNode
@@ -175,7 +175,7 @@ mkCollectionC :: Eff'ISEJL r => Path -> Sem r ObjId
 mkCollectionC = mkCollection' (Seq.<|)
 
 mkCollection' :: Eff'ISEJL r
-              => (ColEntry -> ColEntries -> ColEntries)
+              => (ColEntryM -> ColEntries -> ColEntries)
               -> Path
               -> Sem r ObjId
 mkCollection' merge target'path = do
@@ -192,7 +192,7 @@ mkCollection' merge target'path = do
 
   -- create a new empty collection and append it to the parent collection
   col'id <- mkImgCol parent'id target'name
-  adjustColEntries (merge $ mkColColRef col'id) parent'id
+  adjustColEntries (merge $ mkColColRefM col'id) parent'id
   return col'id
   where
     (parent'path, target'name) = target'path ^. viewBase
@@ -268,7 +268,7 @@ adjustColEntries = adjustNodeVal AdjColEntries theColEntries
 {-# INLINE adjustColEntries #-}
 
 adjustColEntry :: Eff'ISEJL r
-               => (ColEntry -> ColEntry) -> Int -> ObjId -> Sem r ()
+               => (ColEntryM -> ColEntryM) -> Int -> ObjId -> Sem r ()
 adjustColEntry f i = adjustColEntries f'
   where
     f' :: ColEntries -> ColEntries

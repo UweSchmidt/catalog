@@ -41,7 +41,7 @@ import Data.ImgNode
        , ImgRef'(ImgRef, _iref)
        , theImgTimeStamp
        , theParts
-       , colEntry'
+       , colEntryM'
        , theMetaData
        , traverseParts
        )
@@ -96,7 +96,7 @@ syncAllMetaData recursive i0 = do
       traverse_ (go . (\(ImgRef i' _name) -> i')) im
       traverse_ go' es
         where
-          go' = colEntry'
+          go' = colEntryM'
                 (go . _iref)
                 ( when recursive . go)
 

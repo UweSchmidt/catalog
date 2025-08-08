@@ -127,6 +127,7 @@ import Data.Prim
 import Data.Prim.Prelude
 import Data.ImgNode
        ( colEntry'
+       , colEntryM'
        , isCOL
        , isRemovableCol
        , isSortableCol
@@ -134,6 +135,7 @@ import Data.ImgNode
        , isWriteableCol
        , theColBlog
        , theColEntries
+       , theColEntry
        , theColObjId
        , ImgRef
        , ImgRef'(ImgRef)
@@ -162,6 +164,7 @@ import Data.ImageStore
 
 import Data.ImgTree
        ( ColEntry
+       , ColEntryM
        , ImgNode
        , ImgNodeP
        )
@@ -433,7 +436,7 @@ modify'changeWriteProtected ixs ro n =
 
     mark pos = maybe (return ()) adj $ cs ^? ix pos
       where
-        adj = colEntry'
+        adj = colEntryM'
               (\ _ -> return ())            -- ignore ImgRef's
               adjMD
 
@@ -515,7 +518,7 @@ modify'sortByDate ixs0 i n
 getCreateDates :: Eff'ISE r => ImgNode -> Sem r (Seq Text)
 getCreateDates n' =
   traverse
-  (fmap (lookupCreate id) . colEntry' getImgMetaData getMetaData)
+  (fmap (lookupCreate id) . colEntryM' getImgMetaData getMetaData)
   (n' ^. theColEntries)
 
 
@@ -553,7 +556,7 @@ removeFromCol ixs oid n =
     rmv :: Eff'ISEJL r => Int -> Sem r ()
     rmv pos = maybe (return ()) rm $ cs ^? ix pos
       where
-        rm = colEntry'
+        rm = colEntryM'
              (\ _ -> adjustColEntries (Seq.deleteAt pos) oid)
              CR.rmRec
 
@@ -566,8 +569,8 @@ checkMoveable ixs n =
     check :: Eff'ISE r => Int -> Sem r Bool
     check pos = maybe (return True) ck $ cs ^? ix pos
       where
-        ck :: Eff'ISE r => ColEntry -> Sem r Bool
-        ck = colEntry'
+        ck :: Eff'ISE r => ColEntryM -> Sem r Bool
+        ck = colEntryM'
              (const $ return True)
              ckCol
 
@@ -602,7 +605,7 @@ copyToCol xs di n =
 
     cpy pos = maybe (return ()) cp $ cs ^? ix pos
       where
-        cp ce = colEntry'
+        cp ce = colEntryM'
                 (\ _ -> adjustColEntries (Seq.|> ce) di)
                 copyColToCol
                 ce
@@ -703,7 +706,7 @@ modify'renamecol newName i = do
 
   -- find position of objid i in parent collection
   ps <- flip findFstColEntry iParent $
-        \ ce -> return (i == ce ^. theColObjId)
+        \ ce -> return (i == ce ^. theColEntry . theColObjId)
   let pos = maybe (-1) fst ps
 
   -- remove i in parent collection
@@ -757,7 +760,7 @@ modify'setMetaData'' ixs edi edp edc n =
 
     setm pos = maybe (return ()) sm $ cs ^? ix pos
       where
-        sm = colEntry'
+        sm = colEntryM'
              adjustImgMetaData      -- img entry
              (adjustMetaData edc)   -- col entry
 
@@ -941,7 +944,7 @@ read'ratings :: Eff'ISE r => ImgNode -> Sem r [Rating]
 read'ratings n =
   traverse f (n ^. theColEntries . isoSeqList)
   where
-    f ce = lookupRating <$> colEntry' getImgMetaData getMetaData ce
+    f ce = lookupRating <$> colEntryM' getImgMetaData getMetaData ce
 
 read'checkImgPart :: Eff'CheckSum r
                   => Bool -> Path -> Name -> ImgNode -> Sem r CheckSumRes

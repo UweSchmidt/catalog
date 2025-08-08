@@ -1,7 +1,7 @@
 module Data.Journal where
 
 import Data.ImgTree
-       ( ColEntries'
+       ( ColEntriesM'
        , DirEntries
        , ImgParts
        , ImgRef'
@@ -41,7 +41,7 @@ data Journal' ref = MkIMG           ref Name
                   | AdjPartMetaData Name ref MetaData
                   | AdjColImg       ref (Maybe (ImgRef' ref))
                   | AdjColBlog      ref (Maybe (ImgRef' ref))
-                  | AdjColEntries   ref (ColEntries' ref)
+                  | AdjColEntries   ref (ColEntriesM' ref)
                   | SetSyncTime     ref TimeStamp
                   | InitImgStore    Name Name Name
                   | LoadImgStore    TextPath
