@@ -55,6 +55,7 @@ import Catalog.ImgTree.Access
        , lookupByPath
        , mapObjId2Path
        , objid2path
+       , colEntryAt
        , processColEntryAt
        , processColImgEntryAt
        )
@@ -126,8 +127,7 @@ import Data.Prim
        )
 import Data.Prim.Prelude
 import Data.ImgNode
-       ( colEntry'
-       , colEntryM'
+       ( colEntryM'
        , isCOL
        , isRemovableCol
        , isSortableCol
@@ -136,6 +136,7 @@ import Data.ImgNode
        , theColBlog
        , theColEntries
        , theColEntry
+       , theColMeta
        , theColObjId
        , ImgRef
        , ImgRef'(ImgRef)
@@ -147,7 +148,6 @@ import Data.MetaData
        ( MetaData
        , MetaDataText
        , Rating
-         -- , metaDataAt
        , editMetaData
        , isoMetaDataMDT
        , splitMDT
@@ -163,8 +163,7 @@ import Data.ImageStore
        ( ImgStore )
 
 import Data.ImgTree
-       ( ColEntry
-       , ColEntryM
+       ( ColEntryM
        , ImgNode
        , ImgNodeP
        )
@@ -917,16 +916,18 @@ read'blogsource pos i n
 
 read'metadata' :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaData
 read'metadata' pos i n
+  -- get metadata from ObjId i
   | pos < 0   = getMetaData i
-  | otherwise = processColEntryAt
-                getImgMetaData
-                getMetaData
-                pos
-                n
 
-read'metadata'' :: Eff'ISE r => ColEntry -> Sem r MetaData
-read'metadata'' =
-  colEntry' getImgMetaData getMetaData
+  -- reference the ColEntryM entry at position pos in collection n with ObjId i
+  | otherwise = do
+      md1 <- processColEntryAt getImgMetaData getMetaData pos n
+      md2 <- (^. theColMeta) <$> colEntryAt pos n
+      return $ md2 <> md1   -- ColEntry metadata overwrites img/col metadata
+
+-- read'metadata'' :: Eff'ISE r => ColEntry -> Sem r MetaData
+-- read'metadata'' =
+--  colEntry' getImgMetaData getMetaData
 
 read'metadata :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaDataText
 read'metadata pos i n =

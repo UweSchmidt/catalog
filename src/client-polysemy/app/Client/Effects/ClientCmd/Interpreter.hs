@@ -400,7 +400,9 @@ globExpandPP :: CCmdEffects r => PathPos -> Sem r PathPos
 globExpandPP (p, cx) = do
   ps <- globExpand p
   case ps of
-    [p'] -> return (p', cx)
+    [p'] -> do
+      log'trc $ untext [ "globExpand:", show (p', cx) ^. isoText]
+      return (p', cx)
     []   ->
       abortWith $ untext [ "globExpand:"
                          , "no path found for "
