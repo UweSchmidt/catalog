@@ -861,9 +861,9 @@ isoMetaValueText k = case k of
   QuickTime'ImageHeight -> metaIntText
   QuickTime'ImageWidth  -> metaIntText
   XMP'Rating            -> metaRatingText
-  Show'Duration         -> metaIntText
-  Show'FadeIn           -> metaIntText
-  Show'FadeOut          -> metaIntText
+  Show'Duration         -> metaIntSec
+  Show'FadeIn           -> metaIntSec
+  Show'FadeOut          -> metaIntSec
   Key'Unknown           -> iso (const mempty) (const mempty)
   _                     -> metaText
 
@@ -915,6 +915,42 @@ metaInt = iso
   )
   (maybe mempty MInt)
 {-# INLINE metaInt #-}
+
+metaIntSec :: Iso' MetaValue Text
+metaIntSec = iso
+  (\ case
+      MInt i -> toSec i
+      _      -> mempty
+  )
+  (maybe mempty MInt . frSec)
+  where
+
+    toSec :: Int -> Text
+    toSec msec = sec ^. isoText
+      where
+        sec :: String
+        sec = reverse . drop0 . insertDot 2 . reverse . show $ msec
+
+        insertDot :: Int -> String -> String
+        insertDot 0 [] = ".0"
+        insertDot 0 xs = "." <> xs
+        insertDot n [] = "0" <> insertDot (n - 1) []
+        insertDot n (x : xs) = x : insertDot (n - 1) xs
+
+        drop0 :: String -> String
+        drop0 ('0' : xs) = drop0 xs
+        drop0 ('.' : xs) = xs
+        drop0 xs         = xs
+
+    frSec :: Text -> Maybe Int
+    frSec t =
+      ms <$> s
+      where
+        s :: Maybe Double
+        s = readMaybe (t ^. isoString)
+
+        ms :: Double -> Int
+        ms x = round (x * 100) * 10
 
 metaRating :: Iso' MetaValue Int
 metaRating = iso
