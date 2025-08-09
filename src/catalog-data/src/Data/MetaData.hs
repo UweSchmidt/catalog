@@ -33,6 +33,7 @@ module Data.MetaData
   , editMetaData
   , splitMDT
   , colMDT
+  , showMDT
   , filterByImgType
   , filterKeysMetaData
   , splitMetaData
@@ -177,6 +178,11 @@ module Data.MetaData
 
   , xmpGPSAltitude
   , xmpRating
+
+  , showDuration
+  , showFadeIn
+  , showFadeOut
+  , showTransition
   )
 where
 
@@ -362,6 +368,10 @@ data MetaKey
   | QuickTime'VideoFrameRate
   | XMP'GPSAltitude
   | XMP'Rating
+  | Show'Duration
+  | Show'FadeIn
+  | Show'FadeOut
+  | Show'Transition
   | Key'Unknown          -- must be the last value
 
 type MetaKeySet = MetaKey -> Bool
@@ -632,6 +642,19 @@ keysAttrXmp@[
   , xmpRating
   ] = [XMP'GPSAltitude .. XMP'Rating]
 
+showDuration
+  , showFadeIn
+  , showFadeOut
+  , showTransition :: MetaKey
+
+keysAttrShow :: [MetaKey]
+keysAttrShow@[
+  showDuration
+  , showFadeIn
+  , showFadeOut
+  , showTransition
+  ] = [Show'Duration .. Show'Transition]
+
 -- ----------------------------------------
 --
 -- instances and basic functions for MetaData
@@ -838,6 +861,9 @@ isoMetaValueText k = case k of
   QuickTime'ImageHeight -> metaIntText
   QuickTime'ImageWidth  -> metaIntText
   XMP'Rating            -> metaRatingText
+  Show'Duration         -> metaIntText
+  Show'FadeIn           -> metaIntText
+  Show'FadeOut          -> metaIntText
   Key'Unknown           -> iso (const mempty) (const mempty)
   _                     -> metaText
 
@@ -1131,6 +1157,8 @@ splitMDT mdt = splitMetaData mempty (isoMetaDataMDT # mdt)
 colMDT :: MetaDataText -> MetaDataT
 colMDT mdt = filterKeysMetaData (`elem` keysAttrDescr) (isoMetaDataMDT # mdt)
 
+showMDT :: MetaDataText -> MetaDataT
+showMDT mdt = filterKeysMetaData (`elem` keysAttrShow) (isoMetaDataMDT # mdt)
 
 -- --------------------
 
@@ -1314,7 +1342,6 @@ isoKeywText = isoListText ((== ','), ", ")     -- comma separated list for keywo
 isoTSetText :: Iso' [Text] Text
 isoTSetText = isoListText ((== '|'), " | ")   -- '|' separated list (for URLs)
 {-# INLINE isoTSetText #-}
-
 
 isoListText :: (Char -> Bool, Text) -> Iso' [Text] Text
 isoListText (del, sep)= iso toT frT

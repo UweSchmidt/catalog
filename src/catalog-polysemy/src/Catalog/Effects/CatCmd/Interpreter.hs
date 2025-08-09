@@ -152,6 +152,7 @@ import Data.MetaData
        , isoMetaDataMDT
        , splitMDT
        , colMDT
+       , showMDT
        , lookupCreate
        , lookupRating
        , mkRating
@@ -213,7 +214,7 @@ evalCatCmd =
       path2id p >>= modify'renamecol nm
 
     SetMetaData ixs md p ->
-      path2node p >>= modify'setMetaData ixs md
+      getIdNode' p >>= uncurry (modify'setMetaData ixs md)
 
     SetMetaData1 pos md p ->
       getIdNode' p >>= uncurry (modify'setMetaData1 pos md)
@@ -725,26 +726,31 @@ modify'renamecol newName i = do
 -- set meta data fields for a list of selected collection entries
 
 modify'setMetaData :: Eff'ISEJL r
-                   => [Int] -> MetaDataText -> ImgNode -> Sem r ()
-modify'setMetaData ixs mdt =
-  modify'setMetaData'' ixs (editMetaData mdi) (editMetaData mdp) (editMetaData mdc)
+                   => [Int] -> MetaDataText -> ObjId -> ImgNode -> Sem r ()
+modify'setMetaData ixs mdt oid n =
+  do
+    -- modify img/col metadata
+    modify'setMetaData'' ixs
+      (editMetaData mdi) (editMetaData mdp) (editMetaData mdc) n
+
+    -- modify ColEntyM metadata
+    unless (isEmpty mds) $
+      adjustColEntries (isoSeqList %~ addMeta) oid
   where
     (mdi, mdp) = splitMDT mdt
-    mdc        = colMDT mdt
- {-
-modify'setMetaData' :: Eff'ISEJL r
-                    => [Int] -> (MetaData -> MetaData) -> ImgNode -> Sem r ()
-modify'setMetaData' ixs ed n =
-  traverse_ setm $ toPosList ixs
-  where
-    cs = n ^. theColEntries
+    mdc        = colMDT   mdt
+    mds        = showMDT  mdt
 
-    setm pos = maybe (return ()) sm $ cs ^? ix pos
+    addMeta :: [ColEntryM] -> [ColEntryM]
+    addMeta =
+      zipWith addm ixs'
       where
-        sm = colEntry'
-             (adjustPartMetaData ed)
-             (adjustMetaData     ed)
--- -}
+        ixs' = ixs <> repeat (-1)
+
+        addm :: Int -> ColEntryM -> ColEntryM
+        addm i ce
+          | i < 0     = ce
+          | otherwise = ce & theColMeta %~ editMetaData mds
 
 modify'setMetaData'' :: Eff'ISEJL r
                      => [Int]
@@ -772,8 +778,8 @@ modify'setMetaData'' ixs edi edp edc n =
 modify'setMetaData1 :: Eff'ISEJL r
                     => Int -> MetaDataText -> ObjId -> ImgNode -> Sem r ()
 modify'setMetaData1 pos md oid n
-  | pos < 0   = adjustMetaData ed oid           -- update COL or IMG metadata
-  | otherwise = modify'setMetaData ixs md n     -- update COL entry metadata
+  | pos < 0   = adjustMetaData ed oid               -- update COL or IMG metadata
+  | otherwise = modify'setMetaData ixs md oid n     -- update COL entry metadata
   where
     ed  = editMetaData (isoMetaDataMDT # md)
     ixs = replicate pos (negate 1) ++ [1]
