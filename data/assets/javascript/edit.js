@@ -1544,6 +1544,26 @@ function getSearchPath() {
 
 // ----------------------------------------
 
+function remColEntryMeta(n) {
+    console.log("remColEntryMeta: cleanup collections");
+    console.log(n);
+    if ( n.ImgNode === "COL" ) {
+        let es = n.entries;
+        for(var i = 0; i < es.length; i++) {
+            let ce = es[i];
+
+            // if ce is an array ([colEntry, metaadata]) remove metadata
+            if ( ce[0] ) {
+                console.log("remColEntryMeta: remove meta from entry: " + i);
+                es[i] = ce[0];
+            }
+        }
+        n.entries = es;
+    }
+    return n;
+}
+// ----------------------------------------
+
 // top level commands, most with ajax calls
 
 // initialize the collections in a fixed sequence,
@@ -3102,8 +3122,8 @@ function getHistoryFromServer(cont) {
 function getColFromServer(path, showCol) {
     readServer("collection", path,
                function (col) {
-                   col.metadata = col.metadata;
-                   showCol(path, col);
+                   // col.metadata = col.metadata;
+                   showCol(path, remColEntryMeta(col));
                });
 }
 
