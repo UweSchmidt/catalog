@@ -929,7 +929,7 @@ metaIntSec = iso
     toSec msec = sec ^. isoText
       where
         sec :: String
-        sec = reverse . drop0 . insertDot 2 . reverse . show $ msec
+        sec = reverse . drop0 . insertDot 3 . reverse . show $ msec
 
         insertDot :: Int -> String -> String
         insertDot 0 [] = ".0"
