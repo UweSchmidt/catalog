@@ -2261,23 +2261,44 @@ var metaDataClipboard= {};
 
 // keys of editable metadata values
 
-var metaDataKeys = [ "Title",
-                     "Subtitle",
-                     "Comment",
-                     "CommentImg",
-                     "GPSPosition",
-                     "Location",
-                     "Rating",
-                     "Keywords",
-                     "Web",
-                     "Wikipedia",
-                     "Audio",
-                     "TitleEnglish",
-                     "TitleLatin"
-                   ];
+var metaDataDescrKeys =
+    [ "Title",
+      "Subtitle",
+      "Comment",
+      "CommentImg",
+      "GPSPosition",
+      "Location",
+      "Rating",
+      "Keywords",
+      "Web",
+      "Wikipedia",
+      "Audio",
+      "TitleEnglish",
+      "TitleLatin"
+    ];
 
-function mdKey(k) { return 'Descr:'  + k; }
-function mdKid(k) { return '#descr-' + k; }
+var metaDataShowKeys =
+    [ "Duration",
+      "FadeIn",
+      "FadeOut",
+      "Transition",
+    ];
+
+var metaDataKeys = [].concat(metaDataDescrKeys, metaDataShowKeys);
+
+function mdKey(k) {
+    if ( metaDataShowKeys.indexOf(k) >= 0) {
+        return "Show:" + k;
+    }
+    return 'Descr:'  + k;
+}
+
+function mdKid(k) {
+    if ( metaDataShowKeys.indexOf(k) >= 0) {
+        return "#show-" + k;
+    }
+    return '#descr-' + k;
+}
 
 function copyMetaData() {
     console.log('copyMetaData');
