@@ -146,12 +146,14 @@ import Data.Journal
 
 import Data.MetaData
        ( MetaData
+       , MetaDataT
        , MetaDataText
        , Rating
        , editMetaData
        , isoMetaDataMDT
        , splitMDT
        , colMDT
+       , noshowMDT
        , showMDT
        , lookupCreate
        , lookupRating
@@ -737,9 +739,12 @@ modify'setMetaData ixs mdt oid n =
     unless (isEmpty mds) $
       adjustColEntries (isoSeqList %~ addMeta) oid
   where
-    (mdi, mdp) = splitMDT mdt
-    mdc        = colMDT   mdt
-    mds        = showMDT  mdt
+    md :: MetaDataT
+    md         = isoMetaDataMDT # mdt
+    mds        = showMDT md
+    md1        = noshowMDT md
+    (mdi, mdp) = splitMDT  md1
+    mdc        = colMDT    md1
 
     addMeta :: [ColEntryM] -> [ColEntryM]
     addMeta =

@@ -33,6 +33,7 @@ module Data.MetaData
   , editMetaData
   , splitMDT
   , colMDT
+  , noshowMDT
   , showMDT
   , filterByImgType
   , filterKeysMetaData
@@ -764,6 +765,12 @@ partitionMD ks (MD m) = (MD m1, MD m2)
   where
     (m1, m2) = IM.partitionWithKey (\ i _v -> ks $ toEnum i) m
 
+keysDescr
+  , keysShow :: MetaKeySet
+
+keysDescr = (`elem` keysAttrDescr)
+keysShow  = (`elem` keysAttrShow)
+
 -- --------------------
 --
 -- instances for MetaDataText
@@ -924,7 +931,7 @@ metaIntSec = iso
   )
   (maybe mempty MInt . frSec)
   where
-
+    -- convert miliseconds to seconds
     toSec :: Int -> Text
     toSec msec = sec ^. isoText
       where
@@ -942,6 +949,8 @@ metaIntSec = iso
         drop0 ('.' : xs) = xs
         drop0 xs         = xs
 
+    -- round seconds to precition of 10 milliseconds
+    -- and convert to milliseconds
     frSec :: Text -> Maybe Int
     frSec t =
       ms <$> s
@@ -1101,7 +1110,7 @@ cleanupMetaData ty =
     (i'keys, p'keys) = keysByMimeType ty
 
 cleanupOldMetaData :: MetaData' a -> MetaData' a
-cleanupOldMetaData = filterKeysMetaData (`elem` keysAttrDescr)
+cleanupOldMetaData = filterKeysMetaData keysDescr
 
 cleanupOutdatedMeta :: MetaData -> MetaData
 cleanupOutdatedMeta =
@@ -1187,14 +1196,17 @@ editMetaData (MD m) mt = IM.foldlWithKey' ins mt m
       where
         k = toEnum k0
 
-splitMDT :: MetaDataText -> (MetaDataT, MetaDataT)
-splitMDT mdt = splitMetaData mempty (isoMetaDataMDT # mdt)
+splitMDT :: MetaDataT -> (MetaDataT, MetaDataT)
+splitMDT mdt = splitMetaData mempty mdt
 
-colMDT :: MetaDataText -> MetaDataT
-colMDT mdt = filterKeysMetaData (`elem` keysAttrDescr) (isoMetaDataMDT # mdt)
+colMDT :: MetaDataT -> MetaDataT
+colMDT mdt = filterKeysMetaData keysDescr mdt
 
-showMDT :: MetaDataText -> MetaDataT
-showMDT mdt = filterKeysMetaData (`elem` keysAttrShow) (isoMetaDataMDT # mdt)
+noshowMDT :: MetaDataT -> MetaDataT
+noshowMDT mdt = filterKeysMetaData (not . keysShow) mdt
+
+showMDT :: MetaDataT -> MetaDataT
+showMDT mdt = filterKeysMetaData keysShow mdt
 
 -- --------------------
 
