@@ -27,6 +27,7 @@ import Data.ImgNode
        , ImgRef
        , theColEntries
        , theColEntry
+       , theColMeta
        , theParts
        , theColObjId
        , colEntryM'
@@ -130,7 +131,7 @@ data Req' a
          }
 
 type Req0                        = Req' ()
-type Req'IdNode                a = Req'              (IdNode,  a)
+type Req'IdNode                a = Req'              ((IdNode, MetaData),  a)
 type Req'IdNode'ImgRef         a = Req'IdNode        (ImgRef,  a)
 
 -- --------------------
@@ -199,7 +200,10 @@ rVal :: Lens (Req' a) (Req' b) a b
 rVal k r = (\ new -> r {_rVal = new}) <$> k (_rVal r)
 
 rIdNode :: Lens' (Req'IdNode a) IdNode
-rIdNode = rVal . _1
+rIdNode = rVal . _1 . _1
+
+rIdMeta :: Lens' (Req'IdNode a) MetaData
+rIdMeta = rVal . _1 . _2
 
 rColId :: Lens' (Req'IdNode a) ObjId
 rColId = rIdNode . _1
@@ -230,15 +234,13 @@ toReq'IdNode r = r & rVal . _2 .~ ()
 normAndSetIdNode :: (Eff'ISE r, EffNonDet r) => Req' a -> Sem r (Req'IdNode a)
 normAndSetIdNode = setIdNode >=> normPathPos
 
-
 -- check the existence of a path
 -- and add (objid, imgnode) to the request
 
 setIdNode :: Eff'ISE r => Req' a -> Sem r (Req'IdNode a)
 setIdNode r = do
   i'n <- getIdNode' (r ^. rPath)
-  return (r & rVal %~ (i'n, ))
-
+  return (r & rVal %~ ((i'n, mempty), ))
 
 -- if a path ("/abx/def", Just i) points to a collection "ghi"
 -- the path is normalized to ("/abc/def/ghi", Nothing)
@@ -247,10 +249,11 @@ normPathPos :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 normPathPos r =
   ( do pos <- pureMaybe (r ^. rPos)
        ce  <- colEntryAt pos (r ^. rColNode)
-       colEntryM'
-         (const $ return r)
-         (normPathPosC r)
-         ce
+       r'  <- colEntryM'
+              (const $ return r)
+              (normPathPosC r)
+              ce
+       return (r' & rIdMeta .~ (ce ^. theColMeta))
   )
   <|>
   return r
@@ -992,7 +995,8 @@ lookupPageCnfs ty geo@(Geo w _h)
 collectImgAttr :: Eff'Img r => Req'IdNode'ImgRef a -> Sem r (Path, Name, MetaData)
 collectImgAttr r = do
   theIPath <- objid2path iOid
-  theMeta  <- getImgMetaData ir
+  theMeta  <- ((r ^. rIdMeta) <>)
+              <$> getImgMetaData ir
   theUrl   <- toMediaReq r >>= toUrlPath'  -- not toUrlPath due to RMovie, RGif
   let md0  = theMeta
              & metaTextAt fileRefMedia  .~ (theUrl ^. isoText)
@@ -1090,7 +1094,7 @@ genReqImgPage' r = do
 toEDescr :: (Eff'ISE r) => Req'IdNode a -> Sem r EDescr
 toEDescr r = do
   r'meta <- runMaybeEmpty (toImgMeta r)
-  return $ EDescr (toReq0 r) r'meta
+  return $ EDescr (toReq0 r) (r ^. rIdMeta <> r'meta)
 
 toIconDescr' :: Geo -> EDescr -> IconDescr
 toIconDescr' icon'geo ed =
