@@ -1801,18 +1801,19 @@ var slideShow      = false;
 var slideShowTimer;
 var slideShowType  = "";
 
-const slideShowDefaultSpeed = 5000;  // default: 5 sec in milliseconds
-var   slideShowSpeed = slideShowDefaultSpeed;  // default: 5 sec in milliseconds
+const slideShowDefaultAcceleration = 1.0;
+const slideShowDefaultDuration     = 5.0;  // default: 5 sec
+var   slideShowAcceleration        = slideShowDefaultAcceleration;
 
 function slideDur() {
     const md = getSlideMeta();
-    const d  = md["Descr:Duration"];
-    let   t  = 1; // seconds
+    const d  = md["Show:Duration"];          // time in sec
+    let   t  = slideShowDefaultDuration;
     if (d) {
         t = d * 1;         // convert to number
-        if (!t) { t = 1;}  // no conv: reset to defaoult
+        if (!t) { t = slideShowDefaultDuration;}  // no conv: reset to defaoult
     }
-    return t * slideShowSpeed;
+    return t * slideShowAcceleration;   // time scaled by acceleration (in sce)
 }
 
 function nextReqGlobal() {
@@ -1838,9 +1839,9 @@ function advanceSlideShow() {
     }
     else {
         // install timer
-        const ms = slideDur();
-        slideShowTimer = setTimeout(advanceSlideShow, ms);
-        trc(1, "advanceSlideShow timer set msec: " + ms + " (" + slideShowType + ")");
+        const msec = 1000 * slideDur();   // convert duration to milliseconds
+        slideShowTimer = setTimeout(advanceSlideShow, msec);
+        trc(1, "advanceSlideShow timer set msec: " + msec + " (" + slideShowType + ")");
 
         // show slide
         showNextSlide(req);
@@ -1884,22 +1885,22 @@ function toggleSlideShow() {
 }
 
 function resetSpeedSlideShow() {
-    slideShowSpeed = slideShowDefaultSpeed;
+    slideShowAcceleration = slideShowDefaultAcceleration;
     showDur();
 }
 
 function slowDownSlideShow() {
-    slideShowSpeed = slideShowSpeed * 1.2;
+    slideShowAcceleration = slideShowAcceleration * 1.2;
     showDur();
 }
 
 function speedUpSlideShow() {
-    slideShowSpeed = Math.max(slideShowSpeed / 1.2, 2500);
+    slideShowAcceleration = Math.max(slideShowAcceleration / 1.2, 0.2);
     showDur();
 }
 
 function showDur() {
-    const s =  Math.round(slideShowSpeed / 100) / 10;
+    const s =  Math.round(slideShowAcceleration * slideShowDefaultDuration * 10) / 10;
     showStatus('Automatischer Bildwechsel nach ' + s + " sec.");
 }
 
