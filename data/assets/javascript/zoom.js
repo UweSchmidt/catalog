@@ -2396,8 +2396,11 @@ function buildCollectionSlide() {
         const e = clearDomElem(cs.imgId);
         setCSS(e, style);
 
-        e.appendChild(buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog));
-        animTransCollection(cs.transDur)(k);
+        const c = buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog);
+        e.appendChild(c);
+        allImagesLoaded(c)(() => {
+            animTransCollection(cs.transDur)(k);
+        });
     }
     return doit;
 }
@@ -2440,6 +2443,36 @@ function loadImgCache() {
             picCache.onload = k1;
             picCache.src    = cs.urlImg;   // the .onload handler is triggered here
         }
+    }
+    return doit;
+}
+
+// hack for waiting until all images are loaded
+
+function allImagesLoaded(e) {
+    function doit(k) {
+        const images        = e.getElementsByTagName("img");
+        const noOfImages    = images.length;
+        var   alreadyLoaded = 0;
+        trc(1, "allImagesLoaded: # images found: " + noOfImages);
+
+        for (const img of images) {
+            const src   = img.getAttribute("src");
+            const img1  = new Image();  // create dummy image and set onload callback
+            img1.onload = imgLoaded;
+            img1.src    = src;
+        }
+
+        function imgLoaded() {
+            alreadyLoaded++;
+            trc(1, "imgLoaded: " + alreadyLoaded);
+
+            if (alreadyLoaded === noOfImages) {
+                trc(1, "allImagesLoaded: terminated");
+                k();
+            }
+        };
+
     }
     return doit;
 }
