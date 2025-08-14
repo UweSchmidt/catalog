@@ -1816,6 +1816,19 @@ function slideDur() {
     return t * slideShowAcceleration;   // time scaled by acceleration (in sce)
 }
 
+function setSlideShowTimer(f) {
+    const msec = 1000 * slideDur();
+    trc(1, "setSlideShowTimer: install timer, msec = " + msec);
+    clearTimeout(slideShowTimer);
+    slideShowTimer = setTimeout(f, msec);
+}
+
+function clearSlideShowTimer() {
+    trc(1, "slideShowTimer cleared");
+    clearTimeout(slideShowTimer);
+    slideShowTimer = undefined;
+}
+
 function nextReqGlobal() {
     return getNavReq("fwrd");
 }
@@ -1839,9 +1852,9 @@ function advanceSlideShow() {
     }
     else {
         // install timer
-        const msec = 1000 * slideDur();   // convert duration to milliseconds
-        slideShowTimer = setTimeout(advanceSlideShow, msec);
-        trc(1, "advanceSlideShow timer set msec: " + msec + " (" + slideShowType + ")");
+        // const msec = 1000 * slideDur();   // convert duration to milliseconds
+        // slideShowTimer = setTimeout(advanceSlideShow, msec);
+        // trc(1, "advanceSlideShow timer set msec: " + msec + " (" + slideShowType + ")");
 
         // show slide
         showNextSlide(req);
@@ -1851,13 +1864,9 @@ function advanceSlideShow() {
 function stopSlideShow() {
     trc(1, "stopSlideShow");
     if (slideShow) {
-        if (typeof slideShowTimer != "undefined") {
-            clearTimeout(slideShowTimer);
-            trc(1, "timer cleared");
-        }
+        clearSlideShowTimer();
         slideShow      = false;
         slideShowType  = "";
-        slideShowTimer = undefined;
         showStatus("Automatischer Bildwechsel beendet");
     }
 }
@@ -2131,7 +2140,32 @@ function thisSlideWith(resizeAlg, zoomPos) {
 }
 
 function gotoUrl(url, resizeAlg, zoomPos) {
-    runC(gotoSlide(url, resizeAlg, zoomPos));
+    runC(comp(gotoSlide(url, resizeAlg, zoomPos),
+              playSlideShow()
+             )
+        );
+}
+
+function playSlideShow() {
+
+    function doit(k) {
+        trc(1, "playSlideShow: start");
+
+        function advance() {
+            clearSlideShowTimer();
+            if ( slideShow ) {
+                trc(1, "playSlideShow: advance");
+                advanceSlideShow();   // this is a global goto, no continueation is called
+            }
+        }
+
+        if ( slideShow ) {
+            setSlideShowTimer(advance);
+        } else {
+            k();
+        }
+    }
+    return doit;
 }
 
 // ----------------------------------------
