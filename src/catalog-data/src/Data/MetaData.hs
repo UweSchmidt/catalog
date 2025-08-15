@@ -183,6 +183,7 @@ module Data.MetaData
   , showDuration
   , showFadeIn
   , showFadeOut
+  , showContinue
   , showTransition
   )
 where
@@ -372,6 +373,7 @@ data MetaKey
   | Show'Duration
   | Show'FadeIn
   | Show'FadeOut
+  | Show'Continue
   | Show'Transition
   | Key'Unknown          -- must be the last value
 
@@ -382,6 +384,7 @@ data MetaValue
   | MTSet ![Text]         -- list of text
   | MNm   !Name
   | MInt  !Int
+  | MSec  !Int            -- time in msec
   | MRat  !Int            -- rating: 0..5
   | MOri  !Int            -- orientation: 0..3 <-> 0, 90, 180, 270 degrees CW
   | MAcc  !Access         -- access restrictions
@@ -646,6 +649,7 @@ keysAttrXmp@[
 showDuration
   , showFadeIn
   , showFadeOut
+  , showContinue
   , showTransition :: MetaKey
 
 keysAttrShow :: [MetaKey]
@@ -653,6 +657,7 @@ keysAttrShow@[
   showDuration
   , showFadeIn
   , showFadeOut
+  , showContinue
   , showTransition
   ] = [Show'Duration .. Show'Transition]
 
@@ -805,6 +810,7 @@ instance AsEmpty MetaValue where
       ise (MTSet ws) = null ws
       ise (MNm n)    = isEmpty n
       ise (MInt _)   = False -- no default value for Int
+      ise (MSec _)   = False -- dto. for durations
       ise (MOri o)   = o == 0
       ise (MRat r)   = r == 0
       ise (MAcc a)   = a == no'restr
@@ -823,6 +829,7 @@ instance Semigroup MetaValue where
   mv1@(MText _)  <> MText _  = mv1     -- 1. wins
   mv1@(MNm  _)   <> MNm  _   = mv1     -- 1. wins
   mv1@(MInt _)   <> MInt _   = mv1     -- 1. wins
+  mv1@(MSec _)   <> MSec _   = mv1     -- 1. wins
   mv1@(MRat _)   <> MRat _   = mv1     -- 1. wins
   mv1@(MOri _)   <> MOri _   = mv1     -- 1. wins
   mv1@(MAcc _)   <> MAcc _   = mv1     -- 1. wins
@@ -926,10 +933,10 @@ metaInt = iso
 metaIntSec :: Iso' MetaValue Text
 metaIntSec = iso
   (\ case
-      MInt i -> toSec i
+      MSec i -> toSec i
       _      -> mempty
   )
-  (maybe mempty MInt . frSec)
+  (maybe mempty MSec . frSec)
   where
     -- convert miliseconds to seconds
     toSec :: Int -> Text
@@ -956,7 +963,11 @@ metaIntSec = iso
       ms <$> s
       where
         s :: Maybe Double
-        s = readMaybe (t ^. isoString)
+        s = do
+          v <- readMaybe (t ^. isoString)
+          if  v >= 0
+            then return v
+            else empty
 
         ms :: Double -> Int
         ms x = round (x * 100) * 10
