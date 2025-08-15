@@ -2282,6 +2282,7 @@ var metaDataShowKeys =
       "FadeIn",
       "FadeOut",
       "Transition",
+      "Continue"
     ];
 
 var metaDataKeys = [].concat(metaDataDescrKeys, metaDataShowKeys);

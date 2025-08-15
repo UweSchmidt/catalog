@@ -1102,19 +1102,76 @@
                      value=""
                      aria-describedby="descr-Audio-addon1">
             </div>
-            <!-- Slideshow -->
+          </div>
+          <!-- Slideshow -->
+          <div class="modal-body" style="padding-top: 0px; display:grid; grid-template-columns: auto auto">
+            <!-- Duration -->
             <div class="input-group">
               <span class="input-group-prepend"
                     id="show-Duration-addon1"
                     >
-                <span class="input-group-text metadata-key-bs450">Dauer</span>
+                <span class="input-group-text metadata-key-bs450">Display</span>
               </span>
               <input type="text"
                      id="show-Duration"
                      class="form-control"
-                     placeholder="Slideshow Anzeigezeit in Sekunden"
+                     placeholder="duration in sec"
                      value=""
                      aria-describedby="show-Duration-addon1">
+            </div>
+            <!-- Fadein -->
+            <div class="input-group">
+              <span class="input-group-prepend"
+                    id="show-Fadein-addon1"
+                    >
+                <span class="input-group-text metadata-key-bs450">Fadein</span>
+              </span>
+              <input type="text"
+                     id="show-FadeIn"
+                     class="form-control"
+                     placeholder="duration in sec"
+                     value=""
+                     aria-describedby="show-FadeIn-addon1">
+            </div>
+            <!-- dummy -->
+            <div class="input-group">
+            </div>
+            <!-- Fadeout -->
+            <div class="input-group">
+              <span class="input-group-prepend"
+                    id="show-FadeOut-addon1"
+                    >
+                <span class="input-group-text metadata-key-bs450">Fadeout</span>
+              </span>
+              <input type="text"
+                     id="show-FadeOut"
+                     class="form-control"
+                     placeholder="duration in sec"
+                     value=""
+                     aria-describedby="show-FadeOut-addon1">
+            </div>
+            <!-- Transition -->
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <label class="input-group-text metadata-key-bs450" for="inputGroupTransition">Transition</label>
+              </div>
+              <select class="custom-select" id="show-Transition">
+                <option value="" selected></option>
+                <option value="crossfade">crossfade</option>
+                <option value="fadeoutin">fadeoutin</option>
+                <option value="cut">cut</option>
+              </select>
+            </div>
+            <!-- Continue -->
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <label class="input-group-text metadata-key-bs450" for="inputGroupContinue">Continue</label>
+              </div>
+              <select class="custom-select" id="show-Continue" placeholder="default: onclick">
+                <option value="" selected></option>
+                <option value="onclick">onclick</option>
+                <option value="duration">duration</option>
+              </select>
             </div>
           </div>
           <div class="modal-footer">
