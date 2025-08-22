@@ -1101,40 +1101,47 @@ function showErr(errno, url, msg) {
 // ----------------------------------------
 // page access functions
 
-function getOrgGeo() {
-    if ( isMediaSlide() ) {
-        return readGeo(cs.page.oirGeo[0]);
+function getOrgGeo(s) {
+    s = s || cs;
+    if ( isMediaSlide(s) ) {
+        return readGeo(s.page.oirGeo[0]);
     }
     return null;
 }
 
-function getSlideMeta() {
-    if ( isColSlide() ) {
-        return cs.page.colDescr.eMeta;
+function getSlideMeta(s) {
+    s = s || cs;
+    if ( isColSlide(s) ) {
+        return s.page.colDescr.eMeta;
     }
-    return cs.page.img[2];
+    return s.page.img[2];
 }
 
-function getSlideBlog() {
-    const md = getSlideMeta();   // new blog access: blog is part of metadata
+function getSlideBlog(s) {
+    s = s || cs;
+    const md = getSlideMeta(s);   // new blog access: blog is part of metadata
     const bt = md["Descr:Blog"];
     if (bt) {
         return bt;
     } // else {return "";}         // TODO cleanup, when server has been updated
-    return cs.page.blogCont;      // old blog access: blog is in blogCont field;
+    return s.page.blogCont;      // old blog access: blog is in blogCont field;
 }
 
-function getNavReq(nav) {
-    if ( isColSlide() ) {
-        return cs.page.navIcons[nav].eReq;
+function getNavReq(nav, s) {
+    s = s || cs;
+    if ( isColSlide(s) ) {
+        return s.page.navIcons[nav].eReq;
     }
-    return cs.page.imgNavRefs[nav];
+    return s.page.imgNavRefs[nav];
 }
 
-function getChild0Req() {
+function getChild0Req(s) {
+    s = s || cs;
     if ( isColSlide() ) {
-        const req = cs.page.contIcons[0].eReq;
-        if ( req ) { return req; }
+        const req = s.page.contIcons[0].eReq;
+        if ( req ) {
+            return req;
+        }
     }
     return null;
 }
@@ -1352,7 +1359,7 @@ function keyUp(e) {
          ||
          (e.keyCode == 34)   /* page down, presenter: right arrow */
        ) {
-        stopSlideShow();
+        stopShow();
         gotoNext();
         return false;
     }
@@ -1362,7 +1369,7 @@ function keyUp(e) {
          ||
          (e.keyCode == 8)    /* backspace*/
        ) {
-        stopSlideShow();
+        stopShow();
         gotoPrev();
         return false;
     }
@@ -1372,7 +1379,7 @@ function keyUp(e) {
          ||
          (e.keyCode == 38)     /* up arrow */
        ) {
-        stopSlideShow();
+        stopShow();
         gotoPar();
         return false;
     }
@@ -1380,7 +1387,7 @@ function keyUp(e) {
          ||
          (e.keyCode == 190)    /* '.' , presenter right screen icon */
        ) {
-        stopSlideShow();
+        stopShow();
         gotoChild0();
         return false;
     }
@@ -1394,7 +1401,7 @@ function keyPressed (e) {
 
     if ( isKey(e, 32, " ")
        ) {
-        stopSlideShow();
+        stopShow();
         goForward();
         return false;
     }
@@ -1405,7 +1412,7 @@ function keyPressed (e) {
          ||
          isKey(e, 110, "n")
        ) {
-        stopSlideShow();
+        stopShow();
         gotoNext();
         return false;
     }
@@ -1414,7 +1421,7 @@ function keyPressed (e) {
          ||
          isKey(e, 112, "p")
        ) {
-        stopSlideShow();
+        stopShow();
         gotoPrev();
         return false;
     }
@@ -1423,28 +1430,28 @@ function keyPressed (e) {
          ||
          isKey(e, 117, "u")
        ) {
-        stopSlideShow();
+        stopShow();
         gotoPar();
         return false;
     }
 
     if ( isKey(e, 100, "d")
        ) {
-        stopSlideShow();
+        stopShow();
         gotoChild0();
         return false;
     }
 
     if ( isKey(e, 120, "x")
        ) {
-        stopSlideShow();
+        stopShow();
         stayHere();
         return false;
     }
 
     if ( isKey(e, 121, "y")
        ) {
-        stopSlideShow();
+        stopShow();
         toggleFitFill();
         return false;
     }
@@ -1461,12 +1468,12 @@ function keyPressed (e) {
     }
 
     if ( isKey(e, 115, "s") ) {
-        startStopSlideShow("thisColl");
+        startStopShow(setContColShow);
         return false;
     }
 
     if ( isKey(e,  83, "S") ) {
-        startStopSlideShow("allColls");
+        startStopShow(setContGlobShow);
         return false;
     }
 
@@ -1501,7 +1508,7 @@ function keyPressed (e) {
     }
 
     if ( isKey(e, 97, "a") ) {
-        stopSlideShow();
+        stopShow();
         togglePanoSlide();
         return false;
     }
@@ -1517,7 +1524,7 @@ function keyPressed (e) {
     }
 
     if ( isKey(e, 101, "e") ) {
-        stopSlideShow();
+        stopShow();
         openEdit();
         return false;
     }
@@ -1797,9 +1804,61 @@ function getJsonPage(url, processRes, processErr, processNext) {
 // ----------------------------------------
 // slideshow stuff
 
-var slideShow      = false;
+var showMode = "autoShow";
+
+function isManualShow()   { return showMode === "manualShow"; }
+function isAutoShow()     { return showMode === "autoShow"; }
+function isContColShow()  { return showMode === "contColShow"; }
+function isContGlobShow() { return showMode === "contGlobShow"; }
+function isContShow()     { return isContColShow() || isContGlobShow(); }
+
+function setManualShow()   { showMode = "manualShow"; }
+function setAutoShow()     { showMode = "autoShow"; }
+function setContColShow()  { showMode = "contColShow"; }
+function setContGlobShow() { showMode = "contGlobShow"; }
+
+function stopShow() {
+    trc(1, "stopShow");
+
+    if ( isContShow() ) {
+        setAutoShow();
+        clearSlideShowTimer();
+        showStatus("Automatischer Bildwechsel beendet");
+    }
+}
+
+function startShow(start) {
+    start = start || setContColShow;
+    start();
+    trc(1, "startShow");
+    showStatus("Automatischer Bildwechsel gestartet");
+    advanceSlideShow();
+}
+
+function startStopShow(start) {
+    if ( isContShow() ) {
+        stopShow();
+    }
+    else {
+        startShow(start);
+    }
+}
+
+function autoAdvanceShow() {
+    const res = isContShow() || autoContShow();
+    trc(1, "autoAdvanceShow: " + res);
+    return res;
+}
+
+// show metadata is set to advance after duration, not on click
+function autoContShow() {
+    const md = getSlideMeta();
+    const c  = md["Show:Continue"] || "onclick";  // default advance is onclick
+    trc(1, "autoContShow: " + c);
+    return c === "duration";
+}
+
 var slideShowTimer;
-var slideShowType  = "";
 
 const slideShowDefaultAcceleration = 1.0;
 const slideShowDefaultDuration     = 5.0;  // default: 5 sec
@@ -1842,12 +1901,12 @@ function nextReqLocal() {
 function advanceSlideShow() {
     trc(1, "advance SlideShow start");
     const req =
-          (slideShowType === "allColls")
+          isContGlobShow()
           ? nextReqGlobal()
           : nextReqLocal();
 
     if (! req) {
-        stopSlideShow();
+        stopShow();
         gotoPar();
     }
     else {
@@ -1858,38 +1917,6 @@ function advanceSlideShow() {
 
         // show slide
         showNextSlide(req);
-    }
-}
-
-function stopSlideShow() {
-    trc(1, "stopSlideShow");
-    if (slideShow) {
-        clearSlideShowTimer();
-        slideShow      = false;
-        slideShowType  = "";
-        showStatus("Automatischer Bildwechsel beendet");
-    }
-}
-
-function startSlideShow() {
-    trc(1, "startSlideShow");
-    if (! slideShow) {
-        slideShow = true;
-        showStatus("Automatischer Bildwechsel gestartet");
-        advanceSlideShow();
-    }
-}
-
-function startStopSlideShow(stype) {
-    slideShowType=stype;
-    toggleSlideShow();
-}
-
-function toggleSlideShow() {
-    if (slideShow) {
-        stopSlideShow();
-    } else {
-        startSlideShow();
     }
 }
 
@@ -2152,14 +2179,15 @@ function playSlideShow() {
         trc(1, "playSlideShow: start");
 
         function advance() {
+            trc(1,"playSlideShow: advance called");
             clearSlideShowTimer();
-            if ( slideShow ) {
+            if ( autoAdvanceShow() ) {
                 trc(1, "playSlideShow: advance");
                 advanceSlideShow();   // this is a global goto, no continueation is called
             }
         }
 
-        if ( slideShow ) {
+        if ( autoAdvanceShow() ) {
             setSlideShowTimer(advance);
         } else {
             k();
@@ -2573,7 +2601,7 @@ function addResize(resizeAlg) {
     function addHandler(i) {
 
         function resizeHandler(e) {
-            stopSlideShow();
+            stopShow();
 
             const pos = mkGeo(e.offsetX, e.offsetY);
             const off = screenOffsetToRelOffset(pos, cs.rect);
