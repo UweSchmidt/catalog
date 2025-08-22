@@ -1114,7 +1114,7 @@ function getSlideMeta(s) {
     if ( isColSlide(s) ) {
         return s.page.colDescr.eMeta;
     }
-    return s.page.img[2];
+    return s.page.img[2] || {};
 }
 
 function getSlideBlog(s) {
@@ -1870,9 +1870,41 @@ function slideDur() {
     let   t  = slideShowDefaultDuration;
     if (d) {
         t = d * 1;         // convert to number
-        if (!t) { t = slideShowDefaultDuration;}  // no conv: reset to defaoult
+        if ( !t ) { t = slideShowDefaultDuration;}  // no conv: reset to defaoult
     }
     return t * slideShowAcceleration;   // time scaled by acceleration (in sce)
+}
+
+function slideTransMode(s) {
+    s = s || cs;
+    const md = getSlideMeta(s);
+    let   tm = md["Show:Transition"] || "default";
+    const f  = ["default", "crossfade", "fadeinout", "cut"];
+    if ( f.indexOf(tm) < 0 ) { tm = "default"; }
+    return tm;
+}
+
+function getTrans() {
+    return  {
+        dur     : cs.trans.dur,                     // time of slide to be shown without fadein/out
+        fadeIn  : cs.trans.fadeIn  || 0,            // fadein from cs
+        fadeout : ls.trans.fadeOut || 0,            // fadeout and mode from ls
+        mode    : ls.trans.mode    || "default",
+    };
+}
+
+function slideFadeIn()  { return slideFade("FadeIn");  }
+function slideFadeOut() { return slideFade("FadeOut"); }
+
+function slideFade(fadeinout) {
+    const md = getSlideMeta();
+    const d  = md["Slide:" + fadeinout];
+    let   t  = defaultTransDur;
+    if (d) {
+        t = d * 1;  // convert to number
+        if ( !t ) { t  = defaultTransDur; }
+    }
+    return t;
 }
 
 function setSlideShowTimer(f) {
@@ -2210,9 +2242,14 @@ var cs = { url         : "",
            screenGeo   : {},
            zoomPos     : {},
            zoomDur     : 1000,
+           trans       : { dur     : 0,
+                           fadeIn  : 0,
+                           fadeOut : 0,
+                           mode    : "default",
+                         },
          };
 
-var ls = {};
+var ls = { };
 
 var defaultAlg    = "fitsinto";
 var defaultCutoff = 0.17;
@@ -2242,6 +2279,12 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                    slideReq    : req,
                    screenGeo   : screenGeo(),
                  };
+            cs.trans = {
+                dur     : slideDur(),
+                fadeIn  : slideFadeIn(),
+                fadeOut : slideFadeOut(),
+                mode    : slideTransMode(),
+            };
             cs.screen = mkRect(cs.screenGeo, nullGeo);
 
             if ( isMediaSlide() ) {
