@@ -749,9 +749,9 @@ function speedUpTransAnim() {
 
 function showAnimDur() {
     const msg = "Animation bei Bildwechsel "
-          + (defaultTransDur === 0
-             ? "aus"
-             : defaultTransDur + " sec."
+          + ( defaultTransDur === 0
+              ? "aus"
+              : defaultTransDur + " sec."
             );
     showStatus(msg);
 }
@@ -1872,25 +1872,38 @@ function slideDur() {
         t = d * 1;         // convert to number
         if ( !t ) { t = slideShowDefaultDuration;}  // no conv: reset to defaoult
     }
-    return t * slideShowAcceleration;   // time scaled by acceleration (in sce)
+    return Math.round(t * slideShowAcceleration * 1000);   // time scaled by acceleration (in msce)
 }
 
 function slideTransMode(s) {
     s = s || cs;
     const md = getSlideMeta(s);
     let   tm = md["Show:Transition"] || "default";
-    const f  = ["default", "crossfade", "fadeinout", "cut"];
+    const f  = [ "default",
+                 "crossfade",
+                 "fadeoutin",
+                 "cut"
+               ];
     if ( f.indexOf(tm) < 0 ) { tm = "default"; }
     return tm;
 }
 
 function getTrans() {
-    return  {
+    let res = {
         dur     : cs.trans.dur,                     // time of slide to be shown without fadein/out
         fadeIn  : cs.trans.fadeIn  || 0,            // fadein from cs
-        fadeout : ls.trans.fadeOut || 0,            // fadeout and mode from ls
+        fadeOut : ls.trans.fadeOut || 0,            // fadeout and mode from ls
         mode    : ls.trans.mode    || "default",
     };
+
+    if ( res.mode === "cut" ) {                     // simulate "cut" with "fadeoutin"
+        // res.fadeIn = 0;                          // remove // ???
+        res.fadeOut = 0;
+        res.mode    = "fadeinout";
+    };
+
+    // res === "default" || res === "fadeoutin" || res === crossfade
+    return res;
 }
 
 function slideFadeIn()  { return slideFade("FadeIn");  }
@@ -1904,11 +1917,11 @@ function slideFade(fadeinout) {
         t = d * 1;  // convert to number
         if ( !t ) { t  = defaultTransDur; }
     }
-    return t;
+    return Math.round(t * 1000);   // time in msec
 }
 
 function setSlideShowTimer(f) {
-    const msec = 1000 * slideDur();
+    const msec = cs.trans.dur; // slideDur();
     trc(1, "setSlideShowTimer: install timer, msec = " + msec);
     clearTimeout(slideShowTimer);
     slideShowTimer = setTimeout(f, msec);
@@ -2043,6 +2056,7 @@ function toggleAudio() { runC(toggleOverlay(audioDescr)); }
 // animation construction
 
 function fade(start, end, ease) {
+
     function doit(dur) {
         const kf = [
             { opacity: start },
@@ -2238,7 +2252,6 @@ var cs = { url         : "",
            slideType   : "",
            slideReq    : {},
            resizeAlg   : "",
-           transDur    : 0,
            screenGeo   : {},
            zoomPos     : {},
            zoomDur     : 1000,
@@ -2274,7 +2287,6 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                    imgId       : nextimg[ls.imgId],
                    slideType   : "",
                    resizeAlg   : checkResizeAlg(resizeAlg),  // set a decent default resize alg
-                   transDur    : defaultTransDur * 1000,     // transition dur in msec
                    slideType   : req.rType,
                    slideReq    : req,
                    screenGeo   : screenGeo(),
@@ -2455,7 +2467,7 @@ function buildMovieSlide() {
             v2.src    = url;
             e.appendChild(v2);
         }
-        animTransMedia(cs.transDur)(k);
+        animTransMedia(getTrans())(k);
     }
     return doit;
 }
@@ -2478,7 +2490,7 @@ function buildBlogSlide() {
         b.innerHTML = txt;
         e.appendChild(b);
 
-        animTransBlog(cs.transDur)(k);
+        animTransBlog(getTrans())(k);
     }
     return doit;
 }
@@ -2504,7 +2516,7 @@ function buildCollectionSlide() {
         const c = buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, colBlog);
         e.appendChild(c);
         allImagesLoaded(c)(() => {
-            animTransCollection(cs.transDur)(k);
+            animTransCollection(getTrans())(k);
         });
     }
     return doit;
@@ -2633,7 +2645,7 @@ function addMoveScale(addHandler) {
             animTransZoom(a)(k);
         }
         else {
-            animTransMedia(cs.transDur)(k); // img displayed the 1. time
+            animTransMedia(getTrans())(k); // img displayed the 1. time
         }
     };
     return doit;
@@ -2683,7 +2695,7 @@ function addPanoramaImg() {
         const a      = panorama(tr)(dur);
 
         addImgToDom(style, style2, () => {});
-        animTransPanorama(a, cs.transDur)(k);
+        animTransPanorama(a, getTrans())(k);
     }
     return doit;
 }
@@ -2777,16 +2789,34 @@ function transCrossFade(aout, ain) {
 //
 // transition to a collection (cs.slideType === "json")
 
-function animTransCollection(dur) {
+function animTransCollection(trans) {
 
     function doit(k) {
-        var tr = animCurrent(fadein(dur));    // initial transition
+        const fi = fadein (trans.fadeIn);
+        const fo = fadeout(trans.fadeOut);
+        const mo = trans.mode;
+        var   tr;
 
-        if ( isColSlide(ls) ) {
-            tr = transCrossFade(fadeout(dur), fadein(dur));
+        if ( mo === "crossfade"
+             ||
+             ( mo === "default"
+               &&
+               isColSlide(ls)               // last slide was a collection
+             )
+           ) {
+            tr = transCrossFade(fo, fi);
         }
-        else if ( isSlide(ls) ) {
-            tr = transFadeOutIn(fadeout(dur), fadein(dur));
+        else if ( mo === "fadeoutin"
+                  ||
+                  ( mo === "default"
+                    &&
+                    isSlide(ls)             // last slide is an img/movie/blog
+                  )
+                ) {
+            tr = transFadeOutIn(fo, fi);
+        }
+        else {
+            tr = animCurrent(fi);         // initial transition
         }
         tr(k);
     }
@@ -2795,23 +2825,37 @@ function animTransCollection(dur) {
 
 // transition to image or movie
 
-function animTransMedia(dur) {
+function animTransMedia(trans) {
 
     function doit(k) {
-        // trc(1, "animTransMedia: dur=" + dur);
-        var tr = transCrossFade(fadeout(dur), fadein(dur));  // img -> img
+        const fi  = fadein  (trans.fadeIn);
+        const fo  = fadeout (trans.fadeOut);
+        const fi1 = fadein1 (trans.fadeIn);
+        const fo1 = fadeout1(trans.fadeOut);
+        const mo  = trans.mode;
+        var   tr;
 
-        if ( isMediaSlide(ls) ) {
+        if ( mo === "crossfade"
+             ||
+             ( mo === "default"
+               &&
+               isMediaSlide(ls)            // default for img -> img: crossfade
+             )
+           ) {
             if ( similarGeoOnScreen() ) {
-                // similar image geometies
-                // smoother crossfade
+                // similar image geometies: smoother crossfade
 
                 trc(1, "animTransMedia: smoother transition");
-                tr = transCrossFade(fadeout1(dur), fadein1(dur));
+                tr = transCrossFade(fo1, fi1);
+            } else {
+                tr = transCrossFade(fo, fi);
             }
         }
-        else {
-            tr = transCrossFade(fadeout(dur), fadein(dur));
+        else if ( mo === "fadeoutin" ) {
+            tr = transFadeOutIn(fo, fi);
+        }
+        else { // default
+            tr = transCrossFade(fo, fi);
         }
         tr(k);
     }
@@ -2837,10 +2881,13 @@ function animTransZoom(zoomAnim) {
     return doit;
 }
 
-function animTransPanorama(panoAnim, dur) {
+function animTransPanorama(panoAnim, trans) {
 
     function doit(k) {
-        const tr1 = transCrossFade(fadeout(dur), fadein(dur));
+        const fi  = fadein  (trans.fadeIn);
+        const fo  = fadeout (trans.fadeIn);
+
+        const tr1 = transCrossFade(fo, fi);
         const tr2 = animCurrentImg(panoAnim);
         comp(tr1, tr2)(k);
     }
@@ -2849,10 +2896,21 @@ function animTransPanorama(panoAnim, dur) {
 
 // transition to blog entry
 
-function animTransBlog(dur) {
+function animTransBlog(trans) {
 
     function doit(k) {
-        const tr = transFadeOutIn(fadeout(dur), fadein(dur));  // col/blog -> img
+        const fi  = fadein  (trans.fadeIn);
+        const fo  = fadeout (trans.fadeOut);
+        const mo  = trans.mode;
+        var   tr;
+
+        if ( mo === "crossfade" ) {
+            tr = transCrossFade(fo, fi);
+        }
+        else {
+            tr = transFadeOutIn(fo, fi);  // col/blog -> img
+        }
+
         tr(k);
     }
     return doit;
