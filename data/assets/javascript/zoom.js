@@ -1181,7 +1181,7 @@ function stayHere() {
 
 // call catalog edit
 function openEdit() {
-    const pPos  = cs.slideReq.pPos;
+    const pPos  = cs.slideReq.rPathPos;
     openEditPage(pPos[0], pPos[1]);
 }
 
@@ -2168,7 +2168,7 @@ function panorama(tr) {
 
 // run an animation a on element e and continue with k
 
-function anim(a) {
+function anim(a, storeA) {
 
     function doit(e, k) {
         trc(1, `anim start: id=${e.id}: a=${JSON.stringify(a)}`);
@@ -2176,10 +2176,14 @@ function anim(a) {
         var animation;
 
         function k1() {
-            trc(1, `anim end: id=${e.id}`);
+            trc(1, `anim end: id=${e.id} state=${animation.playState}`);
 
             // Commit animation state to style attribute
-            animation.commitStyles();
+            try {
+                animation.commitStyles();
+            } catch (err) {
+                console.log("animation.comitStyles: " + err);
+            }
 
             // Cancel the animation
             animation.cancel();
@@ -2192,7 +2196,18 @@ function anim(a) {
         trc(1, "start anim");
         animation = e.animate(a.keyFrames, a.timing);
         trc(1, "anim started");
-        animation.onfinish = k1;
+
+        // save anim obj in ls/cs
+        storeA(animation);
+
+        // set finished handler
+        // old: animation.onfinish = k1;
+
+        // new: set finished promise
+        animation
+            .finished
+            .then(k1)     // animation has finished
+            .catch(k1);   // animation is canceled
     };
     return doit;
 }
@@ -2260,9 +2275,19 @@ var cs = { url         : "",
                            fadeOut : 0,
                            mode    : "default",
                          },
+           anim        : { fadeIn  : null,   // the fadeIn  anim object
+                           fadeOut : null,   //  "  fadeOut   "    "
+                           show    : null,   //  "  show      "    "
+                         },
          };
 
 var ls = { };
+
+// animation object setter
+const setFadeInAnim  = (anim) => { cs.anim.fadeIn  = anim; };
+const setFadeOutAnim = (anim) => { ls.anim.fadeOut = anim; };
+const setShowAnim    = (anim) => { cs.anim.show    = anim; };
+
 
 var defaultAlg    = "fitsinto";
 var defaultCutoff = 0.17;
@@ -2296,6 +2321,11 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                 fadeIn  : slideFadeIn(),
                 fadeOut : slideFadeOut(),
                 mode    : slideTransMode(),
+            };
+            cs.anim = {
+                fadeIn  : null,
+                fadeOut : null,
+                show    : null,
             };
             cs.screen = mkRect(cs.screenGeo, nullGeo);
 
@@ -2720,8 +2750,10 @@ function addImgToDom(style, style2, addHandler) {
 function animElement2( getE,     // element getter fct
                        a,        // animation
                        doS,      // configure elem before anim start
-                       doE       // configure elem after anim has finished
+                       doE,      // configure elem after anim has finished
+                       storeA    // store the animation obj in cs/ls
                      ) {
+    storeA = storeA || ((a1) => {});
 
     function doit(k) {
         const e = getE();
@@ -2734,7 +2766,7 @@ function animElement2( getE,     // element getter fct
                 k();
             }
 
-            anim(a)(e, k1);
+            anim(a, storeA)(e, k1);
         }
         else {
             trc(1, "animElement2: no element found");
@@ -2744,23 +2776,36 @@ function animElement2( getE,     // element getter fct
     return doit;
 }
 
-function animElement1(getE, a, cssS, cssE) {
-    return animElement2(getE, a,
-                        (e) => { setCSS(e, cssS); },
-                        (e) => { setCSS(e, cssE); }
+function animElement1(getE, a, cssS, cssE, storeA) {
+    return animElement2( getE,
+                         a,
+                         (e) => { setCSS(e, cssS); },
+                         (e) => { setCSS(e, cssE); },
+                         storeA,
                        );
 }
 
-function animElement(getE, a) {
-    return animElement1(getE, a, { display: "block" }, {});
+function animElement(getE, a, storeA) {
+    return animElement1( getE,
+                         a,
+                         { display: "block" },
+                         {},
+                         storeA,
+                       );
 }
 
 function animCurrent(a) {
-    return animElement( () => { return getElem(cs.imgId); }, a);
+    return animElement( () => { return getElem(cs.imgId); },
+                        a,
+                        setFadeInAnim
+                      );
 }
 
 function animCurrentImg(a) {
-    return animElement( () => { return getElem(mkImgId(cs.imgId)); }, a );
+    return animElement( () => { return getElem(mkImgId(cs.imgId)); },
+                        a,
+                        setFadeInAnim
+                      );
 }
 
 // run an animation to hide last slide element and cleanup element
@@ -2769,7 +2814,8 @@ function animLast(a) {
     return animElement2( ()  => { return getElem(ls.imgId) || null; },   // get elem of last pic
                          a,
                          (e) => { setCSS(e, { "z-index": -1 }); },       // push it down the render stack
-                         (e) => { clearDomElem(e); }                     // throw it away
+                         (e) => { clearDomElem(e); },                    // throw it away
+                         setFadeOutAnim
                        );
 }
 
