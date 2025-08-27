@@ -710,6 +710,9 @@ function getCurrImgElem() {
 // with same tagName and same id
 
 function clearDomElem(e) {
+    if ( e === null ) {
+        return null;
+    }
     if ( typeof e === "string" ) {
         return clearDomElem(getElem(e));
     } else {
@@ -2188,6 +2191,9 @@ function anim(a, storeA) {
             // Cancel the animation
             animation.cancel();
 
+            // remove anim object from ls/cs
+            storeA(null);
+
             // trc(1, "continuation called");
             k();
         }
@@ -2811,10 +2817,12 @@ function animCurrentImg(a) {
 // run an animation to hide last slide element and cleanup element
 
 function animLast(a) {
+    const getE = ()  => { return getElem(ls.imgId) || null; };
+
     return animElement2( ()  => { return getElem(ls.imgId) || null; },   // get elem of last pic
                          a,
                          (e) => { setCSS(e, { "z-index": -1 }); },       // push it down the render stack
-                         (e) => { clearDomElem(e); },                    // throw it away
+                         (e) => { clearDomElem(getE()); },               // throw it away
                          setFadeOutAnim
                        );
 }
