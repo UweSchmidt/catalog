@@ -713,27 +713,19 @@ function clearDomElem(e) {
     if ( e === null ) {
         return null;
     }
+
     if ( typeof e === "string" ) {
         return clearDomElem(getElem(e));
-    } else {
-        const id = e.id;
-        const tn = e.tagName;
-        const p  = e.parentElement;
-        cancelAnims(e);
-        e.remove();
-
-        const ne = newElem(tn, id, {}, "hiddenImage");
-        p.insertBefore(ne, p.children[0]);
-        return ne;
     }
-}
 
-function cancelAnims(e) {
-    const as = e.getAnimations({ subtree: true });
-    as.forEach((a) => {
-        trc(1, "animation canceled");
-        a.cancel();
-    });
+    const id = e.id;
+    const tn = e.tagName;
+    const p  = e.parentElement;
+    e.remove();
+
+    const ne = newElem(tn, id, {}, "hiddenImage");
+    p.insertBefore(ne, p.children[0]);
+    return ne;
 }
 
 // ----------------------------------------
@@ -1822,7 +1814,7 @@ function setContGlobShow() { showMode = "contGlobShow"; }
 
 function stopShow() {
     trc(1, "stopShow");
-    clearAnims();        // cancel all running animations
+    clearMediaAnims();        // cancel all running animations
 
     if ( isContShow() ) {
         setAutoShow();
@@ -2013,7 +2005,9 @@ function showStatus(msg, dur) {
         function getStatus() { return se; }
 
         runC(compl([ toggleOverlay(statusDescr),
-                     animElement(getStatus, noAnim8(dur)),
+                     animElement(getStatus,
+                                 noAnim8(dur),
+                                 setAnim(statusDescr.id)),
                      toggleOverlay(statusDescr),
                    ])
             );
@@ -2024,7 +2018,7 @@ function toggleOverlay(o) {
 
     function doit(k) {
         const ie = getElem(o.id);
-        cancelAnims(ie);
+        clearAnim(o.id);
 
         function getO() { return ie; }
 
@@ -2042,8 +2036,7 @@ function toggleOverlay(o) {
 
         o.visible = ! o.visible;
 
-        animElement1(getO, a, css1, css2)(k);
-
+        animElement1(getO, a, css1, css2, setAnim(o.id))(k);
     }
     return doit;
 }
@@ -2288,22 +2281,42 @@ var cs = { url         : "",
 
 var ls = { };
 
+// animation store, used to cancel animations when stopping show
+
+var animations = {
+    fadeIn  : null,   // the fadeIn  anim object
+    fadeOut : null,   //  "  fadeOut   "    "
+    show    : null,   //  "  show      "    "
+    info    : null,
+    help    : null,
+    status  : null,
+};
+
 // animation object setter
-const setFadeInAnim  = (anim) => { cs.anim.fadeIn  = anim; };
-const setFadeOutAnim = (anim) => { cs.anim.fadeOut = anim; };
-const setShowAnim    = (anim) => { cs.anim.show    = anim; };
 
-function clearAnims() {
-    trc(1, "clearAnims");
+const setFadeInAnim  = setAnim("fadeIn");
+const setFadeOutAnim = setAnim("fadeOut");
+const setShowAnim    = setAnim("show");
 
-    for (let ix of ["fadeIn", "fadeOut", "show"]) {
-        const a = cs.anim[ix];
-        if ( a ) {
-            trc(1, "clearAnims: cs.anim." + ix);
-            a.cancel();  // trigger error calback in finished promise
-        }
+function setAnim(sel) {
+    return (anim) => {
+        trc(1, "setAnim: animations[" + sel + "] = " + anim);
+        animations[sel] = anim;
+    };
+}
+
+function clearAnim(sel) {
+    const a = animations[sel];
+    if ( a ) {
+        trc(1, "clearAnims: cancel animations." + sel);
+        a.cancel();  // trigger error calback in finished promise
     }
 }
+
+const mediaAnims = ["fadeIn", "fadeOut", "show"];
+function clearMediaAnims() { clearAnims(mediaAnims); }
+
+function clearAnims(anims) { anims.map(clearAnim); }
 
 var defaultAlg    = "fitsinto";
 var defaultCutoff = 0.17;
@@ -2337,11 +2350,6 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                 fadeIn  : slideFadeIn(),
                 fadeOut : slideFadeOut(),
                 mode    : slideTransMode(),
-            };
-            cs.anim = {
-                fadeIn  : null,
-                fadeOut : null,
-                show    : null,
             };
             cs.screen = mkRect(cs.screenGeo, nullGeo);
 
