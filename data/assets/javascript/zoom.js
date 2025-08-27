@@ -1822,6 +1822,7 @@ function setContGlobShow() { showMode = "contGlobShow"; }
 
 function stopShow() {
     trc(1, "stopShow");
+    clearAnims();        // cancel all running animations
 
     if ( isContShow() ) {
         setAutoShow();
@@ -2178,7 +2179,7 @@ function anim(a, storeA) {
 
         var animation;
 
-        function k1() {
+        function cleanupAnim() {
             trc(1, `anim end: id=${e.id} state=${animation.playState}`);
 
             // Commit animation state to style attribute
@@ -2193,8 +2194,10 @@ function anim(a, storeA) {
 
             // remove anim object from ls/cs
             storeA(null);
+        }
 
-            // trc(1, "continuation called");
+        function k1() {
+            cleanupAnim();
             k();
         }
 
@@ -2206,14 +2209,10 @@ function anim(a, storeA) {
         // save anim obj in ls/cs
         storeA(animation);
 
-        // set finished handler
-        // old: animation.onfinish = k1;
-
         // new: set finished promise
         animation
             .finished
-            .then(k1)     // animation has finished
-            .catch(k1);   // animation is canceled
+            .then(k1, cleanupAnim);
     };
     return doit;
 }
@@ -2291,9 +2290,20 @@ var ls = { };
 
 // animation object setter
 const setFadeInAnim  = (anim) => { cs.anim.fadeIn  = anim; };
-const setFadeOutAnim = (anim) => { ls.anim.fadeOut = anim; };
+const setFadeOutAnim = (anim) => { cs.anim.fadeOut = anim; };
 const setShowAnim    = (anim) => { cs.anim.show    = anim; };
 
+function clearAnims() {
+    trc(1, "clearAnims");
+
+    for (let ix of ["fadeIn", "fadeOut", "show"]) {
+        const a = cs.anim[ix];
+        if ( a ) {
+            trc(1, "clearAnims: cs.anim." + ix);
+            a.cancel();  // trigger error calback in finished promise
+        }
+    }
+}
 
 var defaultAlg    = "fitsinto";
 var defaultCutoff = 0.17;
