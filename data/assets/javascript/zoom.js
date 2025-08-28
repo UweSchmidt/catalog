@@ -1818,7 +1818,6 @@ function stopShow() {
 
     if ( isContShow() ) {
         setAutoShow();
-        clearSlideShowTimer();
         showStatus("Automatischer Bildwechsel beendet");
     }
 }
@@ -1853,8 +1852,6 @@ function autoContShow() {
     trc(1, "autoContShow: " + c);
     return c === "duration";
 }
-
-var slideShowTimer;
 
 const slideShowDefaultAcceleration = 1.0;
 const slideShowDefaultDuration     = 5.0;  // default: 5 sec
@@ -1916,19 +1913,6 @@ function slideFade(fadeinout) {
     return Math.round(t * 1000);   // time in msec
 }
 
-function setSlideShowTimer(f) {
-    const msec = cs.trans.dur; // slideDur();
-    trc(1, "setSlideShowTimer: install timer, msec = " + msec);
-    clearTimeout(slideShowTimer);
-    slideShowTimer = setTimeout(f, msec);
-}
-
-function clearSlideShowTimer() {
-    trc(1, "slideShowTimer cleared");
-    clearTimeout(slideShowTimer);
-    slideShowTimer = undefined;
-}
-
 function nextReqGlobal() {
     return getNavReq("fwrd");
 }
@@ -1951,12 +1935,6 @@ function advanceSlideShow() {
         gotoPar();
     }
     else {
-        // install timer
-        // const msec = 1000 * slideDur();   // convert duration to milliseconds
-        // slideShowTimer = setTimeout(advanceSlideShow, msec);
-        // trc(1, "advanceSlideShow timer set msec: " + msec + " (" + slideShowType + ")");
-
-        // show slide
         showNextSlide(req);
     }
 }
@@ -2239,15 +2217,22 @@ function playSlideShow() {
 
         function advance() {
             trc(1,"playSlideShow: advance called");
-            clearSlideShowTimer();
             if ( autoAdvanceShow() ) {
                 trc(1, "playSlideShow: advance");
                 advanceSlideShow();   // this is a global goto, no continueation is called
+            } else {
+                k();
             }
         }
 
         if ( autoAdvanceShow() ) {
-            setSlideShowTimer(advance);
+            const a = noAnim(cs.trans.dur);
+            animElement2( () => getElem(cs.imgId),
+                          a,
+                          (e) => {},
+                          (e) => {},
+                          setShowAnim
+                        )(advance);
         } else {
             k();
         }
