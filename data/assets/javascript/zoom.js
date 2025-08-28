@@ -1397,12 +1397,13 @@ function keyPressed (e) {
     if ( isKey(e, 32, " ")
        ) {
         stopShow();
-        goForward();
+        setAutoShow();
+        advanceSlideShow();
         return false;
     }
 
-    if ( isKey(e, 32, " ")
-         ||
+    if ( // isKey(e, 32, " ")
+         // ||
          isKey(e, 62, ">")
          ||
          isKey(e, 110, "n")
@@ -1799,12 +1800,12 @@ function getJsonPage(url, processRes, processErr, processNext) {
 // ----------------------------------------
 // slideshow stuff
 
-var showMode = "autoShow";
+var showMode = "manualShow";
 
-function isManualShow()   { return showMode === "manualShow"; }
-function isAutoShow()     { return showMode === "autoShow"; }
-function isContColShow()  { return showMode === "contColShow"; }
-function isContGlobShow() { return showMode === "contGlobShow"; }
+function isManualShow()   { return showMode === "manualShow"; }           // advance by key press
+function isAutoShow()     { return showMode === "autoShow"; }             // advance by metadata of curr pic
+function isContColShow()  { return showMode === "contColShow"; }          // advance through whole collection
+function isContGlobShow() { return showMode === "contGlobShow"; }         // advanve through all collections
 function isContShow()     { return isContColShow() || isContGlobShow(); }
 
 function setManualShow()   { showMode = "manualShow"; }
@@ -1813,20 +1814,24 @@ function setContColShow()  { showMode = "contColShow"; }
 function setContGlobShow() { showMode = "contGlobShow"; }
 
 function stopShow() {
-    trc(1, "stopShow");
+    // trc(1, "stopShow: old: " + showMode);
     clearMediaAnims();        // cancel all running animations
 
     if ( isContShow() ) {
-        setAutoShow();
         showStatus("Automatischer Bildwechsel beendet");
     }
+    setManualShow();
+    // trc(1, "stopShow: new: " + showMode);
 }
 
 function startShow(start) {
-    start = start || setContColShow;
+    // trc(1, "startShow");
+
+    start = start || setAutoShow;
     start();
-    trc(1, "startShow");
-    showStatus("Automatischer Bildwechsel gestartet");
+    if ( isContShow() ) {
+        showStatus("Automatischer Bildwechsel gestartet");
+    }
     advanceSlideShow();
 }
 
@@ -1840,12 +1845,19 @@ function startStopShow(start) {
 }
 
 function autoAdvanceShow() {
-    const res = isContShow() || autoContShow();
+    const res =
+          isContShow()      // show whole collection
+          ||
+          ( isAutoShow()    // advance slides by looking into metadata
+            &&
+            autoContShow()
+          );
     trc(1, "autoAdvanceShow: " + res);
     return res;
 }
 
 // show metadata is set to advance after duration, not on click
+
 function autoContShow() {
     const md = getSlideMeta();
     const c  = md["Show:Continue"] || "onclick";  // default advance is onclick
@@ -2157,7 +2169,7 @@ function anim(a, storeA) {
             try {
                 animation.commitStyles();
             } catch (err) {
-                console.log("animation.comitStyles: " + err);
+                trc(1, "animation.commitStyles: " + err);
             }
 
             // Cancel the animation
@@ -2180,7 +2192,7 @@ function anim(a, storeA) {
         // save anim obj in ls/cs
         storeA(animation);
 
-        // new: set finished promise
+        // set finished promise
         animation
             .finished
             .then(k1, cleanupAnim);
@@ -2226,7 +2238,7 @@ function playSlideShow() {
         }
 
         if ( autoAdvanceShow() ) {
-            const a = noAnim(cs.trans.dur);
+            const a = noAnim(cs.trans.dur);   // noop animation for simulating delay
             animElement2( () => getElem(cs.imgId),
                           a,
                           (e) => {},
