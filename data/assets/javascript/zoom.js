@@ -1887,16 +1887,25 @@ function slideDur() {
     return Math.round(t * slideShowAcceleration * 1000);   // time scaled by acceleration (in msce)
 }
 
+// ----------------------------------------
+//
+// slideshow transition modes
+
+const TransModes = {
+    default   : 'default',
+    crossfade : 'crossfade',
+    fadeoutin : 'fadeoutin',
+    cut       : 'cut',
+};
+
 function slideTransMode(s) {
     s = s || cs;
     const md = getSlideMeta(s);
-    let   tm = md["Show:Transition"] || "default";
-    const f  = [ "default",
-                 "crossfade",
-                 "fadeoutin",
-                 "cut"
-               ];
-    if ( f.indexOf(tm) < 0 ) { tm = "default"; }
+    let   tm = md["Show:Transition"] || TransModes.default;
+
+    if ( ! TransModes.hasOwnProperty(tm) ) {
+        tm = TransModes.default;
+    }
     return tm;
 }
 
@@ -1905,25 +1914,23 @@ function getTrans() {
         dur     : cs.trans.dur,                     // time of slide to be shown without fadein/out
         fadeIn  : cs.trans.fadeIn  || 0,            // fadein from cs
         fadeOut : ls.trans.fadeOut || 0,            // fadeout and mode from ls
-        mode    : ls.trans.mode    || "default",
+        mode    : ls.trans.mode    || TransModes.default,
     };
 
-    if ( res.mode === "cut" ) {                     // simulate "cut" with "fadeoutin"
-        // res.fadeIn = 0;                          // remove // ???
+    if ( res.mode === TransModes.cut ) {            // simulate "cut" with "fadeoutin"
         res.fadeOut = 0;
-        res.mode    = "fadeinout";
+        res.mode    = TransModes.fadeoutin;
     };
 
-    // res === "default" || res === "fadeoutin" || res === crossfade
     return res;
 }
 
-function slideFadeIn()  { return slideFade("FadeIn");  }
-function slideFadeOut() { return slideFade("FadeOut"); }
+function slideFadeInDur()  { return slideFadeDur("FadeIn");  }
+function slideFadeOutDur() { return slideFadeDur("FadeOut"); }
 
-function slideFade(fadeinout) {
+function slideFadeDur(fadeinout) {
     const md = getSlideMeta();
-    const d  = md["Slide:" + fadeinout];
+    const d  = md["Show:" + fadeinout];
     let   t  = defaultTransDur;
     if (d) {
         t = d * 1;  // convert to number
@@ -1931,6 +1938,10 @@ function slideFade(fadeinout) {
     }
     return Math.round(t * 1000);   // time in msec
 }
+
+// ----------------------------------------
+//
+// advance slideshow
 
 function nextReqGlobal() {
     return getNavReq("fwrd");
@@ -2351,8 +2362,8 @@ function gotoSlide(url, resizeAlg, zoomPos) {
                  };
             cs.trans = {
                 dur     : slideDur(),
-                fadeIn  : slideFadeIn(),
-                fadeOut : slideFadeOut(),
+                fadeIn  : slideFadeInDur(),
+                fadeOut : slideFadeOutDur(),
                 mode    : slideTransMode(),
             };
             cs.screen = mkRect(cs.screenGeo, nullGeo);
