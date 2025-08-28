@@ -1798,35 +1798,38 @@ function getJsonPage(url, processRes, processErr, processNext) {
 }
 
 // ----------------------------------------
-// slideshow stuff
+//
+// show mode stuff
 
-var showMode = "manualShow";
+const ShowModes = {
+    manual   : 'manual',       // advance by key press
+    auto     : 'auto',         // advance by metadata of curr pic
+    contCol  : 'contCol',      // advance through whole collection
+    contGlob : 'contGlob'      // advanve through all collections
+};
 
-function isManualShow()   { return showMode === "manualShow"; }           // advance by key press
-function isAutoShow()     { return showMode === "autoShow"; }             // advance by metadata of curr pic
-function isContColShow()  { return showMode === "contColShow"; }          // advance through whole collection
-function isContGlobShow() { return showMode === "contGlobShow"; }         // advanve through all collections
+var showMode = ShowModes.manual;
+
+function isManualShow()   { return showMode === ShowModes.manual; }
+function isAutoShow()     { return showMode === ShowModes.auto; }
+function isContColShow()  { return showMode === ShowModes.contCol; }
+function isContGlobShow() { return showMode === ShowModes.contGlob; }
 function isContShow()     { return isContColShow() || isContGlobShow(); }
 
-function setManualShow()   { showMode = "manualShow"; }
-function setAutoShow()     { showMode = "autoShow"; }
-function setContColShow()  { showMode = "contColShow"; }
-function setContGlobShow() { showMode = "contGlobShow"; }
+function setManualShow()   { showMode = ShowModes.manual; }
+function setAutoShow()     { showMode = ShowModes.auto; }
+function setContColShow()  { showMode = ShowModes.contCol; }
+function setContGlobShow() { showMode = ShowModes.contGlob; }
 
 function stopShow() {
-    // trc(1, "stopShow: old: " + showMode);
     clearMediaAnims();        // cancel all running animations
-
     if ( isContShow() ) {
         showStatus("Automatischer Bildwechsel beendet");
     }
     setManualShow();
-    // trc(1, "stopShow: new: " + showMode);
 }
 
 function startShow(start) {
-    // trc(1, "startShow");
-
     start = start || setAutoShow;
     start();
     if ( isContShow() ) {
@@ -1864,6 +1867,10 @@ function autoContShow() {
     trc(1, "autoContShow: " + c);
     return c === "duration";
 }
+
+// ----------------------------------------
+//
+// slide show acceleration
 
 const slideShowDefaultAcceleration = 1.0;
 const slideShowDefaultDuration     = 5.0;  // default: 5 sec
