@@ -126,7 +126,7 @@ const isOff = isGeo;
 
 function mkRect(geo, off) {
     return { geo: geo,
-             off: off
+             off: off || nullGeo,
            };
 }
 
@@ -134,6 +134,14 @@ function isRect(r) {
     return (typeof r === "object")
         && r.hasOwnProperty("geo")
         && r.hasOwnProperty("off");
+}
+
+function showRect(r) {
+    return showGeo(r.geo) + showOff(r.off.w) + showOff(r.off.h);
+}
+
+function showOff(x) {
+    return ( x >= 0 ? "+" : "") + x;
 }
 
 // --------------------
@@ -251,6 +259,415 @@ function isOrgGeo(geo) {
     return showGeo(geo) === "org";
 }
 
+// ----------------------------------------
+//
+// "datatypes" for image geometry, display and animation
+
+const ImgSize = {
+    small  : 'small',
+    medium : 'medium',
+    large  : 'large',
+
+    build : (screen, img) => {
+        if ( ltGeo(img, screen) ) {
+            return ImgSize.small;        // image fits into screen
+        }
+        if ( leGeo(screen, img) ) {
+            return ImgSize.large;        // image fills whole screen
+        }
+        return ImgSize.medium;           // no fit, no fill
+    },
+};
+
+const Aspect = {
+    square    : 'square',
+    landscape : 'landscape',
+    portrait  : 'portrait',
+
+    build : (geo) => {
+        const ar = aspectRatio(geo);
+        if ( ar > 1 ) {
+            return  Aspect.landscape;
+        }
+        if ( ar < 1 ) {
+            return Aspect.portrait;
+        }
+        return Aspect.square;
+    },
+};
+
+const Pano = {
+    noPano     : 'noPano',
+    horizontal : 'horizontal',
+    vertical   : 'vertical',
+
+    build : (geo) => {
+        const ar = aspectRatio(geo);
+        if ( ar > 2 ) {
+            return Pano.horizontal;
+        }
+        if ( ar < 0.5 ) {
+            return Pano.vertical;
+        }
+        return Pano.noPano;
+    },
+};
+
+const Dir = {
+    center : 'center',       // align image
+    top    : 'top',
+    bottom : 'bottom',
+    left   : 'left',
+    right  : 'right',
+};
+
+
+const Display = {
+    noAnim   : "NoAnim",         // display unanimated image
+    withAnim : "WithAnim",       // move and scale animation
+
+    NoAnim   : (pl) => {
+        return { name  : Display.noAnim,
+                 place : pl,
+               };
+    },
+
+    WithAnim : (ms) => {
+        return { name      : Display.withAnim,
+                 moveScale : ms,
+               };
+    },
+};
+
+const Place = {
+    // algorithm descr to place an image onto screen
+
+    // constructor names
+    fill     : 'Fill',       // fill the whole stage
+    fitsInto : 'FitsInto',   // show the whole image
+    align    : 'Align',      // align image: center, top, ...
+    scale    : 'Scale',      // scale image
+    move     : 'Move',       // shift image on stage
+    zoom     : 'Zoom',       // zoom image to 1-1 resolution
+    last     : 'Last',       // geometry from last shown image
+    id       : 'Id',
+    seq      : 'Seq',        // apply 2 algorithms sequentially
+
+    // constructor functions
+    Fill     : () => {
+        return { name : Place.fill
+               };
+    },
+    FitsInto : () => {
+        return { name : Place.fitsInto
+               };
+    },
+    Align    : (d) => {
+        let dl  = [].concat(d);         // hack: create a list
+        let res = { name : Place.align,
+                    dir  : dl.pop()
+                  };
+        while ( dl.length > 0) {
+            const p1 = { name : Place.align,
+                         dir  : dl.pop(),
+                       };
+            res = Place.Seq(p1, res);
+        }
+        return res;
+    },
+    Scale    : (s) => {
+        return { name  : Place.scale,
+                 scale : s
+               };
+    },
+    Move     : (o) => {
+        return { name : Place.move,
+                 off  : o
+               };
+    },
+    Zoom     : (o) => {
+        return { name   : Place.zoom,
+                 relOff : o || halfGeo(oneGeo)  // center of image
+               };
+    },
+    Last     : () => {
+        return { name : Place.last
+               };
+    },
+    Id       : () => {
+        return { name : Place.id
+               };
+    },
+    Seq      : (a1, a2) => {
+        return { name : Place.seq,
+                 p1  : a1,
+                 p2  : a2
+               };
+    },
+
+    // default place algorithm, can be configured, e.g fill/fitsInto
+
+    default  : 'Fill',    // unspecified
+
+    Default  : () => {
+        return Place.Fill();
+    },
+
+    setDefault : (c) => {
+        Place.Default = c;
+        Place.default = c().name;
+    },
+};
+
+const MoveScale = {
+    // algorithm for move/scale animation
+
+    // constructor names
+
+    zoomIn        : 'zoomIn',
+    zoomOut       : 'zoomOut',
+    fitToFill     : 'fitToFill',
+    smallToFit    : 'smalltoFill',
+    panoLeftRight : 'panoLeftRight',
+    panoBottomTop : 'panoBottomTop',
+
+    // constructor functions
+    ZoomIn : (o) => {
+        return { name    : MoveScale.zoomIn,
+                 relOff  : o,
+                 reverse : false,
+               };
+    },
+    ZoomOut : () => {
+        return { name    : MoveScale.zoomIn,
+                 reverse : false,
+               };
+    },
+    FitToFill : (rev) => {
+        return { name    : MoveScale.fitToFill,
+                 reverse : rev || false,
+               };
+    },
+    SmallToFit : (rev) => {
+        return { name    : MoveScale.smallToFit,
+                 reverse : rev || false,
+
+               };
+    },
+    PanoLeftRight : (rev) => {
+        return { name    : MoveScale.panoLeftRight,
+                 reverse : rev || false,
+               };
+    },
+    PanoBottomTop : (rev) => {
+        return { name    : MoveScale.panoBottomTop,
+                 reverse : rev || false,
+               };
+    },
+};
+
+// ----------------------------------------
+
+function imgDescr(scGeo, imgGeo) {
+    const size   = ImgSize.build(scGeo, imgGeo);
+    const aspect = Aspect.build(imgGeo);
+    const pano   = Pano.build(imgGeo);
+
+    const descr  = {
+        geo    : imgGeo,
+        screen : scGeo,
+        size   : size,
+        aspect : aspect,
+        pano   : ( size === ImgSize.large ? pano : Pano.noPano ),
+    };
+    return descr;
+}
+
+// ----------------------------------------
+//
+// algorithms to show an image
+
+function evalDisplay(display, img) {
+    const sg  = screenGeo();
+    const res = evalDisplay1(sg)(display, mkRect(img, nullGeo));
+    trc(1,
+        "evalPlace: screen = " + showGeo(sg) +
+        ", name = "  + display.name +
+        ", img = " + showGeo(img) +
+        ", res.start = "  + showRect(res.start) +
+        ", res.finish = " + showRect(res.finish)
+       );
+    return res;
+}
+
+function evalDisplay1(sg) {
+
+    function doit(s, r) {
+        switch ( s.name ) {
+
+        case Display.noAnim:
+            const r1 = evalPlace1(sg)(s.place, r);
+            return mkTrans(r1, r1);
+
+        case Display.withAnim:
+            return evalMoveScale1(sg)(s.moveScale, r);
+
+        default:
+            trc(1, "evalDisplay: unknown anim algorithm: " + p.name);
+            return mkTrans(r, r);
+        }
+    }
+
+    return doit;
+}
+
+
+function evalMoveScale1(sg) {
+
+    function doit(ms, r) {
+        return mkTrans(r, r);   // TODO: dummy
+    }
+
+    return doit();
+}
+
+function evalPlace(place, rect) {
+    const sg  = screenGeo();
+    const res = evalPlace1(sg)(place, rect);
+    trc(1,
+        "evalPlace: screen = " + showGeo(sg) +
+        ", name = "  + place.name +
+        ", rect = " + showRect(rect) +
+        ", res = "  + showRect(res)
+       );
+    return res;
+}
+
+function evalPlace1(sg) {
+
+    function doit(p, r) {
+        switch ( p.name ) {
+
+        case Place.fill:                                             // resize image
+            return mkRect(fills(r.geo, sg), r.off);
+
+        case Place.fitsInto:
+            return mkRect(fitsInto(r.geo, sg), r.off);
+
+        case Place.scale:
+            return mkRect(mulGeo(r.geo, p.scale), r.off);
+
+        case Place.move:                                             // position image
+            return mkRect(r.geo, addGeo(r.off, p.off));
+
+        case Place.align:
+            switch ( p.dir ) {
+
+            case Dir.center:
+                return mkRect(r.geo, placeCenter(r.geo, sg));
+
+            case Dir.top:
+                return mkRect(r.geo, mkOff(r.off.w, 0));
+
+            case Dir.bottom:
+                return mkRect(r.geo, mkOff(r.off.w, sg.h - r.geo.h));
+
+            case Dir.left:
+                return mkRect(r.geo, mkOff(0, r.off.h));
+
+            case Dir.right:
+                return mkRect(r.geo, mkOff(sg.w - r.geo.w, r.off.h));
+
+            return r;
+            }
+
+        case Place.zoom:                                             // compound place algs
+            const r1 = doit(Place.Align(Dir.center), r);  // center image
+            const r2 = moveRectRelative(p.relOff, r1);    // move image to clicked position
+            return r2;
+
+        case Place.last:
+            try {
+                return ls.showAnim.finish;                // TODO: cs.showAnim not yet implemented
+            } catch (e) {
+                return doit(Place.Default(), r);          // last geo not set: take default geo
+            }
+
+        case Place.id:
+            return r;
+
+        case Place.seq:
+            return doit(p.p2, doit(p.p1, r));            // sequence of 2 place algs
+
+        default:
+            trc(1, "evalPlace: unknown place algorithm: " + p.name);
+            return r;
+        }
+    }
+    return doit;
+}
+
+function evalMoveScale1(sg) {
+    const evalP = evalPlace1(sg);
+
+    function doit(ms, r) {
+        var res;
+        switch ( ms.name ) {
+
+        case MoveScale.zoomIn:
+            res = mkTrans(evalP(Place.Last(),          r),
+                          evalP(Place.Zoom(ms.relOff), r)
+                         );
+            break;
+
+        case MoveScale.zoomOut:
+            res = mkTrans(evalP(Place.Last(),    r),
+                          evalP(Place.Default(), r)
+                         );
+            break;
+
+        case MoveScale.fitToFill:
+            res = mkTrans(evalP(Place.FitsInto(), r),
+                          evalP(Place.Fill(),     r)
+                         );
+            break;
+
+        case MoveScale.smallToFit:
+            res = mkTrans(r,
+                          evalP(Place.FitsInto(), r)
+                         );
+            break;
+
+        case MoveScale.panoLeftRight:
+            { const r1 = evalP(Place.Fill(), r);
+              res      = mkTrans(evalP(Place.Align(Dir.left),  r),
+                                 evalP(Place.Align(Dir.right), r)
+                                );
+            }
+            break;
+
+        case MoveScale.PanoBottomTop:
+            { const r1 = evalP(Place.Fill(), r);
+              res      = mkTrans(evalP(Place.Align(Dir.bottom),  r),
+                                 evalP(Place.Align(Dir.top), r)
+                                );
+            }
+            break;
+
+        default:
+            trc(1, "evalMoveScale1: unknown moveScale algorithm: " + ms.name);
+            return mkTrans(r, r);
+        }
+        if ( ms.reverse ) {
+            res = invertTrans(res);
+        }
+        return res;
+    }
+    return doit;
+}
+
+// ----------------------------------------
+//
 // computes the maximum geo with aspect ratio of s
 // that fits into d
 
