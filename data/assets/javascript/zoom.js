@@ -2823,6 +2823,10 @@ function gotoSlide(url, resizeAlg, zoomPos, displayAlg) {
                 media.displayTrans = evalDisplay(media.displayAlg,
                                                  media.screen,
                                                  media.geo);
+                media.serverGeo    = bestFitToGeo(maxGeo(media.displayTrans.start.geo,
+                                                         media.displayTrans.finish.geo,
+                                                        )
+                                                 );
                 cs.media = media;
 
                 // --------------------
