@@ -136,12 +136,19 @@ function isRect(r) {
         && r.hasOwnProperty("off");
 }
 
-function showRect(r) {
-    return showGeo(r.geo) + showOff(r.off.w) + showOff(r.off.h);
+function mapRect(op) {
+    return (r) => { return mkRect(op(r.geo), op(r.off)); };
 }
 
-function showOff(x) {
-    return ( x >= 0 ? "+" : "") + x;
+const roundRect = mapRect( (x) => { return roundGeo(x); } );
+
+function showRect(r) {
+
+    function showOff(x) {
+        return ( x >= 0 ? "+" : "") + x;
+    }
+
+    return showGeo(r.geo) + showOff(r.off.w) + showOff(r.off.h);
 }
 
 // --------------------
@@ -159,6 +166,12 @@ function isTrans(t) {
 }
 
 function invertTrans(t) { return mkTrans(t.finish, t.start); }
+
+function mapTrans(op) {
+    return (t) => { return mkTrans(op(t.start), op(t.finish)); };
+}
+
+const roundTrans = mapTrans( (x) => { return roundRect(x); } );
 
 // --------------------
 
@@ -352,6 +365,8 @@ const Place = {
     last     : 'Last',       // geometry from last shown image
     id       : 'Id',
     seq      : 'Seq',        // apply 2 algorithms sequentially
+    default  : 'Default',
+
 
     // constructor functions
     Fill     : () => {
@@ -404,18 +419,15 @@ const Place = {
                  p2  : a2
                };
     },
-
-    // default place algorithm, can be configured, e.g fill/fitsInto
-
-    default  : 'Fill',    // unspecified
-
-    Default  : () => {
-        return Place.Fill();
+    Default  : () => {          // default place algorithm
+                                // can be configured, e.g fill / fitsInto
+        return Place.Seq(Place.FitsInto(),
+                         Place.Align(Dir.center)
+                        );
     },
 
     setDefault : (c) => {
         Place.Default = c;
-        Place.default = c().name;
     },
 };
 
@@ -468,7 +480,7 @@ const MoveScale = {
 
 // ----------------------------------------
 
-function imgDescr(scGeo, imgGeo) {
+function mediaDescr(scGeo, imgGeo) {
     const size   = ImgSize.build(scGeo, imgGeo);
     const aspect = Aspect.build(imgGeo);
     const pano   = Pano.build(imgGeo);
@@ -483,12 +495,29 @@ function imgDescr(scGeo, imgGeo) {
     return descr;
 }
 
+function defaultDisplayAlg(imgSize) {
+    var res;
+
+    switch ( imgSize ) {
+
+    case ImgSize.small:                      // center image with original size
+        res = Place.Align(Dir.center);
+        break;
+
+    case ImgSize.medium:                     // default: fill/fit and center
+    case ImgSize.large:
+        res = Place.Default();
+        break;
+    }
+    return Display.NoAnim(res);
+}
+
 // ----------------------------------------
 //
 // algorithms to show an image
 
-function evalDisplay(display, img) {
-    const sg  = screenGeo();
+function evalDisplay(display, sg, img) {
+    // const sg  = screenGeo();
     const res = evalDisplay1(sg)(display, mkRect(img, nullGeo));
     trc(1,
         "evalPlace: screen = " + showGeo(sg) +
@@ -497,7 +526,7 @@ function evalDisplay(display, img) {
         ", res.start = "  + showRect(res.start) +
         ", res.finish = " + showRect(res.finish)
        );
-    return res;
+    return roundTrans(res);
 }
 
 function evalDisplay1(sg) {
@@ -2753,7 +2782,7 @@ function clearAnims(anims) { anims.map(clearAnim); }
 var defaultAlg    = "fitsinto";
 var defaultCutoff = 0.17;
 
-function gotoSlide(url, resizeAlg, zoomPos) {
+function gotoSlide(url, resizeAlg, zoomPos, displayAlg) {
 
     function doit(k) {
 
@@ -2786,6 +2815,19 @@ function gotoSlide(url, resizeAlg, zoomPos) {
             cs.screen = mkRect(cs.screenGeo, nullGeo);
 
             if ( isMediaSlide() ) {
+                // new stuff
+                let media = mediaDescr(screenGeo(),
+                                       readGeo(cs.page.oirGeo[0])
+                                      );
+                media.displayAlg   = displayAlg || defaultDisplayAlg(media.size);
+                media.displayTrans = evalDisplay(media.displayAlg,
+                                                 media.screen,
+                                                 media.geo);
+                cs.media = media;
+
+                // --------------------
+                // old stuff
+
                 cs.orgGeo    = readGeo(cs.page.oirGeo[0]);         // size of original media
 
                 // normalize resize algs
