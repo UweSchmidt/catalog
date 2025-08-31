@@ -357,6 +357,7 @@ const Place = {
 
     // constructor names
     fill     : 'Fill',       // fill the whole stage
+    fillCut  : 'FillCut',    // fill the whole stage
     fitsInto : 'FitsInto',   // show the whole image
     align    : 'Align',      // align image: center, top, ...
     scale    : 'Scale',      // scale image
@@ -371,6 +372,11 @@ const Place = {
     // constructor functions
     Fill     : () => {
         return { name : Place.fill
+               };
+    },
+    FillCut  : (c) => {
+        return { name : Place.fillCut,
+                 cut  : c || 0.17,    // max 17% of img area can be cut off, otherwise fitsInto is taken
                };
     },
     FitsInto : () => {
@@ -419,9 +425,12 @@ const Place = {
                  p2  : a2
                };
     },
-    Default  : () => {          // default place algorithm
-                                // can be configured, e.g fill / fitsInto
-        return Place.Seq(Place.FitsInto(),
+    Default  : () => {
+        // default place algorithm
+        // can be configured, e.g fill / fitsInto
+        // current default: fill with a max cutoff of 17%, otherwise fitsInto
+
+        return Place.Seq(Place.FillCut(0.17),
                          Place.Align(Dir.center)
                         );
     },
@@ -579,6 +588,12 @@ function evalPlace1(sg) {
 
         case Place.fill:                                             // resize image
             return mkRect(fills(r.geo, sg), r.off);
+
+        case Place.fillCut:
+            if ( cutoffArea(r.geo, sg) > p.cut ) {                   // too much would be thrown away
+                return doit(Place.FitsInto(), r);
+            }
+            return doit(Place.Fill(), r);                            // area thrown away is under limit
 
         case Place.fitsInto:
             return mkRect(fitsInto(r.geo, sg), r.off);
@@ -740,6 +755,12 @@ function pano(s, d) {
                    resizeToWidth (s, d)
                  );
 }
+
+// how large is the area on an image not shown
+// when the whole screen is covered by the image
+// result depends only on the aspect ratios of img and screen
+//
+// img = 1000x1000, screen = 100x80 -> result 0.2
 
 function cutoffArea(s0, d) {
     const s1 = fills(s0, d);     // resize s0 to cover whole d
