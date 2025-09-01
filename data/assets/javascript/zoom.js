@@ -341,12 +341,14 @@ const Display = {
 
     NoAnim   : (pl) => {
         return { name  : Display.noAnim,
+                 name1 : pl.name,
                  place : pl,
                };
     },
 
     WithAnim : (ms) => {
         return { name      : Display.withAnim,
+                 name1     : ms.name,
                  moveScale : ms,
                };
     },
@@ -631,11 +633,10 @@ function evalPlace1(sg) {
             return r2;
 
         case Place.last:
-            try {
-                return ls.showAnim.finish;                // TODO: cs.showAnim not yet implemented
-            } catch (e) {
-                return doit(Place.Default(), r);          // last geo not set: take default geo
-            }
+            return ( ls?.media?.displayTrans?.finish      // last geometry of previous slide
+                     ||
+                     doit(Place.Default(), r)
+                   );
 
         case Place.id:
             return r;
@@ -2848,6 +2849,7 @@ function gotoSlide(url, resizeAlg, zoomPos, displayAlg) {
                                                          media.displayTrans.finish.geo,
                                                         )
                                                  );
+                media.sameAsLast   = sameAsLastSlide();
                 cs.media = media;
 
                 // --------------------
@@ -3080,6 +3082,9 @@ function loadImgCache() {
     function doit(k) {
         const imgReq  = cs.page.imgReq;
 
+        // --------------------
+        // old
+
         let reqGeo    = bestFitToScreenGeo();
 
         if ( cs.resizeAlg === "zoom"
@@ -3095,6 +3100,11 @@ function loadImgCache() {
         }
 
         cs.urlImg = imgReqToUrl(imgReq, reqGeo);
+
+        // --------------------
+        // new
+
+        cs.urlImg = imgReqToUrl(imgReq, cs.media.serverGeo);
 
         trc(1, "loadImgCache: urlImg=" + cs.urlImg);
 
