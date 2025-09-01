@@ -177,6 +177,7 @@ const roundTrans = mapTrans( (x) => { return roundRect(x); } );
 
 const nullGeo       = mkGeo(0, 0);
 const oneGeo        = mkGeo(1, 1);
+const defaultOff    = mkOff(0.5, 0.5);
 
 // --------------------
 
@@ -352,6 +353,27 @@ const Display = {
                  moveScale : ms,
                };
     },
+
+    // shortcuts
+
+    ZoomIn   : (off) => {
+        return  Display.WithAnim(MoveScale.ZoomIn(off));
+    },
+
+    ZoomOut   : () => {
+        return Display.WithAnim(MoveScale.ZoomOut());
+    },
+    SmallToFit : (reverse) => {
+        return Display.WithAnim(MoveScale.SmallToFit(reverse));
+    },
+    FitToFill : (reverse) => {
+        return Display.WithAnim(MoveScale.FitToFill(reverse));
+    },
+    Default   : () => {
+        let res   = Display.NoAnim(Place.Default());
+        res.name1 = Place.default;
+        return res;
+    }
 };
 
 const Place = {
@@ -462,7 +484,7 @@ const MoveScale = {
                };
     },
     ZoomOut : () => {
-        return { name    : MoveScale.zoomIn,
+        return { name    : MoveScale.zoomOut,
                  reverse : false,
                };
     },
@@ -1685,9 +1707,9 @@ function toggleFitFill() {
 function toggleZoomSlide(zoomPos) {
     if ( isImgSlide() ) {
         if ( cs.resizeAlg === "zoom" ) {
-            thisSlideWith("zoom", zoomPos);
+            thisSlideWith("zoom", zoomPos, Display.ZoomIn(zoomPos));
         } else {
-            thisSlideWith("default");
+            thisSlideWith("default", undefined, Display.ZoomOut());
         }
     }
 }
@@ -2688,7 +2710,7 @@ function anim(a, storeA) {
 
 // ----------------------------------------
 
-function thisSlideWith(resizeAlg, zoomPos) {
+function thisSlideWith(resizeAlg, zoomPos, displayAlg) {
     resizeAlg = checkResizeAlg(resizeAlg);
 
     const geo =
@@ -2698,11 +2720,11 @@ function thisSlideWith(resizeAlg, zoomPos) {
           )
           ? readGeo("org")
           : bestFitToScreenGeo();
-    gotoUrl(jsonReqToUrl1(cs.slideReq, geo), resizeAlg, zoomPos);
+    gotoUrl(jsonReqToUrl1(cs.slideReq, geo), resizeAlg, zoomPos, displayAlg);
 }
 
-function gotoUrl(url, resizeAlg, zoomPos) {
-    runC(comp(gotoSlide(url, resizeAlg, zoomPos),
+function gotoUrl(url, resizeAlg, zoomPos, displayAlg) {
+    runC(comp(gotoSlide(url, resizeAlg, zoomPos, displayAlg),
               playSlideShow()
              )
         );
@@ -3108,7 +3130,7 @@ function loadImgCache() {
 
         trc(1, "loadImgCache: urlImg=" + cs.urlImg);
 
-        if ( cs.urlImg === (ls.urlImg || "") ) {
+        if ( cs.urlImg === (ls?.urlImg || "") ) {
             trc(1, `loadImgCache: already cached ${cs.imgId}` );
             switchResizeImg()(k);
         }
@@ -3223,17 +3245,47 @@ function addResize(resizeAlg) {
 
             const pos = mkGeo(e.offsetX, e.offsetY);
             const off = screenOffsetToRelOffset(pos, cs.rect);
+            // old
             const alg = ( ( e.altKey && cs.resizeAlg === "zoom" )
                           ? "zoom"
                           : resizeAlg
                         );
+
             trc(1, "resizeHandler: alg =" + resizeAlg + ", offset = " + showGeo(off));
-            thisSlideWith(alg, off);
+            thisSlideWith(alg, off, resizeSlide(off));
         }
 
         i.addEventListener("dblclick", resizeHandler);
     }
     return addHandler;
+}
+
+function resizeSlide(off) {
+    let m = cs.media;
+    let a = Display.Default();
+
+    switch ( m.size ) {
+
+    case ImgSize.large:
+        if ( ltGeo(m.displayTrans.finish.geo, m.geo) ) {         // img smaller then org image: zoom in
+            a = Display.ZoomIn(off || defaultOff);
+        }
+        else {                                                  // zoom back to default size
+            a = Display.ZoomOut();
+        }
+        break;
+
+    case ImgSize.medium:
+        a = Display.FitToFill( ! ltGeo(m.displayTrans.finish.geo, m.screen) );
+        break;
+
+    case ImgSize.small:
+        a = Display.SmallToFit( ! eqGeo(m.displayTrans.finish.geo, m.geo) );
+        break;
+    }
+
+    trc(1, "moveScaleSlide: next alg: " + JSON.stringify(a));
+    return a;
 }
 
 function addZoomImg()      { return addMoveScale(addResize("default")); }
