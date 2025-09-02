@@ -356,10 +356,12 @@ const Display = {
 
     // shortcuts
 
+    FromTo    : (p1, p2) => {
+        return Display.WithAnim(MoveScale.FromTo(p1, p2));
+    },
     ZoomIn   : (off) => {
         return  Display.WithAnim(MoveScale.ZoomIn(off));
     },
-
     ZoomOut   : () => {
         return Display.WithAnim(MoveScale.ZoomOut());
     },
@@ -368,6 +370,9 @@ const Display = {
     },
     FitToFill : (reverse) => {
         return Display.WithAnim(MoveScale.FitToFill(reverse));
+    },
+    Pano      : (pano1, reverse) => {
+        return Display.WithAnim(MoveScale.Pano(pano1,reverse));
     },
     Default   : () => {
         let res   = Display.NoAnim(Place.Default());
@@ -449,14 +454,15 @@ const Place = {
                  p2  : a2
                };
     },
+    Center    : (a) => {
+        return Place.Seq(a, Place.Align(Dir.center));
+    },
     Default  : () => {
         // default place algorithm
         // can be configured, e.g fill / fitsInto
         // current default: fill with a max cutoff of 17%, otherwise fitsInto
 
-        return Place.Seq(Place.FillCut(0.17),
-                         Place.Align(Dir.center)
-                        );
+        return Place.Center(Place.FillCut(0.17));
     },
 
     setDefault : (c) => {
@@ -469,14 +475,20 @@ const MoveScale = {
 
     // constructor names
 
+    fromTo        : 'fromTo',
     zoomIn        : 'zoomIn',
     zoomOut       : 'zoomOut',
     fitToFill     : 'fitToFill',
     smallToFit    : 'smalltoFill',
-    panoLeftRight : 'panoLeftRight',
-    panoBottomTop : 'panoBottomTop',
+    pano          : 'pano',
 
     // constructor functions
+    FromTo : (p1, p2) => {
+        return { name   : MoveScale.fromTo,
+                 start  : p1,
+                 finish : p2
+               };
+    },
     ZoomIn : (o) => {
         return { name    : MoveScale.zoomIn,
                  relOff  : o,
@@ -499,34 +511,15 @@ const MoveScale = {
 
                };
     },
-    PanoLeftRight : (rev) => {
-        return { name    : MoveScale.panoLeftRight,
-                 reverse : rev || false,
-               };
-    },
-    PanoBottomTop : (rev) => {
-        return { name    : MoveScale.panoBottomTop,
+    Pano       : (isH, rev) => {
+        return { name    : MoveScale.pano,
+                 pano    : isH,
                  reverse : rev || false,
                };
     },
 };
 
 // ----------------------------------------
-
-function mediaDescr(scGeo, imgGeo) {
-    const size   = ImgSize.build(scGeo, imgGeo);
-    const aspect = Aspect.build(imgGeo);
-    const pano   = Pano.build(imgGeo);
-
-    const descr  = {
-        geo    : imgGeo,
-        screen : scGeo,
-        size   : size,
-        aspect : aspect,
-        pano   : ( size === ImgSize.large ? pano : Pano.noPano ),
-    };
-    return descr;
-}
 
 function defaultDisplayAlg(imgSize) {
     var res;
@@ -581,16 +574,6 @@ function evalDisplay1(sg) {
     }
 
     return doit;
-}
-
-
-function evalMoveScale1(sg) {
-
-    function doit(ms, r) {
-        return mkTrans(r, r);   // TODO: dummy
-    }
-
-    return doit();
 }
 
 function evalPlace(place, rect) {
@@ -678,8 +661,24 @@ function evalMoveScale1(sg) {
     const evalP = evalPlace1(sg);
 
     function doit(ms, r) {
+
+        const evalPano = (d1, d2) => {
+            const r1 = evalP(Place.Fill(), r);
+            return mkTrans(
+                evalP(Place.Align(d1), r1),
+                evalP(Place.Align(d2), r1)
+            );
+        };
+
         var res;
+
         switch ( ms.name ) {
+
+        case MoveScale.fromTo:
+            res = mkTrans(evalP(ms.start, r),
+                          evalP(ms.finish, r)
+                         );
+            break;
 
         case MoveScale.zoomIn:
             res = mkTrans(evalP(Place.Last(),          r),
@@ -705,20 +704,10 @@ function evalMoveScale1(sg) {
                          );
             break;
 
-        case MoveScale.panoLeftRight:
-            { const r1 = evalP(Place.Fill(), r);
-              res      = mkTrans(evalP(Place.Align(Dir.left),  r),
-                                 evalP(Place.Align(Dir.right), r)
-                                );
-            }
-            break;
-
-        case MoveScale.PanoBottomTop:
-            { const r1 = evalP(Place.Fill(), r);
-              res      = mkTrans(evalP(Place.Align(Dir.bottom),  r),
-                                 evalP(Place.Align(Dir.top), r)
-                                );
-            }
+        case MoveScale.pano:
+            res = ( ms.isHorizontal )
+                ? evalPano(Dir.left,   Dir.right)
+                : evalPano(Dir.bottom, Dir.top);
             break;
 
         default:
@@ -1720,12 +1709,20 @@ function toggleZoomSlide(zoomPos) {
 
 function togglePanoSlide() {
     if ( isImgSlide() ) {
-        if ( isPanoSlide() ) {
-            if ( cs.resizeAlg != "panorama" ) {
-                thisSlideWith("panorama");
-            } else {
-                thisSlideWith("default");
+        if ( cs.media.pano != Pano.noPano ) {
+            const a  = cs.media.displayAlg;
+
+            let   a1 = Display.Default();
+            let   o1 = "default";    // old
+
+            if ( a.name1 !=  MoveScale.pano ) {
+                a1 = Display.Pano(cs.media.pano, false);
+                o1 = "panorama";
             }
+            else if ( ! a.moveScale.reverse ) {
+                a1 = Display.Pano(cs.media.pano, true);
+            }
+            thisSlideWith("panorama", null, a1);
         }
     }
 }
@@ -2877,12 +2874,19 @@ function gotoSlide(url, resizeAlg, zoomPos, displayAlg) {
 
             if ( isMediaSlide() ) {
                 // new stuff
-                let media = mediaDescr(screenGeo(),
-                                       readGeo(cs.page.oirGeo[0])
-                                      );
+
+                let media          = {};
+                media.geo          = readGeo(cs.page.oirGeo[0]);
+                media.size         = ImgSize.build(cs.screenGeo, media.geo);
+                media.aspect       = Aspect.build(media.geo);
+                media.pano         = ( media.size === ImgSize.large
+                                       ? Pano.build(media.geo)
+                                       : Pano.noPano
+                                     );
+
                 media.displayAlg   = displayAlg || defaultDisplayAlg(media.size);
                 media.displayTrans = evalDisplay(media.displayAlg,
-                                                 media.screen,
+                                                 cs.screenGeo,
                                                  media.geo);
                 media.zoomDur      = slideZoomDur(media.displayTrans);
                 media.serverGeo    = bestFitToGeo(maxGeo(media.displayTrans.start.geo,
@@ -3198,6 +3202,13 @@ function allImagesLoaded(e) {
 }
 
 function switchResizeImg() {
+    function doit(k) {
+        addMoveScale(addResize())(k);
+    }
+    return doit;
+}
+
+function switchResizeImgOld() {
 
     function doit(k) {
         if ( cs.resizeAlg === "zoom") {
@@ -3254,7 +3265,7 @@ function addMoveScale(addHandler) {
     return doit;
 }
 
-function addResize(resizeAlg) {
+function addResize() {
 
     function addHandler(i) {
 
@@ -3262,15 +3273,10 @@ function addResize(resizeAlg) {
             stopShow();
 
             const pos = mkGeo(e.offsetX, e.offsetY);
-            const off = screenOffsetToRelOffset(pos, cs.rect);
-            // old
-            const alg = ( ( e.altKey && cs.resizeAlg === "zoom" )
-                          ? "zoom"
-                          : resizeAlg
-                        );
+            const off = screenOffsetToRelOffset(pos, cs.media.displayTrans.finish);
 
-            trc(1, "resizeHandler: alg =" + resizeAlg + ", offset = " + showGeo(off));
-            thisSlideWith(alg, off, resizeSlide(off));
+            trc(1, "resizeHandler: offset = " + showGeo(off));
+            thisSlideWith("default", off, panoOrResizeSlide(off));
         }
 
         trc(1, "addResize: handler installed");
@@ -3279,14 +3285,29 @@ function addResize(resizeAlg) {
     return addHandler;
 }
 
+function panoOrResizeSlide(off) {
+    const m = cs.media;
+
+    switch ( m.pano ) {
+    case Pano.noPano:
+        return resizeSlide(off);
+
+    case Pano.horizontal:
+    case Pano.vertical:
+        const a = Display.Pano(m.pano, false);
+        trc(1, "panoOrResizeSlide: next alg: " + JSON.stringify(a));
+        return a;
+    }
+}
+
 function resizeSlide(off) {
-    let m = cs.media;
-    let a = Display.Default();
+    const m = cs.media;
+    let   a = Display.Default();
 
     switch ( m.size ) {
 
     case ImgSize.large:
-        if ( ltGeo(m.displayTrans.finish.geo, m.geo) ) {         // img smaller then org image: zoom in
+        if ( ltGeo(m.displayTrans.finish.geo, m.geo) ) {        // img smaller then org image: zoom in
             a = Display.ZoomIn(off || defaultOff);
         }
         else {                                                  // zoom back to default size
@@ -3303,7 +3324,7 @@ function resizeSlide(off) {
         break;
     }
 
-    trc(1, "moveScaleSlide: next alg: " + JSON.stringify(a));
+    trc(1, "resizeSlide: next alg: " + JSON.stringify(a));
     return a;
 }
 
@@ -3618,13 +3639,6 @@ function isSlide(s) {
     s = s || cs;
     const t = s.slideType || "";
     return t != "";
-}
-
-function isPanoSlide() {
-    if ( isImgSlide() ) {
-        const geo = getOrgGeo();
-        return isPano(geo);
-    }
 }
 
 function checkResizeAlg(alg) {
