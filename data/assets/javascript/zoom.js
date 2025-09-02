@@ -792,6 +792,10 @@ function cutoffArea(s0, d) {
     return Math.max(rs.w, rs.h);
 }
 
+function zoomTransDist(t) {
+    return zoomDist(t.start, t.finish);
+}
+
 function zoomDist(r0, r1) {
     const zoomDist = halfGeo(absGeo(subGeo(r0.geo, r1.geo)));           // zoom distance
     const center0  = addGeo(r0.off, halfGeo(r0.geo));
@@ -2366,14 +2370,27 @@ const slideShowDefaultAcceleration = 1.0;
 const slideShowDefaultDuration     = 5.0;  // default: 5 sec
 var   slideShowAcceleration        = slideShowDefaultAcceleration;
 
+// duration to display slide in msec
 function slideDur() {
+    const t = slideDurMeta() || slideShowDefaultDuration;
+    return toMsec(t);
+}
+
+// duration to zoom in/out slide in msec
+function slideZoomDur(trans) {
+    const sec1 = slideDurMeta();
+    const d    = zoomTransDist(trans);
+    const sec2 = Math.sqrt(d) * 0.4 * slideShowDefaultDuration;;
+    return toMsec(sec1 || sec2);
+}
+
+function slideDurMeta() {
     const md = getSlideMeta();
     const d  = md["Show:Duration"];          // time in sec
-    let   t  = slideShowDefaultDuration;
-    if (d) {
-        t = d * 1;         // convert to number
-        if ( !t ) { t = slideShowDefaultDuration;}  // no conv: reset to defaoult
-    }
+    return  (d * 1) || null;;
+}
+
+function toMsec(t) {
     return Math.round(t * slideShowAcceleration * 1000);   // time scaled by acceleration (in msce)
 }
 
@@ -2867,6 +2884,7 @@ function gotoSlide(url, resizeAlg, zoomPos, displayAlg) {
                 media.displayTrans = evalDisplay(media.displayAlg,
                                                  media.screen,
                                                  media.geo);
+                media.zoomDur      = slideZoomDur(media.displayTrans);
                 media.serverGeo    = bestFitToGeo(maxGeo(media.displayTrans.start.geo,
                                                          media.displayTrans.finish.geo,
                                                         )
@@ -3211,26 +3229,26 @@ function switchResizeImg() {
 function addMoveScale(addHandler) {
 
     function doit(k) {
+        const m      = cs.media;
         const style  = {overflow: "hidden"};
-        const style2 = cssRect( cs.sameAsLast
-                                ? cs.moveScaleTrans.start
-                                : cs.rect,
-                                {overflow: "hidden"}
-                              );
+        const style2 = cssRect(m.displayTrans.start, {overflow: "hidden"});
 
         addImgToDom(style, style2, addHandler);
 
-        if ( cs.sameAsLast ) {
-            const d = zoomDist( cs.moveScaleTrans.start,
-                                cs.moveScaleTrans.finish
-                              );
-            const t = Math.sqrt(d) * cs.zoomDur;
-            const a = moveAndScale(cs.moveScaleTrans)(t);
+        trc(1, "addMoveScale: display = " + JSON.stringify(m.displayAlg));
+
+        switch ( m.displayAlg.name ) {
+
+        case Display.withAnim:
+            const a = moveAndScale(m.displayTrans)(m.zoomDur);
+
             trc(1, `addMoveScale: anim=${JSON.stringify(a)}`);
             animTransZoom(a)(k);
-        }
-        else {
-            animTransMedia(getTrans())(k); // img displayed the 1. time
+            break;
+
+        case Display.noAnim:
+            animTransMedia(getTrans())(k);
+            break;
         }
     };
     return doit;
@@ -3255,7 +3273,8 @@ function addResize(resizeAlg) {
             thisSlideWith(alg, off, resizeSlide(off));
         }
 
-        i.addEventListener("dblclick", resizeHandler);
+        trc(1, "addResize: handler installed");
+        i.addEventListener("click", resizeHandler);
     }
     return addHandler;
 }
