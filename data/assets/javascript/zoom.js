@@ -365,6 +365,11 @@ const Display = {
     ZoomOut   : () => {
         return Display.WithAnim(MoveScale.ZoomOut());
     },
+    ZoomCenter : (s) => {
+        const p1 = Place.Last();
+        const p2 = Place.ScaleC(p1, s);
+        return Display.WithAnim(MoveScale.FromTo(p1,p2));
+    },
     SmallToFit : (reverse) => {
         return Display.WithAnim(MoveScale.SmallToFit(reverse));
     },
@@ -390,6 +395,7 @@ const Place = {
     fitsInto : 'FitsInto',   // show the whole image
     align    : 'Align',      // align image: center, top, ...
     scale    : 'Scale',      // scale image
+    scaleC   : 'ScaleC',     // scale at screen center
     move     : 'Move',       // shift image on stage
     zoom     : 'Zoom',       // zoom image to 1-1 resolution
     last     : 'Last',       // geometry from last shown image
@@ -457,6 +463,12 @@ const Place = {
     Center    : (a) => {
         return Place.Seq(a, Place.Align(Dir.center));
     },
+    ScaleC    : (a, s) => {
+        return { name  : Place.scaleC,
+                 p1    : a,
+                 scale : s,
+               };
+    },
     Default  : () => {
         // default place algorithm
         // can be configured, e.g fill / fitsInto
@@ -475,18 +487,18 @@ const MoveScale = {
 
     // constructor names
 
-    fromTo        : 'fromTo',
-    zoomIn        : 'zoomIn',
-    zoomOut       : 'zoomOut',
-    fitToFill     : 'fitToFill',
-    smallToFit    : 'smalltoFill',
-    pano          : 'pano',
+    fromTo        : 'FromTo',
+    zoomIn        : 'ZoomIn',
+    zoomOut       : 'ZoomOut',
+    fitToFill     : 'FitToFill',
+    smallToFit    : 'SmalltoFill',
+    pano          : 'Pano',
 
     // constructor functions
     FromTo : (p1, p2) => {
         return { name   : MoveScale.fromTo,
                  start  : p1,
-                 finish : p2
+                 finish : p2,
                };
     },
     ZoomIn : (o) => {
@@ -632,10 +644,19 @@ function evalPlace1(sg) {
             return r;
             }
 
-        case Place.zoom:                                             // compound place algs
-            const r1 = doit(Place.Align(Dir.center), r);  // center image
-            const r2 = moveRectRelative(p.relOff, r1);    // move image to clicked position
-            return r2;
+        case Place.zoom:
+            { const r1 = doit(Place.Align(Dir.center), r);  // center image
+              const r2 = moveRectRelative(p.relOff, r1);    // move image to clicked position
+              return r2;
+            }
+
+        case Place.scaleC:
+            { const r0 = doit(p.p1, r);
+              const r1 = doit(Place.Scale(p.scale), r0);    // scale image
+              const o1 = halfGeo(subGeo(r0.geo, r1.geo));    // get 1/2 of the diff between sizes
+              const r2 = doit(Place.Move(o1), r1);          // move to recenter at old screen center
+              return r2;
+            }
 
         case Place.last:
             return ( ls?.media?.displayTrans?.finish      // last geometry of previous slide
