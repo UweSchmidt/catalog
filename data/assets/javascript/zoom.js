@@ -315,12 +315,13 @@ const Pano = {
     horizontal : 'horizontal',
     vertical   : 'vertical',
 
-    build : (geo) => {
-        const ar = aspectRatio(geo);
-        if ( ar > 2 ) {
+    build : (geo, sg) => {
+        const geo1 = fills(geo, sg);
+
+        if ( geo1.w >= 2 * sg.w ) {
             return Pano.horizontal;
         }
-        if ( ar < 0.5 ) {
+        if ( geo1.h >= 2 * sg.h ) {
             return Pano.vertical;
         }
         return Pano.noPano;
@@ -359,6 +360,9 @@ const Display = {
     FromTo    : (p1, p2) => {
         return Display.WithAnim(MoveScale.FromTo(p1, p2));
     },
+    Reverse  : () => {
+        return Display.FromTo(Place.Last(), Place.LastStart());
+    },
     ZoomIn   : (off) => {
         return  Display.WithAnim(MoveScale.ZoomIn(off));
     },
@@ -375,6 +379,18 @@ const Display = {
     },
     FitToFill : (reverse) => {
         return Display.WithAnim(MoveScale.FitToFill(reverse));
+    },
+    ToFill    : () => {
+        return Display.WithAnim(MoveScale.ToFill());
+    },
+    ToFit    : () => {
+        return Display.WithAnim(MoveScale.ToFit());
+    },
+    ToOrg    : () => {
+        return Display.WithAnim(MoveScale.ToOrg());
+    },
+    ToDefault    : () => {
+        return Display.WithAnim(MoveScale.ToDefault());
     },
     Pano      : (pano1, reverse) => {
         return Display.WithAnim(MoveScale.Pano(pano1,reverse));
@@ -398,7 +414,8 @@ const Place = {
     scaleC   : 'ScaleC',     // scale at screen center
     move     : 'Move',       // shift image on stage
     zoom     : 'Zoom',       // zoom image to 1-1 resolution
-    last     : 'Last',       // geometry from last shown image
+    last     : 'Last',       // final geometry from last shown image
+    lastStart: 'LastStart',  // initial geometry from last shown image
     id       : 'Id',
     seq      : 'Seq',        // apply 2 algorithms sequentially
     default  : 'Default',
@@ -450,6 +467,10 @@ const Place = {
         return { name : Place.last
                };
     },
+    LastStart : () => {
+        return { name : Place.lastStart
+               };
+    },
     Id       : () => {
         return { name : Place.id
                };
@@ -492,6 +513,10 @@ const MoveScale = {
     zoomOut       : 'ZoomOut',
     fitToFill     : 'FitToFill',
     smallToFit    : 'SmalltoFill',
+    toFill        : 'ToFill',
+    toFit         : 'ToFit',
+    toOrg         : 'ToOrg',
+    toDefault     : 'ToDefault',
     pano          : 'Pano',
 
     // constructor functions
@@ -504,12 +529,10 @@ const MoveScale = {
     ZoomIn : (o) => {
         return { name    : MoveScale.zoomIn,
                  relOff  : o,
-                 reverse : false,
                };
     },
     ZoomOut : () => {
         return { name    : MoveScale.zoomOut,
-                 reverse : false,
                };
     },
     FitToFill : (rev) => {
@@ -520,7 +543,22 @@ const MoveScale = {
     SmallToFit : (rev) => {
         return { name    : MoveScale.smallToFit,
                  reverse : rev || false,
-
+               };
+    },
+    ToFill     : () => {
+        return { name    : MoveScale.toFill,
+               };
+    },
+    ToFit      : () => {
+        return { name    : MoveScale.toFit,
+               };
+    },
+    ToOrg      : () => {
+        return { name    : MoveScale.toOrg,
+               };
+    },
+    ToDefault      : () => {
+        return { name    : MoveScale.toDefault,
                };
     },
     Pano       : (isH, rev) => {
@@ -664,6 +702,12 @@ function evalPlace1(sg) {
                      doit(Place.Default(), r)
                    );
 
+        case Place.lastStart:
+            return ( ls?.media?.displayTrans?.start      // last geometry of previous slide
+                     ||
+                     doit(Place.Default(), r)
+                   );
+
         case Place.id:
             return r;
 
@@ -679,9 +723,15 @@ function evalPlace1(sg) {
 }
 
 function evalMoveScale1(sg) {
-    const evalP = evalPlace1(sg);
+    const evalP  = evalPlace1(sg);
 
     function doit(ms, r) {
+
+        const evalT = (p) => {
+            return mkTrans(evalP(Place.Last(),    r),
+                           evalP(Place.Center(p), r)
+                          );
+        };
 
         const evalPano = (d1, d2) => {
             const r1 = evalP(Place.Fill(), r);
@@ -723,6 +773,22 @@ function evalMoveScale1(sg) {
             res = mkTrans(r,
                           evalP(Place.FitsInto(), r)
                          );
+            break;
+
+        case MoveScale.toFill:
+            res = evalT(Place.Fill());
+            break;
+
+        case MoveScale.toFit:
+            res = evalT(Place.FitsInto());
+            break;
+
+        case MoveScale.toOrg:
+            res = evalT(Place.Id());
+            break;
+
+        case MoveScale.toDefault:
+            res = evalT(Place.Default());
             break;
 
         case MoveScale.pano:
@@ -2901,7 +2967,7 @@ function gotoSlide(url, resizeAlg, zoomPos, displayAlg) {
                 media.size         = ImgSize.build(cs.screenGeo, media.geo);
                 media.aspect       = Aspect.build(media.geo);
                 media.pano         = ( media.size === ImgSize.large
-                                       ? Pano.build(media.geo)
+                                       ? Pano.build(media.geo, cs.screenGeo)
                                        : Pano.noPano
                                      );
 
