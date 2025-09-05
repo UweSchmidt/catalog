@@ -678,9 +678,8 @@ function evalPlace1(sg) {
 
             case Dir.right:
                 return mkRect(r.geo, mkOff(sg.w - r.geo.w, r.off.h));
-
-            return r;
             }
+            return r;
 
         case Place.zoom:
             { const r1 = doit(Place.Align(Dir.center), r);  // center image
@@ -1774,23 +1773,40 @@ function sameAsLastSlide() {
 
 function toggleFitFill() {
     if ( isImgSlide() ) {
-        if ( cs.resizeAlg == "fitsinto" ) {
-            thisSlideWith("fill");
+        const sz = ImgSize.build(cs.screenGeo, cs.media.displayTrans.finish.geo);
+        let   a  = Display.Default();
+
+        switch ( sz ) {
+        case ImgSize.large:
+            a = Display.ToFit();
+            break;
+
+        case ImgSize.medium:
+        case ImgSize.small:
+            a = Display.ToFill();
+            break;
         }
-        else if ( cs.resizeAlg == "fill" ) {
-            thisSlideWith("fitsinto");
-        }
+        thisSlideWith("", undefined, a);
     }
 }
 
 // just for testing, currently not used
 function toggleZoomSlide(zoomPos) {
     if ( isImgSlide() ) {
-        if ( cs.resizeAlg === "zoom" ) {
-            thisSlideWith("zoom", zoomPos, Display.ZoomIn(zoomPos));
-        } else {
-            thisSlideWith("default", undefined, Display.ZoomOut());
+        const zoomed = leGeo(cs.media.geo, cs.media.displayTrans.finish.geo);
+        let   a      = Display.Default();
+
+        switch ( zoomed ) {
+        case true:
+            a = Display.ZoomOut();
+            break;
+
+        case false:
+            zoomPos = zoomPos || defaultOff;
+            a = Display.ZoomIn(zoomPos);
+            break;
         }
+        thisSlideWith("", undefined, a);
     }
 }
 
@@ -1922,11 +1938,15 @@ function keyCodeToString(e, c) {
     return "";
 }
 
+var lastKey;
+
 function keyUp(e) {
     if (! e)
         e = window.event;
 
-    trc(1, "keyUp: keyCode=" + e.keyCode + " which=" + e.which);
+    lastKey = e;
+
+    trc(1, "keyUp: keyCode=" + e.keyCode + " which=" + e.which + ", e=" + JSON.stringify(e));
 
     if ( (e.keyCode == 39)   /* right arrow */
          ||
@@ -1969,6 +1989,8 @@ function keyUp(e) {
 function keyPressed (e) {
     if (! e)
         e = window.event;
+
+    lastKey = e;
 
     trc(1, "keyPressed: KeyCode=" + e.keyCode + " which=" + e.which);
 
