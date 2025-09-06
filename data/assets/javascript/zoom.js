@@ -1908,7 +1908,7 @@ function toggleVideoAutoplayDefault() {
     const v = toggleVideoAttrDefault("autoplay");
     const msg = 'Videos werden'
           + (v === null ? ' nicht' : '')
-          + 'automatisch gestartet';
+          + ' automatisch gestartet';
     showStatus(msg);
 }
 function toggleVideoControlsDefault() { toggleVideoAttrDefault("controls"); }
@@ -2004,12 +2004,24 @@ const StepActions = {
 }
 
 const ConfigActions = {
-    info() {
-        toggleInfo();
-    },
-    help() {
-        toggleHelp();
-    },
+    info()          { toggleInfo(); },
+    help()          { toggleHelp(); },
+    slowDown()      { slowDownSlideShow(); },
+    speedUp()       { speedUpSlideShow(); },
+    resetSpeed()    { resetSpeedSlideShow(); },
+    slowDownTrans() { slowDownTransAnim(); },
+    speedUpTrans()  { speedUpTransAnim(); },
+    version()       { showVersion(); },
+    edit()          { stopShow(); openEdit(); },
+    audioCtrl()     { hasAudioControl() && toggleAudio(); },
+};
+
+const VideoCtrlActions = {
+    controls()        { toggleVideoControls(); },
+    muted()           { toggleVideoMuted(); },
+    autoPlayDefault() { toggleVideoAutoplayDefault(); },
+    mutedDefault()    { toggleVideoMutedDefault(); },
+    controlsDefault() { toggleVideoControlsDefault(); },
 };
 
 // ----------------------------------------
@@ -2034,17 +2046,29 @@ const DownActions = {
     u          : StepActions.parent,
     d          : StepActions.down,
     x          : StepActions.reload,
+    s          : StepActions.showCol,
 
+    e          : ConfigActions.edit,
     h          : ConfigActions.help,
     i          : ConfigActions.info,
+    r          : ConfigActions.resetSpeed,
+    t          : ConfigActions.slowDownTrans,
+    v          : ConfigActions.version,
+    z          : ConfigActions.audioCtrl,
 
-    s          : StepActions.showCol,
+    c          : VideoCtrlActions.controls,
+    m          : VideoCtrlActions.muted,
 };
 
 const DownShiftActions = {
     63         : ConfigActions.help,   // '?', keyCode: 63
+    T          : ConfigActions.speedUpTrans,
 
     S          : StepActions.showAll,
+
+    A          : VideoCtrlActions.autoPlayDefault,
+    C          : VideoCtrlActions.controlsDefault,
+    M          : VideoCtrlActions.mutedDefault,
 };
 
 const DownAltActions = {
@@ -2118,12 +2142,15 @@ const keyHandler = (ev) => {
        );
 
     const ka1 = KeyActions[ev.type];
+    // trc(1, ka1);
     if (! ka1 ) return true;
 
     const ka2 = ka1[modifiers(ev)];
+    // trc(1, ka2);
     if ( ! ka2 ) return true;
 
     const ka3 = ka2[ev.key] || ka2[ev.code] || ka2[ev.keyCode];
+    // trc(1, ka3);
     if ( ! ka3 ) return true;
 
     trc(1, "keyHandler: handler found");
@@ -2166,6 +2193,7 @@ function keyCodeToString(e, c) {
     return "";
 }
 
+/*
 var lastKey;
 
 function keyPressed (e) {
@@ -2174,7 +2202,6 @@ function keyPressed (e) {
 
     lastKey = e;
 
-    /*
     trc(1, "keyPressed: key=" + e.key +
         ", code=" + e.code +
         ", alt=" + e.altKey +
@@ -2183,23 +2210,6 @@ function keyPressed (e) {
         ", shift=" + e.shiftKey +
         ", keyCode=" + e.keyCode +
         ", which=" + e.which);
-    */
-
-
-    if ( isKey(e, 122, "z") ) {
-        hasAudioControl() && toggleAudio();
-        return false;
-    }
-
-    if ( isKey(e, 116, "t") ) {
-        slowDownTransAnim();
-        return false;
-    }
-
-    if ( isKey(e,  84, "T") ) {
-        speedUpTransAnim();
-        return false;
-    }
 
     if ( isKey(e, 43, "+") ) {
         speedUpSlideShow();
@@ -2208,11 +2218,6 @@ function keyPressed (e) {
 
     if ( isKey(e, 45, "-") ) {
         slowDownSlideShow();
-        return false;
-    }
-
-    if ( isKey(e, 48, "0") ) {
-        resetSpeedSlideShow();
         return false;
     }
 
@@ -2227,50 +2232,15 @@ function keyPressed (e) {
         return false;
     }
 
-    if ( isKey(e, 118, "v") ) {
-        showVersion();
-        return false;
-    }
-
-    if ( isKey(e, 101, "e") ) {
-        stopShow();
-        openEdit();
-        return false;
-    }
-
-    if ( isKey(e, 109, "m") ) {
-        toggleVideoMuted();
-        return false;
-    }
-
-    if ( isKey(e, 99, "c") ) {
-        toggleVideoControls();
-        return false;
-    }
-
-    if ( isKey(e, 65, "A") ) {
-        toggleVideoAutoplayDefault();
-        return false;
-    }
-
-    if ( isKey(e, 77, "M") ) {
-        toggleVideoMutedDefault();
-        return false;
-    }
-
-    if ( isKey(e, 67, "C") ) {
-        toggleVideoControlsDefault();
-        return false;
-    }
-
     return true;
 }
+*/
 
 // ----------------------------------------
 
 // install keyboard event handlers
 
-document.onkeypress = keyPressed;
+// document.onkeypress = keyPressed;
 
 // ----------------------------------------
 // build metadata table
