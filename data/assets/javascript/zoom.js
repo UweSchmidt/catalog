@@ -1051,16 +1051,16 @@ function bestFitIconGeo() {
     return readGeo("256x192");     // eizo 4k display
 }
 
-function getResizedGeo(cxt) {
-    return readGeo(cxt.page.oirGeo[2]);
-}
-
 function similarGeoOnScreen() {
     const d = 0.03 * cs.screenGeo.w;  // threshold 3% of screen width in comparison
-    const g1 = getResizedGeo(cs);
-    const g2 = getResizedGeo(ls);
 
-    return similarGeo(g1, g2, d);    // similar image geometies on screen
+    const g1 = cs?.media?.displayTrans.start.geo;
+    const g2 = ls?.media?.displayTrans.start.geo;
+
+    if ( g1 && g2 ) {
+        return similarGeo(g1, g2, d);    // similar image geometies on screen
+    }
+    return false;
 }
 
 /* ---------------------------------------- */
@@ -1073,17 +1073,9 @@ function toHref(url) {
 }
 
 function jsonReqToUrl(jsonReq) {
-    return jsonReqToUrl1(jsonReq, bestFitToScreenGeo());
-}
-
-function jsonReqToUrlFS(jsonReq) {
-    return jsonReqToUrl1(jsonReq, readGeo("org"));
-}
-
-function jsonReqToUrl1(jsonReq, geo) {
     const pp = rPathPosToUrl(jsonReq.rPathPos);
     return "/docs/json/"
-        + showGeo(geo)
+        + "org"   // showGeo(geo)
         + pp
         + ".json";
 }
@@ -3018,7 +3010,7 @@ function anim(a, storeA) {
 // ----------------------------------------
 
 function thisSlideWith(displayAlg) {
-    gotoUrl(jsonReqToUrlFS(cs.slideReq), displayAlg);
+    gotoUrl(jsonReqToUrl(cs.slideReq), displayAlg);
 }
 
 function gotoUrl(url, displayAlg) {
