@@ -1382,6 +1382,11 @@ function initShow() {
 
     // initHandlers(); // TODO cleanup
 
+    // install key handler
+
+    addKeyEventHandler("keydown");
+    addKeyEventHandler("keyup");
+
     setCSS(imgTab, cssSize(g));
 
     clearDomElem(img1Id);
@@ -1959,7 +1964,101 @@ function setPageTitle() {
 }
 
 // ----------------------------------------
-// keyboard input
+
+const MoveScaleActions = {
+    default() { thisSlideWith(Display.Default());           },
+    larger()  { thisSlideWith(Display.ZoomCenter(1.2));     },
+    smaller() { thisSlideWith(Display.ZoomCenter(1 / 1.2)); },
+    org()     { thisSlideWith(Display.ZoomIn(defaultOff));  },
+    fill()    { thisSlideWith(Display.ToFill());            },
+    fit()     { thisSlideWith(Display.ToFit());             },
+}
+
+// ----------------------------------------
+// new keyboard input
+
+const DownActions = {};
+
+const DownAltActions = {
+    ArrowLeft  : () => {},
+    ArrowRight : () => {},
+    ArrowUp    : () => {},
+    ArrowDown  : () => {},
+    171        : MoveScaleActions.larger,     // Alt-+      // keyCode
+    173        : MoveScaleActions.smaller,    // Alt--      // keyCode
+    Digit0     : MoveScaleActions.default,    // Alt-0
+    Digit1     : MoveScaleActions.org,
+    Digit2     : MoveScaleActions.fit,
+    Digit3     : MoveScaleActions.fill,       // Alt-3
+};
+
+const KeyUpActions = { };
+
+const KeyDownActions = {
+    Mod        : DownActions,
+    AltMod     : DownAltActions,
+    AltMetaMod : {},
+    MetaMod    : {},
+    CtrlMod    : {},
+};
+
+const KeyActions = {
+    keydown : KeyDownActions,
+    keyup   : KeyUpActions,
+};
+
+function modifiers(ev) {
+    return ( ( ev.altKey   ? "Alt"   : "" ) +
+             ( ev.ctrlKey  ? "Ctrl"  : "" ) +
+             ( ev.metaKey  ? "Meta"  : "" ) +
+             ( ev.shiftKey ? "Shift" : "" )
+           ) + "Mod";
+}
+
+const keyHandler = (ev) => {
+    if ( ev.repeat
+         ||
+         ev.key === "Alt"
+         ||
+         ev.key === "Control"
+         ||
+         ev.key === "Meta"
+         ||
+         ev.key === "Shift"
+       ) return null;
+
+    trc(1,
+        "keyHandler: key=" + ev.key +
+        ", type="          + ev.type +
+        ", code="          + ev.code +
+        ", alt="           + ev.altKey +
+        ", ctrl="          + ev.ctrlKey +
+        ", meta="          + ev.metaKey +
+        ", shift="         + ev.shiftKey +
+        ", keyCode="       + ev.keyCode +
+        ", charCode="      + ev.charCode +
+        ", which="         + ev.which
+       );
+
+    const ka1 = KeyActions[ev.type];
+    if (! ka1 ) return;
+
+    const ka2 = ka1[modifiers(ev)];
+    if ( ! ka2 ) return;
+
+    const ka3 = ka2[ev.key] || ka2[ev.code] || ka2[ev.keyCode];
+    if ( ! ka3 ) return;
+
+    trc(1, "keyHandler: handler found");
+    // ka3(ev);
+};
+
+function addKeyEventHandler(evType) {
+    document.body.addEventListener(evType, keyHandler);
+}
+
+
+// ----------------------------------------
 
 // just for testing
 
@@ -1991,14 +2090,38 @@ function keyCodeToString(e, c) {
 
 var lastKey;
 
+function keyDown(e) {
+    if (! e)
+        e = window.event;
+
+    lastKey = e;
+    /*
+    trc(1, "keyDown: key=" + e.key +
+        ", code=" + e.code +
+        ", alt=" + e.altKey +
+        ", ctrl=" + e.ctrlKey +
+        ", meta=" + e.metaKey +
+        ", shift=" + e.shift +
+        ", keyCode=" + e.keyCode +
+        ", which=" + e.which);
+        */
+}
+
 function keyUp(e) {
     if (! e)
         e = window.event;
 
     lastKey = e;
-
-    trc(1, "keyUp: keyCode=" + e.keyCode + " which=" + e.which + ", e=" + JSON.stringify(e));
-
+/*
+    trc(1, "keyUp: key=" + e.key +
+        ", code=" + e.code +
+        ", alt=" + e.altKey +
+        ", ctrl=" + e.ctrlKey +
+        ", meta=" + e.metaKey +
+        ", shift=" + e.shiftKey +
+        ", keyCode=" + e.keyCode +
+        ", which=" + e.which);
+*/
     if ( (e.keyCode == 39)   /* right arrow */
          ||
          (e.keyCode == 34)   /* page down, presenter: right arrow */
@@ -2043,7 +2166,16 @@ function keyPressed (e) {
 
     lastKey = e;
 
-    trc(1, "keyPressed: KeyCode=" + e.keyCode + " which=" + e.which);
+    /*
+    trc(1, "keyPressed: key=" + e.key +
+        ", code=" + e.code +
+        ", alt=" + e.altKey +
+        ", ctrl=" + e.ctrlKey +
+        ", meta=" + e.metaKey +
+        ", shift=" + e.shiftKey +
+        ", keyCode=" + e.keyCode +
+        ", which=" + e.which);
+    */
 
     if ( isKey(e, 32, " ")
        ) {
@@ -2215,6 +2347,7 @@ function keyPressed (e) {
 
 document.onkeypress = keyPressed;
 document.onkeyup    = keyUp;
+document.onkeydown  = keyDown;
 
 // ----------------------------------------
 // build metadata table
