@@ -1821,6 +1821,7 @@ function sameAsLastSlide() {
 //
 // event handlers for image animations
 
+// TODO: not in use
 function toggleFitFill() {
     if ( isImgSlide() ) {
         const sz = ImgSize.build(cs.screenGeo, cs.media.displayTrans.finish.geo);
@@ -1840,7 +1841,7 @@ function toggleFitFill() {
     }
 }
 
-// just for testing, currently not used
+// TODO: just for testing, currently not used
 function toggleZoom(zoomPos) {
     if ( isImgSlide() ) {
         const zoomed = leGeo(cs.media.geo, cs.media.displayTrans.finish.geo);
@@ -1958,7 +1959,7 @@ function setPageTitle() {
 // ----------------------------------------
 
 const MoveScaleActions = {
-    default() { thisSlideWith(Display.Default());           },
+    default() { thisSlideWith(Display.ToDefault());           },
     larger()  { thisSlideWith(Display.ZoomCenter(1.2));     },
     smaller() { thisSlideWith(Display.ZoomCenter(1 / 1.2)); },
     org()     { thisSlideWith(Display.ZoomIn(defaultOff));  },
@@ -1966,10 +1967,85 @@ const MoveScaleActions = {
     fit()     { thisSlideWith(Display.ToFit());             },
 }
 
+const StepActions = {
+    advance() {
+        stopShow();
+        setAutoShow();
+        advanceSlideShow();
+    },
+    next() {
+        stopShow();
+        gotoNext();
+    },
+    prev() {
+        stopShow();
+        gotoPrev();
+    },
+    parent() {
+        stopShow();
+        gotoPar();
+    },
+    down() {
+        stopShow();
+        gotoChild0();
+    },
+    reload() {
+        stopShow();
+        stayHere();
+    },
+
+    showCol() {
+        startStopShow(setContColShow);
+    },
+
+    showAll() {
+        startStopShow(setContGlobShow);
+    },
+}
+
+const ConfigActions = {
+    info() {
+        toggleInfo();
+    },
+    help() {
+        toggleHelp();
+    },
+};
+
 // ----------------------------------------
 // new keyboard input
 
-const DownActions = {};
+const DownActions = {
+    Space      : StepActions.advance,
+
+    ArrowLeft  : StepActions.prev,
+    ArrowRight : StepActions.next,
+    ArrowUp    : StepActions.parent,
+    ArrowDown  : StepActions.down,
+
+    PageDown   : StepActions.next,     // presenter: right arrow,       keyCode: 34
+    PageUp     : StepActions.prev,     // presenter: left arrow,        keyCode: 33
+    F5         : StepActions.parent,   // presenter: left screen icon,  keyCode: 116 (116, 27, 116, 27, ...)
+    27         : StepActions.parent,   // presenter: left screen icon,  keyCode: 27  (Escape)
+    Period     : StepActions.down,     // presenter: right screen icon, keyCode: 110
+
+    n          : StepActions.next,
+    p          : StepActions.prev,
+    u          : StepActions.parent,
+    d          : StepActions.down,
+    x          : StepActions.reload,
+
+    h          : ConfigActions.help,
+    i          : ConfigActions.info,
+
+    s          : StepActions.showCol,
+};
+
+const DownShiftActions = {
+    63         : ConfigActions.help,   // '?', keyCode: 63
+
+    S          : StepActions.showAll,
+};
 
 const DownAltActions = {
     ArrowLeft  : () => {},
@@ -1987,11 +2063,20 @@ const DownAltActions = {
 const KeyUpActions = { };
 
 const KeyDownActions = {
-    Mod        : DownActions,
-    AltMod     : DownAltActions,
-    AltMetaMod : {},
-    MetaMod    : {},
-    CtrlMod    : {},
+    Mod         : DownActions,
+
+    // one modifier key pressed
+    AltMod      : DownAltActions,
+    CtrlMod     : {},
+    MetaMod     : {},
+    ShiftMod    : DownShiftActions,
+
+    // two modifier keys pressed
+    AltMetaMod  : {},
+    AltShiftMod : {},
+
+    // three modifier keys pressed
+    // ...
 };
 
 const KeyActions = {
@@ -2017,7 +2102,7 @@ const keyHandler = (ev) => {
          ev.key === "Meta"
          ||
          ev.key === "Shift"
-       ) return null;
+       ) return true;
 
     trc(1,
         "keyHandler: key=" + ev.key +
@@ -2033,16 +2118,17 @@ const keyHandler = (ev) => {
        );
 
     const ka1 = KeyActions[ev.type];
-    if (! ka1 ) return;
+    if (! ka1 ) return true;
 
     const ka2 = ka1[modifiers(ev)];
-    if ( ! ka2 ) return;
+    if ( ! ka2 ) return true;
 
     const ka3 = ka2[ev.key] || ka2[ev.code] || ka2[ev.keyCode];
-    if ( ! ka3 ) return;
+    if ( ! ka3 ) return true;
 
     trc(1, "keyHandler: handler found");
-    // ka3(ev);
+    ka3();
+    return false;
 };
 
 function addKeyEventHandler(evType) {
@@ -2082,76 +2168,6 @@ function keyCodeToString(e, c) {
 
 var lastKey;
 
-function keyDown(e) {
-    if (! e)
-        e = window.event;
-
-    lastKey = e;
-    /*
-    trc(1, "keyDown: key=" + e.key +
-        ", code=" + e.code +
-        ", alt=" + e.altKey +
-        ", ctrl=" + e.ctrlKey +
-        ", meta=" + e.metaKey +
-        ", shift=" + e.shift +
-        ", keyCode=" + e.keyCode +
-        ", which=" + e.which);
-        */
-}
-
-function keyUp(e) {
-    if (! e)
-        e = window.event;
-
-    lastKey = e;
-/*
-    trc(1, "keyUp: key=" + e.key +
-        ", code=" + e.code +
-        ", alt=" + e.altKey +
-        ", ctrl=" + e.ctrlKey +
-        ", meta=" + e.metaKey +
-        ", shift=" + e.shiftKey +
-        ", keyCode=" + e.keyCode +
-        ", which=" + e.which);
-*/
-    if ( (e.keyCode == 39)   /* right arrow */
-         ||
-         (e.keyCode == 34)   /* page down, presenter: right arrow */
-       ) {
-        stopShow();
-        gotoNext();
-        return false;
-    }
-    if ( (e.keyCode == 37)   /* left arrow */
-         ||
-         (e.keyCode == 33)   /* page up, presenter: left arrow */
-         ||
-         (e.keyCode == 8)    /* backspace*/
-       ) {
-        stopShow();
-        gotoPrev();
-        return false;
-    }
-    if ( (e.keyCode == 27)     /* escape, presenter: left screen icon */
-         ||                    /* presenter: left screen: 116, 27, 116, 27, ... */
-         (e.keyCode == 116)    /* F5, presenter: left screen icon */
-         ||
-         (e.keyCode == 38)     /* up arrow */
-       ) {
-        stopShow();
-        gotoPar();
-        return false;
-    }
-    if ( (e.keyCode == 40)     /* down arrow */
-         ||
-         (e.keyCode == 190)    /* '.' , presenter right screen icon */
-       ) {
-        stopShow();
-        gotoChild0();
-        return false;
-    }
-}
-
 function keyPressed (e) {
     if (! e)
         e = window.event;
@@ -2169,82 +2185,9 @@ function keyPressed (e) {
         ", which=" + e.which);
     */
 
-    if ( isKey(e, 32, " ")
-       ) {
-        stopShow();
-        setAutoShow();
-        advanceSlideShow();
-        return false;
-    }
-
-    if ( // isKey(e, 32, " ")
-         // ||
-         isKey(e, 62, ">")
-         ||
-         isKey(e, 110, "n")
-       ) {
-        stopShow();
-        gotoNext();
-        return false;
-    }
-
-    if ( isKey(e, 60, "<")
-         ||
-         isKey(e, 112, "p")
-       ) {
-        stopShow();
-        gotoPrev();
-        return false;
-    }
-
-    if ( isKey(e, 94, "^")
-         ||
-         isKey(e, 117, "u")
-       ) {
-        stopShow();
-        gotoPar();
-        return false;
-    }
-
-    if ( isKey(e, 100, "d")
-       ) {
-        stopShow();
-        gotoChild0();
-        return false;
-    }
-
-    if ( isKey(e, 120, "x")
-       ) {
-        stopShow();
-        stayHere();
-        return false;
-    }
-
-    if ( isKey(e, 121, "y")
-       ) {
-        stopShow();
-        toggleFitFill();
-        return false;
-    }
-
-    if ( isKey(e, 89, "Y")
-       ) {
-        toggleDefaultAlg();
-        return false;
-    }
 
     if ( isKey(e, 122, "z") ) {
         hasAudioControl() && toggleAudio();
-        return false;
-    }
-
-    if ( isKey(e, 115, "s") ) {
-        startStopShow(setContColShow);
-        return false;
-    }
-
-    if ( isKey(e,  83, "S") ) {
-        startStopShow(setContGlobShow);
         return false;
     }
 
@@ -2255,11 +2198,6 @@ function keyPressed (e) {
 
     if ( isKey(e,  84, "T") ) {
         speedUpTransAnim();
-        return false;
-    }
-
-    if ( isKey(e, 105, "i") ) {
-        toggleInfo();
         return false;
     }
 
@@ -2325,11 +2263,6 @@ function keyPressed (e) {
         return false;
     }
 
-    if ( isKey(e, 104, "h") || isKey(e, 63, "?") ) {
-        toggleHelp();
-        return false;
-    }
-
     return true;
 }
 
@@ -2338,8 +2271,6 @@ function keyPressed (e) {
 // install keyboard event handlers
 
 document.onkeypress = keyPressed;
-document.onkeyup    = keyUp;
-document.onkeydown  = keyDown;
 
 // ----------------------------------------
 // build metadata table
@@ -3693,7 +3624,7 @@ function animFitFill() {
 function animTransZoom(zoomAnim) {
 
     function doit(k) {
-        const tr1 = transCrossFade(noAnim(600), fadein(500));
+        const tr1 = transCrossFade(noAnim(300), fadein(250));
         const tr2 = animCurrentImg(zoomAnim);                  // zoom transition
         comp(tr1, tr2)(k);
     }
