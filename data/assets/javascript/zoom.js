@@ -368,10 +368,10 @@ const Pano = {
     build : (geo, sg) => {
         const geo1 = fills(geo, sg);
 
-        if ( geo1.w >= 2 * sg.w ) {
+        if ( geo1.w >= 1.5 * sg.w ) {
             return Pano.horizontal;
         }
-        if ( geo1.h >= 2 * sg.h ) {
+        if ( geo1.h >= 1.5 * sg.h ) {
             return Pano.vertical;
         }
         return Pano.noPano;
@@ -624,7 +624,7 @@ const MoveScale = {
 
 // ----------------------------------------
 
-function defaultDisplayAlg(imgSize) {
+function defaultDisplayAlg(imgSize, pano) {
     var res;
 
     switch ( imgSize ) {
@@ -647,15 +647,16 @@ function defaultDisplayAlg(imgSize) {
 
 function evalDisplay(display, sg, img) {
     // const sg  = screenGeo();
-    const res = evalDisplay1(sg)(display, mkRect(img, nullGeo));
+    const trans = evalDisplay1(sg)(display, mkRect(img, nullGeo));
+    const res   = roundTrans(trans);
     trc(1,
-        "evalPlace: screen = " + showGeo(sg) +
-        ", name = "  + display.name +
-        ", img = " + showGeo(img) +
-        ", res.start = "  + showRect(res.start) +
-        ", res.finish = " + showRect(res.finish)
+        "evalDisplay: screen = " + showGeo(sg) +
+        ", name = "              + display.name +
+        ", img = "               + showGeo(img) +
+        ", res.start = "         + showRect(res.start) +
+        ", res.finish = "        + showRect(res.finish)
        );
-    return roundTrans(res);
+    return res;
 }
 
 function evalDisplay1(sg) {
@@ -671,7 +672,7 @@ function evalDisplay1(sg) {
             return evalMoveScale1(sg)(s.moveScale, r);
 
         default:
-            trc(1, "evalDisplay: unknown anim algorithm: " + p.name);
+            trc(1, "evalDisplay1: unknown anim algorithm: " + s.name);
             return mkTrans(r, r);
         }
     }
@@ -844,7 +845,7 @@ function evalMoveScale1(sg) {
             break;
 
         case MoveScale.pano:
-            res = ( ms.isHorizontal )
+            res = ( ms.pano = Pano.horizontal )
                 ? evalPano(Dir.left,   Dir.right)
                 : evalPano(Dir.bottom, Dir.top);
             break;
@@ -2560,10 +2561,17 @@ function slideDur() {
 }
 
 // duration to zoom in/out slide in msec
-function slideZoomDur(trans) {
+function slideZoomDur(trans, pano) {
     const sec1 = slideDurMeta();
     const d    = zoomTransDist(trans);
-    const sec2 = Math.sqrt(d) * 0.4 * slideShowDefaultDuration;;
+    const p    = ( ( pano != Pano.noPano
+                     &&
+                     eqGeo(trans.start.geo, trans.finish.geo)  // animated panorama
+                   )
+                   ? 5 : 1
+                 );
+    const sec2 = Math.sqrt(d) * 0.4 * p * slideShowDefaultDuration;;
+
     return toMsec(sec1 || sec2);
 }
 
@@ -3055,14 +3063,14 @@ function gotoSlide(url, displayAlg) {
                                        : Pano.noPano
                                      );
 
-                media.displayAlg   = displayAlg || defaultDisplayAlg(media.size);
+                media.displayAlg   = displayAlg || defaultDisplayAlg(media.size, media.pano);
                 if ( SlideType.isMovie(cs.slideType) ) {
                     media.displaAlg = Display.DefaultMovie();
                 }
                 media.displayTrans = evalDisplay(media.displayAlg,
                                                  cs.screenGeo,
                                                  media.geo);
-                media.zoomDur      = slideZoomDur(media.displayTrans);
+                media.zoomDur      = slideZoomDur(media.displayTrans, media.pano);
                 media.serverGeo    = bestFitToGeo(maxGeo(media.displayTrans.start.geo,
                                                          media.displayTrans.finish.geo,
                                                         )
