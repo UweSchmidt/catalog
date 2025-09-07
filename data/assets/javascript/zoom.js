@@ -3117,7 +3117,8 @@ function buildMovieSlide() {
         // due to server streaming api for videos
 
         const url    = toMediaUrl(cs.page.img);
-        const style  = cssRect(cs.fitsinto);
+        const rect   = cs.media.displayTrans.start;
+        const style  = cssRect(rect);
 
         // get slide container and set geomety attibutes
         const e = getElem(cs.imgId);
@@ -3128,8 +3129,8 @@ function buildMovieSlide() {
             const cls = "movie gif";
             const v   = newElem("video", mkImgId(cs.imgId), {}, cls);
 
-            v.width   = cs.media.displayTrans.start.geo.w;
-            v.heigth  = cs.media.displayTrans.start.geo.h;
+            v.width   = rect.geo.w;
+            v.heigth  = rect.geo.h;
 
             if (videoAttrs.autoplay != null) {
                 v.autoplay = "autoplay";
@@ -3155,7 +3156,7 @@ function buildMovieSlide() {
         }
         else if ( cs.slideType === SlideType.gif ) {
 
-            const css = cssSize(cs.media.displayAlg.start.geo);
+            const css = cssSize(rect.geo);
             const cls = "movie gif";
             const v2  = newImgElem(cs.imgId, css, cls);
 
