@@ -664,7 +664,6 @@ function defaultDisplayAlg(imgSize, pano) {
 // algorithms to show an image
 
 function evalDisplay(display, sg, img) {
-    // const sg  = screenGeo();
     const trans = evalDisplay1(sg)(display, mkRect(img, nullGeo));
     const res   = roundTrans(trans);
     trc(1,
@@ -1391,9 +1390,7 @@ function initShow() {
     const g = screenGeo();
     console.log("initShow: screen geo=" + showGeo(g));
 
-    // initHandlers(); // TODO cleanup
-
-    // install key handler
+    // install key event handler
 
     addKeyEventHandler("keydown");
     addKeyEventHandler("keyup");
@@ -1752,12 +1749,12 @@ function getSlideMeta(s) {
 
 function getSlideBlog(s) {
     s = s || cs;
-    const md = getSlideMeta(s);   // new blog access: blog is part of metadata
+    const md = getSlideMeta(s);   // not yet implemented: blog as part of metadata
     const bt = md["Descr:Blog"];
     if (bt) {
         return bt;
-    } // else {return "";}         // TODO cleanup, when server has been updated
-    return s.page.blogCont;      // old blog access: blog is in blogCont field;
+    }
+    return s.page.blogCont;      // current impl in server
 }
 
 function getNavReq(nav, s) {
@@ -1835,51 +1832,6 @@ function sameAsLastSlide() {
     const ppl = lll ? rPathPosToUrl(lll) : "";
     return ppc === ppl;
 }
-
-// ------------------------------------------------------------
-//
-// event handlers for image animations
-
-// TODO: not in use
-function toggleFitFill() {
-    if ( isImgSlide() ) {
-        const sz = ImgSize.build(cs.screenGeo, cs.media.displayTrans.finish.geo);
-        let   a  = Display.Default();
-
-        switch ( sz ) {
-        case ImgSize.large:
-            a = Display.ToFit();
-            break;
-
-        case ImgSize.medium:
-        case ImgSize.small:
-            a = Display.ToFill();
-            break;
-        }
-        thisSlideWith(a);
-    }
-}
-
-// TODO: just for testing, currently not used
-function toggleZoom(zoomPos) {
-    if ( isImgSlide() ) {
-        const zoomed = leGeo(cs.media.geo, cs.media.displayTrans.finish.geo);
-        let   a      = Display.Default();
-
-        switch ( zoomed ) {
-        case true:
-            a = Display.ZoomOut();
-            break;
-
-        case false:
-            zoomPos = zoomPos || defaultOff;
-            a = Display.ZoomIn(zoomPos);
-            break;
-        }
-        thisSlideWith(a);
-    }
-}
-
 
 // ----------------------------------------
 // video play config options
