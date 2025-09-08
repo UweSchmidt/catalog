@@ -365,13 +365,20 @@ const Pano = {
     horizontal : 'horizontal',
     vertical   : 'vertical',
 
-    build : (geo, sg) => {
-        const geo1 = fills(geo, sg);
+    build : (screen, geo) => {
+        if ( ImgSize.build(screen, geo) != ImgSize.large ) {  // image too small
+            return Pano.noPano;
+        }
+        const ar = aspectRatio(geo);
+        if ( ar < 2.0 && ar > 0.5 ) {                        // image width and height too similar
+            return Pano.noPano;
+        }
 
-        if ( geo1.w >= 1.5 * sg.w ) {
+        const geo1 = fills(geo, screen);
+        if ( geo1.w >= 1.5 * screen.w ) {
             return Pano.horizontal;
         }
-        if ( geo1.h >= 1.5 * sg.h ) {
+        if ( geo1.h >= 1.5 * screen.h ) {
             return Pano.vertical;
         }
         return Pano.noPano;
@@ -393,14 +400,12 @@ const Display = {
 
     NoAnim   : (pl) => {
         return { name  : Display.noAnim,
-                 name1 : pl.name,
                  place : pl,
                };
     },
 
     WithAnim : (ms) => {
         return { name      : Display.withAnim,
-                 name1     : ms.name,
                  moveScale : ms,
                };
     },
@@ -450,7 +455,6 @@ const Display = {
     },
     Default   : () => {
         let res   = Display.NoAnim(Place.Default());
-        res.name1 = Place.default;
         return res;
     }
 };
@@ -534,14 +538,14 @@ const Place = {
                  p2  : a2
                };
     },
-    Center    : (a) => {
-        return Place.Seq(a, Place.Align(Dir.center));
-    },
     ScaleC    : (a, s) => {
         return { name  : Place.scaleC,
                  p1    : a,
                  scale : s,
                };
+    },
+    Center    : (a) => {
+        return Place.Seq(a, Place.Align(Dir.center));
     },
     Default  : () => {
         // default place algorithm
@@ -626,18 +630,32 @@ const MoveScale = {
 
 function defaultDisplayAlg(imgSize, pano) {
     var res;
+    trc(1, "defaultDisplayAlg imgSize=" + imgSize + ", pano=" + pano);
 
-    switch ( imgSize ) {
+    switch ( pano ) {
+    case Pano.noPano:
 
-    case ImgSize.small:                      // center image with original size
-        res = Place.Align(Dir.center);
+        switch ( imgSize ) {
+        case ImgSize.small:                      // center image with original size
+            res = Place.Align(Dir.center);
+            break;
+
+        case ImgSize.medium:                     // default: fill/fit and center
+        case ImgSize.large:
+            res = Place.Default();
+            break;
+        }                                        // switch ( imgSize )
         break;
 
-    case ImgSize.medium:                     // default: fill/fit and center
-    case ImgSize.large:
-        res = Place.Default();
+    case Pano.horizontal:
+        res = Place.Seq(Place.Fill(), Place.Align(Dir.left));
         break;
-    }
+
+    case Pano.vertical:
+        res = Place.Seq(Place.Fill(), Place.Align(Dir.bottom));
+        break;
+    }                                            // switch ( pano )
+
     return Display.NoAnim(res);
 }
 
@@ -1862,44 +1880,6 @@ function toggleZoom(zoomPos) {
     }
 }
 
-function togglePanoSlide() {
-    if ( isImgSlide() ) {
-        if ( cs?.media.pano != Pano.noPano ) {
-            const a  = cs.media.displayAlg;
-
-            let   a1 = Display.Default();
-
-            if ( a.name1 !=  MoveScale.pano ) {
-                a1 = Display.Pano(cs.media.pano, false);
-            }
-            else if ( ! a.moveScale.reverse ) {
-                a1 = Display.Pano(cs.media.pano, true);
-            }
-            thisSlideWith(a1);
-        }
-    }
-}
-
-function togglePanoAnimation() {
-    trc(1, "togglePanoAnimation fired");
-    if ( cs.media.pano != Pano.NoAnim ) {
-        const i  = getCurrImgElem();
-        const as = i.getAnimations();
-
-        if ( as.length > 0 ) {
-            const a = as[0];
-            const ps = a.playState;
-            if ( ps === "paused" ) {
-                trc(1, "continue anim");
-                a.play();
-            }
-            else if ( ps === "running" ) {
-                trc(1, "pause anim");
-                a.pause();
-            }
-        }
-    }
-}
 
 // ----------------------------------------
 // video play config options
@@ -3059,7 +3039,7 @@ function gotoSlide(url, displayAlg) {
                 media.size         = ImgSize.build(cs.screenGeo, media.geo);
                 media.aspect       = Aspect.build(media.geo);
                 media.pano         = ( media.size === ImgSize.large
-                                       ? Pano.build(media.geo, cs.screenGeo)
+                                       ? Pano.build(cs.screenGeo, media.geo)
                                        : Pano.noPano
                                      );
 
