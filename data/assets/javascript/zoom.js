@@ -33,6 +33,11 @@ const statusDescr  = { id:      "status",
                        dur:     1500,
                      };
 
+const imageloadDescr = { id:       "imageload",
+                         visible: false,
+                         enabled: true,
+                       };
+
 const audioDescr  = { id: "audio-control",
                       visible: false,
                     };
@@ -2631,6 +2636,38 @@ function toggleDefaultAlg() {
 }
 
 // ----------------------------------------
+// image load progress
+
+var progressTimer;
+
+function showProgress(i, n) {
+    if ( imageloadDescr.enabled ) {
+        const e = getElem(imageloadDescr.id);
+            e.innerHTML = "" + i + "/" + n;
+    }
+}
+
+function stopShowProgress() {
+    clearTimeout(progressTimer);
+    startStopShowProgress({ display: "none", opacity: '' });
+}
+
+function startShowProgress() {
+    progressTimer = setTimeout(startShowProgress1, 1000);
+}
+
+function startShowProgress1() {
+     startStopShowProgress({ display: "block", opacity: 1.0 });
+}
+
+function startStopShowProgress(css) {
+    if ( imageloadDescr.enabled ) {
+        const e = clearDomElem(imageloadDescr.id);
+        setCSS(e, css);
+    }
+}
+
+// ----------------------------------------
 // status line
 
 function showStatus(msg, dur) {
@@ -3202,12 +3239,17 @@ function allImagesLoaded(e) {
             img1.src    = src;
         }
 
+        startShowProgress();
+        showProgress(alreadyLoaded, noOfImages);
+
         function imgLoaded() {
             alreadyLoaded++;
             trc(1, "imgLoaded: " + alreadyLoaded);
 
+            showProgress(alreadyLoaded, noOfImages);
             if (alreadyLoaded === noOfImages) {
                 trc(1, "allImagesLoaded: terminated");
+                stopShowProgress();
                 k();
             }
         };

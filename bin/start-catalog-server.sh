@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
-        -i|--info|-v|--verbose|-t|--trace|-w|--warnings|-q|--quiet|--errors)
+        -i|--info|-v|--verbose|-t|--trace|-w|--warnings|-q|--quiet|--errors|--debug)
             loglevel="$1"
             shift
             ;;

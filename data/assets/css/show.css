@@ -225,6 +225,26 @@ div.blog li, div.blog pre {
   /* display: none; */
 }
 
+#imageload {
+  max-width: 50em;
+  border: 1px solid #333;
+  padding: 1ex;
+  color: #eee;
+  background-color: rgb(102,102,102);
+
+  visibility: visible;
+  /* opacity: 0.8; */
+
+  position: absolute;
+  bottom: 0px;
+  right:0px;
+
+  overflow: auto;
+  z-index: 12;
+  /* display: none; */
+}
+
+
 @keyframes fadeinI {
     0% {opacity: 0.0}
   100% {opacity: 0.8}
