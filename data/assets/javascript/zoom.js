@@ -1037,9 +1037,9 @@ function screenGeo() {
 const geoOrg = readGeo("org");
 
 const serverSupportedGeos =
-      [ "160x120",
-        "160x160",
-        "320x240",
+      [ // "160x120",
+        // "160x160",
+        "320x240",      // used for icons on all screens
         "900x600",
         "1280x800",
         "1400x1050",
