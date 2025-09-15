@@ -2638,34 +2638,39 @@ function toggleDefaultAlg() {
 // ----------------------------------------
 // image load progress
 
-var progressTimer;
+const Progress = {
+    id       : "imageload",
+    visible  : false,
+    enabled  : true,
+    timer    : null,
 
-function showProgress(i, n) {
-    if ( imageloadDescr.enabled ) {
-        const e = getElem(imageloadDescr.id);
+    show(i, n) {
+        if ( Progress.enabled ) {
+            const e = getElem(Progress.id);
             e.innerHTML = "" + i + "/" + n;
-    }
-}
+        }
+    },
 
-function stopShowProgress() {
-    clearTimeout(progressTimer);
-    startStopShowProgress({ display: "none", opacity: '' });
-}
+    stop() {
+        clearTimeout(Progress.timer);
+        Progress.startStop({ display: "none", opacity: '' });
+    },
 
-function startShowProgress() {
-    progressTimer = setTimeout(startShowProgress1, 1000);
-}
+    start() {
+        Progress.timer = setTimeout(Progress.start1, 1000);
+    },
 
-function startShowProgress1() {
-     startStopShowProgress({ display: "block", opacity: 1.0 });
-}
+    start1() {
+        Progress.startStop({ display: "block", opacity: 1.0 });
+    },
 
-function startStopShowProgress(css) {
-    if ( imageloadDescr.enabled ) {
-        const e = clearDomElem(imageloadDescr.id);
-        setCSS(e, css);
-    }
-}
+    startStop(css) {
+        if ( Progress.enabled ) {
+            const e = clearDomElem(imageloadDescr.id);
+            setCSS(e, css);
+        }
+    },
+};
 
 // ----------------------------------------
 // status line
@@ -3239,17 +3244,17 @@ function allImagesLoaded(e) {
             img1.src    = src;
         }
 
-        startShowProgress();
-        showProgress(alreadyLoaded, noOfImages);
+        Progress.start();
+        Progress.show(alreadyLoaded, noOfImages);
 
         function imgLoaded() {
             alreadyLoaded++;
             trc(1, "imgLoaded: " + alreadyLoaded);
 
-            showProgress(alreadyLoaded, noOfImages);
+            Progress.show(alreadyLoaded, noOfImages);
             if (alreadyLoaded === noOfImages) {
                 trc(1, "allImagesLoaded: terminated");
-                stopShowProgress();
+                Progress.stop();
                 k();
             }
         };
