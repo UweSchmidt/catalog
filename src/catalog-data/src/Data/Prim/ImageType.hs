@@ -22,6 +22,8 @@ import Data.Prim.Prelude
        , Iso'
        , IsoString(..)
        , IsoText(..)
+       , JParser
+       , JValue
        , FromJSON(parseJSON)
        , ToJSON(toJSON)
        , AsEmpty(..)
@@ -298,15 +300,18 @@ deriving instance Show ImgType
 deriving instance Read ImgType
 
 instance IsoString ImgType where
+  isoString :: Iso' ImgType String
   isoString = iso show (fromMaybe IMGboring . readMaybe)
 
 instance IsoText ImgType
 
 instance ToJSON ImgType where
+  toJSON :: ImgType -> JValue
   toJSON = toJSON . show
   {-# INLINE toJSON #-}
 
 instance FromJSON ImgType where
+  parseJSON :: JValue -> JParser ImgType
   parseJSON o = parseJSON o >>= maybe mzero return
   {-# INLINE parseJSON #-}
 
@@ -409,7 +414,5 @@ mt2it Video'x_m4v                  = IMGother
 mt2it Video'x_gif                  = IMGimg
 mt2it Unknown'mime_type            = IMGboring
 
-isoMimeType :: Iso' MimeType ImgType
-isoMimeType = iso mt2it it2mt
 -- -}
 -- ----------------------------------------

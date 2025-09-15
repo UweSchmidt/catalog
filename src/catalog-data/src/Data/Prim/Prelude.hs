@@ -13,6 +13,8 @@ module Data.Prim.Prelude
     IsString (..),
 
     -- * Data.Aeson
+    JParser,
+    JValue,
     ToJSON (..),
     FromJSON (..),
     (.=?!),
@@ -197,6 +199,9 @@ import Text.Read
 type LazyByteString = LB.ByteString
 
 type LazyText = LT.Text
+
+type JValue = J.Value
+type JParser = J.Parser
 
 -- ----------------------------------------
 

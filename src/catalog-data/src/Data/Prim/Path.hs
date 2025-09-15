@@ -38,9 +38,11 @@ import Data.Prim.Prelude
       AsEmpty,
       Text,
       IsoText(..),
-      ToJSON(toJSON),
       Iso',
+      ToJSON(toJSON),
       FromJSON(parseJSON),
+      JParser,
+      JValue,
       iso,
       Alternative(many, some),
       isEmpty,
@@ -269,15 +271,18 @@ deriving instance Eq  n => Eq  (Path' n)
 deriving instance Ord n => Ord (Path' n)
 
 instance Foldable Path' where
+  foldMap :: Monoid m => (a -> m) -> Path' a -> m
   foldMap f = foldl (\ r n -> r <> f n) mempty
   {-# INLINE foldMap #-}
 
+  foldl :: (b -> a -> b) -> b -> Path' a -> b
   foldl f e = go
     where
       go PNil = e
       go (PSnoc p1 n) = go p1 `f` n
   {-# INLINE foldl #-}
 
+  foldr :: (a -> b -> b) -> b -> Path' a -> b
   foldr f e = go e
     where
       go acc PNil = acc
@@ -306,10 +311,12 @@ instance Show Path where
   {-# INLINE show #-}
 
 instance ToJSON Path where
+  toJSON :: Path -> JValue
   toJSON = toJSON . textFromPath
   {-# INLINE toJSON #-}
 
 instance FromJSON Path where
+  parseJSON :: JValue -> JParser Path
   parseJSON o = textToPath <$> parseJSON o
 
 instance IsString Path where

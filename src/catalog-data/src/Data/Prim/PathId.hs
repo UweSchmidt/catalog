@@ -11,8 +11,19 @@ module Data.Prim.PathId
        )
        where
 
-import Data.Prim.Path
+import Data.Prim.Path ( Path )
 import Data.Prim.Prelude
+       ( IsString(fromString),
+         Iso',
+         isEmpty,
+         iso,
+         IsoString(..),
+         AsEmpty,
+         FromJSON(parseJSON),
+         ToJSON(toJSON),
+         JValue,
+         JParser
+       )
 
 -- ----------------------------------------
 
@@ -57,11 +68,14 @@ instance Show ObjId where
   {-# INLINE show #-}
 
 instance ToJSON ObjId where
+  toJSON :: ObjId -> JValue
   toJSON = toJSON . showObjId
   {-# INLINE toJSON #-}
 
 instance FromJSON ObjId where
+  parseJSON :: JValue -> JParser ObjId
   parseJSON o = readObjId <$> parseJSON o
+  {-# INLINE parseJSON #-}
 
 instance IsoString ObjId where
   isoString :: Iso' ObjId String
