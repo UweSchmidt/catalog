@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # start catalog server
-# this script must be started
-# from within catalog dir as ./bin/start-catalog-server.sh
+# the server is determined by the location of this script
 
 die () {
     echo $1 >&2
@@ -10,17 +9,59 @@ die () {
     exit 1
 }
 
-# develop or release dir?
+function trc() {
+    echo '#' "$@" 1>&2
+}
 
-catroot="$(basename $(dirname $PWD))"
-reldir="Bilder"
+# compute physical dir path of this script
+res=""
+
+function physDir() {
+    local sp="$1"
+    local wd=$(pwd -P)
+    local ad=$(dirname "$wd/$sp")
+
+    { pushd "$ad"; res=$(pwd -P); popd; } >/dev/null
+
+    # trc "$wd $sp $ad $res"
+    trc physDir: result: "$res"
+}
+# the supported catalog servers
+
+orgCat="/Volumes/8TB-SieGeht/home/uwe/Bilder/catalog"      # production server on disk 8TB-SieGeht (at host scheibe)
+devCat="/Users/uwe/haskell/catalog"                        # development serveer at scheibe or schwarzbuch
+extCat="/Volumes/5TB-Diakasten/home/uwe/Bilder/catalog"    # view only server on disk 5TB-Diakasten
+
+physDir "$0"
+curCat=$(dirname "$res")
+
+function isOrg() { [[ "$curCat" == "$orgCat" ]]; }
+function isDev() { [[ "$curCat" == "$devCat" ]]; }
+function isExt() { [[ "$curCat" == "$extCat" ]]; }
+
+isOrg || isDev || isExt || die "unknown catalog dir: $curCat"
+
+host=$(hostname | sed -e 's|.local||')
+arch=$(arch)
+
+# default options
+
 port="3001"
 loglevel="--info"
+nosync=
 
-[[ "$catroot" = "$reldir" ]]         || port="3333"  # develop dir
-[[ "$catroot" = "$reldir" ]]         || loglevel="--verbose"
+if isDev
+then
+    port="3333"
+    loglevel="--verbose"
+fi
 
-# options: -P --port, -j --journal, -v --verbose, -t --trace
+if isExt
+then
+    nosync="--no-sync"
+fi
+
+# options: -P --port, -j --journal, -v --verbose, -t --trace, --no-sync
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -38,6 +79,10 @@ while [[ $# -gt 0 ]]; do
             loglevel="$1"
             shift
             ;;
+        --no-sync)
+            nosync="--no-sync"
+            shift
+            ;;
         -*|--*)
             die "Unknown option: $1"
             ;;
@@ -47,14 +92,14 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+trc "cd $curCat"
+cd "$curCat"                         # cd into catalog dir
 
-[[ "$(basename $PWD)" = "catalog" ]] || die "current working dir must be 'catalog' "
-
-[[ -d "data" ]]                      || die "no subdir data"
+[[ -d "data" ]]                      || die "in catalog dir no subdir data found"
 
 cd "data"                            # server must be started in subdir data
 
-server="../bin/servant-polysemy"
+server="../bin/$arch/servant-polysemy"
 catdir="catalog"
 catalog="photos-0.5.pathid.json"
 
@@ -70,4 +115,5 @@ exec $server \
      -P "$port" \
      -a "$catdir/$catalog" \
      -j "$journal" \
+     $nosync \
      --save-hash-and-path-ix

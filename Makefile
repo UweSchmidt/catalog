@@ -35,10 +35,13 @@ ghcVersion     :=$(shell ghc --version | sed -e 's/^.*version //')
 servant-polysemy :=$(shell echo src/dist-newstyle/build/*/ghc-$(ghcVersion)/servant-polysemy-$(catalogVersion)/*/servant-polysemy/build/servant-polysemy/servant-polysemy)
 client-polysemy  :=$(shell echo src/dist-newstyle/build/*/ghc-$(ghcVersion)/client-polysemy-$(catalogVersion)/*/client-polysemy/build/client-polysemy/client-polysemy)
 
+arch :=$(shell arch)
+
 copy-apps:
-	@# echo $(catalogVersion) $(ghcVersion) $(servant-polysemy) $(client-polysemy)
-	cp -f $(servant-polysemy) bin/servant-polysemy
-	cp -f $(client-polysemy)  bin/client-polysemy
-	ls -l bin
+	echo $(arch) $(catalogVersion) $(ghcVersion) $(servant-polysemy) $(client-polysemy)
+	test -d bin/$(arch) || mkdir bin/$(arch)
+	cp -f $(servant-polysemy) bin/$(arch)/servant-polysemy
+	cp -f $(client-polysemy)  bin/$(arch)/client-polysemy
+	ls -l bin/$(arch)
 
 PHONY: configure build install install-local local bump-version clean start check-external-progs copy-apps
