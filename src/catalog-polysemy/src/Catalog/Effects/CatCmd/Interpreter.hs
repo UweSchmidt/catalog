@@ -19,6 +19,7 @@ import Catalog.Effects
        , writeFileLB
        , log'trc
        , interpret
+       , ask
        , get
        , put
        , throw
@@ -31,6 +32,11 @@ import Catalog.GenCheckSum
 
 import Catalog.CatalogIO
        ( Eff'CatIO )
+
+import Catalog.CatEnv
+       ( CatEnv
+       , catNoSync
+       )
 
 import Catalog.GenCollections
        ( modifyMetaDataRec )
@@ -231,15 +237,19 @@ evalCatCmd =
       modify'snapshot t
 
     SyncCollection p ->
+      throwNoSync "sync collection" >>
       path2id p >>= modify'syncCol
 
     SyncExif recursive force p ->
+      throwNoSync "sync EXIF metadata" >>
       path2id p >>= modify'syncExif recursive force
 
     NewSubCollections p ->
+      throwNoSync "import new collection" >>
       path2id p >>= modify'newSubCols
 
     UpdateCheckSum cs n p ->
+      throwNoSync "update checksum" >>
       path2id p >>= modify'updateCheckSum cs n
 
     UpdateTimeStamp ts n p ->
@@ -968,6 +978,13 @@ throwP :: Eff'ISE r => ObjId -> Text -> Sem r a
 throwP i msg = do
   p <- objid2path i
   throw @Text (msgPath p $ msg <> ": ")
+
+throwNoSync :: (EffCatEnv r, EffError r) => Text -> Sem r ()
+throwNoSync msg = do
+  noSync <- (^. catNoSync) <$> ask @CatEnv
+  if noSync
+    then throw @Text (msg <> " is disabled by server option --no-catalog-sync")
+    else return ()
 
 -- --------------------
 --

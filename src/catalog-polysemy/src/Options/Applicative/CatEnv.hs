@@ -8,6 +8,7 @@ module Options.Applicative.CatEnv
   , optJsonArchive
   , optMountPath
   , optSaveBothIx
+  , optNoSync
   , optGPSCache
   )
 where
@@ -95,5 +96,12 @@ optForceMDU =
             <> " (recompute EXIF data for all images)"
             )
   )
+
+optNoSync :: Parser Bool
+optNoSync =
+  switch
+    ( long "no-catalog-sync"
+        <> help "syncing catalog with image archive (sync, import, exif update) blocked"
+    )
 
 ----------------------------------------

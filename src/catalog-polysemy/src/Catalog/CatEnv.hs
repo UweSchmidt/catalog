@@ -31,6 +31,7 @@ data CatEnv = CatEnv
   , _catGPSCache    :: TextPath
   , _catForceMDU    :: Bool        -- force metadata update
   , _catSaveBothIx  :: Bool
+  , _catNoSync      :: Bool
   , _catFontName    :: Text
   }
 
@@ -44,6 +45,7 @@ defaultCatEnv = CatEnv
                 , _catGPSCache    = "gps-cache.json"
                 , _catForceMDU    = False
                 , _catSaveBothIx  = False
+                , _catNoSync      = False
                 , _catFontName    = mempty
                 }
 

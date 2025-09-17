@@ -27,6 +27,7 @@ import Options.Applicative.CatEnv
        , optJsonArchive
        , optMountPath
        , optSaveBothIx
+       , optNoSync
        )
 import Options.Applicative.HostPort
        ( optPort )
@@ -46,6 +47,7 @@ import Catalog.CatEnv
        , catJsonArchive
        , catMountPath
        , catSaveBothIx
+       , catNoSync
        , defaultAppEnv
        )
 import Data.Prim
@@ -76,9 +78,10 @@ appEnvParser =
   <*> optJournal
   <*> optForceMDU
   <*> optSaveBothIx
+  <*> optNoSync
   <*> optGPSCache
   where
-    setEnv ll po ja mp jo fu sx gc =
+    setEnv ll po ja mp jo fu sx ns gc =
       defaultAppEnv
       & appEnvLogLevel .~ ll
       & appEnvJournal  .~ jo
@@ -87,6 +90,7 @@ appEnvParser =
       & appEnvCat . catJsonArchive .~ ja
       & appEnvCat . catForceMDU    .~ fu
       & appEnvCat . catSaveBothIx  .~ sx
+      & appEnvCat . catNoSync      .~ ns
       & appEnvCat . catGPSCache    .~ gc
 
 ----------------------------------------
