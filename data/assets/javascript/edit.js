@@ -1151,7 +1151,7 @@ function insertEntry(colId, colPath, entry, i, ref) {
     setDiaNo(p, i);
 
     // old url scheme
-    var sc = iconSize('');
+    var sc = iconSize();
     var mk = '';
     var tt = '';
     // var ref = splitPath(entry.ref);
@@ -3686,7 +3686,10 @@ function idCollections() { return path2id(pathCollections()); }
 function idClipboard()   { return path2id(pathClipboard()); }
 function idTrash()       { return path2id(pathTrash()); }
 
-function iconSize() { return "pad-160x160"; }
+function iconSize() {
+    // return "pad-320x320";
+    return "pad-160x160";
+}
 
 // ----------------------------------------
 //
