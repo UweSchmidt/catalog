@@ -31,9 +31,9 @@ while [[ $# -gt 0 ]]; do
             tOpt="-t"
             shift
             ;;
-        --volume)
+        --ext-volume)
             shift
-            volumeOpt="$1"
+            extVolumeOpt="$1"
             shift
             ;;
         *)
@@ -58,7 +58,7 @@ function physDir() {
 
 orgCat="/Volumes/8TB-SieGeht/home/uwe/Bilder/catalog"
 devCat="/Users/uwe/haskell/catalog"
-extCat="/Volumes/$volumeOpt/home/uwe/Bilder/catalog"
+extCat="/Volumes/$extVolumeOpt/home/uwe/Bilder/catalog"
 
 physDir "$0"
 curCat=$(dirname "$res")
@@ -112,37 +112,47 @@ done
 
 trc copy all media files from $srcDir to $dstDir
 trc rsync $dry -av $excludes "$srcDir/" "$dstDir"
+trc no .-files and no files not used by catalog server
 
-# no .-files and no files not used by catalog server
 isOrg && \
     rsync $dry -av \
+          --delete \
+          --delete-excluded \
           --exclude='.*' \
           $excludes \
           "$srcDir/" "$dstDir"
 
-srcData="$catSrc/data"
-dstData="$catDst/data"
+trc copy catalog data from "$catSrc/data/" to "$catDst/data"
+trc git repos and configs (.git, .gitignore) are includd
 
-trc copy catalog data from $srcData/ to $dstData
-
-# git repos and configs (.git, .gitignore) are includd
 isOrg && \
     rsync $dry -av \
+          --delete \
+          --delete-excluded \
           --exclude='.DS_Store' \
           --exclude='*~' \
-          --exclude='dist-newstyle' \
           --exclude='catalog-journal*.json' \
-          "$srcData/" "$dstData"
+          "$catSrc/data/" "$catDst/data"
 
 
 trc copy catalog sources and binaries from $catSrc/ to $catDst
+trc git repos and configs (.git, .gitignore) are included
 
-# git repos and configs (.git, .gitignore) are included
+( isOrg || isDev ) && \
+    rsync $dry -av \
+          --delete \
+          --delete-excluded \
+          --exclude='.DS_Store' \
+          --exclude='*~' \
+          --exclude='dist-newstyle' \
+          "$catSrc/src/" "$catDst/src"
+
+trc for bin dir no --delete is set due to arch subdirs (arm64 / i386)
+
 ( isOrg || isDev ) && \
     rsync $dry -av \
           --exclude='.DS_Store' \
           --exclude='*~' \
           --exclude='data' \
-          --exclude='dist-newstyle' \
-          --exclude='catalog-journal*.json' \
+          --exclude="src" \
           "$catSrc/" "$catDst"

@@ -48,7 +48,7 @@ arch=$(arch)
 
 port="3001"
 loglevel="--info"
-nosync=
+noCatalogSync=
 
 if isDev
 then
@@ -58,7 +58,9 @@ fi
 
 if isExt
 then
-    nosync="--no-sync"
+    port="3456"
+    loglevel="--verbose"
+    noCatalogSync="--no-catalog-sync"
 fi
 
 # options: -P --port, -j --journal, -v --verbose, -t --trace, --no-sync
@@ -79,8 +81,8 @@ while [[ $# -gt 0 ]]; do
             loglevel="$1"
             shift
             ;;
-        --no-sync)
-            nosync="--no-sync"
+        --no-catalog-sync)
+            noCatalogSync="$1"
             shift
             ;;
         -*|--*)
@@ -115,5 +117,5 @@ exec $server \
      -P "$port" \
      -a "$catdir/$catalog" \
      -j "$journal" \
-     $nosync \
+     $noCatalogSync \
      --save-hash-and-path-ix
