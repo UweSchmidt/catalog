@@ -3687,8 +3687,7 @@ function idClipboard()   { return path2id(pathClipboard()); }
 function idTrash()       { return path2id(pathTrash()); }
 
 function iconSize() {
-    // return "pad-320x320";
-    return "pad-160x160";
+    return "pad-320x320";
 }
 
 // ----------------------------------------
@@ -3696,7 +3695,7 @@ function iconSize() {
 // new URL scheme functions
 
 function iconPrefix(padSize) {
-    return "/docs/iconp/" + padSize.slice(4);
+    return "/docs/img/" + padSize.slice(4);
 }
 
 function iconRef(padSize, colPath, entry, ix) {

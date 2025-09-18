@@ -539,7 +539,7 @@ buildResize3 vico rot d'g s'geo d s'
 
     isPad         = xoff == (-1) && yoff == (-1)
     isCrop        = xoff > 0     || yoff > 0
-    isThumbnail   = d'geo ^. theW <= 300 || d'geo ^. theH <= 300
+    isThumbnail   = d'geo ^. theW <= 320 || d'geo ^. theH <= 320
 
     -- for .tiff convert needs the layer # to be taken
     -- if the image contains a thumbnail,
