@@ -106,7 +106,7 @@ then
 
     excludes=""
     for i in $(find "$srcDir" -type f | \
-                   sed -e 's|^.*[.]|.|'| \
+                   sed -e 's|^.*/||' -e 's|^.*[.]|.|'| \
                    sort -u | \
                    grep -i -v -E '.jpg|.jpeg|.gif|.md|.mp4|.tiff?|.png|.pbm|.pgm|.ppm|.md|.txt' | \
                    cat )
