@@ -19,7 +19,7 @@ function trc() {
 
 xOpt=
 tOpt=
-volumeOpt="5TB-Diakasten"
+extVolumeOpt="5TB-Diakasten"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -112,7 +112,7 @@ done
 
 trc copy all media files from $srcDir to $dstDir
 trc rsync $dry -av $excludes "$srcDir/" "$dstDir"
-trc no .-files and no files not used by catalog server
+trc "no .-files and no files not used by catalog server"
 
 isOrg && \
     rsync $dry -av \
@@ -123,7 +123,7 @@ isOrg && \
           "$srcDir/" "$dstDir"
 
 trc copy catalog data from "$catSrc/data/" to "$catDst/data"
-trc git repos and configs (.git, .gitignore) are includd
+trc "git repos and configs (.git, .gitignore) are included"
 
 isOrg && \
     rsync $dry -av \
@@ -136,23 +136,12 @@ isOrg && \
 
 
 trc copy catalog sources and binaries from $catSrc/ to $catDst
-trc git repos and configs (.git, .gitignore) are included
+trc "git repos and configs (.git, .gitignore) are included"
 
 ( isOrg || isDev ) && \
     rsync $dry -av \
-          --delete \
-          --delete-excluded \
           --exclude='.DS_Store' \
           --exclude='*~' \
+          --exclude="data" \
           --exclude='dist-newstyle' \
-          "$catSrc/src/" "$catDst/src"
-
-trc for bin dir no --delete is set due to arch subdirs (arm64 / i386)
-
-( isOrg || isDev ) && \
-    rsync $dry -av \
-          --exclude='.DS_Store' \
-          --exclude='*~' \
-          --exclude='data' \
-          --exclude="src" \
           "$catSrc/" "$catDst"
