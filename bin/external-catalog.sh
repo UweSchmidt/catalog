@@ -56,7 +56,10 @@ function physDir() {
     trc physDir: result: "$res"
 }
 
-orgCat="/Volumes/8TB-SieGeht/home/uwe/Bilder/catalog"
+orgBas="/Volumes/8TB-SieGeht/home/uwe/Bilder"
+orgDia="$orgBas/Diakaesten"
+orgCat="$orgBas/catalog"
+
 devCat="/Users/uwe/haskell/catalog"
 extCat="/Volumes/$extVolumeOpt/home/uwe/Bilder/catalog"
 
@@ -79,7 +82,7 @@ then
     srcDir="$HOME/haskell/Diakaesten"
 else
     catSrc="$curCat"
-    srcDir="$HOME/Bilder/Diakaesten"
+    srcDir="$orgDia"
     catDst="$extCat"
 fi
 dstDir="$catDst/photos"
@@ -93,8 +96,8 @@ then
     DRY=
 fi
 
-[[ -d "$srcDir" ]] || die "media source directory not fount: $srcDir"
-[[ -d "$catDst" ]] || die "catalog destination directory not fount: $dstDir"
+[[ -d "$srcDir" ]] || die "media source directory not found: $srcDir"
+[[ -d "$catDst" ]] || die "catalog destination directory not found: $dstDir"
 [[ -d "$dstDir" ]] || $DRY mkdir "$dstDir"
 
 trc compute exclude options for media files
