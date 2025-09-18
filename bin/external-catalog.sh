@@ -96,55 +96,61 @@ then
     DRY=
 fi
 
-[[ -d "$srcDir" ]] || die "media source directory not found: $srcDir"
+# [[ -d "$srcDir" ]] || die "media source directory not found: $srcDir"
 [[ -d "$catDst" ]] || die "catalog destination directory not found: $dstDir"
 [[ -d "$dstDir" ]] || $DRY mkdir "$dstDir"
 
-trc compute exclude options for media files
+if [[ -d "$srcDir" ]]
+then
+    trc compute exclude options for media files
 
-excludes=""
-for i in $(find "$srcDir" -type f | \
-               sed -e 's|^.*[.]|.|'| \
-               sort -u | \
-               grep -i -v -E '.jpg|.jpeg|.gif|.md|.mp4|.tiff?|.png|.pbm|.pgm|.ppm|.md|.txt' | \
-               cat )
-do
-    trc "files with extension \"$i\" are excluded"
-    excludes="$excludes --exclude=*$i"
-done
+    excludes=""
+    for i in $(find "$srcDir" -type f | \
+                   sed -e 's|^.*[.]|.|'| \
+                   sort -u | \
+                   grep -i -v -E '.jpg|.jpeg|.gif|.md|.mp4|.tiff?|.png|.pbm|.pgm|.ppm|.md|.txt' | \
+                   cat )
+    do
+        trc "files with extension \"$i\" are excluded"
+        excludes="$excludes --exclude=*$i"
+    done
 
-trc copy all media files from $srcDir to $dstDir
-trc rsync $dry -av $excludes "$srcDir/" "$dstDir"
-trc "no .-files and no files not used by catalog server"
+    trc copy all media files from $srcDir to $dstDir
+    trc rsync $dry -av $excludes "$srcDir/" "$dstDir"
+    trc "no .-files and no files not used by catalog server"
 
-isOrg && \
     rsync $dry -av \
           --delete \
           --delete-excluded \
           --exclude='.*' \
           $excludes \
           "$srcDir/" "$dstDir"
+else
+    trc "media source directory not found: $srcDir"
+    trc "no media files copied"
+fi
 
-trc copy catalog data from "$catSrc/data/" to "$catDst/data"
-trc "git repos and configs (.git, .gitignore) are included"
+if isOrg
+then
+    trc copy catalog data from "$catSrc/data/" to "$catDst/data"
+    trc "git repos and configs (.git, .gitignore) are included"
 
-isOrg && \
     rsync $dry -av \
-          --delete \
-          --delete-excluded \
           --exclude='.DS_Store' \
           --exclude='*~' \
           --exclude='catalog-journal*.json' \
           "$catSrc/data/" "$catDst/data"
+fi
 
+if isOrg || isDev
+then
+    trc copy catalog sources and binaries from $catSrc/ to $catDst
+    trc "git repos and configs (.git, .gitignore) are included"
 
-trc copy catalog sources and binaries from $catSrc/ to $catDst
-trc "git repos and configs (.git, .gitignore) are included"
-
-( isOrg || isDev ) && \
     rsync $dry -av \
           --exclude='.DS_Store' \
           --exclude='*~' \
           --exclude="data" \
           --exclude='dist-newstyle' \
           "$catSrc/" "$catDst"
+fi
