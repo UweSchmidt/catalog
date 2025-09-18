@@ -108,7 +108,7 @@ then
     for i in $(find "$srcDir" -type f | \
                    sed -e 's|^.*/||' -e 's|^.*[.]|.|' -e 's|^[.]|*.|' | \
                    sort -u | \
-                   grep -i -v -E '.jpg|.jpeg|.gif|.md|.mp4|.tiff?|.png|.pbm|.pgm|.ppm|.md|.txt' | \
+                   grep -i -v -E '.jpg|.jpeg|.gif|.md|.mp[34]|.tiff?|.bmp|.png|.pbm|.pgm|.ppm|.md|.txt' | \
                    cat )
     do
         trc "files with pattern \"$i\" are excluded"
