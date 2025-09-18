@@ -48,7 +48,16 @@ res=""
 function physDir() {
     local sp="$1"
     local wd=$(pwd -P)
-    local ad=$(dirname "$wd/$sp")
+    local ad=
+
+    # abs / rel path ?
+
+    if echo $sp | grep -e '^/'
+    then
+        ad=$(dirname "$sp")
+    else
+        ad=$(dirname "$wd/$sp")
+    fi
 
     { pushd "$ad"; res=$(pwd -P); popd; } >/dev/null
 
@@ -140,6 +149,12 @@ then
           --exclude='*~' \
           --exclude='catalog-journal*.json' \
           "$catSrc/data/" "$catDst/data"
+
+    trc "set symlink for photos media dir"
+    ( cd "$catSrc/data" && \
+          rm -f photos && \
+          ln -s ../photos photos
+    )
 fi
 
 if isOrg || isDev

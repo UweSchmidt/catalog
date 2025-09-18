@@ -19,13 +19,23 @@ res=""
 function physDir() {
     local sp="$1"
     local wd=$(pwd -P)
-    local ad=$(dirname "$wd/$sp")
+    local ad=
+
+    # abs / rel path ?
+
+    if echo $sp | grep -e '^/'
+    then
+        ad=$(dirname "$sp")
+    else
+        ad=$(dirname "$wd/$sp")
+    fi
 
     { pushd "$ad"; res=$(pwd -P); popd; } >/dev/null
 
     # trc "$wd $sp $ad $res"
     trc physDir: result: "$res"
 }
+
 # the supported catalog servers
 
 orgCat="/Volumes/8TB-SieGeht/home/uwe/Bilder/catalog"      # production server on disk 8TB-SieGeht (at host scheibe)
