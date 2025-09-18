@@ -106,12 +106,12 @@ then
 
     excludes=""
     for i in $(find "$srcDir" -type f | \
-                   sed -e 's|^.*/||' -e 's|^.*[.]|.|'| \
+                   sed -e 's|^.*/||' -e 's|^.*[.]|.|' -e 's|^[.]|*.|' | \
                    sort -u | \
                    grep -i -v -E '.jpg|.jpeg|.gif|.md|.mp4|.tiff?|.png|.pbm|.pgm|.ppm|.md|.txt' | \
                    cat )
     do
-        trc "files with extension \"$i\" are excluded"
+        trc "files with pattern \"$i\" are excluded"
         excludes="$excludes --exclude=*$i"
     done
 
