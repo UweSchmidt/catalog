@@ -552,16 +552,20 @@ const Place = {
     Center    : (a) => {
         return Place.Seq(a, Place.Align(Dir.center));
     },
-    Default  : () => {
-        // default place algorithm
-        // can be configured, e.g fill / fitsInto
-        // current default: fill with a max cutoff of 17%, otherwise fitsInto
 
-        return Place.Center(Place.FillCut(0.17));
+    Default  : () => {
+        return Place.Center(Place.FitsInto());
     },
 
     setDefault : (c) => {
-        Place.Default = c;
+        Place.Default = () => { return Place.Center(c); };
+    },
+    setDefaultFillCut : () => {
+        // fill screen with a max cutoff of 17%, otherwise fitsInto
+        Place.setDefault(Place.FillCut(0.17));
+    },
+    setDefaultFitsInto : () => {
+        Place.setDefault(Place.FitsInto());
     },
 };
 
@@ -1395,6 +1399,11 @@ function initShow() {
     const g = screenGeo();
     console.log("initShow: screen geo=" + showGeo(g));
 
+    // set defaultPlace alg
+
+    Place.setDefaultFitsInto();   // show whole img, no cutting of small parts to fit into
+    // Place.setDefaultFillCut();    // cut some small parts to fill whole screen
+
     // install key event handler
 
     addKeyEventHandler("keydown");
@@ -1897,13 +1906,13 @@ function setPageTitle() {
 // ----------------------------------------
 
 const MoveScaleActions = {
-    default() { thisSlideWith(Display.ToDefault());           },
+    default() { thisSlideWith(Display.ToDefault());         },
     larger()  { thisSlideWith(Display.ZoomCenter(1.2));     },
     smaller() { thisSlideWith(Display.ZoomCenter(1 / 1.2)); },
     org()     { thisSlideWith(Display.ZoomIn(defaultOff));  },
     fill()    { thisSlideWith(Display.ToFill());            },
     fit()     { thisSlideWith(Display.ToFit());             },
-}
+};
 
 const StepActions = {
     advance() {
@@ -1939,7 +1948,7 @@ const StepActions = {
     showAll() {
         startStopShow(setContGlobShow);
     },
-}
+};
 
 const ConfigActions = {
     info()          { toggleInfo(); },
@@ -1952,6 +1961,12 @@ const ConfigActions = {
     version()       { showVersion(); },
     edit()          { stopShow(); openEdit(); },
     audioCtrl()     { hasAudioControl() && toggleAudio(); },
+    fillCut()       { Place.setDefaultFillCut();
+                      thisSlideWith(Display.Default());
+                    },
+    fitsInto()      { Place.setDefaultFitsInto();
+                      thisSlideWith(Display.Default());
+                    },
 };
 
 const VideoCtrlActions = {
@@ -1994,6 +2009,9 @@ const DownActions = {
     v          : ConfigActions.version,
     z          : ConfigActions.audioCtrl,
 
+    "-"        : ConfigActions.slowDown,
+    "+"        : ConfigActions.speedUp,
+
     c          : VideoCtrlActions.controls,
     m          : VideoCtrlActions.muted,
 };
@@ -2017,9 +2035,11 @@ const DownAltActions = {
     171        : MoveScaleActions.larger,     // Alt-+      // keyCode
     173        : MoveScaleActions.smaller,    // Alt--      // keyCode
     Digit0     : MoveScaleActions.default,    // Alt-0
-    Digit1     : MoveScaleActions.org,
-    Digit2     : MoveScaleActions.fit,
+    Digit1     : MoveScaleActions.org,        // Alt-1
+    Digit2     : MoveScaleActions.fit,        // Alt-2
     Digit3     : MoveScaleActions.fill,       // Alt-3
+    Digit4     : ConfigActions.fitsInto,      // Alt-4
+    Digit5     : ConfigActions.fillCut,       // Alt-5
 };
 
 const KeyUpActions = { };
@@ -3244,8 +3264,8 @@ function allImagesLoaded(e) {
             img1.src    = src;
         }
 
-        Progress.start();
         Progress.show(alreadyLoaded, noOfImages);
+        Progress.start();
 
         function imgLoaded() {
             alreadyLoaded++;
