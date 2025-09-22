@@ -94,7 +94,7 @@ else
     srcDir="$orgDia"
     catDst="$extCat"
 fi
-dstDir="$catDst/photos"
+dstDir="$catDst/data/photos"
 
 dry="--dry-run"
 DRY="echo DRY-RUN> "
@@ -105,13 +105,29 @@ then
     DRY=
 fi
 
+
 # [[ -d "$srcDir" ]] || die "media source directory not found: $srcDir"
-[[ -d "$catDst" ]] || die "catalog destination directory not found: $dstDir"
-[[ -d "$dstDir" ]] || $DRY mkdir "$dstDir"
+[[ -d "$catDst" ]] || die "catalog destination directory not found: $catDst"
+
+if isOrg
+then
+    trc copy catalog data from "$catSrc/data/" to "$catDst/data"
+    trc "git repos and configs (.git, .gitignore) are included"
+
+    rsync $dry -av \
+          --exclude='photos' \
+          --exclude='.DS_Store' \
+          --exclude='*~' \
+          --exclude='catalog-journal*.json' \
+          "$catSrc/data/" "$catDst/data"
+fi
+
 
 if [[ -d "$srcDir" ]]
 then
     trc compute exclude options for media files
+
+    [[ -d "$dstDir" ]] || $DRY mkdir "$dstDir"
 
     excludes=""
     for i in $(find "$srcDir" -type f | \
@@ -137,24 +153,6 @@ then
 else
     trc "media source directory not found: $srcDir"
     trc "no media files copied"
-fi
-
-if isOrg
-then
-    trc copy catalog data from "$catSrc/data/" to "$catDst/data"
-    trc "git repos and configs (.git, .gitignore) are included"
-
-    rsync $dry -av \
-          --exclude='.DS_Store' \
-          --exclude='*~' \
-          --exclude='catalog-journal*.json' \
-          "$catSrc/data/" "$catDst/data"
-
-    trc "set symlink for photos media dir"
-    ( cd "$catSrc/data" && \
-          rm -f photos && \
-          ln -s ../photos photos
-    )
 fi
 
 if isOrg || isDev

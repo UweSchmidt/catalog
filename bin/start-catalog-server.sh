@@ -41,6 +41,7 @@ function physDir() {
 orgCat="/Volumes/8TB-SieGeht/home/uwe/Bilder/catalog"      # production server on disk 8TB-SieGeht (at host scheibe)
 devCat="/Users/uwe/haskell/catalog"                        # development serveer at scheibe or schwarzbuch
 extCat="/Volumes/5TB-Diakasten/home/uwe/Bilder/catalog"    # view only server on disk 5TB-Diakasten
+testCat="/Users/uwe/tmp/catalog"                           # test server ~/tmp/catalog
 
 physDir "$0"
 curCat=$(dirname "$res")
@@ -48,8 +49,9 @@ curCat=$(dirname "$res")
 function isOrg() { [[ "$curCat" == "$orgCat" ]]; }
 function isDev() { [[ "$curCat" == "$devCat" ]]; }
 function isExt() { [[ "$curCat" == "$extCat" ]]; }
+function isTest() { [[ "$curCat" == "$testCat" ]]; }
 
-isOrg || isDev || isExt || die "unknown catalog dir: $curCat"
+isOrg || isDev || isExt || isTest || die "unknown catalog dir: $curCat"
 
 host=$(hostname | sed -e 's|.local||')
 arch=$(arch)
@@ -66,7 +68,7 @@ then
     loglevel="--verbose"
 fi
 
-if isExt
+if isExt || isTest
 then
     port="3456"
     loglevel="--verbose"

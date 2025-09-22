@@ -124,15 +124,15 @@ import           Text.Blaze.Html.Renderer.Utf8
 type IdNode  = (ObjId, ImgNode)
 
 data Req' a
-  = Req' { _rType    :: ReqType      -- type
-         , _rPathPos :: PathPos      -- collection path and maybe index
-         , _rGeo     :: Geo          -- size of image or screen
-         , _rVal     :: a            -- varying data when processing request
+  = Req' { _rType    :: !ReqType      -- type
+         , _rPathPos :: !PathPos      -- collection path and maybe index
+         , _rGeo     :: !Geo          -- size of image or screen
+         , _rVal     :: !a            -- varying data when processing request
          }
 
 type Req0                        = Req' ()
-type Req'IdNode                a = Req'              ((IdNode, MetaData),  a)
-type Req'IdNode'ImgRef         a = Req'IdNode        (ImgRef,  a)
+type Req'IdNode                a = Req'       ((IdNode, MetaData),  a)
+type Req'IdNode'ImgRef         a = Req'IdNode (ImgRef,  a)
 
 -- --------------------
 

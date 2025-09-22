@@ -89,6 +89,7 @@ addExt ext fn
 -- "/abc/def.xyz"
 
 -- >>> addExt ".xyz" "/abc/def.xyz"
+-- "/abc/def.xyz"
 
 -- ----------------------------------------
 --
@@ -175,8 +176,8 @@ p'geo = someChars digitChar <++> string "x" <++> someChars digitChar
 -- of 3 letters, '_' and 4 digits plus extension
 -- and other image names with letters, digits or '_', '-', '.'
 --
--- camera generated images, there are usually
--- various files with same name and different extensions or suffixes
+-- with camera generated images there are usually
+-- various files with the same name and different extensions or suffixes
 -- theses files are grouped together to a single (logical) image entry
 
 -- examples
