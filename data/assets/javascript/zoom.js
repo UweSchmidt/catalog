@@ -1,4 +1,4 @@
-/* zoom.js single page slideshow with zoom */
+ /* zoom.js single page slideshow with zoom */
 
 function trc (t, Text) {
     if ( t > 0 ) {
@@ -27,13 +27,7 @@ const helpDescr    = { id:      "help",
                        visible: false,
                      };
 
-const statusDescr  = { id:      "status",
-                       visible: false,
-                       enabled: true,
-                       dur:     1500,
-                     };
 
-const imageloadDescr = { id:       "imageload",
                          visible: false,
                          enabled: true,
                        };
@@ -1389,7 +1383,7 @@ function showAnimDur() {
               ? "aus"
               : defaultTransDur + " sec."
             );
-    showStatus(msg);
+    Status.show(msg);
 }
 
 /* ---------------------------------------- */
@@ -1739,7 +1733,7 @@ function showErr(errno, url, msg) {
     } else {
         txt = 'Server Fehler: ' + errno + ', url=' + url;
     }
-    showStatus('<span class="errormsg">' + txt + '</span>');
+    Status.show('<span class="errormsg">' + txt + '</span>');
 }
 
 // ----------------------------------------
@@ -1856,7 +1850,7 @@ function toggleVideoAutoplayDefault() {
     const msg = 'Videos werden'
           + (v === null ? ' nicht' : '')
           + ' automatisch gestartet';
-    showStatus(msg);
+    Status.show(msg);
 }
 function toggleVideoControlsDefault() { toggleVideoAttrDefault("controls"); }
 
@@ -2390,7 +2384,7 @@ function buildAudio() {
 
             function err(e) {
                 trc(1, "audio url error: " + e.type);
-                showStatus("Soundfile konnte nicht geladen werden: " + url);
+                Status.show("Soundfile konnte nicht geladen werden: " + url);
                 clearCont(ac);
             };
 
@@ -2459,7 +2453,7 @@ function setContGlobShow() { showMode = ShowModes.contGlob; }
 function stopShow() {
     clearMediaAnims();        // cancel all running animations
     if ( isContShow() ) {
-        showStatus("Automatischer Bildwechsel beendet");
+        Status.show("Automatischer Bildwechsel beendet");
     }
     setManualShow();
 }
@@ -2468,7 +2462,7 @@ function startShow(start) {
     start = start || setAutoShow;
     start();
     if ( isContShow() ) {
-        showStatus("Automatischer Bildwechsel gestartet");
+        Status.show("Automatischer Bildwechsel gestartet");
     }
     advanceSlideShow();
 }
@@ -2641,18 +2635,11 @@ function speedUpSlideShow() {
 
 function showDur() {
     const s =  Math.round(slideShowAcceleration * slideShowDefaultDuration * 10) / 10;
-    showStatus('Automatischer Bildwechsel nach ' + s + " sec.");
+    Status.show('Automatischer Bildwechsel nach ' + s + " sec.");
 }
 
 function showVersion() {
-    showStatus(version);
-}
-
-function toggleDefaultAlg() {
-    defaultAlg = ( defaultAlg === "fitsinto"
-                   ? "fill"
-                   : "fitsinto"
-                 );
+    Status.show(version, 5000); // 5 sec
 }
 
 // ----------------------------------------
@@ -2695,24 +2682,31 @@ const Progress = {
 // ----------------------------------------
 // status line
 
-function showStatus(msg, dur) {
-    if ( statusDescr.enabled ) {
-        dur = dur || statusDescr.dur;
-        statusDescr.visible = false;
-        const se = clearDomElem(statusDescr.id);
-        se.innerHTML = msg;
+const Status = {
+    id:      "status",
+    visible: false,
+    enabled: true,
+    dur:     1500,          // 1.5 sec
 
-        function getStatus() { return se; }
+    show: (msg, dur) => {
+        if ( Status.enabled ) {
+            dur = dur || Status.dur;
+            Status.visible = false;
+            const se = clearDomElem(Status.id);
+            se.innerHTML = msg;
 
-        runC(compl([ toggleOverlay(statusDescr),
-                     animElement(getStatus,
-                                 noAnim8(dur),
-                                 setAnim(statusDescr.id)),
-                     toggleOverlay(statusDescr),
-                   ])
-            );
-    }
-}
+            function getStatus() { return se; }
+
+            runC(compl([ toggleOverlay(Status),
+                         animElement(getStatus,
+                                     noAnim8(dur),
+                                     setAnim(Status.id)),
+                         toggleOverlay(Status),
+                       ])
+                );
+        }
+    },
+};
 
 function toggleOverlay(o) {
 
