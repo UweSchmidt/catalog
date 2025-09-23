@@ -36,8 +36,7 @@ import Catalog.Version
        , version
        )
 import Catalog.CatEnv
-       ( AppEnv
-       , appEnvCat
+       ( CatEnv
        , catForceMDU
        , catGPSCache
        , catJsonArchive
@@ -48,7 +47,7 @@ import Catalog.CatEnv
        , catHost
        , catPort
        , catLogLevel
-       , defaultAppEnv
+       , defaultCatEnv
        )
 import Data.Prim.Prelude
 
@@ -57,21 +56,21 @@ import Network.HostName
 
 ----------------------------------------
 
-serverOptions :: IO AppEnv
+serverOptions :: IO CatEnv
 serverOptions = do
   host <- getHostName
   execParser (appInfo (host ^. isoText))
 
-appInfo :: Text -> ParserInfo AppEnv
+appInfo :: Text -> ParserInfo CatEnv
 appInfo host =
-  info (appEnvParser host <**> helper)
+  info (catEnvParser host <**> helper)
   ( fullDesc
     <> progDesc "organize your photos"
     <> header ("servant-polysemy" ++ " - " ++ version ++ " (" ++ date ++ ")")
   )
 
-appEnvParser :: Text -> Parser AppEnv
-appEnvParser hs =
+catEnvParser :: Text -> Parser CatEnv
+catEnvParser hs =
   setEnv
   <$> optLogLevel
   <*> optPort
@@ -84,16 +83,16 @@ appEnvParser hs =
   <*> optGPSCache
   where
     setEnv ll po ja mp jo fu sx ns gc =
-      defaultAppEnv
-      & appEnvCat . catMountPath   .~ mp
-      & appEnvCat . catJsonArchive .~ ja
-      & appEnvCat . catJournal     .~ jo
-      & appEnvCat . catForceMDU    .~ fu
-      & appEnvCat . catSaveBothIx  .~ sx
-      & appEnvCat . catNoSync      .~ ns
-      & appEnvCat . catGPSCache    .~ gc
-      & appEnvCat . catHost        .~ hs
-      & appEnvCat . catPort        .~ po
-      & appEnvCat . catLogLevel    .~ ll
+      defaultCatEnv
+      & catMountPath   .~ mp
+      & catJsonArchive .~ ja
+      & catJournal     .~ jo
+      & catForceMDU    .~ fu
+      & catSaveBothIx  .~ sx
+      & catNoSync      .~ ns
+      & catGPSCache    .~ gc
+      & catHost        .~ hs
+      & catPort        .~ po
+      & catLogLevel    .~ ll
 
 ----------------------------------------

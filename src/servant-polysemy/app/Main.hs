@@ -44,7 +44,6 @@ import Catalog.CatalogIO
 
 import Catalog.CatEnv
        ( CatEnv
-       , appEnvCat
        , catLogLevel
        , catJsonArchive
        , catMountPath
@@ -523,7 +522,7 @@ main = do
 
   hist  <- newIORef emptyHistory
 
-  jh    <- openJournal (env ^. appEnvCat . catJournal)
+  jh    <- openJournal (env ^. catJournal)
 
   let runRC :: CatApp a -> Handler a
       runRC = ioeither2Handler . runRead rvar logQ env
@@ -542,7 +541,7 @@ main = do
     return $
       either
       (const env)
-      (\ fn -> env & appEnvCat . catFontName .~ fn)
+      (\ fn -> env & catFontName .~ fn)
       efn
 
   -- load the catalog from json file
@@ -554,15 +553,15 @@ main = do
       eres
 
   -- start servant server
-  withCatLogger (runLogQ (env1 ^. appEnvCat . catLogLevel) logQ) $
+  withCatLogger (runLogQ (env1 ^. catLogLevel) logQ) $
     \logger -> do
       let settings =
-            defaultSettings & setPort   (env ^. appEnvCat . catPort)
+            defaultSettings & setPort   (env ^. catPort)
                             & setLogger logger
 
       runSettings settings $
         serve (Proxy :: Proxy CatalogAPI) $
-        catalogServer (env1 ^. appEnvCat) runRC runMC runBQ
+        catalogServer env1 runRC runMC runBQ
 
 
 ioeither2Handler :: IO (Either Text a) -> Handler a

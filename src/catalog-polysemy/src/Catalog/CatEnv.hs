@@ -18,9 +18,7 @@ import Data.Prim
 
 ------------------------------------------------------------------------------
 
-data AppEnv = AppEnv
-  { _appEnvCat      :: !CatEnv
-  }
+type AppEnv = CatEnv
 
 data CatEnv = CatEnv
   { _catMountPath   :: !TextPath
@@ -37,24 +35,20 @@ data CatEnv = CatEnv
   }
 
 $(makeLenses ''CatEnv)
-$(makeLenses ''AppEnv)
 
 defaultCatEnv :: CatEnv
 defaultCatEnv = CatEnv
-                { _catMountPath   = "."
-                , _catJsonArchive = "photos.pathid.json"
-                , _catGPSCache    = "gps-cache.json"
-                , _catJournal     = Nothing
-                , _catForceMDU    = False
-                , _catSaveBothIx  = False
-                , _catNoSync      = False
-                , _catFontName    = mempty
-                , _catHost        = mempty
-                , _catPort        = 3001
-                , _catLogLevel    = LogErr
-                }
-
-defaultAppEnv :: AppEnv
-defaultAppEnv = AppEnv defaultCatEnv
+  { _catMountPath   = "."
+  , _catJsonArchive = "photos.pathid.json"
+  , _catGPSCache    = "gps-cache.json"
+  , _catJournal     = Nothing
+  , _catForceMDU    = False
+  , _catSaveBothIx  = False
+  , _catNoSync      = False
+  , _catFontName    = mempty
+  , _catHost        = mempty
+  , _catPort        = 3001
+  , _catLogLevel    = LogErr
+  }
 
 ------------------------------------------------------------------------------

@@ -53,9 +53,8 @@ import Polysemy.Logging
 import Catalog.CatEnv
        ( CatEnv
        , AppEnv
-       , appEnvCat
        , catLogLevel
-       , defaultAppEnv
+       , defaultCatEnv
        )
 import Catalog.Effects
        ( Consume
@@ -149,15 +148,15 @@ type CatApp a = Sem '[ CatCmd
 --
 -- run a single command, for testing
 
-runApp :: ImgStore -> AppEnv -> CatApp a -> IO (ImgStore, Either Text a)
+runApp :: ImgStore -> CatEnv -> CatApp a -> IO (ImgStore, Either Text a)
 runApp ims env cmd = do
   logQ <- createJobQueue
   runM
     . runState ims
     . runError @Text
     . logToStdErr
-    . logWithLevel (env ^. appEnvCat . catLogLevel)
-    . runLogEnvFS (Just $ Left stderr) logQ (env ^. appEnvCat)
+    . logWithLevel (env ^. catLogLevel)
+    . runLogEnvFS (Just $ Left stderr) logQ env
     . undoListNoop
     . evalCatCmd
     $ cmd
@@ -167,7 +166,7 @@ runApp ims env cmd = do
 -- for simple testing in ghci
 
 r :: CatApp a -> IO (ImgStore, Either Text a)
-r = runApp emptyImgStore defaultAppEnv
+r = runApp emptyImgStore defaultCatEnv
 
 ----------------------------------------
 --
@@ -175,15 +174,15 @@ r = runApp emptyImgStore defaultAppEnv
 
 runRead :: TMVar ImgStore
         -> BGQueue
-        -> AppEnv
+        -> CatEnv
         -> CatApp a
         -> IO (Either Text a)
 runRead var logQ env =
   runM
   . evalStateTMVar  var
   . runError        @Text
-  . runLogging      logQ (env ^. appEnvCat . catLogLevel)
-  . runLogEnvFS     Nothing logQ (env ^. appEnvCat)
+  . runLogging      logQ (env ^. catLogLevel)
+  . runLogEnvFS     Nothing logQ env
   . undoListNoop
   . evalCatCmd
 
@@ -198,15 +197,15 @@ runMody :: JournalHandle
         -> TMVar ImgStore
         -> TMVar ImgStore
         -> BGQueue
-        -> AppEnv
+        -> CatEnv
         -> CatApp a
         -> IO (Either Text a)
 runMody jh hist rvar mvar logQ env =
   runM' mvar
   . modifyStateTMVar rvar mvar
   . runError        @Text
-  . runLogging      logQ (env ^. appEnvCat . catLogLevel)
-  . runLogEnvFS     jh logQ (env ^. appEnvCat)
+  . runLogging      logQ (env ^. catLogLevel)
+  . runLogEnvFS     jh logQ env
   . runStateIORef   hist
   . undoListWithState
   . evalCatCmd
@@ -237,15 +236,15 @@ runBG :: JournalHandle
       -> TMVar ImgStore
       -> TChan Job
       -> TChan Job
-      -> AppEnv
+      -> CatEnv
       -> CatApp a
       -> IO ()
 runBG jh var qu logQ env =
   runM
   . evalStateTChan var qu
   . runError       @Text
-  . runLogging     logQ (env ^. appEnvCat . catLogLevel)
-  . runLogEnvFS    jh logQ (env ^. appEnvCat)
+  . runLogging     logQ (env ^. catLogLevel)
+  . runLogEnvFS    jh logQ env
   . undoListNoop
   . evalCatCmd
 
