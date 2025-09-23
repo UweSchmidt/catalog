@@ -18,20 +18,6 @@ const img1Id       = "image1";
 const img2Id       = "image2";
 const nextimg      = {image1: img2Id, image2: img1Id};
 
-const infoDescr    = { id:      "info",
-                       visible: false,
-                       tab:     "info-table",
-                     };
-
-const helpDescr    = { id:      "help",
-                       visible: false,
-                     };
-
-
-                         visible: false,
-                         enabled: true,
-                       };
-
 const audioDescr  = { id: "audio-control",
                       visible: false,
                     };
@@ -1945,8 +1931,8 @@ const StepActions = {
 };
 
 const ConfigActions = {
-    info()          { toggleInfo(); },
-    help()          { toggleHelp(); },
+    info()          { Info.toggle(); },
+    help()          { Help.toggle(); },
     slowDown()      { slowDownSlideShow(); },
     speedUp()       { speedUpSlideShow(); },
     resetSpeed()    { resetSpeedSlideShow(); },
@@ -2366,7 +2352,7 @@ function buildMetaInfo (t, md) {
 
 function buildInfo() {
     const md = getSlideMeta();
-    const it = getElem(infoDescr.tab);
+    const it = getElem(Info.tab);
     buildMetaInfo(it, md);
 }
 
@@ -2673,7 +2659,7 @@ const Progress = {
 
     startStop(css) {
         if ( Progress.enabled ) {
-            const e = clearDomElem(imageloadDescr.id);
+            const e = clearDomElem(Progress.id);
             setCSS(e, css);
         }
     },
@@ -2708,7 +2694,28 @@ const Status = {
     },
 };
 
+const Info = {
+    id:      "info",
+    visible: false,
+    tab:     "info-table",
+
+    toggle: () => {
+        runC(toggleOverlay(Info));
+    }
+};
+
+const Help = {
+    id:      "help",
+    visible: false,
+
+    toggle: () => {
+        runC(toggleOverlay(Help));
+    }
+};
+
 function toggleOverlay(o) {
+    // o.id      : id of DOM element
+    // o.visible : DOM status of element
 
     function doit(k) {
         const ie = getElem(o.id);
@@ -2738,8 +2745,7 @@ function toggleOverlay(o) {
 function hasAudioControl() {
     return getElem(audioDescr.id).children.length !== 0;
 }
-function toggleInfo()  { runC(toggleOverlay(infoDescr));  }
-function toggleHelp()  { runC(toggleOverlay(helpDescr));  }
+
 function toggleAudio() { runC(toggleOverlay(audioDescr)); }
 
 // ----------------------------------------
