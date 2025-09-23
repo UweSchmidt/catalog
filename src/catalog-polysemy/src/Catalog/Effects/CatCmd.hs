@@ -56,6 +56,9 @@ module Catalog.Effects.CatCmd
   , applyUndo
   , dropUndoEntries
   , listUndoEntries
+
+  -- server env
+  , theCatEnv
   )
 where
 
@@ -84,6 +87,9 @@ import Data.MetaData
        )
 import Data.History
        ( HistoryID )
+
+import Catalog.CatEnv
+       ( CatEnv )
 
 import Catalog.GenPages
        ( JPage )
@@ -141,6 +147,9 @@ data CatCmd m a where
   ApplyUndo            ::                     HistoryID -> CatCmd m ()
   DropUndoEntries      ::                     HistoryID -> CatCmd m ()
   ListUndoEntries      ::                                  CatCmd m [(HistoryID, Text)]
+
+  -- Server Env
+  TheCatEnv            ::                                  CatCmd m CatEnv
 
 makeSem ''CatCmd
 

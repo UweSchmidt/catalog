@@ -349,6 +349,11 @@ evalCatCmd =
       log'trc ("listUnodEntries: " <> show res ^. isoText)
       return res
 
+    -- server env
+
+    TheCatEnv -> do
+      ask
+
 {-# INLINE evalCatCmd #-}
 
 -- ----------------------------------------

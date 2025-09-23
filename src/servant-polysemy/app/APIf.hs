@@ -71,6 +71,9 @@ import Data.MetaData
 import Catalog.GenPages
        ( JPage )
 
+import Catalog.CatEnv
+       ( CatEnv )
+
 import qualified Data.Text as T
 
 -- ----------------------------------------
@@ -311,6 +314,8 @@ type JsonModifyAPI
       "dropUndoEntries"      :> ParamPost HistoryID ()
       :<|>
       "listUndoEntries"      :> SimplePost [(HistoryID, Text)]
+      :<|>
+      "theCatEnv"            :> SimplePost CatEnv
     )
 
 -- ----------------------------------------

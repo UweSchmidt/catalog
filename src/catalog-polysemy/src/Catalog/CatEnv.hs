@@ -22,12 +22,9 @@ import Data.Prim.Prelude
        , makeLenses
        )
 
-
 import qualified Data.Aeson as J
 
 ------------------------------------------------------------------------------
-
-type AppEnv = CatEnv
 
 data CatEnv = CatEnv
   { _catMountPath   :: !TextPath

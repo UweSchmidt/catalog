@@ -52,7 +52,6 @@ import Polysemy.Logging
 -- catalog-polysemy
 import Catalog.CatEnv
        ( CatEnv
-       , AppEnv
        , catLogLevel
        , defaultCatEnv
        )

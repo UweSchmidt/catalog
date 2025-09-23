@@ -67,6 +67,7 @@ import Catalog.Effects.CatCmd
        , isWriteable
        , jpgImgCopy
        , listUndoEntries
+       , theCatEnv
        , moveToCollection
        , newCollection
        , newSubCollections
@@ -511,6 +512,8 @@ catalogServer env runReadC runModyC runBGC =
       runX1 dropUndoEntries
       :<|>
       runM0 listUndoEntries
+      :<|>
+      runM0 theCatEnv
 
 ----------------------------------------
 
