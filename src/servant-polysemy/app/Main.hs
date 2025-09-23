@@ -51,6 +51,7 @@ import Catalog.CatEnv
        , catGPSCache
        , catFontName
        , catPort
+       , catStart
        )
 import Catalog.Effects.CatCmd
        ( applyUndo
@@ -115,6 +116,8 @@ import Catalog.Run
        , runBG
        , runLogQ
        )
+import Catalog.TimeStamp
+       ( nowAsIso8601 )
 
 -- catalog-data
 import Data.Prim
@@ -537,12 +540,13 @@ main = do
   -- generating icons from text
 
   env1 <- do
-    efn <- runRead rvar logQ env selectFont
-    return $
-      either
-      (const env)
-      (\ fn -> env & catFontName .~ fn)
-      efn
+    efn <- runRead rvar logQ env selectFont      -- fontname for icon generation
+    now <- runRead rvar logQ env nowAsIso8601    -- start time
+
+    let e1 = either (const env) (\fn -> env & catFontName .~ fn) efn
+    let e2 = either (const e1 ) (\nw -> env & catStart    .~ nw) now
+
+    return e2
 
   -- load the catalog from json file
   do

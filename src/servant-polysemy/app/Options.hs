@@ -31,10 +31,6 @@ import Options.Applicative.CatEnv
 import Options.Applicative.HostPort
        ( optPort )
 
-import Catalog.Version
-       ( date
-       , version
-       )
 import Catalog.CatEnv
        ( CatEnv
        , catForceMDU
@@ -47,6 +43,8 @@ import Catalog.CatEnv
        , catHost
        , catPort
        , catLogLevel
+       , catVersion
+       , catVersDate
        , defaultCatEnv
        )
 import Data.Prim.Prelude
@@ -66,7 +64,11 @@ appInfo host =
   info (catEnvParser host <**> helper)
   ( fullDesc
     <> progDesc "organize your photos"
-    <> header ("servant-polysemy" ++ " - " ++ version ++ " (" ++ date ++ ")")
+    <> header ( ("servant-polysemy" <> " - "
+                 <> (defaultCatEnv ^. catVersion)
+                 <> " (" <> (defaultCatEnv ^. catVersDate) <> ")"
+                ) ^. isoString
+              )
   )
 
 catEnvParser :: Text -> Parser CatEnv

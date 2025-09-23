@@ -6,12 +6,17 @@ module Client.Version
   )
 where
 
+import Data.Prim.Prelude
+       ( (^.)
+       , IsoString(isoString)
+       )
+
 import Catalog.Version
 
 appname :: String
 appname = "client-polysemy"
 
 userAgent :: String
-userAgent = appname <> " - " <> version <> " (" <> date <> ")"
+userAgent = appname <> " - " <> version ^. isoString <> " (" <> date ^. isoString <> ")"
 
 ------------------------------------------------------------------------------

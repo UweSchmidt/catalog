@@ -11,6 +11,11 @@ import Polysemy.FileSystem
 import Polysemy.Logging
        ( LogLevel (..) )
 
+import Catalog.Version
+       ( date,
+         version,
+       )
+
 import Data.Prim
        ( Text
        , makeLenses
@@ -32,6 +37,9 @@ data CatEnv = CatEnv
   , _catHost        :: !Text
   , _catPort        :: !Int
   , _catLogLevel    :: !LogLevel
+  , _catVersion     :: !Text
+  , _catVersDate    :: !Text
+  , _catStart       :: !Text
   }
 
 $(makeLenses ''CatEnv)
@@ -49,6 +57,9 @@ defaultCatEnv = CatEnv
   , _catHost        = mempty
   , _catPort        = 3001
   , _catLogLevel    = LogErr
+  , _catVersion     = version
+  , _catVersDate    = date
+  , _catStart       = "unknown"
   }
 
 ------------------------------------------------------------------------------

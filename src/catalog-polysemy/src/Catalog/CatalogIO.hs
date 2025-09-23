@@ -39,6 +39,8 @@ import Catalog.CatEnv
        , catPort
        , catJsonArchive
        , catSaveBothIx
+       , catVersion
+       , catVersDate
        )
 import Catalog.GenCollections
        ( genSysCollections )
@@ -60,10 +62,6 @@ import Polysemy.ExecProg
        ( execScript )
 
 -- catalog modules
-import Catalog.Version
-       ( version
-       , date
-       )
 
 import Data.ImageStore
        ( ImgStore
@@ -109,9 +107,10 @@ type Eff'CatIO r = ( EffIStore   r   -- any effects missing?
 --
 -- catalog metadata
 
-setCatMetaData :: (EffIStore r, EffTime r) => Sem r ()
+setCatMetaData :: (EffCatEnv r, EffIStore r, EffTime r) => Sem r ()
 setCatMetaData = do
-  let catVer  = unwords [version, date] ^. isoText
+  env <- ask
+  let catVer  = T.unwords [env ^. catVersion, env ^. catVersDate]
   catWrt     <- nowAsIso8601
 
   let catMeta = mempty
@@ -250,9 +249,9 @@ initImgStore = do
              <> "\" listening on port " <> env ^. catPort . isoText
            )
   log'info ( "initImgStore: catalog-polysemy version "
-             <> (isoString # version)
+             <> env ^. catVersion
              <> " from "
-             <> (isoString # date)
+             <> env ^. catVersDate
            )
 
   initImgRoot n'archive n'collections n'photos
