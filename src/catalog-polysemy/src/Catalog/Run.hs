@@ -54,7 +54,7 @@ import Catalog.CatEnv
        ( CatEnv
        , AppEnv
        , appEnvCat
-       , appEnvLogLevel
+       , catLogLevel
        , defaultAppEnv
        )
 import Catalog.Effects
@@ -156,7 +156,7 @@ runApp ims env cmd = do
     . runState ims
     . runError @Text
     . logToStdErr
-    . logWithLevel (env ^. appEnvLogLevel)
+    . logWithLevel (env ^. appEnvCat . catLogLevel)
     . runLogEnvFS (Just $ Left stderr) logQ (env ^. appEnvCat)
     . undoListNoop
     . evalCatCmd
@@ -182,7 +182,7 @@ runRead var logQ env =
   runM
   . evalStateTMVar  var
   . runError        @Text
-  . runLogging      logQ (env ^. appEnvLogLevel)
+  . runLogging      logQ (env ^. appEnvCat . catLogLevel)
   . runLogEnvFS     Nothing logQ (env ^. appEnvCat)
   . undoListNoop
   . evalCatCmd
@@ -205,7 +205,7 @@ runMody jh hist rvar mvar logQ env =
   runM' mvar
   . modifyStateTMVar rvar mvar
   . runError        @Text
-  . runLogging      logQ (env ^. appEnvLogLevel)
+  . runLogging      logQ (env ^. appEnvCat . catLogLevel)
   . runLogEnvFS     jh logQ (env ^. appEnvCat)
   . runStateIORef   hist
   . undoListWithState
@@ -244,7 +244,7 @@ runBG jh var qu logQ env =
   runM
   . evalStateTChan var qu
   . runError       @Text
-  . runLogging     logQ (env ^. appEnvLogLevel)
+  . runLogging     logQ (env ^. appEnvCat . catLogLevel)
   . runLogEnvFS    jh logQ (env ^. appEnvCat)
   . undoListNoop
   . evalCatCmd

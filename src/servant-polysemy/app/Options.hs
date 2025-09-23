@@ -38,17 +38,16 @@ import Catalog.Version
 import Catalog.CatEnv
        ( AppEnv
        , appEnvCat
-       , appEnvJournal
-       , appEnvLogLevel
-       , appEnvPort
        , catForceMDU
        , catGPSCache
        , catJsonArchive
        , catMountPath
+       , catJournal
        , catSaveBothIx
        , catNoSync
        , catHost
        , catPort
+       , catLogLevel
        , defaultAppEnv
        )
 import Data.Prim.Prelude
@@ -86,16 +85,15 @@ appEnvParser hs =
   where
     setEnv ll po ja mp jo fu sx ns gc =
       defaultAppEnv
-      & appEnvLogLevel .~ ll
-      & appEnvJournal  .~ jo
-      & appEnvPort     .~ po
       & appEnvCat . catMountPath   .~ mp
       & appEnvCat . catJsonArchive .~ ja
+      & appEnvCat . catJournal     .~ jo
       & appEnvCat . catForceMDU    .~ fu
       & appEnvCat . catSaveBothIx  .~ sx
       & appEnvCat . catNoSync      .~ ns
       & appEnvCat . catGPSCache    .~ gc
       & appEnvCat . catHost        .~ hs
       & appEnvCat . catPort        .~ po
+      & appEnvCat . catLogLevel    .~ ll
 
 ----------------------------------------

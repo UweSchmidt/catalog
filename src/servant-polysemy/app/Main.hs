@@ -45,13 +45,13 @@ import Catalog.CatalogIO
 import Catalog.CatEnv
        ( CatEnv
        , appEnvCat
-       , appEnvJournal
-       , appEnvLogLevel
-       , appEnvPort
+       , catLogLevel
        , catJsonArchive
        , catMountPath
+       , catJournal
        , catGPSCache
        , catFontName
+       , catPort
        )
 import Catalog.Effects.CatCmd
        ( applyUndo
@@ -523,7 +523,7 @@ main = do
 
   hist  <- newIORef emptyHistory
 
-  jh    <- openJournal (env ^. appEnvJournal)
+  jh    <- openJournal (env ^. appEnvCat . catJournal)
 
   let runRC :: CatApp a -> Handler a
       runRC = ioeither2Handler . runRead rvar logQ env
@@ -554,10 +554,10 @@ main = do
       eres
 
   -- start servant server
-  withCatLogger (runLogQ (env1 ^. appEnvLogLevel) logQ) $
+  withCatLogger (runLogQ (env1 ^. appEnvCat . catLogLevel) logQ) $
     \logger -> do
       let settings =
-            defaultSettings & setPort   (env ^. appEnvPort)
+            defaultSettings & setPort   (env ^. appEnvCat . catPort)
                             & setLogger logger
 
       runSettings settings $
