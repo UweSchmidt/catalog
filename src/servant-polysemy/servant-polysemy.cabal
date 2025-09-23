@@ -30,6 +30,7 @@ executable servant-polysemy
     , fast-logger           >=3.0.1
     , filepath
     , ghc-prim
+    , hostname
     , http-api-data
     , http-media
     , optparse-applicative

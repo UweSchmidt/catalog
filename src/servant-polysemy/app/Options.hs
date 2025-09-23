@@ -7,8 +7,7 @@ module Options
 where
 
 import Options.Applicative
-       ( (<**>)
-       , Parser
+       ( Parser
        , ParserInfo
        , fullDesc
        , header
@@ -48,28 +47,32 @@ import Catalog.CatEnv
        , catMountPath
        , catSaveBothIx
        , catNoSync
+       , catHost
+       , catPort
        , defaultAppEnv
        )
-import Data.Prim
-       ( (&)
-       , (.~)
-       )
+import Data.Prim.Prelude
+
+import Network.HostName
+       ( getHostName )
 
 ----------------------------------------
 
 serverOptions :: IO AppEnv
-serverOptions = execParser appInfo
+serverOptions = do
+  host <- getHostName
+  execParser (appInfo (host ^. isoText))
 
-appInfo :: ParserInfo AppEnv
-appInfo =
-  info (appEnvParser <**> helper)
+appInfo :: Text -> ParserInfo AppEnv
+appInfo host =
+  info (appEnvParser host <**> helper)
   ( fullDesc
     <> progDesc "organize your photos"
     <> header ("servant-polysemy" ++ " - " ++ version ++ " (" ++ date ++ ")")
   )
 
-appEnvParser :: Parser AppEnv
-appEnvParser =
+appEnvParser :: Text -> Parser AppEnv
+appEnvParser hs =
   setEnv
   <$> optLogLevel
   <*> optPort
@@ -92,5 +95,7 @@ appEnvParser =
       & appEnvCat . catSaveBothIx  .~ sx
       & appEnvCat . catNoSync      .~ ns
       & appEnvCat . catGPSCache    .~ gc
+      & appEnvCat . catHost        .~ hs
+      & appEnvCat . catPort        .~ po
 
 ----------------------------------------

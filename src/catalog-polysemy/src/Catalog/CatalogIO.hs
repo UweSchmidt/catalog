@@ -35,6 +35,8 @@ import Catalog.Effects
        )
 import Catalog.CatEnv
        ( CatEnv
+       , catHost
+       , catPort
        , catJsonArchive
        , catSaveBothIx
        )
@@ -241,10 +243,18 @@ initImgRoot rootName colName dirName = do
 
 initImgStore :: Eff'CatIO r => Sem r ()
 initImgStore = do
-  log'info $ "initImgStore: catalog-polysemy version " <> (isoString # version) <>
-             " from " <> (isoString # date)
-
   env <- ask
+
+  log'info ( "initImgStore: catalog-polysemy running on host \""
+             <> env ^. catHost
+             <> "\" listening on port " <> env ^. catPort . isoText
+           )
+  log'info ( "initImgStore: catalog-polysemy version "
+             <> (isoString # version)
+             <> " from "
+             <> (isoString # date)
+           )
+
   initImgRoot n'archive n'collections n'photos
   loadImgStore (env ^. catJsonArchive)
   genSysCollections
