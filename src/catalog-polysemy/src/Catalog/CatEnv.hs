@@ -16,10 +16,14 @@ import Catalog.Version
          version,
        )
 
-import Data.Prim
+import Data.Prim.Prelude
        ( Text
+       , ToJSON(..)
        , makeLenses
        )
+
+
+import qualified Data.Aeson as J
 
 ------------------------------------------------------------------------------
 
@@ -61,5 +65,24 @@ defaultCatEnv = CatEnv
   , _catVersDate    = date
   , _catStart       = "unknown"
   }
+
+instance ToJSON CatEnv where
+  toJSON ce = J.object
+    [ "catMountPath"   J..= _catMountPath ce
+    , "catJsonArchive" J..= _catJsonArchive ce
+    , "catGPSCache"    J..= _catGPSCache ce
+    , "catJournal"     J..= _catJournal ce
+    , "catForceMDU"    J..= _catForceMDU ce
+    , "catSaveBothIx"  J..= _catSaveBothIx ce
+    , "catNoSync"      J..= _catNoSync ce
+    , "catFontName"    J..= _catFontName ce
+    , "catHost"        J..= _catHost ce
+    , "catPort"        J..= _catPort ce
+    , "catLogLevel"    J..= (show $ _catLogLevel ce)
+    , "catVersion"     J..= _catVersion ce
+    , "catVersDate"    J..= _catVersDate ce
+    , "catStart"       J..= _catStart ce
+
+    ]
 
 ------------------------------------------------------------------------------

@@ -170,6 +170,7 @@ deriving instance (Show ref) => Show (ImgNode' ref)
 deriving instance Functor ImgNode'
 
 instance AsEmpty (ImgNode' ref) where
+  _Empty :: Prism' (ImgNode' ref) ()
   _Empty = nearly emptyImg ise
     where
       ise (IMG _pts _md)       = True
@@ -178,6 +179,7 @@ instance AsEmpty (ImgNode' ref) where
       ise (ROOT _d _c)         = False
 
 instance ToJSON ref => ToJSON (ImgNode' ref) where
+  toJSON :: ToJSON ref => ImgNode' ref -> J.Value
   toJSON (IMG pm md) = J.object
     [ "ImgNode"     J..= ("IMG" :: Text)
     , "parts"       J..= pm

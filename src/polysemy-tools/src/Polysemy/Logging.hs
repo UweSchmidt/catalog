@@ -78,7 +78,7 @@ import qualified Data.Text.IO as T
 newtype LogMsg = LogMsg {logMsgToText :: Text}
 
 data LogLevel = LogNull | LogErr | LogWarn | LogInfo | LogVerb | LogTrc | LogDbg
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 prettyLogLevel :: LogLevel -> Text
 prettyLogLevel LogErr  = "error:   "
