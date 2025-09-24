@@ -9,7 +9,7 @@ function trc (t, Text) {
 /* ---------------------------------------- */
 /* id's */
 
-const version      = "PhotoShow (zoom.html) 0.5.12.4 2025-09-18";
+const version      = "zoom.html version 0.5.12.4 2025-09-18";
 
 const titleId      = "head-title";
 
@@ -1939,6 +1939,7 @@ const ConfigActions = {
     slowDownTrans() { slowDownTransAnim(); },
     speedUpTrans()  { speedUpTransAnim(); },
     version()       { showVersion(); },
+    serverVersion() { showServerVersion(); },
     edit()          { stopShow(); openEdit(); },
     audioCtrl()     { hasAudioControl() && toggleAudio(); },
     fillCut()       { Place.setDefaultFillCut();
@@ -1999,6 +2000,7 @@ const DownActions = {
 const DownShiftActions = {
     63         : ConfigActions.help,   // '?', keyCode: 63
     T          : ConfigActions.speedUpTrans,
+    V          : ConfigActions.serverVersion,
 
     S          : StepActions.showAll,
 
@@ -2626,6 +2628,17 @@ function showDur() {
 
 function showVersion() {
     Status.show(version, 5000); // 5 sec
+}
+
+function showServerVersion() {
+    function show(env) {
+        const msg =
+              "server "   + env.catHost + ":" + env.catPort +
+              " version " + env.catVersion +
+              " from "    + env.catVersDate;
+        Status.show(msg, 5000);
+    }
+    getJsonPage("/catenv.json", show, showErr);
 }
 
 // ----------------------------------------
