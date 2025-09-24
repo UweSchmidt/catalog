@@ -148,10 +148,7 @@ genIcon path t = do
   dx   <- fileExist dst
   env  <- ask @CatEnv
 
-  let fontOpt f
-        | T.null f  = mempty
-        | otherwise = "-font " <> f
-  let fopt = fontOpt (env ^. catFontName)
+  let fopt = env ^. catFontName
 
   log'trc $ msgPath path ("genIcon " <> toText (t, dx))
 
@@ -640,13 +637,13 @@ buildIconScript dst fopt t =
           & addOptVal "-blur" "10"
           & addOptVal "-swirl" sw
       where
-        -- c1 = "rgb(255,192,192)"       -- preliminary
-        -- c2 = "rgb(192,255,192)"       -- colors in range 192..255
-        -- sw = "135"                    -- degree in range 90..270
+        c1 = "grey75"       -- preliminary
+        c2 = "grey75"       -- colors in range 192..255
+        sw = "135"          -- degree in range 90..270
 
-        c1 = formatRGB $ map (scaleInt (192, 255)) rgb1
-        c2 = formatRGB $ map (scaleInt (192, 255)) rgb2
-        sw = scaleInt (-270, 270) sw1 ^. isoText
+        -- c1 = formatRGB $ map (scaleInt (192, 255)) rgb1
+        -- c2 = formatRGB $ map (scaleInt (192, 255)) rgb2
+        -- sw = scaleInt (-270, 270) sw1 ^. isoText
         se = scaleInt (0, two'31'1) see ^. isoText
 
         two'31'1 :: Int
@@ -663,13 +660,13 @@ buildIconScript dst fopt t =
           & addOptVal "-vignette"    "0x40"
 
     rs0         = randomHashes $ t ^. isoString
-    (rgb1, rs1) = splitAt 3 rs0
-    (rgb2, rs2) = splitAt 3 rs1
-    (sw1 : rs3) = rs2               -- warning: -Wno-incomplete-uni-patterns
+    (_rgb1, rs1) = splitAt 3 rs0
+    (_rgb2, rs2) = splitAt 3 rs1
+    (_sw1 : rs3) = rs2               -- warning: -Wno-incomplete-uni-patterns
     (see :_rs4) = rs3
 
-    formatRGB [r, g, b] = concat ["rgb(" ,show r, ",", show g, ",", show b, ")"] ^. isoText
-    formatRGB _         = mempty
+    -- formatRGB [r, g, b] = concat ["rgb(" ,show r, ",", show g, ",", show b, ")"] ^. isoText
+    -- formatRGB _         = mempty
 
 formatImgText :: Text -> (Text, Text)
 formatImgText t = (t', ps' ^. isoText)
