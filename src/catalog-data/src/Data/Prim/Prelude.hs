@@ -89,6 +89,7 @@ module Data.Prim.Prelude
     divideAt,
 
     -- * Monad ops
+    guarded,
     whenM,
     unlessM,
     partitionM,
@@ -494,6 +495,12 @@ compareJust' _ _ = EQ
 {-# INLINE compareJust' #-}
 
 -- ----------------------------------------
+
+guarded :: (Alternative m) => (a -> Bool) -> a -> m a
+guarded p x
+  | p x       = pure x        -- Just x
+  | otherwise = empty         -- Nothing
+
 
 whenM :: (Monoid a, Monad m) => m Bool -> m a -> m a
 whenM b c = do

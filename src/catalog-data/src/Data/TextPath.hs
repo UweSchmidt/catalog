@@ -18,6 +18,7 @@ module Data.TextPath
   , classifyPath
   , classifyPaths
   , path2MimeType
+  , path2imgPath
   , isImgCopiesDir
   , imgNames
 
@@ -75,6 +76,55 @@ splitPathNameExtMime :: Text -> (SplitName, MimeType)
 splitPathNameExtMime n =
   fromMaybe ((mempty, (n, mempty), mempty), Unknown'mime_type) $
     parseMaybe splitPathNameExtMimeP n
+
+path2imgPath :: Text -> Maybe (Path, Name)
+path2imgPath t = do
+  ((p0, (n1, r1), ex), mt)
+               <- parseMaybe splitPathNameExtMimeP t
+  _            <- guarded (== Image'jpg) mt
+  p1           <- guarded (isPathPrefix p'arch'photos) (mkP p0)
+  let (p2, n2) =  swapImgSub p1 (isoText # n1)
+  let n3       =  dropExt n2 r1 ex
+  return (p2 `snocPath` n2, n3)
+  where
+    mkP :: Text -> Path
+    mkP = (isoText #)
+
+    swapImgSub :: Path -> Name -> (Path, Name)
+    swapImgSub p' n'
+      | Just _ <- parseMaybe imgSubdir (n1' ^. isoText) =
+          (p1', n2')
+      | otherwise =
+          (p', n')
+      where
+        (p1', n1') = p' ^. viewBase
+        n2'        = n' & isoText %~ (( n1' ^. isoText <> "/") <>)
+
+    dropExt :: Name -> Text -> Text -> Name
+    dropExt n' r' ex'
+      | Just _ <- parseMaybe splitExtMimeP nr =
+          isoText # nr
+      | otherwise =
+          isoText # (nr <> ex')
+      where
+        nr = n' ^. isoText <> r'
+
+-- examples
+
+-- >>> path2imgPath "/archive/photos/abc/uz6_1234.jpg"
+-- Just (/archive/photos/abc/uz6_1234, uz6_1234.jpg)
+
+-- >>> path2imgPath "/archive/photos/abc/uz6_1234.gif.jpg"
+-- Just (/archive/photos/abc/uz6_1234, uz6_1234.gif)
+
+-- >>> path2imgPath "/archive/photos/abc/srgb-123/uz6_1234-emil.jpg"
+-- Just (/archive/photos/abc/srgb-123/uz6_1234, srgb-123/uz6_1234-emil.jpg)
+
+-- >>> path2imgPath "/archive/photos/abc/srgb-123/uz6_1234-emil.jpg"
+-- Just (/archive/photos/abc/srgb-123/uz6_1234, srgb-123/uz6_1234-emil.jpg)
+
+-- >>> path2imgPath "/archive/photos/abc/uz6_1234.gif"
+-- Nothing
 
 -- ----------------------------------------
 --

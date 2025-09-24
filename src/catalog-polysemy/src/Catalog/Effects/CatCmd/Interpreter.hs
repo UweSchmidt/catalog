@@ -113,6 +113,7 @@ import qualified Catalog.SyncWithFileSys as SC
 -- catalog
 import Data.Prim
        ( p'arch'photos
+       , p'collections
        , p'photos
        , checkAndRemExt
        , isPathPrefix
@@ -376,7 +377,10 @@ mkReq rt' geo' ppos' =
 
 path2colPath :: String -> Path -> Maybe PathPos
 path2colPath ext p =
-  (^. isoPathPos) <$> checkAndRemExt ext p
+  (^. isoPathPos) <$> ( checkAndRemExt ext p
+                        >>=
+                        guarded (isPathPrefix p'collections)
+                      )
 
 readStaticFile :: (EffError r, EffLogging r, EffFileSys r, EffCatEnv r)
                => Path -> Sem r LazyByteString
