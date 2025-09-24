@@ -53,6 +53,7 @@ import Catalog.CatEnv
        , catPort
        , catStart
        )
+
 import Catalog.Effects.CatCmd
        ( applyUndo
        , changeWriteProtected
@@ -181,6 +182,7 @@ import System.IO
        , stderr
        , IOMode(WriteMode)
        , openFile
+       -- , print
        )
 
 -- servant libs
@@ -247,6 +249,8 @@ catalogServer env runReadC runModyC runBGC =
         :<|>
         put'gpscache'json
       )
+      :<|>
+      get'catEnv
     )
   )
   :<|>
@@ -395,12 +399,16 @@ catalogServer env runReadC runModyC runBGC =
     get'json (Geo' geo) =
       runReadC . jsonPage geo . listToPath
 
+    get'catEnv :: Handler CatEnv
+    get'catEnv =
+      return env
+
 -- --------------------
-{-
+
     runR0 :: forall a.
              CatApp a -> [Text] -> Handler a
     runR0 cmd' _ts = runReadC cmd'      -- throw away redundant path
--}
+
     runR1 :: forall a .
              (Path -> CatApp a) -> [Text] -> Handler a
     runR1 cmd' = runReadC  . cmd' . listToPath
@@ -437,6 +445,8 @@ catalogServer env runReadC runModyC runBGC =
       runR1 theMediaPath
       :<|>
       runR3 checkImgPart
+      :<|>
+      runR0 theCatEnv
 
     runM0 :: forall a.
              CatApp a -> [Text] -> Handler a
@@ -512,8 +522,6 @@ catalogServer env runReadC runModyC runBGC =
       runX1 dropUndoEntries
       :<|>
       runM0 listUndoEntries
-      :<|>
-      runM0 theCatEnv
 
 ----------------------------------------
 
@@ -528,28 +536,35 @@ main = do
 
   hist  <- newIORef emptyHistory
 
-  jh    <- openJournal (env ^. catJournal)
-
-  let runRC :: CatApp a -> Handler a
-      runRC = ioeither2Handler . runRead rvar logQ env
-
-  let runMC :: CatApp a -> Handler a
-      runMC = ioeither2Handler . runMody jh hist rvar mvar logQ env
-
-  let runBQ :: CatApp a -> Handler ()
-      runBQ = liftIO . runBG jh rvar qu logQ env
-
-  -- set the fontname to be used when
-  -- generating icons from text
+  -- complete catalog env
+  -- with font name for icon generation
+  -- and server start time
 
   env1 <- do
-    efn <- runRead rvar logQ env selectFont      -- fontname for icon generation
-    now <- runRead rvar logQ env nowAsIso8601    -- start time
+    res <- runRead rvar logQ env $ do
+      fn <- selectFont
+      nw <- nowAsIso8601
+      return (fn, nw)
 
-    let e1 = either (const env) (\fn -> env & catFontName .~ fn) efn
-    let e2 = either (const e1 ) (\nw -> env & catStart    .~ nw) now
+    let env' = either
+               (const env)
+               ( \(fn, nw) -> env
+                              & catFontName .~ fn
+                              & catStart    .~ nw
+               )
+               res
+    return env'
 
-    return e2
+  jh    <- openJournal (env1 ^. catJournal)
+
+  let runRC :: CatApp a -> Handler a
+      runRC = ioeither2Handler . runRead rvar logQ env1
+
+  let runMC :: CatApp a -> Handler a
+      runMC = ioeither2Handler . runMody jh hist rvar mvar logQ env1
+
+  let runBQ :: CatApp a -> Handler ()
+      runBQ = liftIO . runBG jh rvar qu logQ env1
 
   -- load the catalog from json file
   do

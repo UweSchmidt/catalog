@@ -127,6 +127,8 @@ type RootAPI
            "put-gps-cache" :> ReqBody '[OctetStream] LazyByteString
                            :> Post    '[JSON] ()
          )
+    :<|>
+    "catenv.json" :> Get '[JSON] CatEnv
 
 -- ----------------------------------------
 --
@@ -259,6 +261,8 @@ type JsonGetAPI
       "mediaPath"       :> SimplePost [Path]
       :<|>
       "checkimgpart"    :> ParamPost (Bool, Name) CheckSumRes
+      :<|>
+      "theCatEnv"       :> SimplePost CatEnv
     )
 
 -- the modifying ops
@@ -314,8 +318,6 @@ type JsonModifyAPI
       "dropUndoEntries"      :> ParamPost HistoryID ()
       :<|>
       "listUndoEntries"      :> SimplePost [(HistoryID, Text)]
-      :<|>
-      "theCatEnv"            :> SimplePost CatEnv
     )
 
 -- ----------------------------------------
