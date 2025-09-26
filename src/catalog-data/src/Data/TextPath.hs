@@ -84,8 +84,9 @@ path2imgPath t = do
   _            <- guarded (== Image'jpg) mt
   p1           <- guarded (isPathPrefix p'arch'photos) (mkP p0)
   let (p2, n2) =  swapImgSub p1 (isoText # n1)
+  let p3       =  p2 `snocPath` n2
   let n3       =  dropExt n2 r1 ex
-  return (p2 `snocPath` n2, n3)
+  return (p3, n3)
   where
     mkP :: Text -> Path
     mkP = (isoText #)

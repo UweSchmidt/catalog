@@ -11,6 +11,7 @@ module Catalog.GenPages
   , processReqImg
   , processReqPage
   , processReqJson
+  , processReqJpg
   , rType
   , rGeo
   , rPathPos
@@ -392,6 +393,16 @@ processReqMediaPath' r0 = do
         return ps
     )
 
+processReqJpg :: (Eff'Img r) =>
+                 Req' a -> Name -> Sem r Path
+processReqJpg r0 nm = do
+  r <- setN <$> setIdNode r0
+  p <- genReqImg r
+  return p
+    where
+      setN :: Req'IdNode a -> Req'IdNode'ImgRef a
+      setN r' = r' & rVal . _2 %~ (ImgRef (r' ^. rIdNode . _1) nm,)
+
 -- --------------------
 --
 -- handle an img/icon request
@@ -532,17 +543,7 @@ toUrlPath :: Req' a -> TextPath
 toUrlPath = (^. isoText) . toUrlPath''
 
 toUrlPath'' :: Req' a -> Path
-toUrlPath'' = reqToPath . unifyIconPath . toReq0
-  where
-    -- scaling of icons smaller than 160x120 with fixed aspect ratio
-    -- is done in browser, so the # of generated icons
-    -- is reduced
-
-    unifyIconPath r'
-      | RIcon   <- r' ^. rType
-      , Geo w h <- r' ^. rGeo
-      , w < 160 && h < 120    = r' & rGeo .~ Geo 160 120
-      | otherwise             = r'
+toUrlPath'' = reqToPath . toReq0
 
 -- all pages and media files are accessed by collection path and img ix
 -- except movies and wackelgifs, these are served as static files and are

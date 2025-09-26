@@ -98,6 +98,7 @@ import Catalog.GenPages
        , processReqImg
        , processReqPage
        , processReqJson
+       , processReqJpg
        , rType
        , rGeo
        , rPathPos
@@ -177,6 +178,8 @@ import Data.ImgTree
        , ImgNode
        , ImgNodeP
        )
+import Data.TextPath
+       ( path2imgPath )
 
 -- libraries
 import qualified Data.Sequence   as Seq
@@ -307,6 +310,11 @@ evalCatCmd =
     JpgImgCopy rt geo path
       | Just ppos <- path2colPath ".jpg" path -> do
           p' <- processReqImg (mkReq rt geo ppos)
+          fp <- toFileSysPath p'
+          readFileLB fp
+
+      | Just (imP, imN) <- path2imgPath (path ^. isoText) -> do
+          p' <- processReqJpg (mkReq rt geo (imP, Nothing)) imN
           fp <- toFileSysPath p'
           readFileLB fp
 
