@@ -68,7 +68,6 @@ import Catalog.Effects.CatCmd
        , isWriteable
        , jpgImgCopy
        , listUndoEntries
-       , theCatEnv
        , moveToCollection
        , newCollection
        , newSubCollections
@@ -404,10 +403,11 @@ catalogServer env runReadC runModyC runBGC =
       return env
 
 -- --------------------
-
+{-
     runR0 :: forall a.
              CatApp a -> [Text] -> Handler a
     runR0 cmd' _ts = runReadC cmd'      -- throw away redundant path
+-- -}
 
     runR1 :: forall a .
              (Path -> CatApp a) -> [Text] -> Handler a
@@ -445,8 +445,6 @@ catalogServer env runReadC runModyC runBGC =
       runR1 theMediaPath
       :<|>
       runR3 checkImgPart
-      :<|>
-      runR0 theCatEnv
 
     runM0 :: forall a.
              CatApp a -> [Text] -> Handler a

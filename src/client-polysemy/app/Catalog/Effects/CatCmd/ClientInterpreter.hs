@@ -147,11 +147,6 @@ evalClientCatCmd =
     ListUndoEntries -> do
       simpleJSONmodify "listUndoEntries" p'archive
 
-    -- server env
-    TheCatEnv -> do
-      abortWith "Not implemented: TheCatEnv"
-      -- simpleJSONget    "theCatEnv"       p'archive
-
 ------------------------------------------------------------------------------
 
 simpleJSONget :: (FromJSON a, HttpEffects r)

@@ -261,8 +261,6 @@ type JsonGetAPI
       "mediaPath"       :> SimplePost [Path]
       :<|>
       "checkimgpart"    :> ParamPost (Bool, Name) CheckSumRes
-      :<|>
-      "theCatEnv"       :> SimplePost CatEnv
     )
 
 -- the modifying ops
