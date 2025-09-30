@@ -1119,6 +1119,21 @@ function toMediaUrl(img) {
     return dirPath(img[0]) + "/" + img[1];
 }
 
+function toMediaJpgUrl(img, sg) {
+    const u0 = toMediaUrl(img);
+    const u1 = "/docs/img/" + showGeo(sg) + u0;
+
+    function isJpgMedia(pn) {
+        const ix = pn.lastIndexOf(".");
+        const ex = pn.slice(ix).toLowerCase();
+        return [".jpg", ".jpeg"].includes(ex);
+    }
+
+    const u3 = u1 + ( isJpgMedia(img[1]) ? "" : ".jpg" );
+    trc(1, "toMediaJpgUrl: res=" + u3);
+    return u3;
+}
+
 function dirPath(p) {
     const ix = p.lastIndexOf("/");
     return p.substr(0, ix);
@@ -1820,11 +1835,9 @@ function openEditPage(path, pos) {
     window.open(url, "_blank");
 }
 
-function sameAsLastSlide() {
-    const ppc = rPathPosToUrl(cs.slideReq.rPathPos);
-    const lll = ls?.slideReq?.rPathPos;
-    const ppl = lll ? rPathPosToUrl(lll) : "";
-    return ppc === ppl;
+function sameAsLastSlide(url) {
+    const lsu = ls?.media?.urlImg || "ls";
+    return lsu === url;
 }
 
 // ----------------------------------------
@@ -3082,7 +3095,8 @@ function gotoSlide(url, displayAlg) {
                                                          media.displayTrans.finish.geo,
                                                         )
                                                  );
-                media.sameAsLast   = sameAsLastSlide();
+                media.urlImg       = toMediaJpgUrl(cs.page.img, media.serverGeo);
+                media.sameAsLast   = sameAsLastSlide(media.urlImg);
                 cs.media = media;
 
                 trc(1, "jsonSlide: slide context  initialized");
@@ -3238,11 +3252,11 @@ function loadImgCache() {
     function doit(k) {
         const imgReq  = cs.page.imgReq;
 
-        cs.urlImg = imgReqToUrl(imgReq, cs.media.serverGeo);
+        urlImg = cs.media.urlImg;
 
-        trc(1, "loadImgCache: urlImg=" + cs.urlImg);
+        trc(1, "loadImgCache: urlImg=" + urlImg);
 
-        if ( cs.urlImg === (ls?.urlImg || "") ) {
+        if ( cs.media.sameAsLast ) {
             trc(1, `loadImgCache: already cached ${cs.imgId}` );
             switchResizeImg()(k);
         }
@@ -3255,7 +3269,7 @@ function loadImgCache() {
 
             var picCache = new Image();
             picCache.onload = k1;
-            picCache.src    = cs.urlImg;   // the .onload handler is triggered here
+            picCache.src    = urlImg;   // the .onload handler is triggered here
         }
     }
     return doit;
@@ -3431,7 +3445,7 @@ function addImgToDom(style, style2, addHandler) {
 
     const i = newImgElem(cs.imgId, style2, "img");
     addHandler(i);
-    i.src   = cs.urlImg;
+    i.src   = cs.media.urlImg;
 
     e.appendChild(i);
 }
