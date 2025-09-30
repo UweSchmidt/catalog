@@ -79,12 +79,13 @@ splitPathNameExtMime n =
 
 path2imgPath :: Text -> Maybe (Path, Name)
 path2imgPath t = do
-  ((p0, (n1, r1), ex), mt)
+  ((p0, (n0, r1), ex), mt)
                <- parseMaybe splitPathNameExtMimeP t
   _            <- guarded (== Image'jpg) mt
   p1           <- guarded (isPathPrefix p'arch'photos) (mkP p0)
-  let (p2, n2) =  swapImgSub p1 (isoText # n1)
-  let p3       =  p2 `snocPath` n2
+  let n1       =  isoText # n0
+  let (p2, n2) =  swapImgSub p1 n1
+  let p3       =  p2 `snocPath` n1
   let n3       =  dropExt n2 r1 ex
   return (p3, n3)
   where
