@@ -17,7 +17,6 @@ module Client.Effects.ClientCmd
   , ccSnapshot
   , ccCheckSum
   , ccUpdCSum
-  , ccMediaPath
   , ccUndoList
   , ccApplyUndo
   , ccDropUndo
@@ -66,7 +65,6 @@ data ClientCmd m a where
                -> Bool    -> Bool             -> ClientCmd m ()
   CcUpdCSum    :: Path    -> Name
                -> Bool    -> Bool             -> ClientCmd m ()
-  CcMediaPath  :: Path                        -> ClientCmd m ()
   CcUndoList   ::                                ClientCmd m ()
   CcApplyUndo  ::                   HistoryID -> ClientCmd m ()
   CcDropUndo   ::                   HistoryID -> ClientCmd m ()

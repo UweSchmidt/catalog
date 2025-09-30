@@ -111,8 +111,6 @@ evalClientCatCmd =
       paramJSONget "rating" p pos
     TheRatings p ->
       simpleJSONget "ratings" p
-    TheMediaPath p ->
-      simpleJSONget "mediaPath" p
     CheckImgPart onlyUpdate n p ->
       paramJSONget "checkimgpart" p (onlyUpdate, n)
 

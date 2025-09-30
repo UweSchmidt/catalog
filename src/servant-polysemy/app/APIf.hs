@@ -258,8 +258,6 @@ type JsonGetAPI
       :<|>
       "ratings"         :> SimplePost [Rating]
       :<|>
-      "mediaPath"       :> SimplePost [Path]
-      :<|>
       "checkimgpart"    :> ParamPost (Bool, Name) CheckSumRes
     )
 

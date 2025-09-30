@@ -8,8 +8,6 @@ module Catalog.GenPages
   , JPage(..)
   , emptyReq'
   , mkReq
-  , getColEntryMediaPath
-  , processReqediaPath
   , processReqImg
   , processReqPage
   , processReqJson
@@ -21,6 +19,7 @@ module Catalog.GenPages
 where
 
 -- catalog
+
 import Data.Prim
 
 import Data.MetaData
@@ -37,7 +36,6 @@ import Data.ImgNode
        , theColBlog
        , theColImg
        , theMetaData
-       , thePartNames
        , thePartNames'
        )
 
@@ -368,48 +366,7 @@ toImgMeta r = do
   return $ addMetaGPSurl md
 
 -- --------------------
-
-getColEntryMediaPath :: (Eff'ISEL r) => Path -> Sem r [Path]
-getColEntryMediaPath path
-  | Just ppos <- path2colPath "" path = do
-      processReqMediaPath (mkReq RRef mempty ppos)
-  | otherwise =
-      return []
-
--- --------------------
 --
--- compute path of a media file (img/movie/text/...)
-
-processReqMediaPath :: (Eff'ISEL r)
-                    => Req' a -> Sem r [Path]
-processReqMediaPath r =
-  fromMaybe [] <$> runMaybe (processReqMediaPath' r)
-
-processReqMediaPath' :: (Eff'ISEL r, EffNonDet r)
-                    => Req' a -> Sem r [Path]
-processReqMediaPath' r0 = do
-  r1 <- normAndSetIdNode r0
-
-  ( -- collection entry with an image ref
-    do
-      r2 <- setImgRef r1
-      p2 <- (p'archive <>) <$> toSourcePath r2
-
-      log'trc $ msgPath p2 "processRegMediaPath: path="
-      return [p2]
-    )
-    <|>
-    ( -- image entry with paths for all parts
-      do
-        p <- objid2path (r1 ^. rIdNode . _1)
-
-        let ns = r1 ^.. rIdNode . _2 . theParts . thePartNames
-        let ps = map (`substPathName` p) ns
-
-        log'trc $ "processRegMediaPath: paths="
-                  <> (show ps ^. isoText)
-        return ps
-    )
 
 processReqJpg :: (Eff'Img r) =>
                  Req' a -> Name -> Sem r Path

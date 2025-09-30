@@ -90,7 +90,6 @@ import Catalog.Effects.CatCmd
        , theBlogContents
        , theBlogSource
        , theEntry
-       , theMediaPath
        , theMetaDataText
        , theRating
        , theRatings
@@ -441,8 +440,6 @@ catalogServer env runReadC runModyC runBGC =
       runR2 theRating
       :<|>
       runR1 theRatings
-      :<|>
-      runR1 theMediaPath
       :<|>
       runR3 checkImgPart
 

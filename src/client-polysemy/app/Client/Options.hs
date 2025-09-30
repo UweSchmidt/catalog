@@ -311,14 +311,6 @@ cmdClient = subparser $
       )
     )
   <>
-  command "media"
-    ( (CcMediaPath <$> argPath1)
-      `withInfo`
-      ( "Compute media path for a collection entry"
-        <> " or media paths for an image entry."
-      )
-    )
-  <>
   command "glob"
     ( (CcGlob <$> argPath)
       `withInfo`

@@ -93,7 +93,6 @@ import Catalog.TimeStamp
 
 import Catalog.GenPages
        ( mkReq
-       , getColEntryMediaPath
        , processReqImg
        , processReqPage
        , processReqJson
@@ -284,14 +283,6 @@ evalCatCmd =
     TheRatings p ->
       path2node p >>= read'ratings
 
-    TheMediaPath path -> do
-      ps <- getColEntryMediaPath path
-      case ps of
-        [] ->
-          throw @Text $ msgPath path "illegal doc path "
-        _ : _ ->
-          return ps
-
     CheckImgPart onlyUpdate nm p ->
       path2node p >>= read'checkImgPart onlyUpdate p nm
 
@@ -302,11 +293,13 @@ evalCatCmd =
 
     JpgImgCopy rt geo path
       | Just ppos <- path2colPath ".jpg" path -> do
+          log'trc $ "JpgImgCopy: col path: " <> show ppos ^. isoText
           p' <- processReqImg (mkReq rt geo ppos)
           fp <- toFileSysPath p'
           readFileLB fp
 
       | Just (imP, imN) <- path2imgPath (path ^. isoText) -> do
+          log'trc $ "JpgImgCopy: img path: " <> show (imP, imN) ^. isoText
           p' <- processReqJpg (mkReq rt geo (imP, Nothing)) imN
           fp <- toFileSysPath p'
           readFileLB fp

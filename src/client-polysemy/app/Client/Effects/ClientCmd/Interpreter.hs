@@ -127,7 +127,6 @@ import Catalog.Effects.CatCmd
        , snapshot
        , syncExif
        , theEntry
-       , theMediaPath
        , theMetaDataText
        , updateCheckSum
        , updateTimeStamp
@@ -219,10 +218,6 @@ evalClientCmd =
 
       runReader (CSEnv onlyUpdate True forceUpdate) $
          evalCheckSums updateCheckSumRes ps part
-
-    CcMediaPath p -> do
-      mps <- evalMediaPath p
-      traverse_ (writeln . (^. isoText)) mps
 
     CcUndoList -> do
       es <- listUndoEntries
@@ -413,15 +408,6 @@ globExpandPP (p, cx) = do
                          , "path not unique for pattern "
                          , p ^. isoText
                          ]
-
-------------------------------------------------------------------------------
-
-evalMediaPath :: CCmdEffects r => Path -> Sem r [Path]
-evalMediaPath p = do
-  log'trc $ untext ["evalMediaPath:", p ^. isoText]
-  rs <- theMediaPath p
-  log'trc $ ("res = " <> show rs) ^. isoText
-  return rs
 
 ------------------------------------------------------------------------------
 

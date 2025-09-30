@@ -42,7 +42,6 @@ module Catalog.Effects.CatCmd
   , theMetaDataText
   , theRating
   , theRatings
-  , theMediaPath
   , checkImgPart
 
   -- catalog get commands
@@ -127,7 +126,6 @@ data CatCmd m a where
   TheMetaDataText      ::          Int          -> Path -> CatCmd m MetaDataText
   TheRating            ::          Int          -> Path -> CatCmd m Rating
   TheRatings           ::                          Path -> CatCmd m [Rating]
-  TheMediaPath         ::                          Path -> CatCmd m [Path]
   CheckImgPart         :: Bool ->  Name         -> Path -> CatCmd m CheckSumRes
 
   -- catalog get commands
