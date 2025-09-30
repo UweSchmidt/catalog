@@ -7,7 +7,9 @@ module Catalog.GenPages
   , Req0
   , JPage(..)
   , emptyReq'
-  , processReqMediaPath
+  , mkReq
+  , getColEntryMediaPath
+  , processReqediaPath
   , processReqImg
   , processReqPage
   , processReqJson
@@ -179,6 +181,13 @@ emptyReq' =
        , _rGeo     = mempty
        , _rVal     = ()
        }
+
+mkReq :: ReqType -> Geo -> PathPos -> Req' ()
+mkReq rt' geo' ppos' =
+  emptyReq'
+    & rType    .~ rt'
+    & rGeo     .~ geo'
+    & rPathPos .~ ppos'
 
 -- --------------------
 
@@ -357,6 +366,15 @@ toImgMeta r = do
           Nothing
             -> return $ r ^. rColNode . theMetaData
   return $ addMetaGPSurl md
+
+-- --------------------
+
+getColEntryMediaPath :: (Eff'ISEL r) => Path -> Sem r [Path]
+getColEntryMediaPath path
+  | Just ppos <- path2colPath "" path = do
+      processReqMediaPath (mkReq RRef mempty ppos)
+  | otherwise =
+      return []
 
 -- --------------------
 --

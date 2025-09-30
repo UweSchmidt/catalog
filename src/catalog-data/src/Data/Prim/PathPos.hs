@@ -6,16 +6,21 @@ module Data.Prim.PathPos
   , isoPathPos
   , isoPicNo
   , picNoToText
+  , path2colPath
   )
 where
 
 import Data.Prim.Prelude
 
 import Data.Prim.Path
-       ( snocPath
+       ( checkAndRemExt
+       , isPathPrefix
+       , snocPath
        , viewBase
        , Path
        )
+import Data.Prim.Constants
+       ( p'collections )
 
 import Text.SimpleParser
        ( SP
@@ -68,5 +73,20 @@ isoPicNo = iso toS frS
 
 picNoParser :: SP Int
 picNoParser = string "pic-" *> decimal
+
+-- parser for object path
+--
+-- remove extension
+-- parse optional collection index
+--
+-- example: path2colPath ".jpg" "collections/2018/may/pic-0007.jpg"
+--          -> Just ("/collections/2018/may", Just 7)
+
+path2colPath :: String -> Path -> Maybe PathPos
+path2colPath ext p =
+  (^. isoPathPos)
+  <$> ( checkAndRemExt ext p
+        >>= guarded (isPathPrefix p'collections)
+      )
 
 -- ----------------------------------------

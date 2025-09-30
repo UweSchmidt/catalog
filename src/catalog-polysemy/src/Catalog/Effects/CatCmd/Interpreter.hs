@@ -92,16 +92,12 @@ import Catalog.TimeStamp
        ( whatTimeIsIt )
 
 import Catalog.GenPages
-       ( Req'
-       , emptyReq'
-       , processReqMediaPath
+       ( mkReq
+       , getColEntryMediaPath
        , processReqImg
        , processReqPage
        , processReqJson
        , processReqJpg
-       , rType
-       , rGeo
-       , rPathPos
        )
 
 import qualified Catalog.CatalogIO       as IO
@@ -114,22 +110,18 @@ import qualified Catalog.SyncWithFileSys as SC
 -- catalog
 import Data.Prim
        ( p'arch'photos
-       , p'collections
        , p'photos
-       , checkAndRemExt
        , isPathPrefix
        , msgPath
        , snocPath
        , substPathPrefix
+       , path2colPath
        , viewBase
-       , isoPathPos
        , CheckSum
        , CheckSumRes
-       , Geo
        , Name
        , Path
        , ObjId
-       , PathPos
        , ReqType(..)
        , TimeStamp
        )
@@ -292,12 +284,13 @@ evalCatCmd =
     TheRatings p ->
       path2node p >>= read'ratings
 
-    TheMediaPath path
-      | Just ppos <- path2colPath "" path -> do
-          processReqMediaPath (mkReq RRef mempty ppos)
-
-      | otherwise ->
+    TheMediaPath path -> do
+      ps <- getColEntryMediaPath path
+      case ps of
+        [] ->
           throw @Text $ msgPath path "illegal doc path "
+        _ : _ ->
+          return ps
 
     CheckImgPart onlyUpdate nm p ->
       path2node p >>= read'checkImgPart onlyUpdate p nm
@@ -363,27 +356,6 @@ evalCatCmd =
 -- ----------------------------------------
 --
 -- helper functions
-
-mkReq :: ReqType -> Geo -> PathPos -> Req' ()
-mkReq rt' geo' ppos' =
-  emptyReq' & rType    .~ rt'
-            & rGeo     .~ geo'
-            & rPathPos .~ ppos'
-
--- parser for object path
---
--- remove extension
--- parse optional collection index
---
--- example: path2colPath ".jpg" "collections/2018/may/pic-0007.jpg"
---          -> Just ("/collections/2018/may", Just 7)
-
-path2colPath :: String -> Path -> Maybe PathPos
-path2colPath ext p =
-  (^. isoPathPos) <$> ( checkAndRemExt ext p
-                        >>=
-                        guarded (isPathPrefix p'collections)
-                      )
 
 readStaticFile :: (EffError r, EffLogging r, EffFileSys r, EffCatEnv r)
                => Path -> Sem r LazyByteString
