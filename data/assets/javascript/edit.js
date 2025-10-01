@@ -2278,7 +2278,7 @@ var metaDataDescrKeys =
     ];
 
 var metaDataShowKeys =
-    [ "Display",
+    [ "PlaceAlg",
       "Duration",
       "FadeIn",
       "FadeOut",

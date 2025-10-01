@@ -181,6 +181,7 @@ module Data.MetaData
   , xmpRating
 
   , showDuration
+  , showPlaceAlg
   , showFadeIn
   , showFadeOut
   , showContinue
@@ -371,6 +372,7 @@ data MetaKey
   | XMP'GPSAltitude
   | XMP'Rating
   | Show'Duration
+  | Show'PlaceAlg
   | Show'FadeIn
   | Show'FadeOut
   | Show'Continue
@@ -647,6 +649,7 @@ keysAttrXmp@[
   ] = [XMP'GPSAltitude .. XMP'Rating]
 
 showDuration
+  , showPlaceAlg
   , showFadeIn
   , showFadeOut
   , showContinue
@@ -655,6 +658,7 @@ showDuration
 keysAttrShow :: [MetaKey]
 keysAttrShow@[
   showDuration
+  , showPlaceAlg
   , showFadeIn
   , showFadeOut
   , showContinue
@@ -879,7 +883,7 @@ isoMetaValueText k = case k of
   Show'FadeIn           -> metaIntSec
   Show'FadeOut          -> metaIntSec
   Key'Unknown           -> iso (const mempty) (const mempty)
-  _                     -> metaText
+  _anyOtherKey          -> metaText
 
 -- --------------------
 

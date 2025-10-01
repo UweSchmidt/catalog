@@ -2594,7 +2594,7 @@ function slideFadeDur(fadeinout) {
 
 function slideDisplayAlg() {
     const md  = getSlideMeta();
-    const al  = md["Show:DisplayAlg"] || "";
+    const al  = md["Show:PlaceAlg"] || "";
     const res = parseDisplayAlg(al);
     return res;
 }
