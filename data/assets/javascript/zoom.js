@@ -617,7 +617,10 @@ const MoveScale = {
 
 // ----------------------------------------
 
-function defaultDisplayAlg(imgSize, pano) {
+function defaultDisplayAlg(media) {
+    const imgSize = media.size;
+    const pano    = media.pano;
+
     var res;
     trc(1, "defaultDisplayAlg imgSize=" + imgSize + ", pano=" + pano);
 
@@ -633,7 +636,7 @@ function defaultDisplayAlg(imgSize, pano) {
         case ImgSize.large:
             res = Place.Default();
             break;
-        }                                        // switch ( imgSize )
+        }                                        // end switch ( imgSize )
         break;
 
     case Pano.horizontal:
@@ -643,7 +646,7 @@ function defaultDisplayAlg(imgSize, pano) {
     case Pano.vertical:
         res = Place.Seq(Place.Fill(), Place.Align(Dir.bottom));
         break;
-    }                                            // switch ( pano )
+    }                                            // end switch ( pano )
 
     return Display.NoAnim(res);
 }
@@ -743,7 +746,7 @@ function evalPlace1(sg) {
 
         case Place.zoom:
             { const r1 = doit(Place.Align(Dir.center), r);  // center image
-              const r2 = moveRectRelative(p.relOff, r1);    // move image to clicked position
+              const r2 = moveRectRelative(p.relOff, r1);    // move image to position clicked as center
               return r2;
             }
 
@@ -2589,6 +2592,77 @@ function slideFadeDur(fadeinout) {
     return Math.round(t * 1000);   // time in msec
 }
 
+function slideDisplayAlg() {
+    const md  = getSlideMeta();
+    const al  = md["Show:DisplayAlg"] || "";
+    const res = parseDisplayAlg(al);
+    return res;
+}
+
+function parseDisplayAlg(s) {
+
+    let re1 = ["fitsinto", PDA.reDir];
+    let re2 = ["fill",     PDA.reDir];
+    let re3 = ["scale",    PDA.reNum];
+
+    let al1 = (ts) => {
+        return PDA.toAlign(ts[2])(Place.FitsInto());
+    };
+    let al2 = (ts) => {
+        return PDA.toAlign(ts[2])(Place.Fill());
+    };
+    let al3 = (ts) => {
+        const s = (0 + ts[2]) || 1;
+        return Display.NoAnim(Place.Center(Place.Scale(s)));
+    };
+
+    let algs = [al1, al2, al3];
+    let regs = [re1, re2, re3].map(PDA.toRE);
+
+    return PDA.parse(regs, algs)(s);
+}
+
+const PDA = {
+    reNum : "[0-9]+[.][0-9]+|[0-9]+",
+    reDir : "nw|ne|n|sw|se|s|c|",
+
+    toRE(ts) {
+        const s = "^(" + ts.join(")[ ]*(") + ")$";
+        const e = new RegExp(s, "i");
+        trc(1, e);
+        return e;
+    },
+
+    parse(regs, algs) {
+        return (s) => {
+            for (let i = 0; i < regs.length; i++) {
+                let m = null;
+                if ( (m = s.match(regs[i])) !== null ) {
+                    trc(1, "match found for " + s + " : " + JSON.stringify(m));
+                    return algs[i](m);
+                }
+            }
+            return null;
+        };
+    },
+
+    toAlign(r) {
+        let d = [Dir.center];
+        switch (r) {
+        case "n"  : d = [Dir.top];               break;
+        case "nw" : d = [Dir.top,    Dir.left];  break;
+        case "ne" : d = [Dir.top,    Dir.right]; break;
+        case "s"  : d = [Dir.bottom];            break;
+        case "sw" : d = [Dir.bottom, Dir.left];  break;
+        case "se" : d = [Dir.bottom, Dir.right]; break;
+        }
+        return (a) => {
+            return Display.NoAnim(Place.Seq(a, Place.Align(d)));
+        };
+    },
+};
+
+
 // ----------------------------------------
 //
 // advance slideshow
@@ -3083,7 +3157,10 @@ function gotoSlide(url, displayAlg) {
                                        : Pano.noPano
                                      );
 
-                media.displayAlg   = displayAlg || defaultDisplayAlg(media.size, media.pano);
+                media.displayAlg   = ( displayAlg
+                                       || slideDisplayAlg()
+                                       || defaultDisplayAlg(media)
+                                     );
                 if ( SlideType.isMovie(cs.slideType) ) {
                     media.displaAlg = Display.DefaultMovie();
                 }
