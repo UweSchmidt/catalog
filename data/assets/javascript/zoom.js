@@ -789,7 +789,7 @@ function evalPlace(place, rect) {
 
 function evalPlace1(sg) {
 
-    function doit(p, r) {
+    function eval(p, r) {
         switch ( p.name ) {
 
         case Place.fill:                                             // resize image
@@ -797,9 +797,9 @@ function evalPlace1(sg) {
 
         case Place.fillCut:
             if ( cutoffArea(r.geo, sg) > p.cut ) {                   // too much would be thrown away
-                return doit(Place.FitsInto(), r);
+                return eval(Place.FitsInto(), r);
             }
-            return doit(Place.Fill(), r);                            // area thrown away is under limit
+            return eval(Place.Fill(), r);                            // area thrown away is under limit
 
         case Place.fitsInto:
             return mkRect(fitsInto(r.geo, sg), r.off);
@@ -831,49 +831,50 @@ function evalPlace1(sg) {
             return r;
 
         case Place.zoom:
-            { const r1 = doit(Place.Align(Dir.center), r);  // center image
-              const r2 = moveRectRelative(p.relOff, r1);    // move image to position clicked as center
-              return r2;
+            { const r1 = eval(Place.Align(Dir.center), r);    // center image
+              const r2 = moveRectRelative(p.relOff, r1);      // move image to position clicked as center
+              const r3 = alignRectToScreen(r2, sg, p.relOff); // minimize uncovered screen area
+              return r3;
             }
 
         case Place.scaleC:
-            { const r0 = doit(p.p1, r);
-              const r1 = doit(Place.Scale(p.scale), r0);    // scale image
+            { const r0 = eval(p.p1, r);
+              const r1 = eval(Place.Scale(p.scale), r0);    // scale image
               const o1 = halfGeo(subGeo(r0.geo, r1.geo));    // get 1/2 of the diff between sizes
-              const r2 = doit(Place.Move(o1), r1);          // move to recenter at old screen center
+              const r2 = eval(Place.Move(o1), r1);          // move to recenter at old screen center
               return r2;
             }
 
         case Place.last:
             return ( ls?.media?.displayTrans?.finish      // last geometry of previous slide
                      ||
-                     doit(Place.Default(), r)
+                     eval(Place.Default(), r)
                    );
 
         case Place.lastStart:
             return ( ls?.media?.displayTrans?.start      // last geometry of previous slide
                      ||
-                     doit(Place.Default(), r)
+                     eval(Place.Default(), r)
                    );
 
         case Place.id:
             return r;
 
         case Place.seq:
-            return doit(p.p2, doit(p.p1, r));            // sequence of 2 place algs
+            return eval(p.p2, eval(p.p1, r));            // sequence of 2 place algs
 
         default:
             trc(1, "evalPlace: unknown place algorithm: " + p.name);
             return r;
         }
     }
-    return doit;
+    return eval;
 }
 
 function evalMoveScale1(sg) {
     const evalP  = evalPlace1(sg);
 
-    function doit(ms, r) {
+    function eval(ms, r) {
 
         const evalT = (p) => {
             return mkTrans(evalP(Place.Last(),    r),
@@ -980,7 +981,7 @@ function evalMoveScale1(sg) {
         }
         return res;
     }
-    return doit;
+    return eval;
 }
 
 // ----------------------------------------
@@ -1077,13 +1078,59 @@ function placeFinish(g, s) {
 
 function screenOffsetToRelOffset(co, r) {  // co: click pos in img element
     // trc(1,"screenOffsettoreloffset co=" + showGeo(co) + ", r.geo=" + showGeo(r.geo) + ", r.off=" + showGeo(r.off));
-    return divGeo(co, r.geo);              // offset relative to image size
+    const res = divGeo(co, r.geo);              // offset relative to image size
+    // trc(1,"screenOffsettoreloffset res=" + showGeo(res));
+    return res;
 }
 
 function moveRectRelative(ro, r) { // ro: offset relative to rectangle size
     const ro1 = subGeo(halfGeo(oneGeo), ro);
     const off = addGeo(r.off, mulGeo(ro1, r.geo));
     return mkRect(r.geo, off);
+}
+
+function alignRectToScreen(r, sg, ro) {
+    const geo = r.geo;
+    const off = r.off;
+    const nof = mkOff(alignWidth(geo.w, off.w, sg.w, ro.w),
+                      alignWidth(geo.h, off.h, sg.h, ro.h)
+                     );
+    return mkRect(geo, nof);
+}
+
+function alignWidth(w, ol, sw, ro) {
+    if ( ro <= 1/2 )
+        return alignWidth1(w, ol, sw);
+
+    // mirror overlaps
+    const or  = -(ol  - (sw - w));
+    const nor = alignWidth1(w, or, sw);
+    const nol = -(nor - (sw - w));
+    return nol;
+}
+
+// left biased alignment
+function alignWidth1(w, ol, sw) {
+    // trc(1, "w=" + w +",ol=" + ol + ",sw=" + sw);
+    const or = w + ol - sw;
+
+    // img overlaps on both sides: no change
+    if ( ol <= 0 && or >= 0 )
+        return ol;
+
+    //  overlaps only on left side: shift right
+    if ( ol <= 0 && or <= 0 )
+        return (ol - or) / 2;
+
+    // no overlap on both sides: no change
+    if ( ol >= 0 && or <= 0 )
+        return ol;   // center: (ol - or) / 2;
+
+    // overlap on the right side: shift left
+    if ( ol >= 0 && or >= 0 )
+        return Math.max((ol - or) / 2, 0)
+    ;
+    return null;
 }
 
 // --------------------
