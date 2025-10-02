@@ -136,6 +136,39 @@ function showRect(r) {
     return showGeo(r.geo) + showOff(r.off.w) + showOff(r.off.h);
 }
 
+function scrollUp(r, scale, sg) {
+    const mdy  = scale * sg.h;
+    const dy   = r.off.h;
+    const newh = ( dy >= 0
+                   ? 0
+                   : Math.min(dy + mdy, 0)
+                 );
+    return mkRect(r.geo, mkOff(r.off.w, newh));
+}
+
+function scrollDown(r, scale, sg) {
+    const mdy   = scale * sg.h;
+    const dy    = (r.geo.h - sg.h) + r.off.h;
+    const newh = ( dy <= 0
+                   ? r.off.h - dy
+                   : r.off.h - Math.min(dy, mdy)
+                 );
+    return mkRect(r.geo, mkOff(r.off.w, newh));
+}
+
+function scrollDown1(r, scale, sg) {
+    const dy   = scale * sg.h;
+    const offh = r.off.h;
+    if ( offh + r.geo.h <= sg.h )
+        return r;
+    return mkRect(r.geo,
+                  mkOff(r.off.w,
+                        Math.min(offh - dy, sg.h - r.geo.h)
+                       )
+                 );
+}
+
+
 // --------------------
 
 function mkTrans(start, finish) {
@@ -432,6 +465,12 @@ const Display = {
     ToDefault    : () => {
         return Display.WithAnim(MoveScale.ToDefault());
     },
+    ScrollUp     : (sc) => {
+        return Display.WithAnim(MoveScale.ScrollUp(sc));
+    },
+    ScrollDown   : (sc) => {
+        return Display.WithAnim(MoveScale.ScrollDown(sc));
+    },
     Pano      : (pano1, reverse) => {
         return Display.WithAnim(MoveScale.Pano(pano1,reverse));
     },
@@ -563,6 +602,8 @@ const MoveScale = {
     toFit         : 'ToFit',
     toOrg         : 'ToOrg',
     toDefault     : 'ToDefault',
+    scrollUp      : 'ScrollUp',
+    scrolDown     : 'ScrollDown',
     pano          : 'Pano',
 
     // constructor functions
@@ -603,8 +644,18 @@ const MoveScale = {
         return { name    : MoveScale.toOrg,
                };
     },
-    ToDefault      : () => {
+    ToDefault  : () => {
         return { name    : MoveScale.toDefault,
+               };
+    },
+    ScrollUp   : (sc) => {
+        return { name    : MoveScale.scrollUp,
+                 scale   : sc,
+               };
+    },
+    ScrollDown : (sc) => {
+        return { name    : MoveScale.scrollDown,
+                 scale   : sc,
                };
     },
     Pano       : (isH, rev) => {
@@ -803,6 +854,12 @@ function evalMoveScale1(sg) {
             );
         };
 
+        const evalScroll = (scf) => {
+            const r1 = evalP(Place.Last(), r);
+            const r2 = scf(r1, ms.scale, sg);
+            return mkTrans(r1, r2);
+        };
+
         var res;
 
         switch ( ms.name ) {
@@ -851,6 +908,14 @@ function evalMoveScale1(sg) {
 
         case MoveScale.toDefault:
             res = evalT(Place.Default());
+            break;
+
+        case MoveScale.scrollUp:
+            res = evalScroll(scrollUp);
+            break;
+
+        case MoveScale.scrollDown:
+            res = evalScroll(scrollDown);
             break;
 
         case MoveScale.pano:
@@ -1902,12 +1967,14 @@ function setPageTitle() {
 // ----------------------------------------
 
 const MoveScaleActions = {
-    default() { thisSlideWith(Display.ToDefault());         },
-    larger()  { thisSlideWith(Display.ZoomCenter(1.2));     },
-    smaller() { thisSlideWith(Display.ZoomCenter(1 / 1.2)); },
-    org()     { thisSlideWith(Display.ZoomIn(defaultOff));  },
-    fill()    { thisSlideWith(Display.ToFill());            },
-    fit()     { thisSlideWith(Display.ToFit());             },
+    default()    { thisSlideWith(Display.ToDefault());         },
+    larger()     { thisSlideWith(Display.ZoomCenter(1.2));     },
+    smaller()    { thisSlideWith(Display.ZoomCenter(1 / 1.2)); },
+    org()        { thisSlideWith(Display.ZoomIn(defaultOff));  },
+    fill()       { thisSlideWith(Display.ToFill());            },
+    fit()        { thisSlideWith(Display.ToFit());             },
+    scrollUp()   { thisSlideWith(Display.ScrollUp(0.8));       },
+    scrollDown() { thisSlideWith(Display.ScrollDown(0.8));     },
 };
 
 const StepActions = {
@@ -2028,8 +2095,8 @@ const DownShiftActions = {
 const DownAltActions = {
     ArrowLeft  : () => {},
     ArrowRight : () => {},
-    ArrowUp    : () => {},
-    ArrowDown  : () => {},
+    ArrowUp    : MoveScaleActions.scrollUp,
+    ArrowDown  : MoveScaleActions.scrollDown,
     171        : MoveScaleActions.larger,     // Alt-+      // keyCode
     173        : MoveScaleActions.smaller,    // Alt--      // keyCode
     Digit0     : MoveScaleActions.default,    // Alt-0
