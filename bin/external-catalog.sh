@@ -116,10 +116,17 @@ then
 
     rsync $dry -av \
           --exclude='photos' \
+          --exclude='docs' \
           --exclude='.DS_Store' \
           --exclude='*~' \
           --exclude='catalog-journal*.json' \
           "$catSrc/data/" "$catDst/data"
+
+    # scheiss symlink catalog/data/photos, keine Ahnung, wie der mit --exclude gefiltert werden kann
+    rsync $dry -av \
+          --exclude='.DS_Store' \
+          --exclude='*~' \
+          "$catSrc/data/docs/" "$catDst/data/doc"
 fi
 
 
