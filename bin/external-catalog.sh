@@ -114,19 +114,13 @@ then
     trc copy catalog data from "$catSrc/data/" to "$catDst/data"
     trc "git repos and configs (.git, .gitignore) are included"
 
-    rsync $dry -av \
-          --exclude='photos' \
-          --exclude='docs' \
-          --exclude='.DS_Store' \
-          --exclude='*~' \
-          --exclude='catalog-journal*.json' \
-          "$catSrc/data/" "$catDst/data"
-
-    # scheiss symlink catalog/data/photos, keine Ahnung, wie der mit --exclude gefiltert werden kann
-    rsync $dry -av \
-          --exclude='.DS_Store' \
-          --exclude='*~' \
-          "$catSrc/data/docs/" "$catDst/data/doc"
+    for i in assets bootstrap catalog docs
+    do
+        rsync $dry -av \
+              --exclude='.DS_Store' \
+              --exclude='*~' \
+              "$catSrc/data/$i/" "$catDst/data/$i"
+    done
 fi
 
 
