@@ -1103,9 +1103,9 @@ function alignWidth(w, ol, sw, ro) {
         return alignWidth1(w, ol, sw);
 
     // mirror overlaps
-    const or  = -(ol  - (sw - w));
-    const nor = alignWidth1(w, or, sw);
-    const nol = -(nor - (sw - w));
+    const or  = -(ol  - (sw - w));         // mirror
+    const nor = alignWidth1(w, or, sw);    // compute
+    const nol = -(nor - (sw - w));         // mirror back
     return nol;
 }
 
@@ -2061,17 +2061,17 @@ function setPageTitle() {
 // ----------------------------------------
 
 const MoveScaleActions = {
-    default()     { thisSlideWith(Display.ToDefault());         },
-    larger()      { thisSlideWith(Display.ZoomCenter(1.2));     },
-    smaller()     { thisSlideWith(Display.ZoomCenter(1 / 1.2)); },
-    org()         { thisSlideWith(Display.ZoomIn(defaultOff));  },
-    fill()        { thisSlideWith(Display.ToFill());            },
-    fit()         { thisSlideWith(Display.ToFit());             },
-    center()      { thisSlideWith(Display.ToCenter());          },
-    scrollUp()    { thisSlideWith(Display.ScrollUp(0.8));       },
-    scrollDown()  { thisSlideWith(Display.ScrollDown(0.8));     },
-    scrollLeft()  { thisSlideWith(Display.ScrollLeft(0.8));     },
-    scrollRight() { thisSlideWith(Display.ScrollRight(0.8));    },
+    default()     { thisSlideWith(Display.ToDefault());                  },
+    larger()      { thisSlideWith(Display.ZoomCenter(Math.sqrt(2)));     },
+    smaller()     { thisSlideWith(Display.ZoomCenter(1 / Math.sqrt(2))); },
+    org()         { thisSlideWith(Display.ZoomIn(defaultOff));           },
+    fill()        { thisSlideWith(Display.ToFill());                     },
+    fit()         { thisSlideWith(Display.ToFit());                      },
+    center()      { thisSlideWith(Display.ToCenter());                   },
+    scrollUp()    { thisSlideWith(Display.ScrollUp(0.8));                },
+    scrollDown()  { thisSlideWith(Display.ScrollDown(0.8));              },
+    scrollLeft()  { thisSlideWith(Display.ScrollLeft(0.8));              },
+    scrollRight() { thisSlideWith(Display.ScrollRight(0.8));             },
 };
 
 const StepActions = {
