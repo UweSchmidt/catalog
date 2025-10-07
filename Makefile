@@ -27,15 +27,13 @@ clean:
 check-external-progs:
 	bin/check-external-progs.sh
 
-# copy server and client to local bin dir ./bin
+# copy server and client to local binaries dir ./bin
 
-catalogVersion :=$(shell grep -e '^version=' bin/versionbump.sh | sed -e 's/^version=//' -e 's/["]//g' )
-ghcVersion     :=$(shell ghc --version | sed -e 's/^.*version //')
-
-servant-polysemy :=$(shell echo src/dist-newstyle/build/*/ghc-$(ghcVersion)/servant-polysemy-$(catalogVersion)/*/servant-polysemy/build/servant-polysemy/servant-polysemy)
-client-polysemy  :=$(shell echo src/dist-newstyle/build/*/ghc-$(ghcVersion)/client-polysemy-$(catalogVersion)/*/client-polysemy/build/client-polysemy/client-polysemy)
-
-arch :=$(shell arch)
+catalogVersion   :=$(shell grep -e '^version=' bin/versionbump.sh | sed -e 's/^version=//' -e 's/["]//g' )
+ghcVersion       :=$(shell ghc --version | sed -e 's/^.*version //')
+servant-polysemy :=$(shell cd src; cabal list-bin servant-polysemy)
+client-polysemy  :=$(shell cd src; cabal list-bin client-polysemy)
+arch             :=$(shell arch)
 
 copy-apps:
 	echo $(arch) $(catalogVersion) $(ghcVersion) $(servant-polysemy) $(client-polysemy)
