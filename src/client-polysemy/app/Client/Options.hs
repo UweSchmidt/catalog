@@ -57,7 +57,7 @@ import Data.Prim
        , readGeo'
        , googleMapsGPSdec
        , mkName
-       , lastPath
+       --- , lastPath
        , isoPathPos
        , imgReqTypes
        , (^?)
@@ -231,7 +231,7 @@ cmdClient = subparser $
               = CcDownload path' reqtype' geo' dest'' seqno' overwrite'
                 where
                   dest''
-                    | isEmpty dest' = lastPath path' ^. isoText
+                    | isEmpty dest' = "./downloads"  -- lastPath path' ^. isoText
                     | otherwise     = dest'
 
             img'variants :: String
@@ -261,7 +261,7 @@ cmdClient = subparser $
               <> metavar "DOWNLOAD-DIR"
               <> value ""
               <> help ("The dir to store downloads"
-                       <> " (default: ./<last collection name in PATH>)"
+                       <> " (default: ./downloads)"
                       )
             )
         <*> flag False True
