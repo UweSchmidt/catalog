@@ -502,16 +502,14 @@ guarded p x
   | otherwise = empty         -- Nothing
 
 
-whenM :: (Monoid a, Monad m) => m Bool -> m a -> m a
-whenM b c = do
-  b' <- b
-  if b' then c else return mempty
+-- when and unless with monadic action for condition
+
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM b c = b >>= flip when c
 {-# INLINE whenM #-}
 
 unlessM :: (Monad m) => m Bool -> m () -> m ()
-unlessM b c = do
-  b' <- b
-  unless b' c
+unlessM b c = b >>= flip unless c
 {-# INLINE unlessM #-}
 
 partitionM :: (Monad m) => (a -> m Bool) -> [a] -> m ([a], [a])
