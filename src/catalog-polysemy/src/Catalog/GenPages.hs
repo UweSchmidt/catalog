@@ -830,16 +830,7 @@ createRawIconFromString t = do
         p'gen'icon `snocPath` (isoText # t')
 
       t' :: Text
-      t' = (t & isoString %~ str2fn) <> ".jpg"
-
-      str2fn :: String -> String
-      str2fn = concatMap urlEnc
-        where
-          urlEnc c
-            | isAlphaNum c
-              &&
-              c <= toEnum 128 = [c]
-            | otherwise       = "-" <> show (fromEnum c) <> "-"
+      t' = t ^. isoTextUrl <> ".jpg"
 
 -- ----------------------------------------
 --

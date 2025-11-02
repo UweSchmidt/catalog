@@ -82,6 +82,8 @@ module Data.Prim.Prelude
     isoSetList,
     isoSeqList,
     isoUpperLower,
+    isoUrl,
+    isoTextUrl,
 
     -- * utilities
     (.||.),
@@ -183,6 +185,10 @@ import Data.Text.Lens
 
 import Data.Vector
   ( Vector,
+  )
+import Network.HTTP.Types.URI
+  ( urlEncode,
+    urlDecode
   )
 import Numeric
   ( readHex,
@@ -287,10 +293,12 @@ class IsoText a where
   {-# INLINE isoText #-}
 
 instance IsoText Text where
+  isoText :: Iso' Text Text
   isoText = iso id id
   {-# INLINE isoText #-}
 
 instance IsoText String where
+  isoText :: Iso' String Text
   isoText = from isoString
   {-# INLINE isoText #-}
 
@@ -581,7 +589,13 @@ prettyJSONConfig ks =
 lbsToText :: LazyByteString -> Text
 lbsToText = T.decodeUtf8Lenient . BS.concat . LB.toChunks
 
-bsToText :: BS.ByteString -> Text
+bsToText :: ByteString -> Text
 bsToText = T.decodeUtf8Lenient
+
+isoUrl :: Iso' Text ByteString
+isoUrl = iso (urlEncode False . T.encodeUtf8) (bsToText . urlDecode False)
+
+isoTextUrl :: Iso' Text Text
+isoTextUrl = isoUrl . isoString . isoText
 
 ------------------------------------------------------------------------

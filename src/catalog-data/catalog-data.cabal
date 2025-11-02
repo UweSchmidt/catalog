@@ -55,6 +55,7 @@ library
     , containers            >=0.4
     , directory             >=1.1
     , filepath              >=1
+    , http-types
     , lens                  >=4.12
     , megaparsec
     , mtl

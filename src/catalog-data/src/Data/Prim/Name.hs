@@ -24,6 +24,7 @@ import Data.Prim.Prelude
        , FromJSON(parseJSON)
        , ToJSON(toJSON)
        , AsEmpty(..)
+       , JParser
        )
 
 import qualified Data.Aeson as J
@@ -101,18 +102,22 @@ instance Monoid Name where
 instance AsEmpty Name
 
 instance IsString Name where
+  fromString :: String -> Name
   fromString = mkName
   {-# INLINE fromString #-}
 
 instance Show Name where
+  show :: Name -> String
   show = fromName
   {-# INLINE show #-}
 
 instance ToJSON Name where
+  toJSON :: Name -> J.Value
   toJSON = toJSON . (^. isoText)
   {-# INLINE toJSON #-}
 
 instance FromJSON Name where
+  parseJSON :: J.Value -> JParser Name
   parseJSON (J.String t) = return $ isoText # t
   parseJSON _            = mzero
 
