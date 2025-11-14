@@ -202,6 +202,7 @@ imgSubdir =
             "jpg",
             "tiff",
             "tif",
+            "gif",
             "dng",
             "dxo"
           ]

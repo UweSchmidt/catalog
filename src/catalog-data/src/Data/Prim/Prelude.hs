@@ -82,8 +82,7 @@ module Data.Prim.Prelude
     isoSetList,
     isoSeqList,
     isoUpperLower,
-    isoUrl,
-    isoTextUrl,
+    isoTextUrlPart,
 
     -- * utilities
     (.||.),
@@ -592,10 +591,10 @@ lbsToText = T.decodeUtf8Lenient . BS.concat . LB.toChunks
 bsToText :: ByteString -> Text
 bsToText = T.decodeUtf8Lenient
 
-isoUrl :: Iso' Text ByteString
-isoUrl = iso (urlEncode False . T.encodeUtf8) (bsToText . urlDecode False)
-
-isoTextUrl :: Iso' Text Text
-isoTextUrl = isoUrl . isoString . isoText
+isoTextUrlPart :: Iso' Text Text
+isoTextUrlPart = isoUrl . isoString . isoText
+  where
+    isoUrl :: Iso' Text ByteString
+    isoUrl = iso (urlEncode False . T.encodeUtf8) (bsToText . urlDecode False)
 
 ------------------------------------------------------------------------

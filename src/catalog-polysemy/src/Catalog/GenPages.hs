@@ -830,7 +830,7 @@ createRawIconFromString t = do
         p'gen'icon `snocPath` (isoText # t')
 
       t' :: Text
-      t' = t ^. isoTextUrl <> ".jpg"
+      t' = t ^. isoTextUrlPart <> ".jpg"
 
 -- ----------------------------------------
 --
