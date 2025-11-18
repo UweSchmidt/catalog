@@ -79,19 +79,16 @@ splitPathNameExtMime n =
 
 path2imgPath :: Text -> Maybe (Path, Name)
 path2imgPath t = do
-  ((p0, (n0, r1), ex), mt)
+  ((ps0, (n0, r1), ex), mt)
                <- parseMaybe splitPathNameExtMimeP t
   _            <- guarded (== Image'jpg) mt
-  p1           <- guarded (isPathPrefix p'arch'photos) (mkP p0)
+  p1           <- guarded (isPathPrefix p'arch'photos) (listToPath ps0)
   let n1       =  isoText # n0
   let (p2, n2) =  swapImgSub p1 n1
   let p3       =  p2 `snocPath` n1
   let n3       =  dropExt n2 r1 ex
   return (p3, n3)
   where
-    mkP :: Text -> Path
-    mkP = (isoText #)
-
     swapImgSub :: Path -> Name -> (Path, Name)
     swapImgSub p' n'
       | Just _ <- parseMaybe imgSubdir (n1' ^. isoText) =
@@ -145,16 +142,16 @@ addExt ext fn
 
 -- ----------------------------------------
 --
--- filr path parsers
+-- file path parsers
 
-type SplitName = (Text, (Text, Text), Text)
+type SplitName = ([Text], (Text, Text), Text)
 
 splitPathNameExtMimeP :: TP (SplitName, MimeType)
 splitPathNameExtMimeP = do
-  p <- path'
+  ps <- many p'
   (nm, (e, t)) <- splitExtMimeP
   let n = fromMaybe (nm, mempty) $ parseMaybe imgName nm
-  return ((p, n, e), t)
+  return ((ps, n, e), t)
   where
     p' :: TP Text
     p' =
@@ -163,10 +160,6 @@ splitPathNameExtMimeP = do
             <$> many (satisfy (/= '/'))
             <*> some (satisfy (== '/'))
           )
-
-    path' :: TP Text
-    path' = T.concat <$> many p'
-
 splitExtMimeP :: TP (Text, (Text, MimeType))
 splitExtMimeP = anyStringThen' $ pext <* eof
   where

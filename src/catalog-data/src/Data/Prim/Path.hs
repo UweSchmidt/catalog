@@ -27,8 +27,8 @@ module Data.Prim.Path
   , isoPathList
   , checkExtPath
   , editName
-  , textToPath
-  , textFromPath
+  , UrlPath
+  , isoUrlPath
   )
 where
 
@@ -44,6 +44,7 @@ import Data.Prim.Prelude
       JParser,
       JValue,
       iso,
+      isoTextUrlPart,
       Alternative(many, some),
       isEmpty,
       (#),
@@ -54,7 +55,8 @@ import Data.Prim.Prelude
       (.~),
       Field1(_1),
       filtered,
-      Field2(_2) )
+      Field2(_2)
+    )
 
 import Data.Prim.Name
        ( Name )
@@ -86,7 +88,6 @@ type Path = Path' Name
 
 ----------------------------------------
 
-
 -- empty Name -> empty Path
 
 mkPath :: Name -> Path
@@ -99,9 +100,18 @@ emptyPath :: Path' n
 emptyPath = PNil
 {-# INLINE emptyPath #-}
 
+-- listToPath is used only in servant for constructing Path's
+-- servant already removes URL encodings when parsing requests
+--
+-- all other conversions from Text paths to Path
+-- should be done via UrlPath's (see below)
+
 listToPath :: [Text] -> Path
 listToPath = foldl' (\ p' t' -> p' `concPath` mkPath (isoText # t')) emptyPath
 {-# INLINE listToPath #-}
+
+-- only used in GenCollections for
+-- paths as subtitle in generated collections
 
 listFromPath :: Path -> [Text]
 listFromPath = lfp []
@@ -312,12 +322,12 @@ instance Show Path where
 
 instance ToJSON Path where
   toJSON :: Path -> JValue
-  toJSON = toJSON . textFromPath
+  toJSON = toJSON . (^. isoUrlPath) -- textFromPath
   {-# INLINE toJSON #-}
 
 instance FromJSON Path where
   parseJSON :: JValue -> JParser Path
-  parseJSON o = textToPath <$> parseJSON o
+  parseJSON o = (isoUrlPath #) <$> parseJSON o
 
 instance IsString Path where
   fromString :: String -> Path
@@ -326,5 +336,37 @@ instance IsString Path where
 
 instance Hashable64 Path where
   hash64Add = hash64Add . showPath
+
+----------------------------------------
+--
+-- UrlPath is a Text representation for Path
+-- where the names are URL encoded and prefixed with "/"
+-- this enables occurences of all chars in names, not only ASCII alphanums
+
+newtype UrlPath = UP {_upt :: Text}
+
+instance IsoText UrlPath where
+  isoText = iso _upt UP
+
+isoUrlPath :: Iso' Path UrlPath
+isoUrlPath = iso toUP fromUP
+  where
+    toUP :: Path -> UrlPath
+    toUP = UP . T.concat . map enc . listFromPath
+      where
+        enc :: Text -> Text
+        enc t = "/" <> t ^. isoTextUrlPart
+
+    fromUP :: UrlPath -> Path
+    fromUP = listToPath . map (isoTextUrlPart #) . T.split (== '/') . _upt
+{-# INLINE isoUrlPath #-}
+
+instance ToJSON UrlPath where
+  toJSON :: UrlPath -> JValue
+  toJSON = toJSON . _upt
+
+instance FromJSON UrlPath where
+  parseJSON :: JValue -> JParser UrlPath
+  parseJSON o = UP <$> parseJSON o
 
 -- ----------------------------------------
