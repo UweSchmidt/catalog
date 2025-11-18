@@ -22,11 +22,12 @@ module Data.Prim.Path
   , viewBase
   , quotePath
   , msgPath
-  , listToPath
-  , listFromPath
-  , isoPathList
   , checkExtPath
   , editName
+
+  , ListPath      -- alias for [Text] (used in servant)
+  , isoListPath
+
   , UrlPath
   , isoUrlPath
   )
@@ -126,10 +127,6 @@ textFromPath = foldMap (\ n -> "/" <> n ^. isoText)
 
 textToPath :: Text -> Path
 textToPath = listToPath . T.split (== '/')
-
-isoPathList :: Iso' Path [Text]
-isoPathList = iso listFromPath listToPath
-{-# INLINE isoPathList #-}
 
 nullPath :: Path' n -> Bool
 nullPath PNil = True
@@ -339,6 +336,16 @@ instance Hashable64 Path where
 
 ----------------------------------------
 --
+-- Path's as lists
+
+type ListPath = [Text]
+
+isoListPath :: Iso' Path ListPath
+isoListPath = iso listFromPath listToPath
+{-# INLINE isoListPath #-}
+
+----------------------------------------
+--
 -- UrlPath is a Text representation for Path
 -- where the names are URL encoded and prefixed with "/"
 -- this enables occurences of all chars in names, not only ASCII alphanums
@@ -349,16 +356,21 @@ instance IsoText UrlPath where
   isoText = iso _upt UP
 
 isoUrlPath :: Iso' Path UrlPath
-isoUrlPath = iso toUP fromUP
+isoUrlPath = isoListPath . isoUrlList
   where
-    toUP :: Path -> UrlPath
-    toUP = UP . T.concat . map enc . listFromPath
+    isoUrlList :: Iso' ListPath UrlPath
+    isoUrlList = iso toUP fromUP
       where
-        enc :: Text -> Text
-        enc t = "/" <> t ^. isoTextUrlPart
+        toUP :: ListPath -> UrlPath
+        toUP = UP . T.concat . map enc
+          where
+            enc :: Text -> Text
+            enc t = "/" <> t ^. isoTextUrlPart
 
-    fromUP :: UrlPath -> Path
-    fromUP = listToPath . map (isoTextUrlPart #) . T.split (== '/') . _upt
+        fromUP :: UrlPath -> ListPath
+        fromUP = map (isoTextUrlPart #) . T.split (== '/') . _upt
+    {-# INLINE isoUrlList #-}
+
 {-# INLINE isoUrlPath #-}
 
 instance ToJSON UrlPath where

@@ -289,7 +289,7 @@ genCollectionsByDir di = do
         (b, n) = p ^. viewBase
 
     path2Subtitle :: Path -> Text
-    path2Subtitle = T.intercalate " \8594 " . listFromPath
+    path2Subtitle = T.intercalate " \8594 " . (^. isoListPath)
     -- path names separated by right arrow
 
     genCol :: Eff'ISEJLT r => (Path -> Path) -> ObjId -> Sem r ColEntries

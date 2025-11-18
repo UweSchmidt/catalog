@@ -370,7 +370,7 @@ evalGlobLs = globExpand >=> evalLss
 
 globExpand :: CCmdEffects r => Path -> Sem r [Path]
 globExpand p = do
-  ps <- globExpand' (listFromPath p) [defaultPath]
+  ps <- globExpand' (p ^. isoListPath) [defaultPath]
   return $ if null ps
            then [p]
            else ps

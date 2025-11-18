@@ -122,6 +122,7 @@ import Catalog.TimeStamp
 -- catalog-data
 import Data.Prim
        ( Path
+       , ListPath
        , ReqType(..)
        , Text
        , (^.)
@@ -144,7 +145,7 @@ import Data.Prim
        , p'icons
        , p'javascript
        , initPath
-       , listToPath
+       , isoListPath
        , snocPath
        , tailPath
        , showPath
@@ -333,7 +334,11 @@ catalogServer env runReadC runModyC runBGC =
     staticPath dirPath (BaseName n) =
       dirPath `snocPath` (isoText # n)
 
-    -- --------------------
+    listToPath :: ListPath -> Path
+    listToPath = (isoListPath #)
+    {-# INLINE listToPath #-}
+
+-- --------------------
 
     cachedResponse :: Maybe Text -> LazyByteString -> CachedByteString
     cachedResponse mbref bs =
@@ -362,40 +367,44 @@ catalogServer env runReadC runModyC runBGC =
     -- --------------------
     -- handle icon request
 
-    get'icon  :: Geo' -> [Text] -> Maybe Text -> Handler CachedByteString
+    get'icon  :: Geo' -> ListPath -> Maybe Text -> Handler CachedByteString
     get'icon  = get'img' RIcon
 
-    get'iconp :: Geo' -> [Text] -> Maybe Text -> Handler CachedByteString
+    get'iconp :: Geo' -> ListPath -> Maybe Text -> Handler CachedByteString
     get'iconp = get'img' RIconp
 
-    get'img  :: Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
+    get'img  :: Geo' -> ListPath -> Maybe Text  -> Handler CachedByteString
     get'img  = get'img' RImg
 
-    get'imgfx  :: Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
+    get'imgfx  :: Geo' -> ListPath -> Maybe Text  -> Handler CachedByteString
     get'imgfx  = get'img' RImgfx
 
     get'img' :: ReqType
-             -> Geo' -> [Text] -> Maybe Text  -> Handler CachedByteString
+             -> Geo' -> ListPath -> Maybe Text  -> Handler CachedByteString
     get'img' rt (Geo' geo) ts referer = do
       res <- runReadC . jpgImgCopy rt geo . listToPath $ ts
       return $ cachedResponse referer res
 
-     -- --------------------
+    -- --------------------
     -- handle html pages
 
-    get'html :: Geo' -> [Text] -> Handler LazyByteString
+    get'html :: Geo' -> ListPath -> Handler LazyByteString
     get'html = get'html' RPage
 
-    get'html1 :: Geo' -> [Text] -> Handler LazyByteString
+    get'html1 :: Geo' -> ListPath -> Handler LazyByteString
     get'html1 = get'html' RPage1
 
-    get'html' :: ReqType -> Geo' -> [Text] -> Handler LazyByteString
+    get'html' :: ReqType -> Geo' -> ListPath -> Handler LazyByteString
     get'html' rt (Geo' geo) =
-      runReadC . htmlPage rt geo . listToPath
+      runReadC
+      . htmlPage rt geo
+      . listToPath -- due to urlDecoding already done in servant, no call of isoUrlPath
 
-    get'json :: Geo' -> [Text] -> Handler JPage
+    get'json :: Geo' -> ListPath -> Handler JPage
     get'json (Geo' geo) =
-      runReadC . jsonPage geo . listToPath
+      runReadC
+      . jsonPage geo
+      . listToPath  -- like get'html
 
     get'catEnv :: Handler CatEnv
     get'catEnv =
@@ -404,20 +413,20 @@ catalogServer env runReadC runModyC runBGC =
 -- --------------------
 {-
     runR0 :: forall a.
-             CatApp a -> [Text] -> Handler a
+             CatApp a -> ListPath -> Handler a
     runR0 cmd' _ts = runReadC cmd'      -- throw away redundant path
 -- -}
 
     runR1 :: forall a .
-             (Path -> CatApp a) -> [Text] -> Handler a
+             (Path -> CatApp a) -> ListPath -> Handler a
     runR1 cmd' = runReadC  . cmd' . listToPath
 
     runR2 :: forall a1 a.
-             (a1 -> Path -> CatApp a) -> [Text] -> a1 -> Handler a
+             (a1 -> Path -> CatApp a) -> ListPath -> a1 -> Handler a
     runR2 cmd' ts args = runReadC  . cmd' args . listToPath $ ts
 
     runR3 :: forall a1 a2 a.
-             (a1 -> a2 -> Path -> CatApp a) -> [Text] -> (a1, a2) -> Handler a
+             (a1 -> a2 -> Path -> CatApp a) -> ListPath -> (a1, a2) -> Handler a
     runR3 = runR2 . uncurry
 
     json'read =
@@ -444,27 +453,27 @@ catalogServer env runReadC runModyC runBGC =
       runR3 checkImgPart
 
     runM0 :: forall a.
-             CatApp a -> [Text] -> Handler a
+             CatApp a -> ListPath -> Handler a
     runM0 cmd' _ts = runModyC cmd'      -- throw away redundant path
 
     runX1 :: forall a1 a.
-             (a1 -> CatApp a) -> [Text] -> a1 -> Handler a
+             (a1 -> CatApp a) -> ListPath -> a1 -> Handler a
     runX1 cmd' _ts = runModyC . cmd'    -- throw away redundant path
 
     runM1 :: forall a.
-             (Path -> CatApp a) -> [Text] -> Handler a
+             (Path -> CatApp a) -> ListPath -> Handler a
     runM1 cmd' = runModyC . cmd' . listToPath
 
     runM2 :: forall a1 a.
-             (a1 -> Path -> CatApp a) -> [Text] -> a1 -> Handler a
+             (a1 -> Path -> CatApp a) -> ListPath -> a1 -> Handler a
     runM2 cmd' ts args = runModyC . cmd' args . listToPath $ ts
 
     runM3 :: forall a1 a2 a.
-             (a1 -> a2 -> Path -> CatApp a) -> [Text] -> (a1, a2) -> Handler a
+             (a1 -> a2 -> Path -> CatApp a) -> ListPath -> (a1, a2) -> Handler a
     runM3 = runM2 . uncurry
 
     runB2 :: forall a1 a.
-             (a1 -> Path -> CatApp a) -> [Text] -> a1 -> Handler ()
+             (a1 -> Path -> CatApp a) -> ListPath -> a1 -> Handler ()
     runB2 cmd' ts args = runBGC . cmd' args . listToPath $ ts
 
     json'modify =

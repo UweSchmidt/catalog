@@ -82,7 +82,7 @@ path2imgPath t = do
   ((ps0, (n0, r1), ex), mt)
                <- parseMaybe splitPathNameExtMimeP t
   _            <- guarded (== Image'jpg) mt
-  p1           <- guarded (isPathPrefix p'arch'photos) (listToPath ps0)
+  p1           <- guarded (isPathPrefix p'arch'photos) (isoListPath # ps0)
   let n1       =  isoText # n0
   let (p2, n2) =  swapImgSub p1 n1
   let p3       =  p2 `snocPath` n1
@@ -144,7 +144,7 @@ addExt ext fn
 --
 -- file path parsers
 
-type SplitName = ([Text], (Text, Text), Text)
+type SplitName = (ListPath, (Text, Text), Text)
 
 splitPathNameExtMimeP :: TP (SplitName, MimeType)
 splitPathNameExtMimeP = do
