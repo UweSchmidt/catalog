@@ -875,7 +875,7 @@ function showNewCollectionC(path, colVal) {
                 .attr('title', tt);
             tb.find('.coltab-name')
                 .empty()
-                .append(o.name);
+                .append(decodeURIComponent(o.name));
 
             if ( fx ) {  // hide close button
                 tb.find('.coltab-delete')
@@ -1184,7 +1184,7 @@ function insertEntry(colId, colPath, entry, i, ref) {
         tt = "image: " + entry.ref;
     }
     if (entry.ColEntry === "COL") {
-        setDiaColName(p, ref.name);
+        setDiaColName(p, decodeURIComponent(ref.name));
 
         // collections always have a .jpg as preview
         p.addClass('data-jpg')
@@ -1425,10 +1425,36 @@ function statusClear() {
 
 // ----------------------------------------
 // string helper functions
+//
+// path names (components of a path) are URL encoded strings
+// due trouble with parsing paths containing special chars and/or whitespace
+// So before an text becomes part of a path (path name), it must be URL encoded
+// and before showing a path(-component) it must be decoded back to a normal text
+
+const toPathName   = encodeURIComponent;
+const fromPathName = decodeURIComponent;
+
+function normName(t) {
+    // filter legal chars: whitespace, digits, unicode letters and some punctations
+    let legalChars = /(\s|\d|\w|\p{L}|[-_.:])+/gu;
+    let t1 = t.match(legalChars).join("");
+    console.log(t1);
+
+    // normalize whitespace
+    let t2 = t1
+        .split(/\s+/)
+        .filter((w) => w.length > 0)
+        .join(" ");
+    console.log(t2);
+
+    // URL encode special chars
+    return toPathName(t2);
+}
 
 function path2id(path) {
     // for html ids replace all none alphanum chars by "_"
     // else it isn't a valid id value
+    // this is not a save encoding: path2id("/.") === path2id("/_")
 
     var res = 'col-' + path.replace(/[^-_a-zA-Z0-9]/g,"_");
     console.log('path2id');
@@ -1456,6 +1482,7 @@ function splitPath(p) {
     // console.log(a);
     p.cpath1  = a.join("/"); // remove the topdir
 
+    // p.ext is used in various places, p.bname is (currently) redundant
     var e = p.name.split(".");
     if (e.length < 2) {
         p.ext   = "";
@@ -1464,6 +1491,7 @@ function splitPath(p) {
         p.ext   = e.pop();
         p.bname = e.join(".");
     }
+
     return p;
 }
 
@@ -2121,7 +2149,8 @@ function createCollection() {
     var cid   = activeCollectionId();
     var cpath = collectionPath(cid);
     var name  = $('#newCollectionName').val();
-    name = name.replace(/[^-_.a-zA-Z0-9]/g,"");
+    // name = name.replace(/[^-_.a-zA-Z0-9]/g,"");
+    name = normName(name);
     var cnames = getColNames(cid);
     var ix = cnames.indexOf(name);
 
@@ -2138,7 +2167,7 @@ function createCollection() {
         statusError("collection name already exists: " + name);
         return;
     }
-    createColOnServer(cpath, name, refreshCollection);
+    createColOnServer(cpath, fromPathName(name), refreshCollection);
 }
 
 // ----------------------------------------
@@ -2189,8 +2218,8 @@ function markAccess(cid, ro) {
 
 // renameCollectionCheck does all the error checks
 // if this is o.k. the #RenameCollectionButton is invoked
-// and this one triggers the modal mox
-// so error check and reporting can be done before the modal is shown
+// and this one triggers the modal box
+// so error check and reporting can be done before the modal box is shown
 
 function renameCollectionCheck() {
     statusClear();
@@ -2229,7 +2258,7 @@ function renameCollection() {
     console.log(path);
 
     var newname  = $('#RenameCollectionName').val();
-    newname = newname.replace(/[^-_.a-zA-Z0-9]/g,"");
+    newname = normName(newname);
 
     console.log(newname);
 
@@ -2249,14 +2278,14 @@ function renameCollection() {
         return;
     }
 
-    renameColOnServer(cpath, path, newname, refreshCollection1);
+    renameColOnServer(cpath, path, fromPathName(newname), refreshCollection1);
 }
 
 // ----------------------------------------
 //
 // global state for metadata clipboard
 
-var metaDataClipboard= {};
+var metaDataClipboard = {};
 
 
 // keys of editable metadata values
