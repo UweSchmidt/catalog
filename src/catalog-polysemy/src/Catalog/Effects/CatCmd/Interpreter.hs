@@ -116,6 +116,7 @@ import Data.Prim
        , substPathPrefix
        , path2colPath
        , viewBase
+       , isoListPath
        , CheckSum
        , CheckSumRes
        , Name
@@ -250,6 +251,8 @@ evalCatCmd =
     UpdateTimeStamp ts n p ->
       path2id p >>= modify'updateTimeStamp ts n
 
+    TestCmd p ->
+      path2id p >>= modify'testCmd
 
     -- eval reading commands
 
@@ -843,6 +846,14 @@ modify'updateCheckSum cs n i = CS.updateCheckSum i n cs
 
 modify'updateTimeStamp :: Eff'CheckSum r => TimeStamp -> Name -> ObjId -> Sem r ()
 modify'updateTimeStamp ts n i = CS.updateTimeStamp i n ts
+
+-- exec server test function
+
+modify'testCmd :: Eff'Sync r => ObjId -> Sem r ()
+modify'testCmd i = do
+  path <- objid2path i
+  log'trc $ "TestCmd: " <> (path ^. isoListPath . to show . isoText)
+  return ()
 
 -- ----------------------------------------
 --

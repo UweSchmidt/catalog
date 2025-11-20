@@ -61,6 +61,7 @@ library
     , http-client
     , http-client-tls
     , http-types
+    , network-uri
     , polysemy
     , polysemy-plugin
     , process-extras

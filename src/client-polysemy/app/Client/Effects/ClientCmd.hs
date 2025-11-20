@@ -25,6 +25,7 @@ module Client.Effects.ClientCmd
   , ccGeoAddress
   , ccGetAddress
   , ccPage
+  , ccTest
   )
 where
 
@@ -73,6 +74,7 @@ data ClientCmd m a where
   CcGeoAddress :: Path    -> Bool             -> ClientCmd m ()
   CcGetAddress :: GPSposDec                   -> ClientCmd m ()
   CcPage       :: Path                        -> ClientCmd m ()
+  CcTest       :: Path                        -> ClientCmd m ()
 
 makeSem ''ClientCmd
 

@@ -30,6 +30,7 @@ module Catalog.Effects.CatCmd
   , newSubCollections
   , updateCheckSum
   , updateTimeStamp
+  , testCmd
 
   -- catalog reading commands
   , theEntry
@@ -114,6 +115,7 @@ data CatCmd m a where
   NewSubCollections    ::                          Path -> CatCmd m ()
   UpdateCheckSum       :: CheckSum  -> Name     -> Path -> CatCmd m ()
   UpdateTimeStamp      :: TimeStamp -> Name     -> Path -> CatCmd m ()
+  TestCmd              ::                          Path -> CatCmd m ()
 
   -- catalog reading commands
   TheEntry             ::                          Path -> CatCmd m ImgNodeP

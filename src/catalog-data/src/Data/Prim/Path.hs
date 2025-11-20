@@ -30,6 +30,7 @@ module Data.Prim.Path
 
   , UrlPath
   , isoUrlPath
+  , isoUrlText
   )
 where
 
@@ -380,5 +381,8 @@ instance ToJSON UrlPath where
 instance FromJSON UrlPath where
   parseJSON :: JValue -> JParser UrlPath
   parseJSON o = UP <$> parseJSON o
+
+isoUrlText :: Iso' Path Text
+isoUrlText = isoUrlPath . isoText
 
 -- ----------------------------------------

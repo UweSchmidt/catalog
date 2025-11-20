@@ -87,6 +87,7 @@ import Catalog.Effects.CatCmd
        , staticFile
        , syncCollection
        , syncExif
+       , testCmd
        , theBlogContents
        , theBlogSource
        , theEntry
@@ -518,6 +519,8 @@ catalogServer env runReadC runModyC runBGC =
       runM3 updateCheckSum
       :<|>
       runM3 updateTimeStamp
+      :<|>
+      runM1 testCmd
       :<|>
       runX1 newUndoEntry
       :<|>

@@ -132,6 +132,7 @@ import Catalog.Effects.CatCmd
        , updateTimeStamp
        , htmlPage
        , jsonPage
+       , testCmd
        , CatCmd
        )
 
@@ -269,6 +270,11 @@ evalClientCmd =
 
     CcPage path -> do
       showDoc path
+
+    CcTest path -> do
+      _id <- newUndoEntry $ "testCmd " <> (path ^. isoText)
+      testCmd path
+
 
 {-# INLINE evalClientCmd #-}
 
@@ -726,7 +732,7 @@ prettyCheckSumRes p part csr = do
 
   case (onlyMissing, csr) of
     (True, CSok _) -> return ()         -- only errors are issued
-    _              -> writeln $
+    _res           -> writeln $
                       untext [ substPathName part p ^. isoText <> ":"
                              , prettyCSR csr ^. isoText
                              ]

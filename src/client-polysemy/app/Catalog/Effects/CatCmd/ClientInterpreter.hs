@@ -89,6 +89,8 @@ evalClientCatCmd =
       paramJSONmodify "updateCheckSum" p (cs, n)
     UpdateTimeStamp ts n p ->
       paramJSONmodify "updateTimeStamp" p (ts, n)
+    TestCmd p ->
+      simpleJSONmodify "testCmd" p
 
     -- JSON reading commands
     TheEntry p ->
@@ -169,15 +171,16 @@ paramJSONmodify nm p v =
 
 buildPath :: Name -> Name -> Path -> Text
 buildPath mn cn p =
-  (mn `consPath` cn `consPath` p) ^. isoText
+  (mn `consPath` cn `consPath` p) ^. isoUrlText
 
 basicDocReq :: HttpEffects r
             => Text -> ReqType -> Geo -> Path
             -> Sem r LazyByteString
 basicDocReq ext rt geo path0 =
-  getReq (path' <> ext)
+  getReq (path' ^. isoUrlText)
   where
-    path' = ("docs" `consPath` img' `consPath` geo' `consPath` path0) ^. isoText
+    path1 = editName (const True) (<> ext) path0
+    path' = "docs" `consPath` img' `consPath` geo' `consPath` path1
     img'  = isoText # (rt   ^. isoText)
     geo'  = isoText # (geo  ^. isoText)
 

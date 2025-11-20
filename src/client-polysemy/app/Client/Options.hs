@@ -430,6 +430,14 @@ cmdClient = subparser $
       `withInfo`
       ( "Get address for a GPS location or google maps url" )
     )
+  <>
+  command "test"
+    ( (CcTest <$> argPath)
+      `withInfo`
+      ( "run test command on server with path argument, default path is: "
+        <> show defaultPath
+      )
+    )
 
 ----------------------------------------
 --

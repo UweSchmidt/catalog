@@ -54,6 +54,8 @@ import Network.HTTP.Client
        )
 
 import Network.HTTP.Types
+import Network.URI
+       ( isAllowedInURI )
 
 import Data.Aeson
        ( ToJSON
@@ -64,6 +66,8 @@ import Data.Aeson
 import Data.Text
        ( Text )
 
+import Control.Monad
+  ( unless )
 
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.ByteString.Lazy.Char8 as LCS
@@ -131,16 +135,20 @@ argJSONReq arg' path' =
               requestHeaders req
           }
 
-
---------------------
+-- ------------------
 
 basicReq :: HttpEffects r
          => Method
          -> (Request -> Request)
          -> Text
          -> Sem r LBS.ByteString
-basicReq method' setBody path' =
+basicReq method' setBody path' = do
+  unless isLegalPath $
+    abortWith ("illegal chars in URL path: " <> path')
+
   basicReq' (const method') setBody (const $ T.encodeUtf8 path')
+  where
+    isLegalPath = T.all isAllowedInURI path'
 
 basicReq' :: HttpEffects r
           => (Method -> Method)
