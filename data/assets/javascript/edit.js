@@ -1434,21 +1434,37 @@ function statusClear() {
 const toPathName   = encodeURIComponent;
 const fromPathName = decodeURIComponent;
 
-function normName(t) {
+function normWord(t) {
+    if (t.length === 0) return "";
+
     // filter legal chars: whitespace, digits, unicode letters and some punctations
-    let legalChars = /(\s|\d|\w|\p{L}|[-_.:])+/gu;
+    let legalChars = /(\s|\d|\w|\p{L}|[-_.:&+'])+/gu;
     let t1 = t.match(legalChars).join("");
-    console.log(t1);
+    // console.log(t1);
 
     // normalize whitespace
     let t2 = t1
         .split(/\s+/)
         .filter((w) => w.length > 0)
         .join(" ");
-    console.log(t2);
 
-    // URL encode special chars
-    return toPathName(t2);
+    console.log("normWord(" + t + ") = " + t2);
+    return t2;
+}
+
+function normName(t) {
+    // normalize text and URL encode special chars
+    return toPathName(normWord(t));
+}
+
+function normKeywords(t) {
+    let ws  = t.split(",");
+    let kws = ws
+        .map(normWord)
+        .filter((w) => w.length > 0)
+        .join(", ");
+    console.log("normKeywords(" + t + ") = " + kws);
+    return kws;
 }
 
 function path2id(path) {
@@ -2414,14 +2430,17 @@ function setMetaData() {
     }
      */
 
-    var metadata = normalizeAudioUrl(readMetaDataBox());
-
-    /*
-    if (jQuery.isEmptyObject(metadata)) {
-        statusMsg('no meta data given');
-        return;
+    function normKWS(md) {
+        let kw = md["Descr:Keywords"];
+        if ( kw ) {
+            md["Descr:Keywords"] = normKeywords(kw);
+        }
+        return md;
     }
-    */
+
+    var metadata = readMetaDataBox();
+    metadata     = normalizeAudioUrl(metadata);   // what the hell is this
+    metadata     = normKWS(metadata);
 
     var ixs = getMarkedEntries(cid);
 

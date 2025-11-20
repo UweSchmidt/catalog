@@ -1475,7 +1475,7 @@ unionTS ws1 ws2 = nub (ws1 ++ ws2)
 
 -- used when editing metadata: add/rem keywords
 mergeTS :: [Text] -> [Text] -> [Text]
-mergeTS ws1 ws2 = ws
+mergeTS ws1 ws2 = sort ws
   where
     ws         = nub ins L.\\ rmv
     (rmv, ins) = partTS $ ws1 ++ ws2
