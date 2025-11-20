@@ -178,7 +178,8 @@ checkinImgStore cmt f = do
   ts <- nowAsIso8601
   void $ execScript (checkinScript pt ts)
   where
-    qt s = "'" <> s <> "'"
+    qt0  = T.intercalate "'\"'\"'" . T.splitOn "'"
+    qt s = "'" <> qt0 s <> "'"
 
     cmt' | cmt == mempty  = cmt
          | otherwise      = ", " <> cmt
