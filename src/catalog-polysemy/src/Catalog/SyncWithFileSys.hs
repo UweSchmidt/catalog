@@ -7,6 +7,7 @@ module Catalog.SyncWithFileSys
   , syncFS
   , syncNode
   , syncNewDirs
+  , syncKeywordCol
   )
 where
 
@@ -56,9 +57,10 @@ import Catalog.ImgTree.Access
        , getTreeAt
        , objid2contNames
        , getIdNode'
+       , getId
        )
 import Catalog.ImgTree.Fold
-       ( foldMT )
+       -- ( foldMT )
 
 import Catalog.ImgTree.Modify
        ( rmImgNode
@@ -87,8 +89,10 @@ import Data.ImgTree
        ( ColEntries
        , ColEntryM
        , ImgNode'(IMG)
+       , ImgNode
        , ImgRef
        , ImgRef'(ImgRef, _iname)
+       , ObjIds
        , colEntryM'
        , isColColRef
        , isDIR
@@ -108,9 +112,10 @@ import Data.ImgTree
        , thePartNamesI
        , theParts
        , theRootImgDir
+       , singleObjId
        )
 import Data.MetaData
-       ( MetaData )
+       -- ( MetaData )
 
 import Data.Prim
 import Data.TextPath
@@ -290,6 +295,38 @@ updateImgRefs um i0
           )
           (Seq.singleton . mkColColRefM)
           ce
+
+-- ----------------------------------------
+
+syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> ImgNode -> Sem r ()
+syncKeywordCol p _i _n = do
+  log'trc $ "syncKeywordCol: update keyword collection for " <> p ^. isoUrlText
+
+  pid    <- getId p'photos
+  imgIds <- allImgObjIdsWithKW pid
+
+  traverse_ (\ i ->  do
+                p' <- objid2path i
+                log'trc $ "found: " <> p' ^. isoText
+            ) imgIds
+  -- log'trc $ (show imgPaths ^. isoText)
+
+  log'trc $ "syncKeywordCol: keword update for " <> kw <> " finished"
+  where
+    kw = p ^. viewBase . _2 . isoText
+
+    allImgObjIdsWithKW :: Eff'ISEJL r => ObjId -> Sem r ObjIds
+    allImgObjIdsWithKW =
+      foldMTU imgA foldDir foldRoot foldCol
+      where
+        imgA i _pts md =
+          return $
+            if hasKW
+            then singleObjId i
+            else mempty
+          where
+            kws   = md ^. metaDataAt descrKeywords . metaTS
+            hasKW = not . null . filter (== kw) $ kws
 
 -- ----------------------------------------
 

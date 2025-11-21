@@ -126,6 +126,7 @@ genSysCollections = do
   genPhotoCollection         -- collection hierachy for images on filesystem
   genByDateCollection        -- timeline
   genImportsCollection       -- import history
+  genKeywordsCollection      -- kewwords collection
 
 genCollectionRootMeta :: Eff'ISEJL r => Sem r ()
 genCollectionRootMeta = do
@@ -144,6 +145,10 @@ genClipboardCollection :: Eff'ISEJLT r => Sem r ()
 genClipboardCollection =
   genSysCollection (no'delete .|. no'user)
   n'clipboard tt'clipboard
+
+genKeywordsCollection :: (Eff'ISEJLT r) => Sem r ()
+genKeywordsCollection =
+  genSysCollection no'restr n'keywords tt'keywords
 
 -- collection tree created by user
 genAlbumsCollection :: Eff'ISEJLT r => Sem r ()

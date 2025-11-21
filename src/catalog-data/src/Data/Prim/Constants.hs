@@ -15,6 +15,7 @@ n'archive
   , n'clipboard
   , n'collections
   , n'imports
+  , n'keywords
   , n'photos
   , n'trash :: Name
 
@@ -24,6 +25,7 @@ n'bycreatedate = "timeline"
 n'clipboard    = "clipboard"
 n'collections  = "collections"
 n'imports      = "imports"
+n'keywords     = "keywords"
 n'photos       = "photos"
 n'trash        = "trash"
 
@@ -54,6 +56,7 @@ p'archive
   , p'collections
   , p'bycreatedate
   , p'imports
+  , p'keywords
   , p'photos
   , p'trash :: Path
 
@@ -62,9 +65,10 @@ p'arch'photos  = p'archive     `snocPath` n'photos
 p'collections  = p'archive     `snocPath` n'collections
 p'albums       = p'collections `snocPath` n'albums
 p'bycreatedate = p'collections `snocPath` n'bycreatedate
-p'imports      = p'collections `snocPath` n'imports
-p'photos       = p'collections `snocPath` n'photos
 p'clipboard    = p'collections `snocPath` n'clipboard
+p'imports      = p'collections `snocPath` n'imports
+p'keywords     = p'collections `snocPath` n'keywords
+p'photos       = p'collections `snocPath` n'photos
 p'trash        = p'collections `snocPath` n'trash
 
 p'assets
@@ -113,6 +117,7 @@ tt'albums
   , tt'bydate
   , tt'clipboard
   , tt'imports
+  , tt'keywords
   , tt'trash
   , tt'collections
   , tt'photos :: Text
@@ -121,6 +126,7 @@ tt'bydate      = "Geordnet nach Datum"
 tt'clipboard   = "Clipboard"
 tt'albums      = "Alle Alben"
 tt'imports     = "Import Historie"
+tt'keywords    = "Schlüsselwörter"
 tt'trash       = "Papierkorb"
 tt'collections = "Uwe alle seine Bilder"
 tt'photos      = "Alle Ordner"

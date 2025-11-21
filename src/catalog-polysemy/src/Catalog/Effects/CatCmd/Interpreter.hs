@@ -53,6 +53,7 @@ import Catalog.Html
 import Catalog.ImgTree.Access
        ( getIdNode'
        , getId
+       , getNode
        , getImgVal
        , getImgParent
        , getMetaData
@@ -110,6 +111,7 @@ import qualified Catalog.SyncWithFileSys as SC
 import Data.Prim
        ( p'arch'photos
        , p'photos
+       , p'keywords
        , isPathPrefix
        , msgPath
        , snocPath
@@ -185,10 +187,10 @@ evalCatCmd =
   interpret $
   \ case
     SaveBlogSource pos t p ->
-      path2node p >>= modify'saveblogsource pos t
+      getNode p >>= modify'saveblogsource pos t
 
     ChangeWriteProtected ixs ro p ->
-      path2node p >>= modify'changeWriteProtected ixs ro
+      getNode p >>= modify'changeWriteProtected ixs ro
 
     SortCollection ixs p ->
       getIdNode' p >>= uncurry (modify'sort ixs)
@@ -200,22 +202,22 @@ evalCatCmd =
       getIdNode' p >>= uncurry (modify'removeFromCollection ixs)
 
     CopyToCollection ixs dst p ->
-      path2node p >>= modify'copyToCollection ixs dst
+      getNode p >>= modify'copyToCollection ixs dst
 
     MoveToCollection ixs dst p ->
       getIdNode' p >>= uncurry (modify'moveToCollection ixs dst)
 
     SetCollectionImg sPath pos p ->
-      path2id p >>= modify'colimg sPath pos
+      getId p >>= modify'colimg sPath pos
 
     SetCollectionBlog sPath pos p ->
-      path2id p >>= modify'colblog sPath pos
+      getId p >>= modify'colblog sPath pos
 
     NewCollection nm p ->
-      path2id p >>= modify'newcol nm
+      getId p >>= modify'newcol nm
 
     RenameCollection nm p ->
-      path2id p >>= modify'renamecol nm
+      getId p >>= modify'renamecol nm
 
     SetMetaData ixs md p ->
       getIdNode' p >>= uncurry (modify'setMetaData ixs md)
@@ -224,7 +226,7 @@ evalCatCmd =
       getIdNode' p >>= uncurry (modify'setMetaData1 pos md)
 
     SetRating ixs r p ->
-      path2node p >>= modify'setRating ixs r
+      getNode p >>= modify'setRating ixs r
 
     SetRating1 pos r p ->
       getIdNode' p >>= uncurry (modify'setRating1 pos r)
@@ -234,39 +236,39 @@ evalCatCmd =
 
     SyncCollection p ->
       throwNoSync "sync collection" >>
-      path2id p >>= modify'syncCol
+      getId p >>= modify'syncCol
 
     SyncExif recursive force p ->
       throwNoSync "sync EXIF metadata" >>
-      path2id p >>= modify'syncExif recursive force
+      getId p >>= modify'syncExif recursive force
 
     NewSubCollections p ->
       throwNoSync "import new collection" >>
-      path2id p >>= modify'newSubCols
+      getId p >>= modify'newSubCols
 
     UpdateCheckSum cs n p ->
       throwNoSync "update checksum" >>
-      path2id p >>= modify'updateCheckSum cs n
+      getId p >>= modify'updateCheckSum cs n
 
     UpdateTimeStamp ts n p ->
-      path2id p >>= modify'updateTimeStamp ts n
+      getId p >>= modify'updateTimeStamp ts n
 
     TestCmd p ->
-      path2id p >>= modify'testCmd
+      getIdNode' p >>= uncurry (modify'syncKeywordCol p) -- modify'testCmd
 
     -- eval reading commands
 
     TheEntry p ->
-      path2node p >>= read'collection
+      getNode p >>= read'collection
 
     IsWriteable p ->
-      path2node p >>= read'isWriteable
+      getNode p >>= read'isWriteable
 
     IsRemovable p ->
-      path2node p >>= read'isRemovable
+      getNode p >>= read'isRemovable
 
     IsSortable p ->
-      path2node p >>= read'isSortable
+      getNode p >>= read'isSortable
 
     IsCollection p ->
       read'isCollection p
@@ -284,10 +286,10 @@ evalCatCmd =
       getIdNode' p >>= uncurry (read'rating pos)
 
     TheRatings p ->
-      path2node p >>= read'ratings
+      getNode p >>= read'ratings
 
     CheckImgPart onlyUpdate nm p ->
-      path2node p >>= read'checkImgPart onlyUpdate p nm
+      getNode p >>= read'checkImgPart onlyUpdate p nm
 
     -- eval get commands
 
@@ -373,17 +375,6 @@ writeStaticFile dstPath lbs = do
   log'trc $ "writeStaticFile: write to " <> tp
   writeFileLB tp lbs
   log'trc "writeStaticFile: finished "
-
--- --------------------
-
-path2id :: Eff'ISE r => Path -> Sem r ObjId
-path2id p = fst <$> getIdNode' p
-
-path2node :: Eff'ISE r => Path -> Sem r ImgNode
-path2node p = snd <$> getIdNode' p
-
-{-# INLINE path2id #-}
-{-# INLINE path2node #-}
 
 ------------------------------------------------------------------------
 --
@@ -806,6 +797,14 @@ modify'setRating1 pos r oid n
 
 modify'snapshot :: Eff'CatIO r => Text -> Sem r ()
 modify'snapshot = IO.snapshotImgStore
+
+-- --------------------
+
+modify'syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> ImgNode -> Sem r ()
+modify'syncKeywordCol p i n = do
+  unless (isPathPrefix p'keywords p) $
+    throwP i $ msgPath p'keywords "syncKeywordCol: collection does not have path prefix "
+  SC.syncKeywordCol p i n
 
 -- --------------------
 --

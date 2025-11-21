@@ -20,6 +20,7 @@ module Catalog.ImgTree.Access
   , getIdNode
   , getIdNode'
   , getId
+  , getNode
   , alreadyTherePath
   , objid2path
   , objid2type
@@ -95,6 +96,7 @@ import Data.ImgTree
        , theRootImgCol
        , theRootImgDir
        )
+
 import Data.MetaData
        ( MetaData
        , addFileMetaData
@@ -210,9 +212,15 @@ getIdNode msg p = do
 
 getIdNode' :: Eff'ISE r => Path -> Sem r (ObjId, ImgNode)
 getIdNode' = getIdNode "cant' find entry for path:"
+{-# INLINE getIdNode' #-}
 
 getId :: Eff'ISE r => Path -> Sem r ObjId
 getId p = fst <$> getIdNode' p
+{-# INLINE getId #-}
+
+getNode :: (Eff'ISE r) => Path -> Sem r ImgNode
+getNode p = snd <$> getIdNode' p
+{-# INLINE getNode #-}
 
 -- check path not there
 

@@ -100,7 +100,7 @@ syncAllMetaData recursive i0 = do
                 (go . _iref)
                 ( when recursive . go)
 
--- i must be an objid pointing to am ImgNode
+-- i must be an objid pointing to an ImgNode
 -- else this becomes a noop
 
 syncMetaData :: Eff'MDSync r => ObjId -> Sem r ()
@@ -123,7 +123,7 @@ syncMetaData' i ps md'old = do
 
   log'trc $ "syncMetadata: " <> prettyJSONText [] (ts, ts'ps, update)
 
-  -- collect meta data from raw and xmp parts
+  -- collect meta data from raw and img parts
   when update $
     setMD i ps md'old
 

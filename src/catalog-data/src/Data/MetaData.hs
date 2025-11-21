@@ -25,6 +25,7 @@ module Data.MetaData
   , metaMimeType
   , metaName
   , metaTimeStamp
+  , metaTS
 
   , theImgEXIFUpdate
 
