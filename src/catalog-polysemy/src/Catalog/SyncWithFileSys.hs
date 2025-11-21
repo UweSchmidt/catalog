@@ -20,6 +20,7 @@ import Catalog.CopyRemove
 import Catalog.Effects
        ( Eff'ISEJL
        , Eff'ISEL
+       , Eff'ISE
        , EffCatEnv
        , EffError
        , EffExecProg
@@ -65,6 +66,7 @@ import Catalog.ImgTree.Fold
 import Catalog.ImgTree.Modify
        ( rmImgNode
        , adjustImg
+       , adjustColEntries
        , mkImg
        , setSyncTime
        , mkImgDir
@@ -103,6 +105,7 @@ import Data.ImgTree
        , mkColImgRefM'
        , mkImgPart
        , mkImgParts
+       , theColEntries
        , theColEntry
        , theColColRef
        , theColImgRef
@@ -299,34 +302,52 @@ updateImgRefs um i0
 -- ----------------------------------------
 
 syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> ImgNode -> Sem r ()
-syncKeywordCol p _i _n = do
+syncKeywordCol p i n = do
   log'trc $ "syncKeywordCol: update keyword collection for " <> p ^. isoUrlText
 
   pid    <- getId p'photos
   imgIds <- allImgObjIdsWithKW pid
+  imgRfs <- allImgRefs imgIds
 
-  traverse_ (\ i ->  do
-                p' <- objid2path i
+  traverse_ (\ i' ->  do
+                p' <- objid2path i'
                 log'trc $ "found: " <> p' ^. isoText
             ) imgIds
-  -- log'trc $ (show imgPaths ^. isoText)
 
-  log'trc $ "syncKeywordCol: keword update for " <> kw <> " finished"
+  let cs = Seq.filter (\ c -> isColColRef $ c ^. theColEntry) (n ^. theColEntries)
+  let is = Seq.fromList $ map mkColImgRefM' imgRfs
+  let ns = cs <> is
+
+  adjustColEntries (const ns) i
+
+  log'trc $ "syncKeywordCol: keyword update for " <> kw <> " finished"
   where
     kw = p ^. viewBase . _2 . isoText
+
+    -- the (sub-)collection entries will remain in the keyword col
 
     allImgObjIdsWithKW :: Eff'ISEJL r => ObjId -> Sem r ObjIds
     allImgObjIdsWithKW =
       foldMTU imgA foldDir foldRoot foldCol
       where
-        imgA i _pts md =
+        imgA i' _pts md =
           return $
             if hasKW
-            then singleObjId i
+            then singleObjId i'
             else mempty
           where
             kws   = md ^. metaDataAt descrKeywords . metaTS
             hasKW = not . null . filter (== kw) $ kws
+
+    allImgRefs :: Eff'ISE r => ObjIds -> Sem r [ImgRef]
+    allImgRefs ids =
+      concat <$> traverse toImgRefs (S.toList ids)
+
+    toImgRefs :: Eff'ISE r => ObjId -> Sem r [ImgRef]
+    toImgRefs i' = do
+      mkRefs <$>  getImgVal i'
+      where
+        mkRefs n' = map (\nm -> ImgRef i' nm) (n' ^.. theParts . thePartNamesI)
 
 -- ----------------------------------------
 
