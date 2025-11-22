@@ -1275,6 +1275,32 @@ function checkAllColAreThere(refresh, force) {
 
 // ----------------------------------------
 
+function keywordActiveCollection() {
+    var cid  = activeCollectionId();
+    var path = collectionPath(cid);
+
+    console.log("keywordActiveCollection: " + path);
+
+    if ( ! isPathPrefix(pathKeywords(), path) ) {
+        statusError('collection to be updated must be a subcollection of '
+                    + pathKeywords());
+        return;
+    }
+
+    statusMsg('recomputing entries of keyword collection: ' + fromPathName(path));
+    addHistCmd("update keyword " + fromPathName(splitName(path)),
+               function () {
+                   modifyServer('syncKeyword', path, [],
+                                function(log) {
+                                    statusMsg('update of keyword collection done');
+                                    console.log(log);
+                                    sortColByDateOnServer(path, []);
+                                });
+               });
+}
+
+// ----------------------------------------
+
 function syncActiveCollection(sync) {
     var cid  = activeCollectionId();
     var path = collectionPath(cid);
@@ -3682,8 +3708,15 @@ $(document).ready(function () {
     $('#NewCollection')
         .on('click', function () {
             // statusClear();
-            statusMsg('import new subcollections collection from filesystem, one moment please');
+            statusMsg('import new subcollections from filesystem, one moment please');
             syncActiveCollection('newSubCols');
+        });
+
+    $('#SyncKeyword')
+        .on('click', function () {
+            // statusClear();
+            statusMsg('update keyword collection');
+            keywordActiveCollection();
         });
 
     // refresh all collections, just a debug op
@@ -3729,6 +3762,7 @@ function pathClipboard()   { return "/archive/collections/clipboard"; }
 function pathPhotos()      { return "/archive/collections/photos"; }
 function pathTimeline()    { return "/archive/collections/timeline"; }
 function pathImports()     { return "/archive/collections/imports"; }
+function pathKeywords()    { return "/archive/collections/keywords"; }
 function pathTrash()       { return "/archive/collections/trash"; }
 
 function idCollections() { return path2id(pathCollections()); }
