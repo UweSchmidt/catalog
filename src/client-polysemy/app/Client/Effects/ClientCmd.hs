@@ -25,6 +25,7 @@ module Client.Effects.ClientCmd
   , ccGeoAddress
   , ccGetAddress
   , ccPage
+  , ccSyncKeyword
   , ccTest
   )
 where
@@ -51,30 +52,31 @@ import Data.Prim
 ------------------------------------------------------------------------------
 
 data ClientCmd m a where
-  CcGlob       :: Path                        -> ClientCmd m ()
-  CcEntry      :: Path                        -> ClientCmd m ()
-  CcLsSub      :: Path                        -> ClientCmd m ()
-  CcLsmd       :: PathPos -> [MetaKey]        -> ClientCmd m ()
-  CcSetmd1     :: PathPos ->  MetaKey -> Text -> ClientCmd m ()
-  CcDelmd1     :: PathPos ->  MetaKey         -> ClientCmd m ()
-  CcSetColImg  :: PathPos -> Path             -> ClientCmd m ()
-  CcSetColBlog :: PathPos -> Path             -> ClientCmd m ()
-  CcDownload   :: Path    -> ReqType  -> Geo
-               -> Text    -> Bool     -> Bool -> ClientCmd m ()
-  CcSnapshot   :: Text                        -> ClientCmd m ()
-  CcCheckSum   :: Path    -> Name
-               -> Bool    -> Bool             -> ClientCmd m ()
-  CcUpdCSum    :: Path    -> Name
-               -> Bool    -> Bool             -> ClientCmd m ()
-  CcUndoList   ::                                ClientCmd m ()
-  CcApplyUndo  ::                   HistoryID -> ClientCmd m ()
-  CcDropUndo   ::                   HistoryID -> ClientCmd m ()
-  CcExifUpdate :: Path    -> Bool     -> Bool -> ClientCmd m ()
-  CcCheckMeta  :: Path                        -> ClientCmd m ()
-  CcGeoAddress :: Path    -> Bool             -> ClientCmd m ()
-  CcGetAddress :: GPSposDec                   -> ClientCmd m ()
-  CcPage       :: Path                        -> ClientCmd m ()
-  CcTest       :: Path                        -> ClientCmd m ()
+  CcGlob        :: Path                        -> ClientCmd m ()
+  CcEntry       :: Path                        -> ClientCmd m ()
+  CcLsSub       :: Path                        -> ClientCmd m ()
+  CcLsmd        :: PathPos -> [MetaKey]        -> ClientCmd m ()
+  CcSetmd1      :: PathPos ->  MetaKey -> Text -> ClientCmd m ()
+  CcDelmd1      :: PathPos ->  MetaKey         -> ClientCmd m ()
+  CcSetColImg   :: PathPos -> Path             -> ClientCmd m ()
+  CcSetColBlog  :: PathPos -> Path             -> ClientCmd m ()
+  CcDownload    :: Path    -> ReqType  -> Geo
+                -> Text    -> Bool     -> Bool -> ClientCmd m ()
+  CcSnapshot    :: Text                        -> ClientCmd m ()
+  CcCheckSum    :: Path    -> Name
+                -> Bool    -> Bool             -> ClientCmd m ()
+  CcUpdCSum     :: Path    -> Name
+                -> Bool    -> Bool             -> ClientCmd m ()
+  CcUndoList    ::                                ClientCmd m ()
+  CcApplyUndo   ::                   HistoryID -> ClientCmd m ()
+  CcDropUndo    ::                   HistoryID -> ClientCmd m ()
+  CcExifUpdate  :: Path    -> Bool     -> Bool -> ClientCmd m ()
+  CcCheckMeta   :: Path                        -> ClientCmd m ()
+  CcGeoAddress  :: Path    -> Bool             -> ClientCmd m ()
+  CcGetAddress  :: GPSposDec                   -> ClientCmd m ()
+  CcPage        :: Path                        -> ClientCmd m ()
+  CcSyncKeyword :: Path                        -> ClientCmd m ()
+  CcTest        :: Path                        -> ClientCmd m ()
 
 makeSem ''ClientCmd
 

@@ -27,6 +27,7 @@ module Catalog.Effects.CatCmd
   , snapshot
   , syncCollection
   , syncExif
+  , syncKeyword
   , newSubCollections
   , updateCheckSum
   , updateTimeStamp
@@ -112,6 +113,7 @@ data CatCmd m a where
   Snapshot             ::          Text         -> Path -> CatCmd m ()
   SyncCollection       ::                          Path -> CatCmd m ()
   SyncExif             :: Bool  -> Bool         -> Path -> CatCmd m ()
+  SyncKeyword          ::                          Path -> CatCmd m ()
   NewSubCollections    ::                          Path -> CatCmd m ()
   UpdateCheckSum       :: CheckSum  -> Name     -> Path -> CatCmd m ()
   UpdateTimeStamp      :: TimeStamp -> Name     -> Path -> CatCmd m ()

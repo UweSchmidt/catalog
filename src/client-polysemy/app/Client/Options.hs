@@ -392,6 +392,14 @@ cmdClient = subparser $
       "Update EXIF info for images and image dirs."
     )
   <>
+  command "keyword-update"
+    ( (CcSyncKeyword <$> argPath)
+      `withInfo`
+      ( "Update a keyword collection."
+        <> "Path must point to a sub collection of the \"keywords\" collection."
+      )
+    )
+  <>
   command "check-meta"
     ( (CcCheckMeta <$> argPath)
       `withInfo`

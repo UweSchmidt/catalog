@@ -126,6 +126,7 @@ import Catalog.Effects.CatCmd
        , setMetaData1
        , snapshot
        , syncExif
+       , syncKeyword
        , theEntry
        , theMetaDataText
        , updateCheckSum
@@ -270,6 +271,10 @@ evalClientCmd =
 
     CcPage path -> do
       showDoc path
+
+    CcSyncKeyword path -> do
+      _id <- newUndoEntry $ "syncKeyword " <> (path ^. isoText)
+      syncKeyword path
 
     CcTest path -> do
       _id <- newUndoEntry $ "testCmd " <> (path ^. isoText)

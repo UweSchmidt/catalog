@@ -18,6 +18,7 @@ import Catalog.Effects
        , readFileLB
        , writeFileLB
        , log'trc
+       , log'verb
        , interpret
        , ask
        , get
@@ -242,6 +243,9 @@ evalCatCmd =
       throwNoSync "sync EXIF metadata" >>
       getId p >>= modify'syncExif recursive force
 
+    SyncKeyword p ->
+      getIdNode' p >>= uncurry (modify'syncKeywordCol p) -- modify'testCmd
+
     NewSubCollections p ->
       throwNoSync "import new collection" >>
       getId p >>= modify'newSubCols
@@ -254,7 +258,8 @@ evalCatCmd =
       getId p >>= modify'updateTimeStamp ts n
 
     TestCmd p ->
-      getIdNode' p >>= uncurry (modify'syncKeywordCol p) -- modify'testCmd
+      getId p >>= modify'testCmd
+      -- getIdNode' p >>= uncurry (modify'syncKeywordCol p) -- modify'testCmd
 
     -- eval reading commands
 
@@ -851,7 +856,7 @@ modify'updateTimeStamp ts n i = CS.updateTimeStamp i n ts
 modify'testCmd :: Eff'Sync r => ObjId -> Sem r ()
 modify'testCmd i = do
   path <- objid2path i
-  log'trc $ "TestCmd: " <> (path ^. isoListPath . to show . isoText)
+  log'verb $ "TestCmd: " <> (path ^. isoListPath . to show . isoText)
   return ()
 
 -- ----------------------------------------
