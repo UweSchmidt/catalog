@@ -171,7 +171,7 @@ copyColEntries :: Eff'ISEJL r => (Path -> Path) -> ObjId -> Sem r ()
 copyColEntries pf =
       foldMT ignoreImg ignoreDir ignoreRoot colA
       where
-        colA go i md im be cs = do
+        colA go i _md im be cs = do
           dst'i  <- mkObjId . pf <$> objid2path i
           dst'cs <- mapM copyM cs
           adjustColEntries (const dst'cs) dst'i
@@ -179,7 +179,7 @@ copyColEntries pf =
           adjustColBlog    (const be    ) dst'i
 
           -- recurse into subcollections
-          foldColEntries go i md im be cs
+          foldColEntries go cs
           where
 
             copyM :: Eff'ISEJL r => ColEntryM -> Sem r ColEntryM
@@ -243,9 +243,9 @@ removeEmptyColls p = do
 rmEmptyRec :: Eff'ISEJL r => ObjId -> Sem r ()
 rmEmptyRec i0 = foldCollections colA i0
   where
-    colA go i md im be cs = do
+    colA go i _md _im _be cs = do
       -- log'trc $ "rmEmptyRec: recurse into subdirs"
-      void $ foldColEntries go i md im be cs
+      void $ foldColEntries go cs
 
       cs' <- getImgVals i theColEntries
       when (null cs' && i /= i0) $ do
@@ -472,14 +472,14 @@ filterCols :: Eff'ISEJL r => ObjIds -> Sem r ()
 filterCols cols =
   getRootId >>= foldMTU ignoreImg ignoreDir foldRootCol colA
   where
-    colA go i md im be es
+    colA go i _md _im _be es
       | i `S.member` cols =                 -- collection selected?
           return ()                         -- don't touch it
       | otherwise = do
           a <- isAncestorCol i              -- ancestor of a selected col?
           if a
             then                            -- traverse subcollections
-              foldColEntries go i md im be es
+              foldColEntries go es
             else
               rmRec i                       -- not selected, remove
 

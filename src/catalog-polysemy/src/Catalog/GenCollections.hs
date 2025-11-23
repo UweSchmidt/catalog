@@ -617,8 +617,8 @@ modifyMetaDataRec :: Eff'ISEJL r => (MetaData -> MetaData) -> ObjId -> Sem r ()
 modifyMetaDataRec mf =
   foldCollections colA
   where
-    colA go i md im be cs = do
+    colA go i _md _im _be cs = do
       adjustMetaData mf i
-      foldColColEntries go i md im be cs
+      foldColColEntries go cs
 
 -- ----------------------------------------

@@ -10,6 +10,7 @@ module Catalog.SyncWithFileSys
   , syncKeywordCol
   , allKeywords
   , allKeywordCols
+  , newKeywordCols
   )
 where
 
@@ -70,6 +71,7 @@ import Catalog.ImgTree.Modify
        , adjustImg
        , adjustColEntries
        , adjustMetaData
+       , mkCollection
        , mkImg
        , setSyncTime
        , mkImgDir
@@ -311,14 +313,17 @@ allKeywordCols :: Eff'ISEL r => Sem r Keywords
 allKeywordCols = do
   i0   <- getId p'keywords
   kwcs <- (S.delete $ n'keywords ^. isoText)   -- remove "keywords"
-          <$> foldCollections colA i0
+          <$>
+          foldCollections colA i0
 
   log'trc $ "allKeywordCols: " <> T.intercalate ", " (S.toAscList kwcs)
   return kwcs
   where
-    colA go i md im be cs = do
-      kws1 <- (S.singleton . (^. isoText)) <$> getImgName i
-      kws2 <- foldColColEntries go i md im be cs
+    colA go i _md _im _be cs = do
+      kws1 <- (S.singleton . (^. isoText))
+              <$>
+              getImgName i
+      kws2 <- foldColColEntries go cs
       return $ S.union kws1 kws2
 
 allKeywords :: Eff'ISEL r => Sem r Keywords
@@ -330,9 +335,19 @@ allKeywords = do
   return kws
   where
     imgA _i _ps md =
-      return kws1
-      where
-        kws1 = S.fromList $ md ^. metaDataAt descrKeywords . metaTS
+      return (S.fromList $ md ^. metaDataAt descrKeywords . metaTS)
+
+newKeywordCols :: Eff'ISEJL r => Sem r ()
+newKeywordCols = do
+  kws  <- allKeywords
+  kwcs <- allKeywordCols
+
+  traverse_
+    ( \ kw -> do
+        _ <- mkCollection (p'keywords `snocPath` (isoText # kw))
+        log'trc $ "newKeywords: new keyword collection: " <> kw
+    )
+    $ S.difference kws kwcs
 
 syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> ImgNode -> Sem r ()
 syncKeywordCol p i n = do

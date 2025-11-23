@@ -869,9 +869,9 @@ modify'testCmd i = do
   path <- objid2path i
   log'verb $ "TestCmd: " <> (path ^. isoListPath . to show . isoText)
 
-  allKeywords
-  allKeywordCols
-  return ()
+  _ <- allKeywords
+  _ <- allKeywordCols
+  newKeywordCols
 
 -- ----------------------------------------
 --

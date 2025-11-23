@@ -133,7 +133,7 @@ cleanupImgRefs i0 = do
     -- and all img refs in the entries list
     -- and recurse into subcollections
 
-    colA go i md im be es = do
+    colA go i _md im be es = do
       -- trcObj i $ "cleanupImgRefs: process collection "
 
       b1 <- maybe (return True) (isOK checkImgPart) im
@@ -163,7 +163,7 @@ cleanupImgRefs i0 = do
         adjustColEntries (const es') i
 
       -- recurse into subcollections
-      foldColEntries go i md im be es
+      foldColEntries go es
 
 ----------------------------------------
 
@@ -378,12 +378,12 @@ checkUpLinkObjIds =
           return $
             s0 <> s1
 
-        colA go i md im be es = do
+        colA go i _md _im _be es = do
           s0 <- toObjIds i
                 <$>
                 traverse getImgParent (es ^.. traverse . theColEntry . theColColRef)
 
-          s1 <- foldColEntries go i md im be es
+          s1 <- foldColEntries go es
           return $
             s0 <> s1
 

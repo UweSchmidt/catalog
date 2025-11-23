@@ -202,8 +202,8 @@ allColObjIds :: EffIStore r => ObjId -> Sem r ObjIds
 allColObjIds =
   foldMTU ignoreImg ignoreDir foldRootCol colA
   where
-    colA go i md im be es = do
-      s1 <- foldColEntries go i md im be es
+    colA go i _md _im _be es = do
+      s1 <- foldColEntries go es
       return $
         singleObjId i <> s1
 
@@ -288,17 +288,17 @@ foldCol go _i _md im be es = do
 
 -- traverse all collection entries
 foldColEntries :: Monoid a
-         => (ObjId -> Sem r a) -> p1 -> p2 -> p3 -> p4 -> ColEntries
+         => (ObjId -> Sem r a) -> ColEntries
          -> Sem r a
-foldColEntries go _i _md _im _be es =
+foldColEntries go es =
   fold <$> traverse (go . (^. theColEntry . theColObjId)) es
 {-# INLINE foldColEntries #-}
 
 -- traverse only the subcollections
 foldColColEntries :: Monoid a
-                  => (ObjId -> Sem r a) -> p1 -> p2 -> p3 -> p4 -> ColEntries
+                  => (ObjId -> Sem r a) -> ColEntries
                   -> Sem r a
-foldColColEntries go _i _md _im _be es =
+foldColColEntries go es =
   fold <$> traverse go (es ^.. traverse . theColEntry . theColColRef)
 {-# INLINE foldColColEntries #-}
 
