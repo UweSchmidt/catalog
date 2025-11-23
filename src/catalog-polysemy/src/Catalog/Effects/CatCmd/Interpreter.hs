@@ -85,7 +85,7 @@ import Catalog.MetaData.Sync
        ( Eff'MDSync )
 
 import Catalog.SyncWithFileSys
-       ( Eff'Sync )
+       -- ( Eff'Sync )
 
 import Catalog.TextPath
        ( toFileSysPath )
@@ -243,8 +243,13 @@ evalCatCmd =
       throwNoSync "sync EXIF metadata" >>
       getId p >>= modify'syncExif recursive force
 
-    SyncKeyword p ->
-      getIdNode' p >>= uncurry (modify'syncKeywordCol p) -- modify'testCmd
+    SyncKeyword p -> do
+      (i, n) <- getIdNode' p
+      modify'syncKeywordCol p i n
+
+      -- sort images by date (n has changed, must be reread)
+      n'     <- getImgVal i
+      modify'sortAllByDate i n'
 
     NewSubCollections p ->
       throwNoSync "import new collection" >>
@@ -259,7 +264,6 @@ evalCatCmd =
 
     TestCmd p ->
       getId p >>= modify'testCmd
-      -- getIdNode' p >>= uncurry (modify'syncKeywordCol p) -- modify'testCmd
 
     -- eval reading commands
 
@@ -476,6 +480,13 @@ reorderCol ixs cs =
 -- if nothing is marked, all entries are sorted,
 -- else all entries marked, except the last one, are ordered by create date (if there)
 -- and moved behind the last marked entries
+
+modify'sortAllByDate :: (Eff'ISEJL r) => ObjId -> ImgNode -> Sem r ()
+modify'sortAllByDate i n =
+  modify'sortByDate ixs i n
+  where
+    ixs = replicate (Seq.length (n ^. theColEntries)) (-1)
+
 
 modify'sortByDate :: Eff'ISEJL r => [Int] -> ObjId -> ImgNode -> Sem r ()
 modify'sortByDate ixs0 i n
@@ -857,6 +868,9 @@ modify'testCmd :: Eff'Sync r => ObjId -> Sem r ()
 modify'testCmd i = do
   path <- objid2path i
   log'verb $ "TestCmd: " <> (path ^. isoListPath . to show . isoText)
+
+  allKeywords
+  allKeywordCols
   return ()
 
 -- ----------------------------------------

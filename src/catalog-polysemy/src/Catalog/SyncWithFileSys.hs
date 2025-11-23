@@ -8,6 +8,8 @@ module Catalog.SyncWithFileSys
   , syncNode
   , syncNewDirs
   , syncKeywordCol
+  , allKeywords
+  , allKeywordCols
   )
 where
 
@@ -67,6 +69,7 @@ import Catalog.ImgTree.Modify
        ( rmImgNode
        , adjustImg
        , adjustColEntries
+       , adjustMetaData
        , mkImg
        , setSyncTime
        , mkImgDir
@@ -109,6 +112,7 @@ import Data.ImgTree
        , theColEntry
        , theColColRef
        , theColImgRef
+       , theMetaData
        , theImgCheckSum
        , theImgName
        , theImgTimeStamp
@@ -301,6 +305,35 @@ updateImgRefs um i0
 
 -- ----------------------------------------
 
+type Keywords = Set Text
+
+allKeywordCols :: Eff'ISEL r => Sem r Keywords
+allKeywordCols = do
+  i0   <- getId p'keywords
+  kwcs <- (S.delete $ n'keywords ^. isoText)   -- remove "keywords"
+          <$> foldCollections colA i0
+
+  log'trc $ "allKeywordCols: " <> T.intercalate ", " (S.toAscList kwcs)
+  return kwcs
+  where
+    colA go i md im be cs = do
+      kws1 <- (S.singleton . (^. isoText)) <$> getImgName i
+      kws2 <- foldColColEntries go i md im be cs
+      return $ S.union kws1 kws2
+
+allKeywords :: Eff'ISEL r => Sem r Keywords
+allKeywords = do
+  i0  <- getId p'arch'photos
+  kws <- foldImages imgA i0
+
+  log'trc $ "allKeywords: " <> T.intercalate ", " (S.toAscList kws)
+  return kws
+  where
+    imgA _i _ps md =
+      return kws1
+      where
+        kws1 = S.fromList $ md ^. metaDataAt descrKeywords . metaTS
+
 syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> ImgNode -> Sem r ()
 syncKeywordCol p i n = do
   log'trc $ "syncKeywordCol: update keyword collection for " <> p ^. isoUrlText
@@ -320,11 +353,13 @@ syncKeywordCol p i n = do
 
   adjustColEntries (const ns) i
 
+  when et $
+    adjustMetaData (\ md -> md & metaTextAt descrTitle .~ kw) i
+
   log'trc $ "syncKeywordCol: keyword update for " <> kw <> " finished"
   where
     kw = p ^. viewBase . _2 . isoText
-
-    -- the (sub-)collection entries will remain in the keyword col
+    et = T.null $ n ^. theMetaData . metaTextAt descrTitle
 
     allImgObjIdsWithKW :: Eff'ISEJL r => ObjId -> Sem r ObjIds
     allImgObjIdsWithKW =

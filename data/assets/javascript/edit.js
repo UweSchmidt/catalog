@@ -1291,10 +1291,9 @@ function keywordActiveCollection() {
     addHistCmd("update keyword " + fromPathName(splitName(path)),
                function () {
                    modifyServer('syncKeyword', path, [],
-                                function(log) {
+                                function() {
                                     statusMsg('update of keyword collection done');
-                                    console.log(log);
-                                    sortColByDateOnServer(path, []);
+                                    getColFromServer(path, refreshCollection);
                                 });
                });
 }
