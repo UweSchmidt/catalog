@@ -88,6 +88,7 @@ import Catalog.Effects.CatCmd
        , syncCollection
        , syncExif
        , syncKeyword
+       , newKeywords
        , testCmd
        , theBlogContents
        , theBlogSource
@@ -516,6 +517,8 @@ catalogServer env runReadC runModyC runBGC =
       runM3 syncExif
       :<|>
       runM1 syncKeyword
+      :<|>
+      runM0 newKeywords
       :<|>
       runM1 newSubCollections
       :<|>

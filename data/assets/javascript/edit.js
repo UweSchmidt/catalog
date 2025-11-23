@@ -1298,6 +1298,23 @@ function keywordActiveCollection() {
                });
 }
 
+function newKeywordCollections() {
+    openColC(pathKeywords())(updateKeywordsCol);
+}
+
+function updateKeywordsCol() {
+    console.log("updateKeywordsCol");
+    statusMsg('create collections for new keywords');
+    addHistCmd("new keywords",
+               function () {
+                   modifyServer('newKeywords', pathKeywords(), [],
+                                function() {
+                                    statusMsg('new keyword collections created');
+                                    getColFromServer(pathKeywords(), refreshCollection);
+                                });
+               });
+}
+
 // ----------------------------------------
 
 function syncActiveCollection(sync) {
@@ -3149,19 +3166,20 @@ function changeWriteProtectedOnServer(path, ixs, ro, opcs) {
 function setMetaOnServer(path, ixs, metadata) {
     var entrymeta = anyMarked(ixs);
 
-    addHistCmd("set metadata " + ( entrymeta ? "in" : "of") + " " + splitName(path),
-               function () {
-                   function cb() {
-                       getColFromServer(path, refreshCollectionF);
-                   };
+    addHistCmd( "set metadata " + ( entrymeta ? "in" : "of") + " " +
+                fromPathName(splitName(path)),
+                function () {
+                    function cb() {
+                        getColFromServer(path, refreshCollectionF);
+                    };
 
-                   if (entrymeta) {
-                       modifyServer("setMetaData", path, [ixs, metadata], cb);
-                   }
-                   else {
-                       modifyServer("setMetaData1", path, [-1, metadata], cb);
-                   }
-               });
+                    if (entrymeta) {
+                        modifyServer("setMetaData", path, [ixs, metadata], cb);
+                    }
+                    else {
+                        modifyServer("setMetaData1", path, [-1, metadata], cb);
+                    }
+                });
 }
 
 function setRatingOnServer(cid, path, ix, rating) {
@@ -3716,6 +3734,13 @@ $(document).ready(function () {
             // statusClear();
             statusMsg('update keyword collection');
             keywordActiveCollection();
+        });
+
+    $('#NewKeywords')
+        .on('click', function () {
+            // statusClear();
+            statusMsg('search for new keywords');
+            newKeywordCollections();
         });
 
     // refresh all collections, just a debug op

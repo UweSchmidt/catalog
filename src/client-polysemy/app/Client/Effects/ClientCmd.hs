@@ -26,6 +26,7 @@ module Client.Effects.ClientCmd
   , ccGetAddress
   , ccPage
   , ccSyncKeyword
+  , ccNewKeywords
   , ccTest
   )
 where
@@ -76,6 +77,7 @@ data ClientCmd m a where
   CcGetAddress  :: GPSposDec                   -> ClientCmd m ()
   CcPage        :: Path                        -> ClientCmd m ()
   CcSyncKeyword :: Path                        -> ClientCmd m ()
+  CcNewKeywords ::                                ClientCmd m ()
   CcTest        :: Path                        -> ClientCmd m ()
 
 makeSem ''ClientCmd

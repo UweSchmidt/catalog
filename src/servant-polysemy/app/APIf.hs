@@ -303,6 +303,8 @@ type JsonModifyAPI
       :<|>
       "syncKeyword"          :> SimplePost ()
       :<|>
+      "newKeywords"          :> SimplePost ()
+      :<|>
       "newSubCols"           :> SimplePost ()
       :<|>
       "updateCheckSum"       :> ParamPost (CheckSum, Name) ()

@@ -400,6 +400,12 @@ cmdClient = subparser $
       )
     )
   <>
+  command "new-keywords"
+    ( (pure CcNewKeywords)
+      `withInfo`
+      ( "Create keyword collections for new keywords." )
+    )
+  <>
   command "check-meta"
     ( (CcCheckMeta <$> argPath)
       `withInfo`

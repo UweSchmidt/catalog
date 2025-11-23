@@ -85,6 +85,8 @@ evalClientCatCmd =
       paramJSONmodify "syncExif" p  (recursive, force)
     SyncKeyword p ->
       simpleJSONmodify "syncKeyword" p
+    NewKeywords ->
+      simpleJSONmodify "newKeywords" p'archive
     NewSubCollections p ->
       simpleJSONmodify "newSubCols" p
     UpdateCheckSum cs n p ->

@@ -251,6 +251,9 @@ evalCatCmd =
       n'     <- getImgVal i
       modify'sortAllByDate i n'
 
+    NewKeywords ->
+      newKeywordCols
+
     NewSubCollections p ->
       throwNoSync "import new collection" >>
       getId p >>= modify'newSubCols
