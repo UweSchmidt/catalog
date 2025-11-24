@@ -462,11 +462,15 @@ reorderCol :: [Int] -> Seq a -> Seq a
 reorderCol ixs cs =
   fmap snd . Seq.sortBy (cmp mx `on` fst) $ Seq.zip ixs' cs
   where
+
     ixs' :: Seq (Int, Int)
-    ixs' = isoSeqList # zip ixs [0..]
+    ixs' = isoSeqList # zip (ixs <> rest) [0..]
+      where
+        -- extend length of ixs to length of cs
+        rest = replicate (Seq.length cs - length ixs) (-1)
 
     mx :: (Int, Int)
-    mx = maximum ixs'
+    mx = maximum ixs'  -- index of last marked entry
 
     cmp :: (Int, Int) -> (Int, Int) -> (Int, Int) -> Ordering
     cmp (mi, mp) (i1, p1) (i2, p2)
