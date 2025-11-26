@@ -15,7 +15,6 @@ import Data.Prim.Prelude
        , (&)
        , (^.)
        , iso
-       , isn'tEmpty
        , (#)
        , (%~)
        , Iso'
@@ -33,8 +32,6 @@ import qualified Data.Text  as T
 -- ----------------------------------------
 --
 -- names are wrapped Text's
--- names don't start with a '.'
--- so ".", ".." and dot files are all mapped to the empty name
 
 newtype Name = Name Text
 
@@ -42,20 +39,11 @@ emptyName :: Name
 emptyName = mkName ""
 
 -- illegal string -> empty Name
--- dot files  -> empty Name
 -- empty text -> empty Name
 
 mkName :: String -> Name
-mkName ('.' : _) = emptyName
 mkName xs        = Name . T.pack $ xs
 {-# INLINE mkName #-}
-
-toName :: Text -> Name
-toName t
-  | isn'tEmpty t
-    &&
-    T.head t /= '.' = Name t
-  | otherwise       = emptyName
 
 fromName :: Name -> String
 fromName (Name fsn) = T.unpack fsn
@@ -86,7 +74,7 @@ instance IsoString Name where
 
 instance IsoText Name where
   isoText :: Iso' Name Text
-  isoText = iso (\ (Name n) -> n) toName
+  isoText = iso (\ (Name n) -> n) Name
   {-# INLINE isoText #-}
 
 instance Semigroup Name where

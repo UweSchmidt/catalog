@@ -247,10 +247,6 @@ evalCatCmd =
       (i, n) <- getIdNode' p
       modify'syncKeywordCol p i n
 
-      -- sort images by date (n has changed, must be reread)
-      n'     <- getImgVal i
-      modify'sortAllByDate i n'
-
     NewKeywords ->
       newKeywordCols
 

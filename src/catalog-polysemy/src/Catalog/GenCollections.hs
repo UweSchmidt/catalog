@@ -10,6 +10,8 @@ module Catalog.GenCollections
        , updateImportsDir
        , img2colPath
        , modifyMetaDataRec
+       , sortByName
+       , sortByDate
        )
 where
 
