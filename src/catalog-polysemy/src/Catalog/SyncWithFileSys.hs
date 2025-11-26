@@ -353,13 +353,18 @@ newKeywordCols :: Eff'ISEJL r => Sem r ()
 newKeywordCols = do
   kws  <- allKeywords
   kwcs <- allKeywordCols
+  traverse_ initKeywordCol $ S.difference kws kwcs
+  where
 
-  traverse_
-    ( \ kw -> do
-        _ <- mkCollection (p'keywords `snocPath` (isoText # kw))
-        log'trc $ "newKeywords: new keyword collection: " <> kw
-    )
-    $ S.difference kws kwcs
+    initKeywordCol :: Eff'ISEJL r => Text -> Sem r ()
+    initKeywordCol kw = do
+      log'trc $ "newKeywords: init new keyword collection: " <> p ^. isoUrlText
+
+      ci <- mkCollection p
+      n  <- getImgVal ci
+      syncKeywordCol p ci n
+        where
+          p = p'keywords `snocPath` (isoText # kw)
 
 cleanupKeywordCol :: Eff'ISEJL r => ObjId -> ImgNode -> Sem r ()
 cleanupKeywordCol i n0 = do
