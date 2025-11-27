@@ -1293,7 +1293,7 @@ function keywordActiveCollection() {
                    modifyServer('syncKeyword', path, [],
                                 function() {
                                     statusMsg('update of keyword collection done');
-                                    getColFromServer(path, refreshCollection);
+                                    getColFromServer(path, refreshCollectionF);
                                 });
                });
 }
@@ -1305,12 +1305,12 @@ function newKeywordCollections() {
 function updateKeywordsCol() {
     console.log("updateKeywordsCol");
     statusMsg('create collections for new keywords');
-    addHistCmd("new keywords",
+    addHistCmd("update all keywords",
                function () {
                    modifyServer('newKeywords', pathKeywords(), [],
                                 function() {
                                     statusMsg('keyword collections updated');
-                                    getColFromServer(pathKeywords(), refreshCollection);
+                                    getColFromServer(pathKeywords(), refreshCollectionF);
                                 });
                });
 }
@@ -1400,11 +1400,11 @@ function refreshCollection1(path, colVal) {
 }
 
 function refreshCollection(path, colVal) {
-    refreshCollection2(path,colVal, false);
+    refreshCollection2(path, colVal, false);
 }
 
 function refreshCollectionF(path, colVal) {
-    refreshCollection2(path,colVal, true);
+    refreshCollection2(path, colVal, true);
 }
 
 function refreshCollection2(path, colVal, force) {
