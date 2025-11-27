@@ -1309,7 +1309,7 @@ function updateKeywordsCol() {
                function () {
                    modifyServer('newKeywords', pathKeywords(), [],
                                 function() {
-                                    statusMsg('new keyword collections created');
+                                    statusMsg('keyword collections updated');
                                     getColFromServer(pathKeywords(), refreshCollection);
                                 });
                });

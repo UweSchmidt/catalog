@@ -85,7 +85,7 @@ import Catalog.MetaData.Sync
        ( Eff'MDSync )
 
 import Catalog.SyncWithFileSys
-       -- ( Eff'Sync )
+       ( Eff'Sync )
 
 import Catalog.TextPath
        ( toFileSysPath )
@@ -235,23 +235,23 @@ evalCatCmd =
     Snapshot t _p ->
       modify'snapshot t
 
-    SyncCollection p ->
-      throwNoSync "sync collection" >>
+    SyncCollection p -> do
+      throwNoSync "sync collection"
       getId p >>= modify'syncCol
 
-    SyncExif recursive force p ->
-      throwNoSync "sync EXIF metadata" >>
+    SyncExif recursive force p -> do
+      throwNoSync "sync EXIF metadata"
       getId p >>= modify'syncExif recursive force
 
     SyncKeyword p -> do
-      (i, n) <- getIdNode' p
-      modify'syncKeywordCol p i n
+      getId p >>= modify'syncKeywordCol p
 
-    NewKeywords ->
-      newKeywordCols
+    NewKeywords -> do
+      SC.newKeywordCols
+      SC.syncAllKeywordCols
 
-    NewSubCollections p ->
-      throwNoSync "import new collection" >>
+    NewSubCollections p -> do
+      throwNoSync "import new collection"
       getId p >>= modify'newSubCols
 
     UpdateCheckSum cs n p ->
@@ -819,11 +819,11 @@ modify'snapshot = IO.snapshotImgStore
 
 -- --------------------
 
-modify'syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> ImgNode -> Sem r ()
-modify'syncKeywordCol p i n = do
+modify'syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> Sem r ()
+modify'syncKeywordCol p i = do
   unless (isPathPrefix p'keywords p) $
     throwP i $ msgPath p'keywords "syncKeywordCol: collection does not have path prefix "
-  SC.syncKeywordCol p i n
+  SC.syncKeywordCol p i
 
 -- --------------------
 --
@@ -872,9 +872,9 @@ modify'testCmd i = do
   path <- objid2path i
   log'verb $ "TestCmd: " <> (path ^. isoListPath . to show . isoText)
 
-  _ <- allKeywords
-  _ <- allKeywordCols
-  newKeywordCols
+  _ <- SC.allKeywords
+  _ <- SC.allKeywordCols
+  SC.newKeywordCols
 
 -- ----------------------------------------
 --

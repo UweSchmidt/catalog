@@ -8,6 +8,7 @@ module Catalog.SyncWithFileSys
   , syncNode
   , syncNewDirs
   , syncKeywordCol
+  , syncAllKeywordCols
   , allKeywords
   , allKeywordCols
   , newKeywordCols
@@ -40,6 +41,7 @@ import Catalog.Effects
        , log'trc
        , log'verb
        , log'warn
+       , log'dbg
        , readDir
        , throw
        )
@@ -318,9 +320,23 @@ isHiddenKWName :: Name -> Bool
 isHiddenKWName n =
   isEmpty n
   ||
-  n == n'keywords
-  ||
   T.take 1 (n ^. isoText) == "."
+
+syncAllKeywordCols :: Eff'ISEJL r => Sem r ()
+syncAllKeywordCols = do
+  log'trc "syncAllKeywordCols"
+  getId p'keywords >>= foldCollections colA
+  where
+    colA go i _md _im _be cs = do
+      nm <- getImgName i
+      unless (isHiddenKWName nm) $ do
+        -- recurse into subcollections
+        _ <- foldColColEntries go cs
+
+        -- sync keyword collection
+        p <- objid2path i
+        syncKeywordCol p i
+        return ()
 
 allKeywordCols :: Eff'ISEL r => Sem r Keywords
 allKeywordCols = do
@@ -337,7 +353,7 @@ allKeywordCols = do
               <$>
               getImgName i
       kws2 <- foldColColEntries go cs
-      return $ S.union kws1 kws2
+      return $ S.union (S.delete (n'keywords ^. isoText) kws1) kws2
 
 allKeywords :: Eff'ISEL r => Sem r Keywords
 allKeywords = do
@@ -355,16 +371,13 @@ newKeywordCols = do
   kwcs <- allKeywordCols
   traverse_ initKeywordCol $ S.difference kws kwcs
   where
-
     initKeywordCol :: Eff'ISEJL r => Text -> Sem r ()
     initKeywordCol kw = do
       log'trc $ "newKeywords: init new keyword collection: " <> p ^. isoUrlText
-
-      ci <- mkCollection p
-      n  <- getImgVal ci
-      syncKeywordCol p ci n
-        where
-          p = p'keywords `snocPath` (isoText # kw)
+      _ci <- mkCollection p
+      return ()
+      where
+        p = p'keywords `snocPath` (isoText # kw)
 
 cleanupKeywordCol :: Eff'ISEJL r => ObjId -> ImgNode -> Sem r ()
 cleanupKeywordCol i n0 = do
@@ -391,53 +404,60 @@ addImgRefsToKeywordCol i rs0 = do
       adjustColEntries (<> rs1) i
     else
       splitIntoSubCols rs1
-    where
-      maxColEntries :: Int
-      maxColEntries = 100
 
-      len = Seq.length rs0
+  adjustColImg (<|> cImg rs1) i
 
-      addjSub :: MetaData -> MetaData
-      addjSub md =
-        md & metaTextAt descrSubtitle .~ (isoString # show len <> " Bilder")
+  where
+    maxColEntries :: Int
+    maxColEntries = 100
 
-      splitIntoSubCols rs = do
-        p <- objid2path i
-        log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
+    len = Seq.length rs0
 
-        _ <- Seq.traverseWithIndex (addCol p) crs
-        return ()
-        where
-          crs = Seq.chunksOf maxColEntries rs
+    addjSub :: MetaData -> MetaData
+    addjSub md =
+      md & metaTextAt descrSubtitle .~ (isoString # show len <> " Bilder")
 
-          addCol :: Eff'ISEJL r => Path -> Int -> ColEntries -> Sem r ()
-          addCol p' ix' rs' = do
-            log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
+    cImg :: ColEntries -> Maybe ImgRef
+    cImg rs' = rs' ^? ix 0 . theColEntry . theColImgRef
 
-            ci            <- mkCollection colPath
-            adjustColEntries (const rs') ci
-            adjustMetaData   (\md -> md & metaTextAt descrTitle .~ colTitle) ci
-            adjustColImg     (const colImg) ci
-            where
+    splitIntoSubCols rs = do
+      p <- objid2path i
+      log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
 
-              colPath :: Path
-              colPath = p' `snocPath` colName
+      _ <- Seq.traverseWithIndex (addCol p) crs
+      return ()
+      where
+        crs = Seq.chunksOf maxColEntries rs
 
-              colName :: Name
-              colName = mkName ('.' : show (ix' + 1))
+        addCol :: Eff'ISEJL r => Path -> Int -> ColEntries -> Sem r ()
+        addCol p' ix' rs' = do
+          log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
 
-              colIx :: Int
-              colIx = ix' * maxColEntries
+          ci            <- mkCollection colPath
+          adjustColEntries (const rs') ci
+          adjustMetaData   (\md -> md & metaTextAt descrTitle .~ colTitle) ci
+          adjustColImg     (const colImg) ci
+          where
+            colPath :: Path
+            colPath = p' `snocPath` colName
 
-              colTitle :: Text
-              colTitle = isoString # ((show $ colIx + 1) <> " - " <> (show $ colIx + Seq.length rs'))
+            colName :: Name
+            colName = mkName ('.' : show (ix' + 1))
 
-              colImg :: Maybe ImgRef
-              colImg = rs' ^? ix 0 . theColEntry . theColImgRef
+            colIx :: Int
+            colIx = ix' * maxColEntries
 
-syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> ImgNode -> Sem r ()
-syncKeywordCol p i n0 = do
+            colTitle :: Text
+            colTitle = isoString # ((show $ colIx + 1) <> " - " <> (show $ colIx + Seq.length rs'))
+
+            colImg :: Maybe ImgRef
+            colImg = rs' ^? ix 0 . theColEntry . theColImgRef
+
+syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> Sem r ()
+syncKeywordCol p i = do
   log'trc $ "syncKeywordCol: update keyword collection for " <> p ^. isoUrlText
+
+  n0 <- getImgVal i
 
   -- set collection title if not yet set
   when (T.null $ n0 ^. theMetaData . metaTextAt descrTitle) $
@@ -458,7 +478,7 @@ syncKeywordCol p i n0 = do
 
   addImgRefsToKeywordCol i (Seq.fromList $ map mkColImgRefM' imgRfs)
 
-  log'trc $ "syncKeywordCol: keyword update for " <> kw <> " finished"
+  log'dbg $ "syncKeywordCol: keyword update for " <> kw <> " finished"
   where
     kw = p ^. viewBase . _2 . isoText
 

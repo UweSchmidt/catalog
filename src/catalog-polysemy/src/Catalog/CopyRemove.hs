@@ -22,6 +22,7 @@ import Catalog.Effects
        ( log'trc
        , log'verb
        , log'warn
+       , log'dbg
        , throw
        , Sem
        , Eff'ISEJL
@@ -218,11 +219,11 @@ rmRec = foldMT imgA dirA foldRoot colA
         rmImgNode i
 
     colA go i _md _im _be cs = do
-      log'trc $ "colA: " <> toText cs
+      log'dbg $ "colA: " <> toText cs
       let cs' = Seq.filter (^. theColEntry . to isColColRef) cs      -- remove all images
       adjustColEntries (const cs') i       -- store remaining collections
 
-      log'trc $ "colA: " <> toText cs'
+      log'dbg $ "colA: " <> toText cs'
       traverse_ go $
         cs' ^.. traverse . theColEntry . theColColRef    -- remove the remaining collections
 
