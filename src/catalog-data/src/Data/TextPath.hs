@@ -79,31 +79,31 @@ splitPathNameExtMime n =
 
 path2imgPath :: Path -> Maybe (Path, Name)
 path2imgPath p = do
-  n4    <- (isoText #) <$> subExt (n1 ^. isoText)
-  _     <- guarded (isPathPrefix p'arch'photos) p2
-  let t4 = ((mempty `snocPath` n2) `snocPath` n4) ^. isoText
-  let n5 = isoText # (T.drop 1 t4)
-  return (p2 `snocPath` n1b, n5)
+  (t5, t6) <- subExt (n1 ^. isoText)
+  _        <- guarded (isPathPrefix p'arch'photos) p2
+  let t4    = ((mempty `snocPath` n2) `snocPath` (isoText # t5)) ^. isoText
+  let n5    = isoText # (T.drop 1 t4)
+  return      (p2 `snocPath` (isoText # n1b t6), n5)
   where
     (p1, n1) = p ^. viewBase
-    n1b      = n1 & isoText %~ (\nm -> maybe nm fst $ parseMaybe imgName nm)
+    n1b nm   = isoText # (maybe nm fst $ parseMaybe imgName nm)
 
     (p2, n2)
-      | hasIDir   = (p2', n2')
-      | otherwise = (p1,  mempty)
+      | hasIDir    = (p2', n2')
+      | otherwise  = (p1,  mempty)
       where
         (p2', n2') = p1 ^. viewBase
         hasIDir    = isImgCopiesDir $ n2' ^. isoText
 
-    subExt :: Text -> Maybe Text
+    subExt :: Text -> Maybe (Text, Text)
     subExt t = do
       (bs, (_ext, mt)) <- parseMaybe splitExtMimeP t
       _                <- guarded isJpgMT mt
       case parseMaybe splitExtMimeP bs of
-        Just (_bs2, (_ext2, mt2))
-          | isImgMT mt2  -> return bs
+        Just (bs2, (_ext2, mt2))
+          | isImgMT mt2  -> return (bs, bs2)
           | otherwise    -> Nothing
-        Nothing          -> return t
+        Nothing          -> return (t, bs)
 
 -- examples
 
