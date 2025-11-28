@@ -19,6 +19,7 @@ import Catalog.Effects
        , writeFileLB
        , log'trc
        , log'verb
+       , log'err
        , interpret
        , ask
        , get
@@ -120,6 +121,7 @@ import Data.Prim
        , path2colPath
        , viewBase
        , isoListPath
+
        , CheckSum
        , CheckSumRes
        , Name
@@ -311,13 +313,14 @@ evalCatCmd =
           fp <- toFileSysPath p'
           readFileLB fp
 
-      | Just (imP, imN) <- path2imgPath (path ^. isoText) -> do
+      | Just (imP, imN) <- path2imgPath path -> do
           log'trc $ "JpgImgCopy: img path: " <> show (imP, imN) ^. isoText
           p' <- processReqJpg (mkReq rt geo (imP, Nothing)) imN
           fp <- toFileSysPath p'
           readFileLB fp
 
-      | otherwise ->
+      | otherwise -> do
+          log'err $ "JpgImgCopy: illegal img path " <> path ^. isoText
           throw @Text $ msgPath path "illegal doc path "
 
     HtmlPage rt geo path

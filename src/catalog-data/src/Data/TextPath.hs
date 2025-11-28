@@ -77,36 +77,33 @@ splitPathNameExtMime n =
   fromMaybe ((mempty, (n, mempty), mempty), Unknown'mime_type) $
     parseMaybe splitPathNameExtMimeP n
 
-path2imgPath :: Text -> Maybe (Path, Name)
-path2imgPath t = do
-  ((ps0, (n0, r1), ex), mt)
-               <- parseMaybe splitPathNameExtMimeP t
-  _            <- guarded (== Image'jpg) mt
-  p1           <- guarded (isPathPrefix p'arch'photos) (isoListPath # ps0)
-  let n1       =  isoText # n0
-  let (p2, n2) =  swapImgSub p1 n1
-  let p3       =  p2 `snocPath` n1
-  let n3       =  dropExt n2 r1 ex
-  return (p3, n3)
+path2imgPath :: Path -> Maybe (Path, Name)
+path2imgPath p = do
+  n4    <- (isoText #) <$> subExt (n1 ^. isoText)
+  _     <- guarded (isPathPrefix p'arch'photos) p2
+  let t4 = ((mempty `snocPath` n2) `snocPath` n4) ^. isoText
+  let n5 = isoText # (T.drop 1 t4)
+  return (p2 `snocPath` n1b, n5)
   where
-    swapImgSub :: Path -> Name -> (Path, Name)
-    swapImgSub p' n'
-      | Just _ <- parseMaybe imgSubdir (n1' ^. isoText) =
-          (p1', n2')
-      | otherwise =
-          (p', n')
-      where
-        (p1', n1') = p' ^. viewBase
-        n2'        = n' & isoText %~ (( n1' ^. isoText <> "/") <>)
+    (p1, n1) = p ^. viewBase
+    n1b      = n1 & isoText %~ (\nm -> maybe nm fst $ parseMaybe imgName nm)
 
-    dropExt :: Name -> Text -> Text -> Name
-    dropExt n' r' ex'
-      | Just _ <- parseMaybe splitExtMimeP nr =
-          isoText # nr
-      | otherwise =
-          isoText # (nr <> ex')
+    (p2, n2)
+      | hasIDir   = (p2', n2')
+      | otherwise = (p1,  mempty)
       where
-        nr = n' ^. isoText <> r'
+        (p2', n2') = p1 ^. viewBase
+        hasIDir    = isImgCopiesDir $ n2' ^. isoText
+
+    subExt :: Text -> Maybe Text
+    subExt t = do
+      (bs, (_ext, mt)) <- parseMaybe splitExtMimeP t
+      _                <- guarded isJpgMT mt
+      case parseMaybe splitExtMimeP bs of
+        Just (_bs2, (_ext2, mt2))
+          | isImgMT mt2  -> return bs
+          | otherwise    -> Nothing
+        Nothing          -> return t
 
 -- examples
 
@@ -160,6 +157,8 @@ splitPathNameExtMimeP = do
             <$> many (satisfy (/= '/'))
             <*> some (satisfy (== '/'))
           )
+
+
 splitExtMimeP :: TP (Text, (Text, MimeType))
 splitExtMimeP = anyStringThen' $ pext <* eof
   where
