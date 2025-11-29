@@ -59,6 +59,7 @@ import Catalog.ImgTree.Access
        , lookupByPath
        , getImgName
        , getImgVal
+       , getMetaData
        , existsEntry
        , getImgParent
        , getTreeAt
@@ -103,7 +104,6 @@ import Data.ImgTree
        , ImgNode
        , ImgRef
        , ImgRef'(ImgRef, _iname)
-       , ObjIds
        , colEntryM'
        , isColColRef
        , isDIR
@@ -125,7 +125,6 @@ import Data.ImgTree
        , thePartNamesI
        , theParts
        , theRootImgDir
-       , singleObjId
        )
 import Data.MetaData
        -- ( MetaData )
@@ -415,7 +414,11 @@ addImgRefsToKeywordCol i rs0 = do
 
     addjSub :: MetaData -> MetaData
     addjSub md =
-      md & metaTextAt descrSubtitle .~ (isoString # show len <> " Bilder")
+      md & metaTextAt descrSubtitle .~ st
+      where
+        st
+          | len == 0  = "-"    -- clear subtitle
+          | otherwise = len ^. isoText <> " Bilder"
 
     cImg :: ColEntries -> Maybe ImgRef
     cImg rs' = rs' ^? ix 0 . theColEntry . theColImgRef
@@ -467,43 +470,42 @@ syncKeywordCol p i = do
   cleanupKeywordCol i n0
 
   -- get image refs containing keyword
-  pid    <- getId p'photos
-  imgIds <- allImgObjIdsWithKW pid
-  imgRfs <- allImgRefs imgIds
+  -- traverse only album collection, not the generated colls
+  imgRefs <- allImgRefsWithKW kw
 
-  traverse_ (\ i' ->  do
-                p' <- objid2path i'
-                log'trc $ "found: " <> p' ^. isoText
-            ) imgIds
+  traverse_
+    ( \(ImgRef i' nm') -> do
+        p' <- objid2path i'
+        log'trc $ "found: " <> p' ^. isoText <> ", " <> nm' ^. isoText
+    )
+    imgRefs
 
-  addImgRefsToKeywordCol i (Seq.fromList $ map mkColImgRefM' imgRfs)
+  let imgEnts = foldMap (Seq.singleton . mkColImgRefM') imgRefs
+  addImgRefsToKeywordCol i imgEnts
 
   log'dbg $ "syncKeywordCol: keyword update for " <> kw <> " finished"
   where
     kw = p ^. viewBase . _2 . isoText
 
-    allImgObjIdsWithKW :: Eff'ISEJL r => ObjId -> Sem r ObjIds
-    allImgObjIdsWithKW =
-      foldMTU imgA foldDir foldRoot foldCol
+allImgRefsWithKW :: Eff'ISE r => Text -> Sem r (Set ImgRef)
+allImgRefsWithKW kw =
+  getId p'albums >>= foldCollections colA
+  where
+    colA go _i _md _im _be cs = do
+      fold <$> traverse (colEntryM' iref go) cs
       where
-        imgA i' _pts md =
+        iref :: Eff'ISE r => ImgRef -> Sem r (Set ImgRef)
+        iref ir@(ImgRef i' _p') = do
+          b <- hasKeyword <$> getMetaData i'
           return $
-            if hasKW
-            then singleObjId i'
+            if b
+            then S.singleton ir
             else mempty
           where
-            kws   = md ^. metaDataAt descrKeywords . metaTS
-            hasKW = not . null . filter (== kw) $ kws
-
-    allImgRefs :: Eff'ISE r => ObjIds -> Sem r [ImgRef]
-    allImgRefs ids =
-      concat <$> traverse toImgRefs (S.toList ids)
-
-    toImgRefs :: Eff'ISE r => ObjId -> Sem r [ImgRef]
-    toImgRefs i' = do
-      mkRefs <$>  getImgVal i'
-      where
-        mkRefs n' = map (\nm -> ImgRef i' nm) (n' ^.. theParts . thePartNamesI)
+            hasKeyword md =
+              not . null . filter (== kw) $ kws
+              where
+                kws = md ^. metaDataAt descrKeywords . metaTS
 
 -- ----------------------------------------
 
