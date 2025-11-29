@@ -2166,7 +2166,7 @@ function setCollectionImg(cid) {
         if ( $(simg).hasClass('data-jpg') ) {
             // it's a .jpg image or a .mp4 movie
             // so take this image or movie icon as collection image
-            addHistCmd("set col img for " + splitName(path),
+            addHistCmd("set col img for " + fromPathName(splitName(path)),
                        function () {
                            modifyServer('colimg', path, [spath, pos],
                                         function () {
@@ -3133,7 +3133,7 @@ function copyMoveToColOnServer(cpmv, spath, dpath, args) {
 }
 
 function sortColOnServer(path, ixs) {
-    addHistCmd("sort in " + splitName(path),
+    addHistCmd("sort in " + fromPathName(splitName(path)),
                function () {
                    modifyServer("sort", path, ixs,
                                 function () {
