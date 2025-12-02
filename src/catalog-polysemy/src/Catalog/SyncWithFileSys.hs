@@ -393,7 +393,9 @@ cleanupKeywordCol i n0 = do
 
 addImgRefsToKeywordCol :: Eff'ISEJL r => ObjId -> ColEntries -> Sem r ()
 addImgRefsToKeywordCol i rs0 = do
-  adjustMetaData addjSub i
+  noOfSubCols <- Seq.length . (^. theColEntries) <$> getImgVal i
+
+  adjustMetaData (addjSub noOfSubCols) i
 
   -- sort enties by create date
   rs1 <- sortByDate rs0
@@ -412,13 +414,18 @@ addImgRefsToKeywordCol i rs0 = do
 
     len = Seq.length rs0
 
-    addjSub :: MetaData -> MetaData
-    addjSub md =
+    addjSub :: Int -> MetaData -> MetaData
+    addjSub lenc md =
       md & metaTextAt descrSubtitle .~ st
       where
         st
-          | len == 0  = "-"    -- clear subtitle
-          | otherwise = len ^. isoText <> " Bilder"
+          | lenc == 0 && len == 0 = mempty
+          | lenc == 0             = st2
+          |              len == 0 = st1
+          | otherwise             = st1 <> ", " <> st2
+          where
+            st1 = lenc ^. isoText <> " Sammlung" <> (if lenc == 1 then "" else "en")
+            st2 = len  ^. isoText <> " Bild"     <> (if len  == 1 then "" else "er")
 
     cImg :: ColEntries -> Maybe ImgRef
     cImg rs' = rs' ^? ix 0 . theColEntry . theColImgRef
