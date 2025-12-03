@@ -671,21 +671,26 @@ keysAttrShow@[
 -- instances and basic functions for MetaData
 
 instance (AsEmpty a, IsoValueText a) => FromJSON (MetaData' a) where
+  parseJSON :: JValue -> JParser (MetaData' a)
   parseJSON o = (isoMetaDataMDT #) <$> parseJSON o
 
 instance (AsEmpty a, IsoValueText a) => ToJSON (MetaData' a) where
+  toJSON :: MetaData' a -> JValue
   toJSON m = toJSON $ m ^. isoMetaDataMDT
 
 deriving instance Eq   a => Eq   (MetaData' a)   -- used in Catalog.MetaData.Exif
 deriving instance Show a => Show (MetaData' a)
 
 instance AsEmpty (MetaData' a) where
+  _Empty :: Prism' (MetaData' a) ()
   _Empty = nearly (MD IM.empty) (\ (MD m) -> IM.null m)
 
 instance Semigroup a => Semigroup (MetaData' a) where
+  (<>) :: MetaData' a -> MetaData' a -> MetaData' a
   (<>) = unionMD
 
 instance Semigroup a => Monoid (MetaData' a) where
+  mempty :: Semigroup a => MetaData' a
   mempty = MD IM.empty
 
 -- conversions to/from MetaDataText
@@ -694,9 +699,11 @@ class IsoValueText v where
   isoValueText :: MetaKey -> Iso' v Text
 
 instance IsoValueText MetaValue where
+  isoValueText :: MetaKey -> Iso' MetaValue Text
   isoValueText = isoMetaValueText
 
 instance IsoValueText Text where
+  isoValueText :: MetaKey -> Iso' Text Text
   isoValueText _k = iso id id
 
 isoMetaDataMDT :: (AsEmpty a, IsoValueText a)
@@ -786,6 +793,7 @@ keysShow  = (`elem` keysAttrShow)
 -- instances for MetaDataText
 
 instance FromJSON MetaDataText where
+  parseJSON :: JValue -> JParser MetaDataText
   parseJSON j =
     ( fmap MDT . parseJSON          -- parse a {...} as Map Text Text
     ) j
@@ -798,6 +806,7 @@ instance FromJSON MetaDataText where
     ) j
 
 instance ToJSON MetaDataText where
+  toJSON :: MetaDataText -> JValue
   toJSON (MDT m) = J.toJSON m
 
 -- --------------------
@@ -1400,24 +1409,26 @@ doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
 -- auxiliary iso's for conversion of MetaData <-> Text
 
 isoKeywText :: Iso' [Text] Text
-isoKeywText = isoListText ((== ','), ", ")     -- comma separated list for keywords
+isoKeywText = isoListText tp ((== ','), ", ")   -- comma separated list for keywords
+  where
+    tp t = T.take 1 t /= "-"                    -- no keyword starts with a "-"
 {-# INLINE isoKeywText #-}
 
 isoTSetText :: Iso' [Text] Text
-isoTSetText = isoListText ((== '|'), " | ")   -- '|' separated list (for URLs)
+isoTSetText = isoListText (const True) ((== '|'), " | ")   -- '|' separated list (for URLs)
 {-# INLINE isoTSetText #-}
 
-isoListText :: (Char -> Bool, Text) -> Iso' [Text] Text
-isoListText (del, sep)= iso toT frT
+isoListText :: (Text -> Bool) -> (Char -> Bool, Text) -> Iso' [Text] Text
+isoListText tp (del, sep)= iso toT frT
   where
     toT :: [Text] -> Text
     toT = T.intercalate sep
 
     frT :: Text -> [Text]
     frT =
-      filter (not . T.null)         -- remove empty words
+      filter (\ t -> not (T.null t) && tp t) -- remove "" and illegal words
       .
-      map (T.unwords . T.words)     -- normalize whitespace
+      map (T.unwords . T.words)                              -- normalize whitespace
       .
       T.split del                   -- split at delimiter char
 {-# INLINE isoListText #-}
@@ -1471,7 +1482,7 @@ isoMaybeIntText =
 -- --------------------
 
 unionTS :: [Text] -> [Text] -> [Text]
-unionTS ws1 ws2 = nub (ws1 ++ ws2)
+unionTS ws1 ws2 = nub (ws1 <> ws2)
 {-# INLINE unionTS #-}
 
 -- used when editing metadata: add/rem keywords
