@@ -1304,7 +1304,7 @@ function newKeywordCollections() {
 
 function updateKeywordsCol() {
     console.log("updateKeywordsCol");
-    statusMsg('create collections for new keywords');
+    statusMsg('create new and update existing keyword collections');
     addHistCmd("update all keywords",
                function () {
                    modifyServer('newKeywords', pathKeywords(), [],
@@ -2870,7 +2870,7 @@ function buildImgCarousel(args, colVal) {
     if ( ttt ) {
         clab += "<h4>" + ttt + "<h4>"
     }
-    clab += "<h5>" + args.path + "</h5>";
+    clab += "<h5>" + fromPathName(args.path) + "</h5>";
 
     $('#CarouselModalLabel')
         .empty()
@@ -2911,7 +2911,7 @@ function previewImage() {
 
     $('#PreviewModalLabel')
         .empty()
-        .append('Preview: ' + args.path + "/" + args.name);
+        .append('Preview: ' + fromPathName(args.path + "/" + args.name));
 
     // if dia has a "data-mp4" class, compute the movie ref
     // and insert it in the movie div
