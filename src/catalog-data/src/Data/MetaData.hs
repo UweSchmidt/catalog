@@ -1409,9 +1409,9 @@ doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
 -- auxiliary iso's for conversion of MetaData <-> Text
 
 isoKeywText :: Iso' [Text] Text
-isoKeywText = isoListText tp ((== ','), ", ")   -- comma separated list for keywords
+isoKeywText = isoListText (const True) ((== ','), ", ")   -- comma separated list for keywords
   where
-    tp t = T.take 1 t /= "-"                    -- no keyword starts with a "-"
+    -- tp t = T.take 1 t /= "-"                    -- nice try: qno keyword starts with a "-"
 {-# INLINE isoKeywText #-}
 
 isoTSetText :: Iso' [Text] Text
