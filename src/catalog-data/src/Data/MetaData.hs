@@ -1409,28 +1409,26 @@ doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
 -- auxiliary iso's for conversion of MetaData <-> Text
 
 isoKeywText :: Iso' [Text] Text
-isoKeywText = isoListText (const True) ((== ','), ", ")   -- comma separated list for keywords
-  where
-    -- tp t = T.take 1 t /= "-"                    -- nice try: qno keyword starts with a "-"
+isoKeywText = isoListText ((== ','), ", ")   -- comma separated list for keywords
 {-# INLINE isoKeywText #-}
 
 isoTSetText :: Iso' [Text] Text
-isoTSetText = isoListText (const True) ((== '|'), " | ")   -- '|' separated list (for URLs)
+isoTSetText = isoListText ((== '|'), " | ")   -- '|' separated list (for URLs)
 {-# INLINE isoTSetText #-}
 
-isoListText :: (Text -> Bool) -> (Char -> Bool, Text) -> Iso' [Text] Text
-isoListText tp (del, sep)= iso toT frT
+isoListText :: (Char -> Bool, Text) -> Iso' [Text] Text
+isoListText (del, sep)= iso toT frT
   where
     toT :: [Text] -> Text
     toT = T.intercalate sep
 
     frT :: Text -> [Text]
     frT =
-      filter (\ t -> not (T.null t) && tp t) -- remove "" and illegal words
+      filter (\ t -> not (T.null t)) -- remove
       .
-      map (T.unwords . T.words)                              -- normalize whitespace
+      map (T.unwords . T.words)      -- normalize whitespace
       .
-      T.split del                   -- split at delimiter char
+      T.split del                    -- split at delimiter char
 {-# INLINE isoListText #-}
 
 isoOriText :: Iso' Int Text

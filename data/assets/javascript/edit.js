@@ -1253,7 +1253,7 @@ function checkAndRefreshCol(path, refresh, force) {
                            if (! isThere) {
                                var cid = collectionId(path);
                                removeCollectionFromDom(cid);
-                               statusMsg('collection closed: ' + path);
+                               statusMsg('collection closed: ' + fromPathName(path));
                            } else {
                                if ( refresh ) {
                                    if ( force ) {
@@ -1333,7 +1333,7 @@ function syncCollectionWithFilesystem(sync, path) {
     }
 
     // start syncing on server side
-    statusMsg('synchronizing collection with filesystem: ' + path);
+    statusMsg('synchronizing collection with filesystem: ' + fromPathName(path));
     addHistCmd("sync collection " + splitName(path),
                function () {
                    modifyServer1(sync, path, [],
@@ -1362,7 +1362,7 @@ function exifCollectionWithFilesystem(path) {
     }
 
     // start syncing on server side
-    statusMsg('recomputing exif data for: ' + path);
+    statusMsg('recomputing exif data for: ' + fromPathName(path));
     addHistCmd("sync exif data in " + splitName(path),
                function () {
                    modifyServer('syncExif', path, [true, true],
@@ -1494,6 +1494,35 @@ function normWord(t) {
     return t2;
 }
 
+function normKW(t0) {
+    const re1 = /(^.+?)--(.*)/ ;
+    const m1  = re1.exec(t0);
+
+    let t1 = "";
+    if ( ! m1 ) {
+        t1 = t0;
+    } else {
+        t1 = m1[2];
+    }
+
+    const re2 = /(^.+?)[+][+](.*)/ ;
+    const m2  = re2.exec(t1);
+
+    if ( m2 ) {
+        if ( m1 ) {
+            return "-" + m1[1] + m2[1] + ", " + m1[1] + m2[2];
+        } else {
+            return "-" + m2[1] + ",  " + m2[1] + m2[2];
+        }
+    } else {
+        if ( m1 ) {
+            return "-" + m1[1] + m1[2] + ", " + m1[1];
+        } else {
+            return t0;
+        }
+    }
+}
+
 function normName(t) {
     // normalize text and URL encode special chars
     return toPathName(normWord(t));
@@ -1502,7 +1531,7 @@ function normName(t) {
 function normKeywords(t) {
     let ws  = t.split(",");
     let kws = ws
-        .map(normWord)
+        .map((x) => normKW(normWord(x)))
         .filter((w) => w.length > 0)
         .join(", ");
     console.log("normKeywords(" + t + ") = " + kws);
@@ -1730,7 +1759,7 @@ function closeCollection(cid) {
     statusClear();
     var cp   = collectionPath(cid);
     if ( alwaysOpenCollectionId(cid) ) {
-        statusError("this collection must stay open: " + cp);
+        statusError("this collection must stay open: " + fromPathName(cp));
     } else {
         var cids = allCollectionIds();
         var ix   = cids.indexOf(cid);
@@ -1746,7 +1775,7 @@ function closeCollection(cid) {
         }
         setActiveTab(next);
         removeCollectionFromDom(cid);
-        statusMsg('collection closed: ' + cp);
+        statusMsg('collection closed: ' + fromPathName(cp));
     }
 }
 
@@ -2172,7 +2201,7 @@ function setCollectionImg(cid) {
                                         function () {
                                             var ppath = o.cpath;
                                             var pcol = isAlreadyOpen(ppath);
-                                            statusMsg('collection image set in: ' + path);
+                                            statusMsg('collection image set in: ' + fromPathName(path));
                                             if ( pcol[0] ) {
                                                 // parent collection open
                                                 // refresh the parent collection
