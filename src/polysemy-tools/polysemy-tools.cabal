@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name:          polysemy-tools
-version:       0.5.14.4
+version:       0.5.14.5
 description:   tool and extensions for polysemy effect library
 author:        Uwe Schmidt
 maintainer:    Uwe Schmidt
