@@ -2642,7 +2642,7 @@ function showMetaData(md, args) {
 
     $('#ShowMetaDataModalLabel')
         .empty()
-        .append('Metadata: ' + args.name);
+        .append('Metadata: ' + fromPathName(args.name));
 
     var kvs = [];
     $.each(md, function (k, v) {
