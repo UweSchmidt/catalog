@@ -11,6 +11,7 @@ module Catalog.ImgTree.Access
   , getImgSubDirs
   , getMetaData
   , getImgMetaData
+  , getCreateDates
   , getRootId
   , getRootImgDirId
   , getRootImgColId
@@ -100,6 +101,7 @@ import Data.ImgTree
 import Data.MetaData
        ( MetaData
        , addFileMetaData
+       , lookupCreate
        )
 
 import Data.Prim
@@ -283,6 +285,10 @@ getImgMetaData (ImgRef i nm) = do
   p      <- objid2path i
   return $ addFileMetaData p nm (partMD <> imgMD)
 
+getCreateDates :: (Eff'ISE r) => ColEntries -> Sem r (Seq Text)
+getCreateDates =
+  traverse (fmap (lookupCreate id) . colEntryM' getImgMetaData getMetaData)
+
 -- ----------------------------------------
 
 -- replace an ObjId by a Path in an arbitrary functor, e.g. ImgNode'
@@ -342,7 +348,7 @@ sortColEntries :: Eff'ISE r
 sortColEntries getVal cmpVal es =
   fmap fst . Seq.sortBy (cmpVal `on` snd) <$> traverse mkC es
   where
-    -- mkC :: ColEntry -> Cmd (ColEntry, a)
+    -- mkC :: ColEntry -> Sem (ColEntry, a)
     mkC ce = do
       v <- getVal ce
       return (ce, v)

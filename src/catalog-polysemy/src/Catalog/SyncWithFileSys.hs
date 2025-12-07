@@ -50,7 +50,6 @@ import Catalog.GenCollections
        , genCollectionsByDir'   -- remind the '
        , updateCollectionsByDate
        , updateImportsDir
-       , sortByDate
        )
 import Catalog.ImgTree.Access
        ( getImgVals
@@ -66,6 +65,7 @@ import Catalog.ImgTree.Access
        , objid2contNames
        , getIdNode'
        , getId
+       , sortColEntries
        )
 import Catalog.ImgTree.Fold
        -- ( foldMT )
@@ -105,6 +105,7 @@ import Data.ImgTree
        , ImgRef
        , ImgRef'(ImgRef, _iname)
        , colEntryM'
+       , colEntryM
        , isColColRef
        , isDIR
        , isIMG
@@ -398,7 +399,7 @@ addImgRefsToKeywordCol i rs0 = do
   adjustMetaData (addjSub noOfSubCols) i
 
   -- sort enties by create date
-  rs1 <- sortByDate rs0
+  rs1 <- sortColEntriesByDate rs0
 
   if len <= maxColEntries
     then
@@ -413,6 +414,16 @@ addImgRefsToKeywordCol i rs0 = do
     maxColEntries = 100
 
     len = Seq.length rs0
+
+    sortColEntriesByDate :: (Eff'ISE r) => ColEntries -> Sem r ColEntries
+    sortColEntriesByDate =
+      sortColEntries getD compare
+      where
+        getD :: (Eff'ISE r) => ColEntryM -> Sem r (Either Text (Text, Name))
+        getD =
+          colEntryM
+          (\i' nm' -> (\md' -> Right (lookupCreate id md', nm')) <$> getMetaData i')
+          (\_ -> pure $ Left mempty)
 
     addjSub :: Int -> MetaData -> MetaData
     addjSub lenc md =

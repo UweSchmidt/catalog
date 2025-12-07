@@ -60,6 +60,7 @@ import Catalog.ImgTree.Access
        , getImgParent
        , getMetaData
        , getImgMetaData
+       , getCreateDates
        , findFstColEntry
        , lookupByPath
        , mapObjId2Path
@@ -160,7 +161,6 @@ import Data.MetaData
        , colMDT
        , noshowMDT
        , showMDT
-       , lookupCreate
        , lookupRating
        , mkRating
        , clearAccess
@@ -503,7 +503,8 @@ modify'sortByDate ixs0 i n
       unless (isSortableCol n) $
         throwP i "modify'sortByDate: collection not sortable"
 
-      ds <- getCreateDates n
+      ds <- getCreateDates (n ^. theColEntries)
+
       adjustColEntries (reorderPartByDate ixMax $ Seq.zip ixPos ds) i
         where
           sortWholeCollection = all (-1 ==) ixs0
@@ -519,13 +520,6 @@ modify'sortByDate ixs0 i n
           ixMax
             | sortWholeCollection = (0, 0)                -- no last mark occurs in list of marked pos
             | otherwise           = maximum ixPos         -- --> in cmpd: only 6. case (create date compare) occurs
-
-getCreateDates :: Eff'ISE r => ImgNode -> Sem r (Seq Text)
-getCreateDates n' =
-  traverse
-  (fmap (lookupCreate id) . colEntryM' getImgMetaData getMetaData)
-  (n' ^. theColEntries)
-
 
 reorderPartByDate :: (Int, Int) -> Seq ((Int, Int), Text) -> Seq a -> Seq a
 reorderPartByDate (mi, mp) ixs cs =
