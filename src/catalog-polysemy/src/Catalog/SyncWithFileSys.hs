@@ -323,20 +323,8 @@ isHiddenKWName n =
   T.take 1 (n ^. isoText) == "."
 
 syncAllKeywordCols :: Eff'ISEJL r => Sem r ()
-syncAllKeywordCols = do
-  log'trc "syncAllKeywordCols"
-  getId p'keywords >>= foldCollections colA
-  where
-    colA go i _md _im _be cs = do
-      nm <- getImgName i
-      unless (isHiddenKWName nm) $ do
-        -- recurse into subcollections
-        _ <- foldColColEntries go cs
-
-        -- sync keyword collection
-        p <- objid2path i
-        syncKeywordCol p i
-        return ()
+syncAllKeywordCols =
+  getId p'keywords >>= syncKeywordCol p'keywords
 
 allKeywordCols :: Eff'ISEL r => Sem r Keywords
 allKeywordCols = do
@@ -357,15 +345,19 @@ allKeywordCols = do
 
 allKeywords :: Eff'ISEL r => Sem r Keywords
 allKeywords = do
-  kws <- getId p'arch'photos >>= foldImages imgA
+  kws <- getId p'albums >>= foldCollections colA
 
   log'trc $ "allKeywords: " <> T.intercalate ", " (S.toAscList kws)
   return kws
   where
-    imgA _i _ps md =
-      return (S.fromList $ md ^. metaDataAt descrKeywords . metaTS)
+    colA go _i _md _im _be cs = do
+      fold <$> traverse (colEntryM' iref go) cs
+      where
+        iref (ImgRef i' _p') = do
+          md' <- getMetaData i'
+          return (S.fromList $ md' ^. metaDataAt descrKeywords . metaTS)
 
-newKeywordCols :: Eff'ISEJL r => Sem r ()
+newKeywordCols :: (Eff'ISEJL r) => Sem r ()
 newKeywordCols = do
   kws  <- allKeywords
   kwcs <- allKeywordCols
