@@ -1293,7 +1293,10 @@ function keywordActiveCollection() {
                    modifyServer('syncKeyword', path, [],
                                 function() {
                                     statusMsg('update of keyword collection done');
-                                    getColFromServer(path, refreshCollectionF);
+                                    getColFromServer(path,
+                                                     function(path, colVal) {
+                                                         checkAllColAreThere(true, true);
+                                                     });
                                 });
                });
 }

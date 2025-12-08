@@ -487,6 +487,17 @@ syncKeywordCol p i = do
   -- after cleanup only real keyword subcollections remain in i
   cleanupKeywordCol i n0
 
+  -- recurse into sub collections
+  n1 <- getImgVal i
+  foldColColEntries
+    (\i' -> do
+        p' <- objid2path i'
+        syncKeywordCol p' i'
+    )
+    (n1 ^. theColEntries)
+
+  log'trc $ "syncKeywordCol: keyword subcollections updated for " <> p ^. isoUrlText
+
   -- get image refs containing keyword
   -- traverse only album collection, not the generated colls
   imgRefs <- allImgRefsWithKW kw
