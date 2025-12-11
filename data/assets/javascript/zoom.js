@@ -1235,10 +1235,13 @@ function similarGeoOnScreen() {
 /* ---------------------------------------- */
 /* urls */
 
-function toHref(url) {
-    return "javascript:gotoUrl('"
-        + url
-        + "');";
+// please no "" or '' in jscode
+// this leads to javascrip pasing errors
+
+function toHref1(jscode) {
+    return "javascript:"
+        + jscode
+        + ";";
 }
 
 function jsonReqToUrl(jsonReq) {
@@ -1719,7 +1722,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
         function buildNav() {
 
-            function buildNavIcon(ico, tt0) {
+            function buildNavIcon(ico, tt0, jscode) {
                 if (! ico) {
                     return newElem("div");
                 }
@@ -1739,7 +1742,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                 }
 
                 const a = newElem("a");
-                a.href  = toHref(jsonReqToUrl(req));
+                a.href  = toHref1(jscode);
                 a.title = md["Descr:Title"]
                        || addBild(req, tt0)
                        || "";
@@ -1763,11 +1766,11 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                               });
 
             const i1 = buildNavIcon();
-            const i2 = buildNavIcon(navIcons.par,  "umfassendes Album");
+            const i2 = buildNavIcon(navIcons.par,  "umfassendes Album", "StepActions.parent()");
             const i3 = buildNavIcon();
-            const i4 = buildNavIcon(navIcons.prev, "voriges ");
-            const i5 = buildNavIcon(c1Icon,        "erstes ");
-            const i6 = buildNavIcon(navIcons.next, "nächstes ");
+            const i4 = buildNavIcon(navIcons.prev, "voriges ",          "StepActions.prev()");
+            const i5 = buildNavIcon(c1Icon,        "erstes ",           "StepActions.down()");
+            const i6 = buildNavIcon(navIcons.next, "nächstes ",         "StepActions.next()");
 
 
             r.appendChild(i1);
@@ -1815,7 +1818,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                                });
 
             const a  = newElem("a");
-            a.href   = toHref(jsonReqToUrl(ir));
+            a.href   = toHref1("StepActions.child(" + i + ")");
             a.title  = md["Descr:Title"]
                     || addBild(ir, (i + 1) + ". ");
 
@@ -1936,10 +1939,11 @@ function getNavReq(nav, s) {
     return s.page.imgNavRefs[nav];
 }
 
-function getChild0Req(s) {
+function getChildReq(s, i) {
     s = s || cs;
+    i = i || 0;
     if ( isColSlide() ) {
-        const req = s.page.contIcons[0].eReq;
+        const req = s.page.contIcons[i].eReq;
         if ( req ) {
             return req;
         }
@@ -1970,8 +1974,8 @@ function goForward() {
     showNextSlide(req);
 }
 
-function gotoChild0() {
-    const req = getChild0Req();
+function gotoChild(i) {
+    const req = getChildReq(cs, i);
     showNextSlide(req);
 }
 
@@ -2074,6 +2078,8 @@ const MoveScaleActions = {
     scrollRight() { thisSlideWith(Display.ScrollRight(0.8));             },
 };
 
+// Don't rename StepActions and function names, they are used in buildNavIcon
+
 const StepActions = {
     advance() {
         stopShow();
@@ -2094,11 +2100,15 @@ const StepActions = {
     },
     down() {
         stopShow();
-        gotoChild0();
+        gotoChild(0);
     },
     reload() {
         stopShow();
         stayHere();
+    },
+    child(i) {
+        stopShow();
+        gotoChild(i);
     },
 
     showCol() {
