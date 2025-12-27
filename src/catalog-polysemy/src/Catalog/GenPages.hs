@@ -405,8 +405,10 @@ processReqImg' r0 = do
            genReqImg r2
       )
       <|>
-      ( do _ <- createIconFromObj r1 dstPath
-           return dstPath
+      ( do
+          let dstPath' = toUrlEncPath dstPath
+          _ <- createIconFromObj r1 dstPath'
+          return dstPath'
       )
 
 -- ----------------------------------------

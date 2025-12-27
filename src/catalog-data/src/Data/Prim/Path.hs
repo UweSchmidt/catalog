@@ -31,6 +31,7 @@ module Data.Prim.Path
   , UrlPath
   , isoUrlPath
   , isoUrlText
+  , toUrlEncPath
   )
 where
 
@@ -354,6 +355,7 @@ isoListPath = iso listFromPath listToPath
 newtype UrlPath = UP {_upt :: Text}
 
 instance IsoText UrlPath where
+  isoText :: Iso' UrlPath Text
   isoText = iso _upt UP
 
 isoUrlPath :: Iso' Path UrlPath
@@ -384,5 +386,14 @@ instance FromJSON UrlPath where
 
 isoUrlText :: Iso' Path Text
 isoUrlText = isoUrlPath . isoText
+
+-- ----------------------------------------
+
+-- Url encondes all parts of a path
+
+toUrlEncPath :: Path -> Path
+toUrlEncPath = fmap to
+  where
+    to n = n & isoText %~ (^. isoTextUrlPart)
 
 -- ----------------------------------------
