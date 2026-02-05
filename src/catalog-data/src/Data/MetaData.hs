@@ -1330,7 +1330,9 @@ lookupCreate :: (Text -> res) -> MetaData -> res
 lookupCreate p mt = p (v ^. isoMetaValueText exifCreateDate)
   where
     v = lookupByKeys
-        [ compositeSubSecCreateDate
+        [ descrCreateDate            -- 1. try: generated dates can be overwritten by hand
+        , compositeSubSecCreateDate
+        , compositeSubSecDateTimeOriginal
         , exifCreateDate
         , quickTimeCreateDate
         , fileFileModifyDate
@@ -1606,7 +1608,7 @@ parseDateTime = parseMaybe dateTimeParser . (isoText #)
 
 -- take the day part from a date/time input
 parseDate :: Text -> Maybe (String, String, String)
-parseDate = parseMaybe (fst <$> dateTimeParser) . (isoText #)
+parseDate = parseMaybe dateParser . (isoText #)
 {-# INLINE parseDate #-}
 
 isoDateInt :: Iso' (String, String, String) Int
@@ -1647,14 +1649,14 @@ timeParser = do
 dateParser :: SP YMD
 dateParser = do
   y <-               count 4 digitChar
-  m <- oneOf' del *> count 2 digitChar
-  d <- oneOf' del *> count 2 digitChar
+  m <- oneOf' del *> count 2 digitChar <|> return "00"
+  d <- oneOf' del *> count 2 digitChar <|> return "00"
   let (y', m', d') = (read y, read m, read d) :: (Int, Int, Int)
   if y' >= 1800 && y' < 3001
      &&
-     m' >= 1    && m' <= 12
+     m' >= 0    && m' <= 12         -- month not given: 0
      &&
-     d' >= 1    && d' <= 31
+     d' >= 0    && d' <= 31         -- day not given: 0
     then return (y, m, d)
     else mzero
   where
@@ -1663,7 +1665,7 @@ dateParser = do
 dateTimeParser :: SP YMD'HMS
 dateTimeParser = do
   ymd <- dateParser
-  hms <- some spaceChar *> timeParser <* anyString  -- maybe followed by time zone
+  hms <- (char 'T' <|> some spaceChar *> return ' ') *> timeParser <* anyString  -- maybe followed by time zone
   return (ymd, hms)
 
 -- ----------------------------------------

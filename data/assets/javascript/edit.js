@@ -2393,7 +2393,8 @@ var metaDataDescrKeys =
       "Wikipedia",
       "Audio",
       "TitleEnglish",
-      "TitleLatin"
+      "TitleLatin",
+      "CreateDate"
     ];
 
 var metaDataShowKeys =
