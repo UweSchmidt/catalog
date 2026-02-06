@@ -560,12 +560,12 @@ allRefsWithKW kw =
   getId p'albums >>= foldCollections colA
   where
     colA go i md _im _be cs = do
-      let crs1
-            | hasKeyword md = S.singleton i
-            | otherwise     = S.empty
+      if hasKeyword md
+        then
+          return (mempty, S.singleton i)              -- search finished: whole collection is taken
+        else
+          fold <$> traverse (colEntryM' iref go) cs   -- recurse into subtree
 
-      (irs2, crs2) <- fold <$> traverse (colEntryM' iref go) cs
-      return (irs2, S.union crs1 crs2)
       where
         hasKeyword md' =
           not . null . filter (== kw) $ kws
@@ -578,8 +578,8 @@ allRefsWithKW kw =
           return $
             ( if b
               then S.singleton ir
-              else S.empty
-            , S.empty
+              else mempty
+            , mempty
             )
 
 -- ----------------------------------------
