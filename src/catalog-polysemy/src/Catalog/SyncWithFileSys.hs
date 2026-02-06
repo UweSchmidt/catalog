@@ -405,18 +405,20 @@ sortColEntriesByDate =
     getD =
       colEntryM
       (\i' nm' -> (\md' -> Right (lookupCreate id md', nm')) <$> getMetaData i')
-      (\_ -> pure $ Left mempty)
+      (\i'     -> (\md' -> Left  (lookupCreate id md')     ) <$> getMetaData i')
 
 addColRefsToKeywordCol :: (Eff'ISEJL r) => ObjId -> ColEntries -> Sem r ()
 addColRefsToKeywordCol i rs0 = do
   rs1 <- sortColEntriesByDate rs0
   let cs1 = fmap (^. theColEntry . theColObjId) rs1 :: Seq ObjId
+  let ixs = Seq.fromList [1 .. Seq.length cs1]     -- make coll names unique
   traverse_
-    ( \ci -> do
-        cn <- (\n -> n <> (isoText # kwSuffix)) <$> getImgName ci
+    ( \(ci, i') -> do
+        let px = (show i' <> ".") ^. isoText
+        cn <- (\n -> (isoText # px) <> n <> (isoText # kwSuffix)) <$> getImgName ci
         dupColRec ci i cn
     )
-    cs1
+    (Seq.zip cs1 ixs)
   return ()
 
 maxImgEntries :: Int
