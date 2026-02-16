@@ -1210,12 +1210,24 @@ function insertEntry(colId, colPath, entry, i, ref) {
     setMark(p, mk);
 
     if ( entry.ColEntry === "COL") {
-
         // if entry is a collection add open collection event handler
+
         p.find("div.dia-name a")
             .on('click', function (e) {
+                // 1. thing to do in event hander (no default href handler)
                 e.preventDefault();
-                openCollection(ref.path);
+
+                const path = ref.path;
+                console.log("collection open ref: " + path);
+
+                // check keyword CollectionRef for "SymLink" to album collection
+                function k1(md) {
+                    const p = md["Descr:CollectionRef"] || path;
+                    console.log("fff: open " + p);
+                    openCollection(p);
+                }
+
+                getMetaFromServer(path, -1, k1);
             });
 
         // wriable marker set later by an extra server call
@@ -2636,7 +2648,7 @@ function getMetaData() {
         o.pos  = -1;
         o.name = o.path;
     }
-    getMetaFromServer(o);
+    showMetaFromServer(o);
 }
 
 function showMetaData(md, args) {
@@ -3313,15 +3325,15 @@ function fillMetaFromServer(args) {
                );
 }
 
-function getMetaFromServer(args) {
-    // thread the args object into the callback function
-    readServer1('metadata',
-                args.path,
-                args.pos,
-                function (res) {
-                    showMetaData(res, args);
-                }
-               );
+function showMetaFromServer(args) {
+    function processMeta(res) {
+        showMetaData(res, args);
+    }
+    getMetaFromServer(args.path, args.pos, processMeta);
+}
+
+function getMetaFromServer(path, pos, processMeta) {
+    readServer1('metadata', path, pos, processMeta);
 }
 
 function getRatingFromServer(path, pos, setRating) {
