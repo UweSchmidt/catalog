@@ -11,7 +11,10 @@ module Catalog.SyncWithFileSys
   , syncAllKeywordCols
   , allKeywords
   , allKeywordCols
+  , allKeywordColsM
   , newKeywordCols
+  , Keywords
+  , KeywordCols
   )
 where
 
@@ -313,7 +316,8 @@ updateImgRefs um i0
 
 -- ----------------------------------------
 
-type Keywords = Set Text
+type Keywords    = Set Text
+type KeywordCols = Map Text Path
 
 -- global constants
 
@@ -348,22 +352,45 @@ syncAllKeywordCols :: Eff'ISEJL r => Sem r ()
 syncAllKeywordCols =
   getId p'keywords >>= syncKeywordCol p'keywords
 
-allKeywordCols :: Eff'ISEL r => Sem r Keywords
-allKeywordCols = do
-  kwcs <- getId p'keywords >>= foldCollections colA
+-- --------------------
 
-  log'trc $ "allKeywordCols: " <> T.intercalate ", " (S.toAscList kwcs)
-  return kwcs
+allKeywordCols :: (Eff'ISEL r) => Sem r Keywords
+allKeywordCols = toKWS <$> allKeywordColsM
+  where
+    toKWS = S.fromList . M.keys
+
+allKeywordColsM :: (Eff'ISEL r) => Sem r KeywordCols
+allKeywordColsM = do
+  i <- getId p'keywords
+
+  log'trc "allKeywordCols: keyword collections:"
+  kws <- allKeywordColsM' i
+  void $ M.traverseWithKey
+    (\kw p ->
+       log'trc $ kw ^. isoText <> ": " <> p ^. isoText
+    ) kws
+
+  return kws
+
+allKeywordColsM' :: (Eff'ISEL r) => ObjId -> Sem r KeywordCols
+allKeywordColsM' i0 = do
+  foldCollections colA i0
   where
     colA go i _md _im _be cs = do
-      kws1 <- (\ n' -> if isHiddenKWName n'
-                       then mempty
-                       else S.singleton . (^. isoText) $ n'
-              )
-              <$>
-              getImgName i
+      kws1 <- do
+        n' <- getImgName i
+        if isHiddenKWName n'
+           ||
+           i == i0             -- root collection not included
+          then
+            return mempty
+          else do
+            p' <- objid2path i
+            return $ M.singleton (n' ^. isoText) p'
       kws2 <- foldColColEntries go cs
-      return $ S.union (S.delete (n'keywords ^. isoText) kws1) kws2
+      return $ M.union kws1 kws2
+
+-- --------------------
 
 allKeywords :: Eff'ISEL r => Sem r Keywords
 allKeywords = do
