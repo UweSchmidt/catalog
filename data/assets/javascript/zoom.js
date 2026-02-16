@@ -1811,6 +1811,10 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
             const ir = ce.eReq;
             const md = ce.eMeta;
+            const cr = md["Descr:CollectionRef"] || "";
+            const ct = (cr === "") ? "" : " (-> " + cr + ")";
+            const tt = md["Descr:Title"] + ct;
+
             const e  = newElem("div",
                                { width:  iG.w,
                                  height: iG.h,
@@ -1819,8 +1823,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
             const a  = newElem("a");
             a.href   = toHref1("StepActions.child(" + i + ")");
-            a.title  = md["Descr:Title"]
-                    || addBild(ir, (i + 1) + ". ");
+            a.title  = tt || addBild(ir, (i + 1) + ". ");
 
             const im = newElem("img",
                                { width:  "100%",
@@ -1943,13 +1946,20 @@ function getChildReq(s, i) {
     s = s || cs;
     i = i || 0;
     if ( isColSlide() ) {
-        const req = s.page.contIcons[i].eReq;
+        let   req = s.page.contIcons[i].eReq;
+
+        const lnk = s.page.contIcons[i].eMeta["Descr:CollectionRef"];
+        if ( lnk ) {
+            // build "SymLink" request
+            req = { rPathPos: [lnk, null], rType: "json" };
+        }
         if ( req ) {
             return req;
         }
     }
     return null;
 }
+
 // ----------------------------------------
 // event handler
 
