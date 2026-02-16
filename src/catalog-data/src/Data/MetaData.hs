@@ -108,6 +108,7 @@ module Data.MetaData
   , descrComment
   , descrCommentImg
   , descrCreateDate
+  , descrCollectionRef
   , descrOrderedBy
   , descrAccess
   , descrDuration
@@ -300,6 +301,7 @@ data MetaKey
   | Descr'Comment
   | Descr'CommentImg
   | Descr'CreateDate
+  | Descr'CollectionRef
   | Descr'Duration
   | Descr'GPSAltitude
   | Descr'GPSPosition
@@ -464,6 +466,7 @@ descrTitle
   , descrComment
   , descrCommentImg
   , descrCreateDate
+  , descrCollectionRef
   , descrOrderedBy
   , descrAccess
   , descrDuration
@@ -486,6 +489,7 @@ keysAttrDescr@[
   , descrComment
   , descrCommentImg
   , descrCreateDate
+  , descrCollectionRef
   , descrDuration
   , descrGPSAltitude
   , descrGPSPosition
@@ -1603,12 +1607,15 @@ type YMD = (String, String, String)
 type HMS = (String, String, String, String)
 type YMD'HMS = (YMD, HMS)
 
+parseMaybe' :: SP a -> Text -> Maybe a
+parseMaybe' p = parseMaybe (p <* anyString) . (isoText #)
+
 parseDateTime :: Text -> Maybe YMD'HMS
-parseDateTime = parseMaybe dateTimeParser . (isoText #)
+parseDateTime = parseMaybe' dateTimeParser
 
 -- take the day part from a date/time input
 parseDate :: Text -> Maybe (String, String, String)
-parseDate = parseMaybe dateParser . (isoText #)
+parseDate = parseMaybe' dateParser . (isoText #)
 {-# INLINE parseDate #-}
 
 isoDateInt :: Iso' (String, String, String) Int
@@ -1627,14 +1634,14 @@ isoDateInt = iso toInt frInt
 
 -- take the time part of a full date/time input
 parseTime :: Text -> Maybe (String, String, String, String)
-parseTime = parseMaybe (snd <$> dateTimeParser) . (isoText #)
+parseTime = parseMaybe' timeParser
 {-# INLINE parseTime #-}
 
 timeParser :: SP HMS
 timeParser = do
   h  <-             count 2 digitChar
-  m  <- char ':' *> count 2 digitChar
-  s  <- char ':' *> count 2 digitChar
+  m  <- char ':' *> count 2 digitChar <|> return "00"
+  s  <- char ':' *> count 2 digitChar <|> return "00"
   ms <- SP.option ".0" $
         char '.' *> some    digitChar
   let (h', m', s') = (read h, read m, read s) :: (Int, Int, Int)
@@ -1663,9 +1670,8 @@ dateParser = do
     del = "-:"
 
 dateTimeParser :: SP YMD'HMS
-dateTimeParser = do
-  ymd <- dateParser
-  hms <- (char 'T' <|> some spaceChar *> return ' ') *> timeParser <* anyString  -- maybe followed by time zone
-  return (ymd, hms)
+dateTimeParser =
+   (,) <$> dateParser <* (char 'T' <|> some spaceChar *> return ' ')
+       <*> timeParser
 
 -- ----------------------------------------

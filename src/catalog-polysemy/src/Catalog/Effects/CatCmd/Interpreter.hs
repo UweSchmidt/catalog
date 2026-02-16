@@ -701,7 +701,7 @@ modify'renamecol newName i = do
   iParent <- getImgParent i
 
   -- duplicate collection in parent collection
-  CR.dupColRec i iParent newName
+  void $ CR.dupColRec i iParent newName
 
   -- find position of objid i in parent collection
   ps <- flip findFstColEntry iParent $

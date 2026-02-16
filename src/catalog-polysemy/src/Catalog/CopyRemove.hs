@@ -5,6 +5,7 @@ module Catalog.CopyRemove
   , removeEntry
   , rmRec
   , dupColRec
+  , dupColNoRec
   , removeEmptyColls
   , cleanupColByPath
   , cleanupAllCollections
@@ -122,15 +123,21 @@ copyCollection path'src path'dst = do
 
   -- copyColRec id'src id'dst
   srcName   <- getImgName id'src
-  dupColRec id'src id'dst srcName
+  void $ dupColRec id'src id'dst srcName
 
 -- ----------------------------------------
 --
 -- copy a collection src into a collection dstParent
 -- with new collection name dstName
 
-dupColRec :: Eff'ISEJL r => ObjId -> ObjId -> Name -> Sem r ()
-dupColRec src dstParent dstName = do
+dupColRec :: (Eff'ISEJL r) => ObjId -> ObjId -> Name -> Sem r ObjId
+dupColRec = dupColRec' True
+
+dupColNoRec :: (Eff'ISEJL r) => ObjId -> ObjId -> Name -> Sem r ObjId
+dupColNoRec = dupColRec' False
+
+dupColRec' :: Eff'ISEJL r => Bool -> ObjId -> ObjId -> Name -> Sem r ObjId
+dupColRec' withEntries src dstParent dstName = do
   srcVal  <- getImgVal src
   srcPath <- objid2path src
 
@@ -144,10 +151,13 @@ dupColRec src dstParent dstName = do
     throw $ msgPath dstParentPath "dupColRec: target isn't a collection "
 
   let dstPath  = dstParentPath `snocPath` dstName
-  let editPath = substPathPrefix srcPath dstPath
+  did <- createColCopy dstPath src
 
-  void $ createColCopy dstPath src
-  copyColEntries editPath src
+  when withEntries $ do
+    let editPath = substPathPrefix srcPath dstPath
+    copyColEntries editPath src
+
+  return did
 
 -- ----------------------------------------
 --

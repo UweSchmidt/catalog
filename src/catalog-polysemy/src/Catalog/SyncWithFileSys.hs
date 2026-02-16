@@ -17,7 +17,7 @@ where
 
 import Catalog.CopyRemove
        ( rmRec
-       , dupColRec
+       , dupColNoRec
        , AdjustImgRef
        , AdjustColEnt
        , cleanupRefs'
@@ -315,6 +315,17 @@ updateImgRefs um i0
 
 type Keywords = Set Text
 
+-- global constants
+
+kwSuffix :: Text           -- suffix for generated keyword collections
+kwSuffix = ".keyword"
+
+kwNoIndex :: Text          -- marker (keyword) for stopping search of entries with keyword
+kwNoIndex = "no-index"
+
+maxImgEntries :: Int       -- max # of images in a generated kw collection
+maxImgEntries = 100
+
 -- hidden keyword col name are used in very large
 -- keyword collections to partition the entries into subcollections
 -- or
@@ -330,8 +341,8 @@ isHiddenKWName n =
   where
     n' = n ^. isoText
 
-kwSuffix :: Text
-kwSuffix = ".keyword"
+kwList :: MetaData -> [Text]
+kwList md = md ^. metaDataAt descrKeywords . metaTS
 
 syncAllKeywordCols :: Eff'ISEJL r => Sem r ()
 syncAllKeywordCols =
@@ -362,13 +373,17 @@ allKeywords = do
   return kws
   where
     colA go _i md _im _be cs = do
-      let kws1 = S.fromList $ md ^. metaDataAt descrKeywords . metaTS  -- col keywords
-      kws2 <- fold <$> traverse (colEntryM' iref go) cs                -- entries keywords
-      return $ S.union kws1 kws2
+      let kws1 = S.fromList $ kwList md            -- col keywords
+      kws2 <- if (kwNoIndex `S.member` kws1)
+              then
+                return mempty                                -- stop looking for keywords
+              else
+                fold <$> traverse (colEntryM' iref go) cs    -- keywords in col entries
+      return (S.delete kwNoIndex $ S.union kws1 kws2)
       where
         iref (ImgRef i' _p') = do
           md' <- getMetaData i'
-          return (S.fromList $ md' ^. metaDataAt descrKeywords . metaTS)
+          return (S.fromList $ kwList md')
 
 newKeywordCols :: (Eff'ISEJL r) => Sem r ()
 newKeywordCols = do
@@ -410,19 +425,17 @@ sortColEntriesByDate =
 addColRefsToKeywordCol :: (Eff'ISEJL r) => ObjId -> ColEntries -> Sem r ()
 addColRefsToKeywordCol i rs0 = do
   rs1 <- sortColEntriesByDate rs0
-  let cs1 = fmap (^. theColEntry . theColObjId) rs1 :: Seq ObjId
-  let ixs = Seq.fromList [1 .. Seq.length cs1]     -- make coll names unique
-  traverse_
-    ( \(ci, i') -> do
+  void $ Seq.traverseWithIndex
+    ( \i' r' -> do
+        let ci = r' ^. theColEntry . theColObjId
         let px = (show i' <> ".") ^. isoText
+        cp <- objid2path ci
         cn <- (\n -> (isoText # px) <> n <> (isoText # kwSuffix)) <$> getImgName ci
-        dupColRec ci i cn
+        cd <- dupColNoRec ci i cn
+        adjustMetaData (\md -> md & metaTextAt descrCollectionRef .~ cp ^. isoText ) cd
+        return ()
     )
-    (Seq.zip cs1 ixs)
-  return ()
-
-maxImgEntries :: Int
-maxImgEntries = 100
+    rs1
 
 addImgRefsToKeywordCol :: Eff'ISEJL r => Bool -> ObjId -> ColEntries -> Sem r ()
 addImgRefsToKeywordCol forceSubCol i rs0 = do
@@ -445,8 +458,7 @@ addImgRefsToKeywordCol forceSubCol i rs0 = do
       p <- objid2path i
       log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
 
-      _ <- Seq.traverseWithIndex (addCol p) crs
-      return ()
+      void $ Seq.traverseWithIndex (addCol p) crs
       where
         crs = Seq.chunksOf maxImgEntries rs
 
@@ -560,23 +572,23 @@ allRefsWithKW kw =
   getId p'albums >>= foldCollections colA
   where
     colA go i md _im _be cs = do
-      if hasKeyword md
+      let kws = kwList md
+      if kw `elem` kws
         then
           return (mempty, S.singleton i)              -- search finished: whole collection is taken
         else
+        if kwNoIndex `elem` kws
+        then
+          return (mempty, mempty)                     -- stop collecting refs
+        else
           fold <$> traverse (colEntryM' iref go) cs   -- recurse into subtree
-
       where
-        hasKeyword md' =
-          not . null . filter (== kw) $ kws
-          where
-            kws = md' ^. metaDataAt descrKeywords . metaTS
 
         iref :: (Eff'ISE r) => ImgRef -> Sem r (Set ImgRef, Set ObjId)
         iref ir@(ImgRef i' _p') = do
-          b <- hasKeyword <$> getMetaData i'
+          kws' <- kwList <$> getMetaData i'
           return $
-            ( if b
+            ( if kw `elem` kws'
               then S.singleton ir
               else mempty
             , mempty
