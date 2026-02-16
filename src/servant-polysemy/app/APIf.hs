@@ -71,6 +71,9 @@ import Data.MetaData
 import Catalog.GenPages
        ( JPage )
 
+import Catalog.SyncWithFileSys
+       ( KeywordCols )
+
 import Catalog.CatEnv
        ( CatEnv )
 
@@ -239,6 +242,8 @@ type ParamPost a r
 type JsonGetAPI
   = "get" :>
     ( "collection"      :> SimplePost ImgNodeP
+      :<|>
+      "keywords"        :> SimplePost KeywordCols
       :<|>
       "isWriteable"     :> SimplePost Bool
       :<|>

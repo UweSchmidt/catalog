@@ -93,6 +93,7 @@ import Catalog.Effects.CatCmd
        , theBlogContents
        , theBlogSource
        , theEntry
+       , theKeywordCols
        , theMetaDataText
        , theRating
        , theRatings
@@ -414,7 +415,7 @@ catalogServer env runReadC runModyC runBGC =
       return env
 
 -- --------------------
-{-
+-- {-
     runR0 :: forall a.
              CatApp a -> ListPath -> Handler a
     runR0 cmd' _ts = runReadC cmd'      -- throw away redundant path
@@ -434,6 +435,8 @@ catalogServer env runReadC runModyC runBGC =
 
     json'read =
       runR1 theEntry
+      :<|>
+      runR0 theKeywordCols
       :<|>
       runR1 isWriteable
       :<|>

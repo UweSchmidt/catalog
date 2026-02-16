@@ -36,6 +36,7 @@ module Catalog.Effects.CatCmd
 
   -- catalog reading commands
   , theEntry
+  , theKeywordCols
   , isWriteable
   , isRemovable
   , isSortable
@@ -90,6 +91,10 @@ import Data.History
 import Catalog.GenPages
        ( JPage )
 
+import Catalog.SyncWithFileSys
+  ( KeywordCols,
+  )
+
 -- ----------------------------------------
 --
 -- the Cmd API as GATD
@@ -123,6 +128,7 @@ data CatCmd m a where
 
   -- catalog reading commands
   TheEntry             ::                          Path -> CatCmd m ImgNodeP
+  TheKeywordCols       ::                                  CatCmd m KeywordCols
   IsWriteable          ::                          Path -> CatCmd m Bool
   IsRemovable          ::                          Path -> CatCmd m Bool
   IsSortable           ::                          Path -> CatCmd m Bool

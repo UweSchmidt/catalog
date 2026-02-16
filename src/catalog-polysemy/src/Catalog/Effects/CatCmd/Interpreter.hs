@@ -9,6 +9,7 @@ import Catalog.Effects
        , InterpreterFor
        , Eff'ALL
        , Eff'ISE
+       , Eff'ISEL
        , Eff'ISEJL
        , EffCatEnv
        , EffError
@@ -87,7 +88,10 @@ import Catalog.MetaData.Sync
        ( Eff'MDSync )
 
 import Catalog.SyncWithFileSys
-       ( Eff'Sync )
+       ( Eff'Sync
+       , KeywordCols
+       , allKeywordColsM
+       )
 
 import Catalog.TextPath
        ( toFileSysPath )
@@ -270,6 +274,9 @@ evalCatCmd =
 
     TheEntry p ->
       getNode p >>= read'collection
+
+    TheKeywordCols ->
+      read'keywordCols
 
     IsWriteable p ->
       getNode p >>= read'isWriteable
@@ -882,6 +889,8 @@ modify'testCmd i = do
 read'collection :: Eff'ISE r => ImgNode -> Sem r ImgNodeP
 read'collection = mapObjId2Path
 
+read'keywordCols :: Eff'ISEL r => Sem r KeywordCols
+read'keywordCols = allKeywordColsM
 -- access restrictions on a collection
 
 read'isWriteable :: Eff'ISE r => ImgNode -> Sem r Bool

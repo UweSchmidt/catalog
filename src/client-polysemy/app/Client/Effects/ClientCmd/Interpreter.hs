@@ -129,6 +129,7 @@ import Catalog.Effects.CatCmd
        , syncKeyword
        , newKeywords
        , theEntry
+       , theKeywordCols
        , theMetaDataText
        , updateCheckSum
        , updateTimeStamp
@@ -150,6 +151,7 @@ import GPS.Effects.GeoLocCmd
        )
 
 -- libraries
+import qualified Data.Map                 as M
 import qualified Data.Text                as T
 
 ------------------------------------------------------------------------------
@@ -221,6 +223,10 @@ evalClientCmd =
 
       runReader (CSEnv onlyUpdate True forceUpdate) $
          evalCheckSums updateCheckSumRes ps part
+
+    CcKeywordCols -> do
+      kws <- theKeywordCols
+      traverse_ (uncurry prettyKWC) $ M.toAscList kws
 
     CcUndoList -> do
       es <- listUndoEntries
@@ -868,6 +874,12 @@ checkMeta p e
 prettyUndo :: Member (Consume Text) r
            => HistoryID -> Text -> Sem r ()
 prettyUndo hid cmt = writeln $ (show hid ++ ". ") ^. isoText <> cmt
+
+prettyKWC  :: Member (Consume Text) r
+           => Text -> Path -> Sem r ()
+prettyKWC kw p = writeln $ kw' <> ":-> " <> p ^. isoText
+  where
+    kw' = kw & isoString %~ fillRight ' ' 16
 
 ------------------------------------------------------------------------------
 
