@@ -355,16 +355,16 @@ syncAllKeywordCols =
 -- --------------------
 
 allKeywordCols :: (Eff'ISEL r) => Sem r Keywords
-allKeywordCols = toKWS <$> allKeywordColsM
+allKeywordCols = toKWS <$> allKeywordColsM (const True)
   where
     toKWS = S.fromList . M.keys
 
-allKeywordColsM :: (Eff'ISEL r) => Sem r KeywordCols
-allKeywordColsM = do
+allKeywordColsM :: (Eff'ISEL r) => (Text -> Bool) -> Sem r KeywordCols
+allKeywordColsM sel = do
   i <- getId p'keywords
 
   log'trc "allKeywordCols: keyword collections:"
-  kws <- allKeywordColsM' i
+  kws <- allKeywordColsM' sel i
   void $ M.traverseWithKey
     (\kw p ->
        log'trc $ kw ^. isoText <> ": " <> p ^. isoText
@@ -372,8 +372,8 @@ allKeywordColsM = do
 
   return kws
 
-allKeywordColsM' :: (Eff'ISEL r) => ObjId -> Sem r KeywordCols
-allKeywordColsM' i0 = do
+allKeywordColsM' :: (Eff'ISEL r) => (Text -> Bool) -> ObjId -> Sem r KeywordCols
+allKeywordColsM' sel i0 = do
   foldCollections colA i0
   where
     colA go i _md _im _be cs = do
@@ -381,7 +381,9 @@ allKeywordColsM' i0 = do
         n' <- getImgName i
         if isHiddenKWName n'
            ||
-           i == i0             -- root collection not included
+           i == i0                    -- root collection not included
+           ||
+           not (sel $ n' ^. isoText)  -- kw not of interest, filtered out
           then
             return mempty
           else do

@@ -407,9 +407,9 @@ cmdClient = subparser $
     )
   <>
   command "list-keywords"
-    ( (pure CcKeywordCols)
+    ( (CcKeywordCols <$> argKW)
       `withInfo`
-      ( "List all keywords.")
+      ( "List collection path of a keyword. Default: list paths for all keywords.")
     )
   <>
   command "check-meta"
@@ -478,6 +478,12 @@ argPath1' path = argument str (metavar path)
 argPath1 :: Parser Path
 argPath1 = argPath1' "PATH"
 
+argKW :: Parser [Text]
+argKW = ((:[]) <$> argKW1) <|> pure []
+
+argKW1 :: Parser Text
+argKW1 = argument str (metavar "KEYWORD")
+
 argPathPos :: Parser PathPos
 argPathPos = (^. isoPathPos) <$> argPath
 
@@ -486,6 +492,9 @@ argPathPos1 = (^. isoPathPos) <$> argPath1
 
 argKey :: Parser MetaKey
 argKey = argument globParser1 (metavar "KEY")
+
+-- argKeyword :: Parser (Maybe Text)
+-- argKeyword = argument str (metavar "KEYWORD") <|> pure Nothing
 
 argValue :: Parser Text
 argValue = argument str (metavar "VALUE")

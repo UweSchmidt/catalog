@@ -224,8 +224,8 @@ evalClientCmd =
       runReader (CSEnv onlyUpdate True forceUpdate) $
          evalCheckSums updateCheckSumRes ps part
 
-    CcKeywordCols -> do
-      kws <- theKeywordCols
+    CcKeywordCols ks -> do
+      kws <- theKeywordCols ks p'keywords
       traverse_ (uncurry prettyKWC) $ M.toAscList kws
 
     CcUndoList -> do

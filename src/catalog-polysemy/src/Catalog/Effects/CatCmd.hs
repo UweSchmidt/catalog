@@ -128,7 +128,7 @@ data CatCmd m a where
 
   -- catalog reading commands
   TheEntry             ::                          Path -> CatCmd m ImgNodeP
-  TheKeywordCols       ::                                  CatCmd m KeywordCols
+  TheKeywordCols       ::          [Text]       -> Path -> CatCmd m KeywordCols
   IsWriteable          ::                          Path -> CatCmd m Bool
   IsRemovable          ::                          Path -> CatCmd m Bool
   IsSortable           ::                          Path -> CatCmd m Bool

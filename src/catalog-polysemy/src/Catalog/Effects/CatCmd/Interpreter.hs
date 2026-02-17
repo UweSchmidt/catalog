@@ -275,8 +275,8 @@ evalCatCmd =
     TheEntry p ->
       getNode p >>= read'collection
 
-    TheKeywordCols ->
-      read'keywordCols
+    TheKeywordCols kws _p ->
+      read'keywordCols kws
 
     IsWriteable p ->
       getNode p >>= read'isWriteable
@@ -889,8 +889,12 @@ modify'testCmd i = do
 read'collection :: Eff'ISE r => ImgNode -> Sem r ImgNodeP
 read'collection = mapObjId2Path
 
-read'keywordCols :: Eff'ISEL r => Sem r KeywordCols
-read'keywordCols = allKeywordColsM
+read'keywordCols :: Eff'ISEL r => [Text] -> Sem r KeywordCols
+read'keywordCols kws = allKeywordColsM sel
+  where
+    sel | null kws  = const True
+        | otherwise = (`elem` kws)
+
 -- access restrictions on a collection
 
 read'isWriteable :: Eff'ISE r => ImgNode -> Sem r Bool

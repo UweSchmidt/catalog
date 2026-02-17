@@ -243,7 +243,7 @@ type JsonGetAPI
   = "get" :>
     ( "collection"      :> SimplePost ImgNodeP
       :<|>
-      "keywords"        :> SimplePost KeywordCols
+      "keywords"        :> ParamPost [Text] KeywordCols
       :<|>
       "isWriteable"     :> SimplePost Bool
       :<|>

@@ -99,8 +99,8 @@ evalClientCatCmd =
     -- JSON reading commands
     TheEntry p ->
       simpleJSONget "collection" p   -- TODO: rename to entry
-    TheKeywordCols ->
-      simpleJSONget "keywords" p'keywords
+    TheKeywordCols kws _p ->
+      paramJSONget "keywords" p'keywords kws
     IsWriteable p ->                 -- but: this must also be changed in JavaScript
       simpleJSONget "isWritable" p
     IsRemovable p ->

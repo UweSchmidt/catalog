@@ -69,7 +69,7 @@ data ClientCmd m a where
                 -> Bool    -> Bool             -> ClientCmd m ()
   CcUpdCSum     :: Path    -> Name
                 -> Bool    -> Bool             -> ClientCmd m ()
-  CcKeywordCols ::                                ClientCmd m ()
+  CcKeywordCols ::                      [Text] -> ClientCmd m ()
   CcUndoList    ::                                ClientCmd m ()
   CcApplyUndo   ::                   HistoryID -> ClientCmd m ()
   CcDropUndo    ::                   HistoryID -> ClientCmd m ()
