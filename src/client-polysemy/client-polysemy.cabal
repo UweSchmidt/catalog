@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name:          client-polysemy
-version:       0.5.14.9
+version:       0.5.14.10
 description:   Catalog client with polysemy effect library
 author:        Uwe Schmidt
 maintainer:    Uwe Schmidt
