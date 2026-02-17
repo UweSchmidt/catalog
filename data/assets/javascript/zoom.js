@@ -2016,8 +2016,6 @@ function gotoKeywordColl(i) {
     }
 
     getKeywordColPathFromServer(kw, gotoPath);
-    // get keyword collection path from server
-
 }
 
 // reload
@@ -2577,9 +2575,10 @@ function fmtKW(t) {
     res.append(kw);
     for (let i = 1; i < kws.length; i++) {
         kw = fmtKW1(i, kws[i]);
-        res.append(newElem("br"));
+        res.append(newText(", "));
         res.append(kw);
     }
+    return res;
 }
 
 function fmtKW1(ix, kw) {
