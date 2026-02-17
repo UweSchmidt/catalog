@@ -1,4 +1,4 @@
- /* zoom.js single page slideshow with zoom */
+/* zoom.js single page slideshow with zoom */
 
 function trc (t, Text) {
     if ( t > 0 ) {
@@ -1235,8 +1235,12 @@ function similarGeoOnScreen() {
 /* ---------------------------------------- */
 /* urls */
 
+function mkColReq(path) {
+    return { rPathPos: [path, null], rType: "json" };
+}
+
 // please no "" or '' in jscode
-// this leads to javascrip pasing errors
+// this leads to javascript pasing errors
 
 function toHref1(jscode) {
     return "javascript:"
@@ -1348,6 +1352,8 @@ function pathToPathPos(path0) {
 // path constants
 function pathArchive()     { return "/archive"; }
 function pathCollections() { return "/archive/collections"; }
+function pathAlbums()      { return "/archive/collections/albums"; }
+function pathKeywords()    { return "/archive/collections/keywords"; }
 
 /* ---------------------------------------- */
 
@@ -1951,7 +1957,7 @@ function getChildReq(s, i) {
         const lnk = s.page.contIcons[i].eMeta["Descr:CollectionRef"];
         if ( lnk ) {
             // build "SymLink" request
-            req = { rPathPos: [lnk, null], rType: "json" };
+            req = mkColReq(lnk);
         }
         if ( req ) {
             return req;
@@ -1962,6 +1968,14 @@ function getChildReq(s, i) {
 
 // ----------------------------------------
 // event handler
+
+function goHome() {
+    showNextSlide(mkColReq(pathAlbums()));
+}
+
+function gotoKWHome() {
+    showNextSlide(mkColReq(pathKeywords()));
+}
 
 function gotoPrev() {
     const req = getNavReq("prev");
@@ -1989,30 +2003,29 @@ function gotoChild(i) {
     showNextSlide(req);
 }
 
-function gotoKeywordColl(i) {
+function gotoKeywordCol(i) {
     const md  = getSlideMeta();
     const kv  = md["Descr:Keywords"] || "";
     const kws = kv.split(", ");
     const kw  = kws[i] || "";
 
-    console.log("gotoKeywordColl: " + kw);
+    console.log("gotoKeywordCol: " + kw);
 
     if (kw === "") {
-        console.log("gotoKeywordColl: nothing to do");
+        console.log("gotoKeywordCol: nothing to do");
         return;
     }
 
     function gotoPath(kwc) {
-        console.log("gotoKeywordColl: " + JSON.stringify(kwc));
+        console.log("gotoKeywordCol: " + JSON.stringify(kwc));
         const p = kwc[kw] || "";
-        console.log("gotoKeywordColl: " + p);
+        console.log("gotoKeywordCol: " + p);
 
         if (p === "") {
-            console.log("gotoKeywordColl: no collection path");
+            console.log("gotoKeywordCol: no collection path");
             return;
         }
-        const req = { rPathPos: [p, null], rType: "json" };
-        showNextSlide(req);
+        showNextSlide(mkColReq(p));
     }
 
     getKeywordColPathFromServer(kw, gotoPath);
@@ -2125,6 +2138,14 @@ const StepActions = {
         setAutoShow();
         advanceSlideShow();
     },
+    home() {
+        stopShow();
+        goHome();
+    },
+    kwHome() {
+        stopShow();
+        gotoKWHome();
+    },
     next() {
         stopShow();
         gotoNext();
@@ -2151,7 +2172,7 @@ const StepActions = {
     },
     keyword(i) {
         stopShow();
-        gotoKeywordColl(i);
+        gotoKeywordCol(i);
     },
 
     showCol() {
@@ -2208,6 +2229,8 @@ const DownActions = {
     27         : StepActions.parent,   // presenter: left screen icon,  keyCode: 27  (Escape)
     Period     : StepActions.down,     // presenter: right screen icon, keyCode: 110
 
+    a          : StepActions.home,     // goto root albums collection
+    k          : StepActions.kwHome,
     n          : StepActions.next,
     p          : StepActions.prev,
     u          : StepActions.parent,
@@ -2367,54 +2390,6 @@ function keyCodeToString(e, c) {
     return "";
 }
 
-/*
-var lastKey;
-
-function keyPressed (e) {
-    if (! e)
-        e = window.event;
-
-    lastKey = e;
-
-    trc(1, "keyPressed: key=" + e.key +
-        ", code=" + e.code +
-        ", alt=" + e.altKey +
-        ", ctrl=" + e.ctrlKey +
-        ", meta=" + e.metaKey +
-        ", shift=" + e.shiftKey +
-        ", keyCode=" + e.keyCode +
-        ", which=" + e.which);
-
-    if ( isKey(e, 43, "+") ) {
-        speedUpSlideShow();
-        return false;
-    }
-
-    if ( isKey(e, 45, "-") ) {
-        slowDownSlideShow();
-        return false;
-    }
-
-    if ( isKey(e, 97, "a") ) {
-        stopShow();
-        togglePanoSlide();
-        return false;
-    }
-
-    if ( isKey(e, 113, "q") ) {
-        togglePanoAnimation();
-        return false;
-    }
-
-    return true;
-}
-*/
-
-// ----------------------------------------
-
-// install keyboard event handlers
-
-// document.onkeypress = keyPressed;
 
 // ----------------------------------------
 // build metadata table
