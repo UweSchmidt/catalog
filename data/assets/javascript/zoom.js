@@ -1989,6 +1989,37 @@ function gotoChild(i) {
     showNextSlide(req);
 }
 
+function gotoKeywordColl(i) {
+    const md  = getSlideMeta();
+    const kv  = md["Descr:Keywords"] || "";
+    const kws = kv.split(", ");
+    const kw  = kws[i] || "";
+
+    console.log("gotoKeywordColl: " + kw);
+
+    if (kw === "") {
+        console.log("gotoKeywordColl: nothing to do");
+        return;
+    }
+
+    function gotoPath(kwc) {
+        console.log("gotoKeywordColl: " + JSON.stringify(kwc));
+        const p = kwc[kw] || "";
+        console.log("gotoKeywordColl: " + p);
+
+        if (p === "") {
+            console.log("gotoKeywordColl: no collection path");
+            return;
+        }
+        const req = { rPathPos: [p, null], rType: "json" };
+        showNextSlide(req);
+    }
+
+    getKeywordColPathFromServer(kw, gotoPath);
+    // get keyword collection path from server
+
+}
+
 // reload
 function stayHere() {
     return showNextSlide(cs.slideReq);
@@ -2119,6 +2150,10 @@ const StepActions = {
     child(i) {
         stopShow();
         gotoChild(i);
+    },
+    keyword(i) {
+        stopShow();
+        gotoKeywordColl(i);
     },
 
     showCol() {
@@ -2447,7 +2482,8 @@ const metaFmt = {
     "Descr:GPSPositionDeg": fmtGPS,
     "Descr:Rating":         fmtRating,
     "Descr:Web":            fmtWeb,
-    "Descr:Wikipedia":      fmtWeb
+    "Descr:Wikipedia":      fmtWeb,
+    "Descr:Keywords":       fmtKW,
 };
 
 function lookupFmt(k) {
@@ -2521,6 +2557,36 @@ function fmtWeb1(url) {
     const a   = newElem("a");
     a.href    = url;
     a.target  = "_blank";
+    a.classList.add("weblink");
+    a.appendChild(txt);
+    return a;
+}
+
+function fmtKW(t) {
+    const kws = t.split(", ");
+    if (kws.length === 0) {
+        return newText("");
+    }
+
+    var kw = fmtKW1(0, kws[0]);
+    if (kws.length === 1) {
+        return kw;
+    }
+
+    var res = newElem("div");
+    res.append(kw);
+    for (let i = 1; i < kws.length; i++) {
+        kw = fmtKW1(i, kws[i]);
+        res.append(newElem("br"));
+        res.append(kw);
+    }
+}
+
+function fmtKW1(ix, kw) {
+    const txt = newText(kw.trim());
+    const a   = newElem("a");
+    a.href    = toHref1("StepActions.keyword(" + ix + ")");
+    a.title   = "show keyword collection: " + kw;
     a.classList.add("weblink");
     a.appendChild(txt);
     return a;

@@ -4,32 +4,6 @@
 
 var openCollections = {};
 
-/*
-// ----------------------------------------
-//
-// server version is initialised in document ready event handler
-//
-// communication with scotty server and servant server differ
-// in the basic data transfer,
-
-var serverVersion = { "server"  : "unknown",
-                      "version" : "0.0.0.0",
-                      "date"    : "2000-00-00"
-                    };
-
-function getServerVersion (cont) {
-    $.getJSON( "/server.json", function( data ) {
-        serverVersion = data;
-        console.log(JSON.stringify(serverVersion));
-        cont();
-    });
-}
-
-function initSystemCollections() {
-    getServerVersion(openSystemCollections());
-}
-*/
-
 // ----------------------------------------
 //
 // version test on bootstrap 4.5.0
@@ -1471,6 +1445,9 @@ function statusError(msg) {
         .empty()
         .append(msg);
 }
+
+// variable in rpc-servant
+userErrorHandler = statusError;
 
 // clear errors and messages
 function statusClear() {
@@ -3286,14 +3263,6 @@ function getColFromServer(path, showCol) {
                });
 }
 
-function getIsWriteableFromServer(path, markWriteable) {
-    readServer('isWriteable', path, markWriteable);
-}
-
-function getIsColFromServer(path, cleanupCol) {
-    readServer('isCollection', path, cleanupCol);
-}
-
 function createColOnServer(path, name, showCol) {
     addHistCmd("new collection " + name,
                function () {
@@ -3332,14 +3301,6 @@ function showMetaFromServer(args) {
     getMetaFromServer(args.path, args.pos, processMeta);
 }
 
-function getMetaFromServer(path, pos, processMeta) {
-    readServer1('metadata', path, pos, processMeta);
-}
-
-function getRatingFromServer(path, pos, setRating) {
-    readServer1('rating', path, pos, setRating);
-}
-
 function getAllRatingsFromServer(colId, cont) {
     var path = collectionPath(colId);
     getRatingsFromServer(path,
@@ -3348,12 +3309,6 @@ function getAllRatingsFromServer(colId, cont) {
                              cont();
                          });
 
-}
-
-// TODO: substitute getRatingFromServer for every picture
-// with getRatingsFromServer for the whole collection
-function getRatingsFromServer(path, setRating) {
-    readServer('ratings', path, setRating);
 }
 
 function getPreviewRef(args) {
@@ -3435,98 +3390,6 @@ function saveImgStore(text) {
                                     statusMsg('snapshot of image archive taken');
                                 });
                });
-}
-
-// ----------------------------------------
-/*
-// http communication
-
-function callServer(getOrModify, fct, args, processRes, processNext) {
-    if (serverVersion.server === "catalog-servant") {
-        callServantServer(getOrModify, fct, args, processRes, processNext);
-    } else {
-        callScottyServer(getOrModify, fct, args, processRes, processNext);
-    }
-}
-
-// --------------------
-
-function callServantServer(getOrModify, fct, args, processRes, processNext) {
-    var rpc = [fct, args];
-    console.log('callServantServer: ' + getOrModify);
-    console.log(rpc);
-    console.log(JSON.stringify(rpc));
-
-    $.ajax({
-        type: "POST",
-        url: "/" + getOrModify + '/' + fct,
-        data: JSON.stringify(args),
-        dataType: 'json'
-    }).done(function (res) {
-            processRes(res);
-    }).fail(function (err){
-        statusError(err.resposeText);
-    }).always(processNext);
-}
-
-// --------------------
-
-function callScottyServer(getOrModify, fct, args, processRes, processNext) {
-    var rpc = [fct, args];
-    console.log('callScottyServer: ' + getOrModify);
-    console.log(rpc);
-    console.log(JSON.stringify(rpc));
-
-    $.ajax({
-        type: "POST",
-        url: "/" + getOrModify + '.json',
-        data: JSON.stringify(rpc),
-        dataType: 'json'
-    }).done(function (res) {
-        if (res.err) {
-            statusError(res.err);
-        } else {
-            processRes(res);
-        }
-    }).fail(function (err){
-        statusError(err.resposeText);
-    }).always(processNext);
-}
- */
-
-// ----------------------------------------
-
-// make a query call to server
-
-function readServer(fct, path, processRes) {
-    readServer1(fct, path, [], processRes);
-    // callServer("get", fct, [path, []], processRes, noop);
-}
-
-function readServer1(fct, path, args, processRes) {
-    callServer("get", fct, [path, args], processRes, showError, noop);
-}
-
-// make a modifying call to server
-// modifying calls usualls don't get an interesting result back
-// in success case (), else the error message
-// so most modifying ops are procedures, not functions
-
-function modifyServer(fct, path, args, processNext) {
-    callServer("modify", fct, [path, args], ignoreRes, showError, processNext);
-}
-
-// a modify with a result, e.g. a log file of the operation
-function modifyServer1(fct, path, args, processRes) {
-    callServer("modify", fct, [path, args], processRes, showError, noop);
-}
-
-function ignoreRes(res) {}
-
-function noop() {}
-
-function showError(err) {
-    statusError(err);
 }
 
 // ----------------------------------------
