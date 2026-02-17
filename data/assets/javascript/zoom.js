@@ -1813,7 +1813,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             const md = ce.eMeta;
             const cr = md["Descr:CollectionRef"] || "";
             const ct = (cr === "") ? "" : " (-> " + cr + ")";
-            const tt = md["Descr:Title"] + ct;
+            const tt = (md["Descr:Title"] || "") + ct;
 
             const e  = newElem("div",
                                { width:  iG.w,
