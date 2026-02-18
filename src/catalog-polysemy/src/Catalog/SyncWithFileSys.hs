@@ -466,8 +466,8 @@ addColRefsToKeywordCol i rs0 = do
     )
     rs1
 
-addImgRefsToKeywordCol :: Eff'ISEJL r => Bool -> ObjId -> ColEntries -> Sem r ()
-addImgRefsToKeywordCol forceSubCol i rs0 = do
+addImgRefsToKeywordCol :: Eff'ISEJL r => Text -> Bool -> ObjId -> ColEntries -> Sem r ()
+addImgRefsToKeywordCol kw forceSubCol i rs0 = do
   -- sort enties by create date
   rs1 <- sortColEntriesByDate rs0
 
@@ -511,7 +511,7 @@ addImgRefsToKeywordCol forceSubCol i rs0 = do
             colName = isoText # ((isoString # (show colIxLb <> "-" <> show colIxUb)) <> kwSuffix)
 
             colTitle :: Text
-            colTitle = "Bilder " <> isoString # (show colIxLb <> " - " <> show colIxUb)
+            colTitle = kw <> ": Bilder " <> isoString # (show colIxLb <> " - " <> show colIxUb)
 
             colImg :: Maybe ImgRef
             colImg = rs' ^? ix 0 . theColEntry . theColImgRef
@@ -573,28 +573,28 @@ syncKeywordCol p i = do
   when (imgCnt > 0) $ do
     let forceSubCol = subColCnt > 0 || colCnt > 0 || imgCnt > maxImgEntries
     let imgEnts = foldMap (Seq.singleton . mkColImgRefM') imgRefs
-    addImgRefsToKeywordCol forceSubCol i imgEnts
+    addImgRefsToKeywordCol kw forceSubCol i imgEnts
 
   log'dbg $ "syncKeywordCol: keyword update for " <> kw <> " finished"
   where
     kw = p ^. viewBase . _2 . isoText
 
 setKWMeta :: Eff'ISEJL r => (Int, Int, Int) -> ObjId -> Sem r ()
-setKWMeta (_subColCnt, imgCnt, colCnt) i = do
+setKWMeta (subCnt, imgCnt, colCnt) i = do
   adjustMetaData addSub i
   where
     addSub :: MetaData -> MetaData
     addSub md =
       md & metaTextAt descrSubtitle .~ st
       where
-        st
-          | imgCnt == 0 && colCnt == 0 = mempty
-          | imgCnt == 0                = st2
-          |                colCnt == 0 = st1
-          | otherwise                  = st2 <> ", " <> st1
-          where
-            st1 = imgCnt ^. isoText <> " Bild"     <> (if imgCnt == 1 then "" else "er")
-            st2 = colCnt ^. isoText <> " Sammlung" <> (if colCnt == 1 then "" else "en")
+        st  :: Text
+        st  = T.intercalate ", " $ map snd $ filter ((/= 0) . fst) sts
+
+        sts = zip [subCnt, imgCnt, colCnt] [st0, st1, st2]
+
+        st0 = subCnt ^. isoText <> " Schlüssel" <> (if subCnt == 1 then "wort" else "wörter")
+        st1 = imgCnt ^. isoText <> " Bild"      <> (if imgCnt == 1 then "" else "er")
+        st2 = colCnt ^. isoText <> " Sammlung"  <> (if colCnt == 1 then "" else "en")
 
 allRefsWithKW :: (Eff'ISE r) => Text -> Sem r (Set ImgRef, Set ObjId)
 allRefsWithKW kw =
