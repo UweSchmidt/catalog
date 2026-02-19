@@ -1694,6 +1694,12 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             return l;
         }
 
+        function buildLineKW(kwt) {
+            const l = newElem("div","", {}, "keywords");
+            l.appendChild(fmtKW(kwt));
+            return l;
+        }
+
         function buildHeadLine() {
             if ( isHeader ) {
                 const r  = newElem("div", {}, "collection-header-title");
@@ -1707,6 +1713,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                 const t3 = colMeta["Descr:Comment"];
                 const t4 = colMeta["Descr:GPSPositionDeg"];
                 const t5 = colMeta["Descr:GPSurl"];
+                const t6 = colMeta["Descr:Keywords"];
 
                 if (t1) {
                     r.appendChild(buildLine("title", t1));
@@ -1719,6 +1726,9 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                 }
                 if (t4) {
                     r.appendChild(buildLineGPS(t4, t5));
+                }
+                if (t6) {
+                    r.appendChild(buildLineKW(t6));
                 }
                 return r;
             } else {

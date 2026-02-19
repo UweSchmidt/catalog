@@ -369,6 +369,11 @@ div.ruler {
   padding-top: 0.2em;
 }
 
+.keywords {
+  font-size: 0.8em;
+  padding-top: 0.2em;
+}
+
 /* links */
 
 a {
