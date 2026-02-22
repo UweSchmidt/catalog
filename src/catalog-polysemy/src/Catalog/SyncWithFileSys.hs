@@ -580,54 +580,6 @@ updateKeywordCol rfm kw p = do
 
   return ()
 
-{-
-updateKeywordCols :: Eff'ISEJL r => KeywordCols -> RefsMap -> ObjId -> Sem r ()
-updateKeywordCols kws rfm i = do
-  p     <- objid2path i
-  let kw = p ^. viewBase . _2 . isoText
-  n0    <- getImgVal i
-
-  log'trc $ "updateKeywordCols: update keyword collection for " <> p ^. isoUrlText
-
-  -- set collection title if not yet set
-  when (T.null $ n0 ^. theMetaData . metaTextAt descrTitle) $
-    adjustMetaData (\md -> md & metaTextAt descrTitle .~ kw) i
-
-  -- after cleanup only real keyword subcollections remain in i
-  cleanupKeywordCol i n0
-
-  -- recurse into sub collections
-  n1 <- getImgVal i
-  let es        = n1 ^. theColEntries
-  let subColCnt = Seq.length es
-
-  foldColColEntries (updateKeywordCols kws rfm) es
-
-  log'trc $ "syncKeywordCol: keyword subcollections updated for " <> p ^. isoUrlText
-
-  -- get image and collection refs containing keyword
-  -- traverse only album collection, not the other generated collections
-  let _refs@(imgRefs, colRefs) = lookupRefsMap kw rfm
-
-  -- log'Refs _refs
-
-  let imgCnt = S.size imgRefs
-  let colCnt = S.size colRefs
-
-  setKWMeta (subColCnt, imgCnt, colCnt) i
-
-  when (colCnt > 0) $ do
-    let colEnts = foldMap (Seq.singleton . mkColColRefM) colRefs
-    addColRefsToKeywordCol i colEnts
-
-  when (imgCnt > 0) $ do
-    let forceSubCol = subColCnt > 0 || colCnt > 0 || imgCnt > maxImgEntries
-    let imgEnts = foldMap (Seq.singleton . mkColImgRefM') imgRefs
-    addImgRefsToKeywordCol kw forceSubCol i imgEnts
-
-  log'dbg $ "syncKeywordCol: keyword update for " <> kw <> " finished"
--- -}
-
 -- --------------------
 
 setKWMeta :: Eff'ISEJL r => (Int, Int, Int) -> ObjId -> Sem r ()
@@ -646,48 +598,6 @@ setKWMeta (subCnt, imgCnt, colCnt) i = do
         st0 = subCnt ^. isoText <> " Schlüssel" <> (if subCnt == 1 then "wort" else "wörter")
         st1 = imgCnt ^. isoText <> " Bild"      <> (if imgCnt == 1 then "" else "er")
         st2 = colCnt ^. isoText <> " Sammlung"  <> (if colCnt == 1 then "" else "en")
-
-{- old stuff, generalized by "buildRefsMap"
-
-allRefsWithKW :: (Eff'ISEL r) => Text -> Sem r (Set ImgRef, Set ObjId)
-allRefsWithKW kw =
-  getId p'albums >>= allRefsWithKW'' kw
-
-allRefsWithKW' :: (Eff'ISE r) => Text -> ObjId -> Sem r (Set ImgRef, Set ObjId)
-allRefsWithKW' kw i0 =
-  foldCollections colA i0
-  where
-    colA go i md _im _be cs = do
-      let kws = kwSet md
-      if kw `elem` kws
-        then
-          return (mempty, S.singleton i)              -- search finished: whole collection is taken
-        else
-        if hasNoIndex kws
-        then
-          return (mempty, mempty)                     -- stop collecting refs
-        else
-          fold <$> traverse (colEntryM' iref go) cs   -- recurse into subtree
-      where
-
-        iref :: (Eff'ISE r) => ImgRef -> Sem r (Set ImgRef, Set ObjId)
-        iref ir@(ImgRef i' _p') = do
-          kws' <- kwSet <$> getMetaData i'
-          return $
-            ( if kw `elem` kws'
-              then S.singleton ir
-              else mempty
-            , mempty
-            )
-
-allRefsWithKW'' :: (Eff'ISEL r) => Text -> ObjId -> Sem r (Set ImgRef, Set ObjId)
-allRefsWithKW'' kw i0 = do
-    res <- buildRefsMap (== kw) i0
-    log'trc $ "allRefsWithKW'': kw = " <> kw <> ", result:"
-    log'RefsMap res
-    return $ lookupRefsMap kw res
-
--- -}
 
 -- --------------------
 
