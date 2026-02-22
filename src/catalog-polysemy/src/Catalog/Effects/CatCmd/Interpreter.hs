@@ -827,7 +827,7 @@ modify'syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> Sem r ()
 modify'syncKeywordCol p i = do
   unless (isPathPrefix p'keywords p) $
     throwP i $ msgPath p'keywords "syncKeywordCol: collection does not have path prefix "
-  SC.syncKeywordCol p i
+  SC.syncKeywordCol i
 
 -- --------------------
 --

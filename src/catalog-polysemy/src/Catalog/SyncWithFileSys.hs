@@ -122,6 +122,7 @@ import Data.ImgTree
        , theColEntries
        , theColEntry
        , theColObjId
+       , theColImg
        , theColColRef
        , theColImgRef
        , theMetaData
@@ -335,22 +336,23 @@ maxImgEntries = 100
 -- or
 -- for copies of collections labeled with keywords
 
-isHiddenKWName :: Name -> Bool
+isHiddenKWName :: Text -> Bool
 isHiddenKWName n =
   isEmpty n
   ||
-  T.take 1 n' == "."
+  T.take 1 n == "."
   ||
-  T.isSuffixOf kwSuffix n'
-  where
-    n' = n ^. isoText
+  T.isSuffixOf kwSuffix n
+
+hasNoIndex :: Keywords -> Bool
+hasNoIndex = (kwNoIndex `S.member`)
 
 kwList :: MetaData -> [Text]
 kwList md = md ^. metaDataAt descrKeywords . metaTS
 
 syncAllKeywordCols :: Eff'ISEJL r => Sem r ()
 syncAllKeywordCols =
-  getId p'keywords >>= syncKeywordCol p'keywords
+  getId p'keywords >>= syncKeywordCol
 
 -- --------------------
 
@@ -378,32 +380,35 @@ allKeywordColsM' sel i0 = do
   where
     colA go i _md _im _be cs = do
       kws1 <- do
-        n' <- getImgName i
+        n' <- (^. isoText) <$> getImgName i
         if isHiddenKWName n'
            ||
            i == i0                    -- root collection not included
            ||
-           not (sel $ n' ^. isoText)  -- kw not of interest, filtered out
+           not (sel n')  -- kw not of interest, filtered out
           then
             return mempty
           else do
             p' <- objid2path i
-            return $ M.singleton (n' ^. isoText) p'
+            return $ M.singleton n' p'
       kws2 <- foldColColEntries go cs
       return $ M.union kws1 kws2
 
 -- --------------------
 
 allKeywords :: Eff'ISEL r => Sem r Keywords
-allKeywords = do
-  kws <- getId p'albums >>= foldCollections colA
+allKeywords = getId p'albums >>=  allKeywords'
+
+allKeywords' :: Eff'ISEL r => ObjId -> Sem r Keywords
+allKeywords' i = do
+  kws <- foldCollections colA i
 
   log'trc $ "allKeywords: " <> T.intercalate ", " (S.toAscList kws)
   return kws
   where
     colA go _i md _im _be cs = do
       let kws1 = S.fromList $ kwList md            -- col keywords
-      kws2 <- if (kwNoIndex `S.member` kws1)
+      kws2 <- if hasNoIndex kws1
               then
                 return mempty                                -- stop looking for keywords
               else
@@ -438,7 +443,8 @@ cleanupKeywordCol i n0 = do
   where
     remHidden :: (Eff'ISEJL r) => ObjId -> Sem r ()
     remHidden i' = do
-      whenM (isHiddenKWName <$> getImgName i') $
+      n' <- (^. isoText) <$> getImgName i'
+      when (isHiddenKWName n') $
         rmRec i'
 
 sortColEntriesByDate :: (Eff'ISE r) => ColEntries -> Sem r ColEntries
@@ -461,8 +467,11 @@ addColRefsToKeywordCol i rs0 = do
         cp <- objid2path ci
         cn <- (\n -> (isoText # px) <> n <> (isoText # kwSuffix)) <$> getImgName ci
         cd <- dupColNoRec ci i cn
-        adjustMetaData (\md -> md & metaTextAt descrCollectionRef .~ cp ^. isoText ) cd
-        return ()
+        adjustMetaData (\md -> md & metaTextAt descrCollectionRef .~ cp ^. isoText) cd
+
+        -- set collection img, if not already set
+        cv <- getImgVal ci
+        adjustColImg (<|> join (cv ^? theColImg)) i
     )
     rs1
 
@@ -477,6 +486,7 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
     else
       adjustColEntries (<> rs1) i
 
+  -- set collection img, if not already set
   adjustColImg (<|> cImg rs1) i
 
   where
@@ -516,11 +526,13 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
             colImg :: Maybe ImgRef
             colImg = rs' ^? ix 0 . theColEntry . theColImgRef
 
-syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> Sem r ()
-syncKeywordCol p i = do
-  log'trc $ "syncKeywordCol: update keyword collection for " <> p ^. isoUrlText
+syncKeywordCol :: Eff'ISEJL r => ObjId -> Sem r ()
+syncKeywordCol i = do
+  p     <- objid2path i
+  let kw = p ^. viewBase . _2 . isoText
+  n0    <- getImgVal i
 
-  n0 <- getImgVal i
+  log'trc $ "syncKeywordCol: update keyword collection for " <> p ^. isoUrlText
 
   -- set collection title if not yet set
   when (T.null $ n0 ^. theMetaData . metaTextAt descrTitle) $
@@ -534,17 +546,12 @@ syncKeywordCol p i = do
   let es        = n1 ^. theColEntries
   let subColCnt = Seq.length es
 
-  foldColColEntries
-    (\i' -> do
-        p' <- objid2path i'
-        syncKeywordCol p' i'
-    )
-    es
+  foldColColEntries syncKeywordCol es
 
   log'trc $ "syncKeywordCol: keyword subcollections updated for " <> p ^. isoUrlText
 
   -- get image and collection refs containing keyword
-  -- traverse only album collection, not the other generated colls
+  -- traverse only album collection, not the other generated collections
   (imgRefs, colRefs) <- allRefsWithKW kw
 
   let imgCnt = S.size imgRefs
@@ -576,8 +583,7 @@ syncKeywordCol p i = do
     addImgRefsToKeywordCol kw forceSubCol i imgEnts
 
   log'dbg $ "syncKeywordCol: keyword update for " <> kw <> " finished"
-  where
-    kw = p ^. viewBase . _2 . isoText
+
 
 setKWMeta :: Eff'ISEJL r => (Int, Int, Int) -> ObjId -> Sem r ()
 setKWMeta (subCnt, imgCnt, colCnt) i = do
