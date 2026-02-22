@@ -1,4 +1,5 @@
 ------------------------------------------------------------------------------
+{-# LANGUAGE InstanceSigs #-}
 
 module Catalog.SyncWithFileSys
   ( Eff'Sync
@@ -350,6 +351,9 @@ hasNoIndex = (kwNoIndex `S.member`)
 kwList :: MetaData -> [Text]
 kwList md = md ^. metaDataAt descrKeywords . metaTS
 
+kwSet :: MetaData -> Keywords
+kwSet md = S.fromList $ md ^. metaDataAt descrKeywords . metaTS
+
 syncAllKeywordCols :: Eff'ISEJL r => Sem r ()
 syncAllKeywordCols =
   getId p'keywords >>= syncKeywordCol
@@ -363,16 +367,7 @@ allKeywordCols = toKWS <$> allKeywordColsM (const True)
 
 allKeywordColsM :: (Eff'ISEL r) => (Text -> Bool) -> Sem r KeywordCols
 allKeywordColsM sel = do
-  i <- getId p'keywords
-
-  log'trc "allKeywordCols: keyword collections:"
-  kws <- allKeywordColsM' sel i
-  void $ M.traverseWithKey
-    (\kw p ->
-       log'trc $ kw ^. isoText <> ": " <> p ^. isoText
-    ) kws
-
-  return kws
+  getId p'keywords >>= allKeywordColsM' sel
 
 allKeywordColsM' :: (Eff'ISEL r) => (Text -> Bool) -> ObjId -> Sem r KeywordCols
 allKeywordColsM' sel i0 = do
@@ -528,11 +523,71 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
 
 syncKeywordCol :: Eff'ISEJL r => ObjId -> Sem r ()
 syncKeywordCol i = do
+  p <- objid2path i
+  log'trc $ "syncKeywordCol: path = " <> p ^.isoText
+
+  -- collect all keywords to be updated
+  kws <- allKeywordColsM' (const True) i
+  log'KeywordCols kws
+
+  -- collect all references for these keywords
+  rfm <- getId p'albums >>= buildRefsMap (`M.member` kws)
+  log'RefsMap rfm
+
+  -- build new keyword collections
+  -- updateKeywordCols kws rfm i
+
+  void $ M.traverseWithKey (updateKeywordCol rfm) kws
+
+updateKeywordCol :: Eff'ISEJL r => RefsMap -> Text -> Path -> Sem r ()
+updateKeywordCol rfm kw p = do
+  log'trc $ "updateKeywordCol: update keyword collection for " <> p ^. isoUrlText
+
+  i  <- getId p
+  n0 <- getImgVal i
+
+  -- set collection title if not yet set
+  when (T.null $ n0 ^. theMetaData . metaTextAt descrTitle) $
+    adjustMetaData (\md -> md & metaTextAt descrTitle .~ kw) i
+
+  -- after cleanup only real keyword subcollections remain in i
+  cleanupKeywordCol i n0
+
+  -- n0 is no longer up do date
+  n1 <- getImgVal i
+  let es        = n1 ^. theColEntries
+  let subColCnt = Seq.length es
+
+  -- get image and collection refs containing keyword
+  let _refs@(imgRefs, colRefs) = lookupRefsMap kw rfm
+  let imgCnt = S.size imgRefs
+  let colCnt = S.size colRefs
+
+  -- log'Refs _refs
+
+  setKWMeta (subColCnt, imgCnt, colCnt) i
+
+  when (colCnt > 0) $ do
+    let colEnts = foldMap (Seq.singleton . mkColColRefM) colRefs
+    addColRefsToKeywordCol i colEnts
+
+  when (imgCnt > 0) $ do
+    let forceSubCol = subColCnt > 0 || colCnt > 0 || imgCnt > maxImgEntries
+    let imgEnts = foldMap (Seq.singleton . mkColImgRefM') imgRefs
+    addImgRefsToKeywordCol kw forceSubCol i imgEnts
+
+  log'dbg $ "updateKeywordCol: keyword collection update for " <> kw <> " finished"
+
+  return ()
+
+{-
+updateKeywordCols :: Eff'ISEJL r => KeywordCols -> RefsMap -> ObjId -> Sem r ()
+updateKeywordCols kws rfm i = do
   p     <- objid2path i
   let kw = p ^. viewBase . _2 . isoText
   n0    <- getImgVal i
 
-  log'trc $ "syncKeywordCol: update keyword collection for " <> p ^. isoUrlText
+  log'trc $ "updateKeywordCols: update keyword collection for " <> p ^. isoUrlText
 
   -- set collection title if not yet set
   when (T.null $ n0 ^. theMetaData . metaTextAt descrTitle) $
@@ -546,30 +601,18 @@ syncKeywordCol i = do
   let es        = n1 ^. theColEntries
   let subColCnt = Seq.length es
 
-  foldColColEntries syncKeywordCol es
+  foldColColEntries (updateKeywordCols kws rfm) es
 
   log'trc $ "syncKeywordCol: keyword subcollections updated for " <> p ^. isoUrlText
 
   -- get image and collection refs containing keyword
   -- traverse only album collection, not the other generated collections
-  (imgRefs, colRefs) <- allRefsWithKW kw
+  let _refs@(imgRefs, colRefs) = lookupRefsMap kw rfm
+
+  -- log'Refs _refs
 
   let imgCnt = S.size imgRefs
   let colCnt = S.size colRefs
-
-  -- just trace output
-  traverse_
-    ( \(ImgRef i' nm') -> do
-        p' <- objid2path i'
-        log'trc $ "found: img " <> p' ^. isoText <> ", " <> nm' ^. isoText
-    )
-    imgRefs
-  traverse_
-    ( \i' -> do
-        p' <- objid2path i'
-        log'trc $ "found: col " <> p' ^. isoText
-    )
-    colRefs
 
   setKWMeta (subColCnt, imgCnt, colCnt) i
 
@@ -583,7 +626,9 @@ syncKeywordCol i = do
     addImgRefsToKeywordCol kw forceSubCol i imgEnts
 
   log'dbg $ "syncKeywordCol: keyword update for " <> kw <> " finished"
+-- -}
 
+-- --------------------
 
 setKWMeta :: Eff'ISEJL r => (Int, Int, Int) -> ObjId -> Sem r ()
 setKWMeta (subCnt, imgCnt, colCnt) i = do
@@ -602,17 +647,23 @@ setKWMeta (subCnt, imgCnt, colCnt) i = do
         st1 = imgCnt ^. isoText <> " Bild"      <> (if imgCnt == 1 then "" else "er")
         st2 = colCnt ^. isoText <> " Sammlung"  <> (if colCnt == 1 then "" else "en")
 
-allRefsWithKW :: (Eff'ISE r) => Text -> Sem r (Set ImgRef, Set ObjId)
+{- old stuff, generalized by "buildRefsMap"
+
+allRefsWithKW :: (Eff'ISEL r) => Text -> Sem r (Set ImgRef, Set ObjId)
 allRefsWithKW kw =
-  getId p'albums >>= foldCollections colA
+  getId p'albums >>= allRefsWithKW'' kw
+
+allRefsWithKW' :: (Eff'ISE r) => Text -> ObjId -> Sem r (Set ImgRef, Set ObjId)
+allRefsWithKW' kw i0 =
+  foldCollections colA i0
   where
     colA go i md _im _be cs = do
-      let kws = kwList md
+      let kws = kwSet md
       if kw `elem` kws
         then
           return (mempty, S.singleton i)              -- search finished: whole collection is taken
         else
-        if kwNoIndex `elem` kws
+        if hasNoIndex kws
         then
           return (mempty, mempty)                     -- stop collecting refs
         else
@@ -621,13 +672,150 @@ allRefsWithKW kw =
 
         iref :: (Eff'ISE r) => ImgRef -> Sem r (Set ImgRef, Set ObjId)
         iref ir@(ImgRef i' _p') = do
-          kws' <- kwList <$> getMetaData i'
+          kws' <- kwSet <$> getMetaData i'
           return $
             ( if kw `elem` kws'
               then S.singleton ir
               else mempty
             , mempty
             )
+
+allRefsWithKW'' :: (Eff'ISEL r) => Text -> ObjId -> Sem r (Set ImgRef, Set ObjId)
+allRefsWithKW'' kw i0 = do
+    res <- buildRefsMap (== kw) i0
+    log'trc $ "allRefsWithKW'': kw = " <> kw <> ", result:"
+    log'RefsMap res
+    return $ lookupRefsMap kw res
+
+-- -}
+
+-- --------------------
+
+newtype Refs = Refs (Set ImgRef, Set ObjId)
+
+instance Semigroup Refs where
+  (<>) :: Refs -> Refs -> Refs
+  Refs (s11, s12) <> Refs (s21, s22) = Refs (S.union s11 s21, S.union s12 s22)
+
+instance Monoid Refs where
+  mempty :: Refs
+  mempty = Refs (mempty, mempty)
+
+newtype RefsMap = RM (Map Text Refs)
+
+instance Semigroup RefsMap where
+  (<>) :: RefsMap -> RefsMap -> RefsMap
+  RM m1 <> RM m2 = RM $ M.unionWith(<>) m1 m2
+
+instance Monoid RefsMap where
+  mempty :: RefsMap
+  mempty = RM M.empty
+
+mkRefsImg :: Text -> ImgRef -> RefsMap
+mkRefsImg kw ir = RM $ M.singleton kw $ Refs (S.singleton ir, mempty)
+
+mkRefsCol :: Text -> ObjId -> RefsMap
+mkRefsCol kw cr = RM $ M.singleton kw $ Refs (mempty, S.singleton cr)
+
+lookupRefsMap :: Text -> RefsMap -> (Set ImgRef, Set ObjId)
+lookupRefsMap kw (RM m) =
+  maybe (mempty, mempty) (\(Refs p) -> p) $ M.lookup kw m
+
+-- single traversal for collection all references
+-- for all keywords matching predicate "matchKeyword"
+
+buildRefsMap :: Eff'ISE r => (Text -> Bool) -> ObjId -> Sem r RefsMap
+buildRefsMap matchKeyword i0 =
+  foldCollections colA i0
+  where
+    colA _go i md _im _be cs = do
+      rm2 <-
+        if hasNoIndex kws
+        then return mempty
+        else do
+          addKW
+      return (rm1 <> rm2)
+      where
+        kws :: Keywords
+        kws  = kwSet md
+
+        rm1 :: RefsMap              -- collect col ref for all keywords
+        rm1  = foldMap ( \kw' ->
+                           if matchKeyword kw'
+                           then mkRefsCol kw' i
+                           else mempty
+                       ) kws
+
+        -- addKW :: Eff'ISE r => Text -> Sem r RefsMap
+        -- traverse col entries
+        addKW =
+          fold <$> traverse (colEntryM' iref go') cs
+          where
+            go' = buildRefsMap matchKeyword'
+              where
+                matchKeyword' :: Text -> Bool
+                matchKeyword' kw' =
+                  not (kw' `elem` kws)
+                  &&
+                  matchKeyword kw'
+
+            -- collect img ref for all keywords
+            iref :: (Eff'ISE r) => ImgRef -> Sem r RefsMap
+            iref ir@(ImgRef i' _p') = do
+              kws' <- kwSet <$> getMetaData i'
+              return $
+                foldMap (\kw' ->
+                           if matchKeyword kw'
+                           then mkRefsImg kw' ir
+                           else mempty
+                        ) kws'
+
+-- --------------------
+--
+-- logging functions for kewword stuff
+
+log'KeywordCols :: Eff'ISEL r => KeywordCols -> Sem r ()
+log'KeywordCols kws = do
+  log'trc "Keyword to Path map:"
+  void $
+    M.traverseWithKey
+    (\kw p ->
+       log'trc $ kw ^. isoText <> ": " <> p ^. isoText
+    ) kws
+
+
+log'ImgRefs :: Eff'ISEL r => Set ImgRef -> Sem r ()
+log'ImgRefs imgRefs =
+  traverse_
+  ( \(ImgRef i' nm') -> do
+      p' <- objid2path i'
+      log'trc $ "found: img " <> p' ^. isoText <> ", " <> nm' ^. isoText
+  )
+  imgRefs
+
+log'ColRefs :: Eff'ISEL r => Set ObjId -> Sem r ()
+log'ColRefs colRefs =
+  traverse_
+  ( \i' -> do
+      p' <- objid2path i'
+      log'trc $ "found: col " <> p' ^. isoText
+  )
+  colRefs
+
+log'Refs :: Eff'ISEL r => (Set ImgRef, Set ObjId) -> Sem r ()
+log'Refs (imgRefs, colRefs) = do
+  log'ColRefs colRefs
+  log'ImgRefs imgRefs
+
+log'RefsMap :: (Eff'ISEL r) => RefsMap -> Sem r ()
+log'RefsMap (RM m) = do
+  void $
+    M.traverseWithKey
+    (\kw (Refs refs) -> do
+        log'trc $ "found: keyword " <> kw
+        log'Refs refs
+        )
+    m
 
 -- ----------------------------------------
 
