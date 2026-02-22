@@ -2547,6 +2547,13 @@ function fmtWeb1(url) {
 
 function fmtKW(t) {
     const kws = t.split(", ");
+
+    // remove pseudo keyword "no-index"
+    const index = kws.indexOf("no-index");
+    if (index > -1) {
+        kws.splice(index, 1);
+    }
+
     if (kws.length === 0) {
         return newText("");
     }
