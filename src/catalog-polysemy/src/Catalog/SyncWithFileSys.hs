@@ -414,19 +414,33 @@ allKeywords' i = do
           md' <- getMetaData i'
           return (S.fromList $ kwList md')
 
+-- create keyword collection for new keywords
+-- these are created in a subcollection of the
+-- root collection for keywords "keywords""
 newKeywordCols :: (Eff'ISEJL r) => Sem r ()
 newKeywordCols = do
-  kws  <- allKeywords
-  kwcs <- allKeywordCols
-  traverse_ initKeywordCol $ S.difference kws kwcs
+  kws     <- allKeywords
+  kwcs    <- allKeywordCols
+  let kws' = S.difference kws kwcs
+
+  unless (S.null kws') $ do
+    unlessM (isJust <$> lookupByPath pkn) $ do
+      ci <- mkCollection pkn
+      adjustMetaData (\md -> md & metaTextAt descrTitle .~ newCt) ci
+
+    traverse_ initKeywordCol kws'
   where
+    newCt  = "Neue Schlüsselwörter"
+    newKws = "new"
+    pkn    = p'keywords `snocPath` newKws
+
     initKeywordCol :: Eff'ISEJL r => Text -> Sem r ()
     initKeywordCol kw = do
       log'trc $ "newKeywords: init new keyword collection: " <> p ^. isoUrlText
       _ci <- mkCollection p
       return ()
       where
-        p = p'keywords `snocPath` (isoText # kw)
+        p = pkn `snocPath` (isoText # kw)
 
 cleanupKeywordCol :: Eff'ISEJL r => ObjId -> ImgNode -> Sem r ()
 cleanupKeywordCol i n0 = do
