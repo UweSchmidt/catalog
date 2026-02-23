@@ -37,6 +37,7 @@ library
     Catalog.MetaData.ExifTool
     Catalog.MetaData.Sync
     Catalog.Run
+    Catalog.SyncKeywords
     Catalog.SyncWithFileSys
     Catalog.TextPath
     Catalog.TimeStamp
@@ -66,7 +67,7 @@ library
     TypeFamilies
     TypeOperators
     TypeSynonymInstances
-    
+
   ghc-options:
     -Wall -fwarn-tabs -O2 -funbox-strict-fields -flate-specialise
     -fspecialise-aggressively -fplugin=Polysemy.Plugin

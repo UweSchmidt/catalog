@@ -64,6 +64,7 @@ where
 
 import Polysemy
        ( makeSem )
+
 import Polysemy.FileSystem
        ( TextPath )
 
@@ -91,9 +92,8 @@ import Data.History
 import Catalog.GenPages
        ( JPage )
 
-import Catalog.SyncWithFileSys
-  ( KeywordCols,
-  )
+import Catalog.SyncKeywords
+       ( KeywordCols )
 
 -- ----------------------------------------
 --

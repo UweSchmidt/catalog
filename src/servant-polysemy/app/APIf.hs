@@ -71,7 +71,7 @@ import Data.MetaData
 import Catalog.GenPages
        ( JPage )
 
-import Catalog.SyncWithFileSys
+import Catalog.SyncKeywords
        ( KeywordCols )
 
 import Catalog.CatEnv

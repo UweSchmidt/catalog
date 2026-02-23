@@ -88,8 +88,10 @@ import Catalog.MetaData.Sync
        ( Eff'MDSync )
 
 import Catalog.SyncWithFileSys
-       ( Eff'Sync
-       , KeywordCols
+       ( Eff'Sync )
+
+import Catalog.SyncKeywords
+       ( KeywordCols
        , allKeywordColsM
        )
 
@@ -112,6 +114,7 @@ import qualified Catalog.CopyRemove      as CR
 import qualified Catalog.GenCheckSum     as CS
 import qualified Catalog.Html            as HT
 import qualified Catalog.MetaData.Sync   as MS
+import qualified Catalog.SyncKeywords    as SK
 import qualified Catalog.SyncWithFileSys as SC
 
 -- catalog
@@ -253,8 +256,8 @@ evalCatCmd =
       getId p >>= modify'syncKeywordCol p
 
     NewKeywords -> do
-      SC.newKeywordCols
-      SC.syncAllKeywordCols
+      SK.newKeywordCols
+      SK.syncAllKeywordCols
 
     NewSubCollections p -> do
       throwNoSync "import new collection"
@@ -827,7 +830,7 @@ modify'syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> Sem r ()
 modify'syncKeywordCol p i = do
   unless (isPathPrefix p'keywords p) $
     throwP i $ msgPath p'keywords "syncKeywordCol: collection does not have path prefix "
-  SC.syncKeywordCol i
+  SK.syncKeywordCol i
 
 -- --------------------
 --
@@ -876,9 +879,9 @@ modify'testCmd i = do
   path <- objid2path i
   log'verb $ "TestCmd: " <> (path ^. isoListPath . to show . isoText)
 
-  _ <- SC.allKeywords
-  _ <- SC.allKeywordCols
-  SC.newKeywordCols
+  _ <- SK.allKeywords
+  _ <- SK.allKeywordCols
+  SK.newKeywordCols
 
 -- ----------------------------------------
 --
