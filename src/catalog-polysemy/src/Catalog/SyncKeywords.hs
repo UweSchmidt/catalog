@@ -181,8 +181,6 @@ allKeywordColsM' sel i0 = do
         n' <- (^. isoText) <$> getImgName i
         if isHiddenKWName n'
            ||
-           i == i0                    -- root collection not included
-           ||
            not (sel n')  -- kw not of interest, filtered out
           then
             return mempty
@@ -451,16 +449,26 @@ lookupRefsMap kw (RM m) =
 -- single traversal for collection all references
 -- for all keywords matching predicate "matchKeyword"
 
-buildRefsMap :: Eff'ISE r => (Text -> Bool) -> ObjId -> Sem r RefsMap
+buildRefsMap :: Eff'ISEL r => (Text -> Bool) -> ObjId -> Sem r RefsMap
 buildRefsMap matchKeyword i0 =
   foldCollections colA i0
   where
     colA _go i md _im _be cs = do
+      -- p'' <- objid2path i
+      -- log'trc $ "buildRefsMap: p = " <> p'' ^.isoText
+
       rm2 <-
         if hasNoIndex kws
         then return mempty
         else do
           addKW
+
+      -- log'trc "this collection"
+      -- log'RefsMap rm1
+      -- log'trc "sub collections"
+      -- log'RefsMap rm2
+      -- log'trc $ "done" <> p'' ^. isoText
+
       return (rm1 <> rm2)
       where
         kws :: Keywords
@@ -479,12 +487,12 @@ buildRefsMap matchKeyword i0 =
           fold <$> traverse (colEntryM' iref go') cs
           where
             go' = buildRefsMap matchKeyword'
-              where
-                matchKeyword' :: Text -> Bool
-                matchKeyword' kw' =
-                  not (kw' `elem` kws)
-                  &&
-                  matchKeyword kw'
+
+            matchKeyword' :: Text -> Bool
+            matchKeyword' kw' =
+              not (kw' `elem` kws)
+              &&
+              matchKeyword kw'
 
             -- collect img ref for all keywords
             iref :: (Eff'ISE r) => ImgRef -> Sem r RefsMap
@@ -492,7 +500,7 @@ buildRefsMap matchKeyword i0 =
               kws' <- kwSet <$> getMetaData i'
               return $
                 foldMap (\kw' ->
-                           if matchKeyword kw'
+                           if matchKeyword' kw'
                            then mkRefsImg kw' ir
                            else mempty
                         ) kws'
