@@ -118,5 +118,9 @@ function getIsColFromServer(path, cleanupCol) {
     readServer('isCollection', path, cleanupCol);
 }
 
+function getColsWithRefFromServer(cpath, ipath, iname, cont) {
+    readServer1('colswithref', cpath, [ipath, iname], cont);
+}
+
 
 // ----------------------------------------

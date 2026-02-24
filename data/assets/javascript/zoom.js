@@ -2041,6 +2041,12 @@ function gotoKeywordCol(i) {
     getKeywordColPathFromServer(kw, gotoPath);
 }
 
+function gotoColRef(i) {
+    const path = cs.page.colRefs[i][0];
+    console.log("gotoColRef: " + path);
+    showNextSlide(mkColReq(path));
+}
+
 // reload
 function stayHere() {
     return showNextSlide(cs.slideReq);
@@ -2184,7 +2190,10 @@ const StepActions = {
         stopShow();
         gotoKeywordCol(i);
     },
-
+    colRef(i) {
+        stopShow();
+        gotoColRef(i);
+    },
     showCol() {
         startStopShow(setContColShow);
     },
@@ -2453,7 +2462,8 @@ const metaInfo = {
     "QuickTime:Duration":           "Video-Dauer",
     "QuickTime:VideoFrameRate":     "Frame-Rate",
     "File:DateTime":                "Bearbeitet",
-    "Descr:Rating":                 "Bewertung"
+    "Descr:Rating":                 "Bewertung",
+    "Descr:ColRefs":                "In Sammlungen",
 };
 
 // the function table for formating values
@@ -2467,6 +2477,7 @@ const metaFmt = {
     "Descr:Web":            fmtWeb,
     "Descr:Wikipedia":      fmtWeb,
     "Descr:Keywords":       fmtKW,
+    "Descr:ColRefs":        fmtColRefs,
 };
 
 function lookupFmt(k) {
@@ -2583,12 +2594,78 @@ function fmtKW1(ix, kw) {
     return a;
 }
 
+const fmtColRefsId = "img-colrefs";
+
+function fmtColRefs(t) {
+    const txt = newText(t);
+    const a   = newElem("a");
+
+    a.href    = toHref1("buildColRefs()");
+    a.title   = "berechne Sammlungen mit diesem Bild";
+    a.classList.add("weblink");
+    a.appendChild(txt);
+
+    const r   = newElem("div");
+    r.id      = fmtColRefsId;
+    r.appendChild(a);
+
+    return r;
+}
+
+function buildColRefs(id) {
+    console.log("buildColRef: id = " + id);
+
+    const e = getElem(fmtColRefsId);
+    if ( !e ) return;
+
+    function insertColRefs(refs) {
+        console.log("insertColRefs: " + JSON.stringify(refs));
+
+        clearCont(e);
+
+        if (refs.length === 0) {
+            console.log("buildColRefs: no refs found");
+            e.appendChild(newText("---"));
+            return;
+        }
+        // save colRefs i current slide (cs) object
+        cs.page.colRefs = refs;
+
+        const t = newElem("div");
+
+        for (let i = 0; i < refs.length; i++) {
+            const ref   = refs[i];
+            const path  = ref[0];
+            const title = ref[1];
+
+            const a     = newElem("a");
+            a.href      = toHref1("StepActions.colRef(" + i + ")");
+            a.title     = title;
+            a.classList.add("weblink");
+            a.appendChild(newText(path));
+
+            t.appendChild(a);
+        }
+        e.appendChild(t);
+
+        return;
+    }
+
+    const ip  = cs.page.img[0];
+    const inm = cs.page.img[1];
+
+    getColsWithRefFromServer(pathAlbums(), ip, inm, insertColRefs);
+}
+
 function buildMetaInfo (t, md) {
     // clear metadata table
     clearCont(t);
 
     // hack for google maps url
     gpsUrl = md["Descr:GPSurl"];
+    if ( isImgSlide() ) {
+        md["Descr:ColRefs"] = "[anzeigen]";
+    }
 
     for (k in metaInfo) {
         const v = md[k];
