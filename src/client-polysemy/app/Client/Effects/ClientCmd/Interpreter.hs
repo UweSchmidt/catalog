@@ -190,7 +190,7 @@ evalClientCmd =
       traverse_ (writeln . (^. isoText)) ps
 
     CcLsRefs p nm -> do
-      crefs <- theColsWithRef nm p
+      crefs <- theColsWithRef p nm p'collections
       log'trc $ show crefs ^. isoText
       traverse_
         ( \(p', t') ->

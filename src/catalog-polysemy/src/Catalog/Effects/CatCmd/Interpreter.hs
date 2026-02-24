@@ -122,7 +122,7 @@ import qualified Catalog.SyncWithFileSys as SC
 import Data.Prim
        ( p'arch'photos
        -- , p'albums
-       , p'collections
+       -- , p'collections
        , p'photos
        , p'keywords
        , isPathPrefix
@@ -311,8 +311,8 @@ evalCatCmd =
     TheRatings p ->
       getNode p >>= read'ratings
 
-    TheColsWithRef nm p ->
-      allAlbumColsWithRef p'collections p nm
+    TheColsWithRef ip inm p ->
+      allAlbumColsWithRef p ip inm
 
     CheckImgPart onlyUpdate nm p ->
       getNode p >>= read'checkImgPart onlyUpdate p nm

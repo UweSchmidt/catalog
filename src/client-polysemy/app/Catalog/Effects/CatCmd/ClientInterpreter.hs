@@ -119,8 +119,8 @@ evalClientCatCmd =
       paramJSONget "rating" p pos
     TheRatings p ->
       simpleJSONget "ratings" p
-    TheColsWithRef nm p ->
-      paramJSONget "colswithref" p nm
+    TheColsWithRef ip inm p ->
+      paramJSONget "colswithref" p (ip, inm)
     CheckImgPart onlyUpdate n p ->
       paramJSONget "checkimgpart" p (onlyUpdate, n)
 

@@ -263,7 +263,7 @@ type JsonGetAPI
       :<|>
       "ratings"         :> SimplePost [Rating]
       :<|>
-      "colswithref"     :> ParamPost Name [(Path, Text)]
+      "colswithref"     :> ParamPost (Path, Name) [(Path, Text)]
       :<|>
       "checkimgpart"    :> ParamPost (Bool, Name) CheckSumRes
     )

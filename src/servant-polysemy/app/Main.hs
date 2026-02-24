@@ -457,7 +457,7 @@ catalogServer env runReadC runModyC runBGC =
       :<|>
       runR1 theRatings
       :<|>
-      runR2 theColsWithRef
+      runR3 theColsWithRef
       :<|>
       runR3 checkImgPart
 

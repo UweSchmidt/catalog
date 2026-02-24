@@ -139,7 +139,7 @@ data CatCmd m a where
   TheMetaDataText      ::          Int          -> Path -> CatCmd m MetaDataText
   TheRating            ::          Int          -> Path -> CatCmd m Rating
   TheRatings           ::                          Path -> CatCmd m [Rating]
-  TheColsWithRef       ::          Name         -> Path -> CatCmd m [(Path, Text)]
+  TheColsWithRef       :: Path ->  Name         -> Path -> CatCmd m [(Path, Text)]
   CheckImgPart         :: Bool ->  Name         -> Path -> CatCmd m CheckSumRes
 
   -- catalog get commands
