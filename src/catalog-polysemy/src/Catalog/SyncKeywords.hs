@@ -4,6 +4,7 @@
 module Catalog.SyncKeywords
   ( syncKeywordCol
   , syncAllKeywordCols
+  , allAlbumColsWithRef
   , allKeywords
   , allKeywordCols
   , allKeywordColsM
@@ -44,6 +45,9 @@ import Catalog.ImgTree.Modify
        , mkCollection
        )
 
+import Data.ImgNode
+       ( ObjIds )
+
 import Data.ImgTree
        ( ColEntries
        , ColEntryM
@@ -71,6 +75,49 @@ import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
 import qualified Data.Text       as T
+
+-- ----------------------------------------
+--
+-- search collection tree "colId" for
+-- occurences of img ref ir
+-- and collect col ids
+
+allColsWithImgRef :: Eff'ISE r => ObjId -> ImgRef -> Sem r ObjIds
+allColsWithImgRef colId ir = do
+  foldCollections colA colId
+  where
+   colA go i _md _im _be cs = do
+     fold <$> traverse (colEntryM' iref go) cs
+       where
+         iref ir' = do
+           let res
+                 | ir' == ir = S.singleton i
+                 | otherwise =  mempty
+           return res
+
+allAlbumColsWithRef :: (Eff'ISEL r) => Path -> Path -> Name -> Sem r [(Path, Text)]
+allAlbumColsWithRef colp p nm = do
+  log'trc $
+    "allAlbumColsWithRef: collection = "
+    <> colp ^. isoText
+    <> ", img = "  <> p  ^. isoText
+    <> ", part = " <> nm ^. isoText
+
+  rc <- lookupByPath colp
+  ri <- lookupByPath p
+  case (rc, ri) of
+    (Just (ci, _), Just (i, _)) -> do
+      colIds <- allColsWithImgRef ci (ImgRef i nm)
+      traverse toPathTitle $ S.toList colIds
+
+    _notFound -> do
+      log'trc "allAlbumColsWithRef: argumet paths unknown"
+      return []
+  where
+    toPathTitle i' = do
+      p'  <- objid2path i'
+      md' <- getMetaData i'
+      return (p', md' ^. metaTextAt descrTitle)
 
 -- ----------------------------------------
 

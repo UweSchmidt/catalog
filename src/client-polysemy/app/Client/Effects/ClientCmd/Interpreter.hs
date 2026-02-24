@@ -130,6 +130,7 @@ import Catalog.Effects.CatCmd
        , newKeywords
        , theEntry
        , theKeywordCols
+       , theColsWithRef
        , theMetaDataText
        , updateCheckSum
        , updateTimeStamp
@@ -177,14 +178,25 @@ evalClientCmd =
 
     CcEntry p -> do
       ps <- globExpand p
-      traverse_ (\ p' -> do n <- theEntry p'
-                            writeln $ p' ^. isoText
-                            writeln $ prettyJSONText jPageKeys n
-                ) ps
+      traverse_
+        (\ p' -> do
+            n <- theEntry p'
+            writeln $ p' ^. isoText
+            writeln $ prettyJSONText jPageKeys n
+        ) ps
 
     CcLsSub p -> do
       ps <- evalGlobLs p
       traverse_ (writeln . (^. isoText)) ps
+
+    CcLsRefs p nm -> do
+      crefs <- theColsWithRef nm p
+      log'trc $ show crefs ^. isoText
+      traverse_
+        ( \(p', t') ->
+            writeln $ "col: " <> p' ^.isoText <> ", title: " <> t' ^. isoText
+        )
+        crefs
 
     CcLsmd pp0 keys -> do
       pp <- globExpandPP pp0

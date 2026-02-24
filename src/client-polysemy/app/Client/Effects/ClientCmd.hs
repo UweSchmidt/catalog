@@ -8,6 +8,7 @@ module Client.Effects.ClientCmd
   , ccGlob
   , ccEntry
   , ccLsSub
+  , ccLsRefs
   , ccLsmd
   , ccSetmd1
   , ccDelmd1
@@ -57,6 +58,7 @@ data ClientCmd m a where
   CcGlob        :: Path                        -> ClientCmd m ()
   CcEntry       :: Path                        -> ClientCmd m ()
   CcLsSub       :: Path                        -> ClientCmd m ()
+  CcLsRefs      :: Path    -> Name             -> ClientCmd m ()
   CcLsmd        :: PathPos -> [MetaKey]        -> ClientCmd m ()
   CcSetmd1      :: PathPos ->  MetaKey -> Text -> ClientCmd m ()
   CcDelmd1      :: PathPos ->  MetaKey         -> ClientCmd m ()

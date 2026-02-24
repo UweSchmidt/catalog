@@ -97,6 +97,7 @@ import Catalog.Effects.CatCmd
        , theMetaDataText
        , theRating
        , theRatings
+       , theColsWithRef
        , updateCheckSum
        , updateTimeStamp
        )
@@ -455,6 +456,8 @@ catalogServer env runReadC runModyC runBGC =
       runR2 theRating
       :<|>
       runR1 theRatings
+      :<|>
+      runR2 theColsWithRef
       :<|>
       runR3 checkImgPart
 

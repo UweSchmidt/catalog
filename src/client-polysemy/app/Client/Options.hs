@@ -143,6 +143,14 @@ cmdClient = subparser $
       )
     )
   <>
+  command "ls-img-refs"
+    ( (CcLsRefs <$> argPath <*> argPart)
+      `withInfo`
+      ( "list all collection containig the image ref with "
+        <> "PATH as image path and PART as image name"
+      )
+    )
+  <>
   command "set-md"
     ( ( CcSetmd1
         <$> argPathPos1

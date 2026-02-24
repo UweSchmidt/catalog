@@ -93,6 +93,7 @@ import Catalog.SyncWithFileSys
 import Catalog.SyncKeywords
        ( KeywordCols
        , allKeywordColsM
+       , allAlbumColsWithRef
        )
 
 import Catalog.TextPath
@@ -120,6 +121,8 @@ import qualified Catalog.SyncWithFileSys as SC
 -- catalog
 import Data.Prim
        ( p'arch'photos
+       -- , p'albums
+       , p'collections
        , p'photos
        , p'keywords
        , isPathPrefix
@@ -307,6 +310,9 @@ evalCatCmd =
 
     TheRatings p ->
       getNode p >>= read'ratings
+
+    TheColsWithRef nm p ->
+      allAlbumColsWithRef p'collections p nm
 
     CheckImgPart onlyUpdate nm p ->
       getNode p >>= read'checkImgPart onlyUpdate p nm
