@@ -408,7 +408,7 @@ setKWMeta (subCnt, imgCnt, colCnt) i = do
         st  :: Text
         st  = T.intercalate ", " $ map snd $ filter ((/= 0) . fst) sts
 
-        sts = zip [subCnt, imgCnt, colCnt] [st0, st1, st2]
+        sts = zip [subCnt, colCnt, imgCnt] [st0, st2, st1]
 
         st0 = subCnt ^. isoText <> " Schlüssel" <> (if subCnt == 1 then "wort" else "wörter")
         st1 = imgCnt ^. isoText <> " Bild"      <> (if imgCnt == 1 then "" else "er")
