@@ -2644,7 +2644,10 @@ function buildColRefs(id) {
             a.classList.add("weblink");
             a.appendChild(newText(path));
 
-            t.appendChild(a);
+            const d     = newElem("div");
+            d.appendChild(a);
+
+            t.appendChild(d);
         }
         e.appendChild(t);
 
