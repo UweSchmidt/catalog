@@ -61,14 +61,13 @@ import Catalog.ImgTree.Access
        , getImgParent
        , getMetaData
        , getImgMetaData
+       , getColRefMetaData
        , getCreateDates
        , findFstColEntry
        , lookupByPath
        , mapObjId2Path
        , objid2path
        , colEntryAt
-       , processColEntryAt
-       , processColImgEntryAt
        )
 import Catalog.ImgTree.Modify
        ( adjustColEntries
@@ -414,22 +413,21 @@ writeStaticFile dstPath lbs = do
 -- --------------------
 
 modify'saveblogsource :: Eff'Html r => Int -> Text -> ImgNode -> Sem r ()
-modify'saveblogsource pos t = putBlogCont t pos
+modify'saveblogsource pos btxt n =
+  colEntryAt pos n
+  >>=
+  colEntryM'
+    (HT.putColBlogSource btxt)   -- change blog file
+    putColBlog                   -- change blog entry of collection
   where
-    putBlogCont :: Eff'Html r => Text -> Int -> ImgNode -> Sem r ()
-    putBlogCont val =
-      processColEntryAt
-        (HT.putColBlogSource val)   -- change blog file
-        putColBlog                  -- change blog entry of collection
-        where
-          putColBlog i = do
-            n'  <- getImgVal i      -- the blog file of the collection
-            br  <- maybe
-                   (throwP i ("modify'saveblogsource: "
-                              <> "no blog entry set in collection: "))
-                   return
-                   (n' ^? theColBlog . traverse)
-            HT.putColBlogSource val br
+    putColBlog i = do
+      n'  <- getImgVal i         -- the blog file of the collection
+      br  <- maybe
+             (throwP i ("modify'saveblogsource: "
+                        <> "no blog entry set in collection: "))
+             return
+               (n' ^? theColBlog . traverse)
+      HT.putColBlogSource btxt br
 
 -- --------------------
 --
@@ -692,10 +690,12 @@ modifyCol adjust sPath pos i
   | pos < 0 =
       adjust (const Nothing) i
   | otherwise = do
-      scn <- snd <$> getIdNode' sPath
-      processColImgEntryAt
-        (\ ir -> adjust (const $ Just ir) i)
-        pos scn
+      n <- snd <$> getIdNode' sPath
+      colEntryAt pos n
+        >>=
+        colEntryM'
+          (\ ir -> adjust (const $ Just ir) i)
+          (const $ return mempty)
 
 -- --------------------
 --
@@ -930,16 +930,17 @@ read'isCollection p =
 read'blogcontents :: Eff'Html r => Int -> ObjId -> ImgNode -> Sem r Text
 read'blogcontents pos _i n
   | pos < 0   = maybe
-                (return mempty)             -- return nothing, when not there
+                (return mempty)                -- return nothing, when not there
                 HT.getColBlogCont              -- else generate the HTML
                 (n ^? theColBlog . traverse)
 
-  | otherwise = processColEntryAt
+  | otherwise = colEntryAt pos n
+                >>=
+                colEntryM'
                 HT.getColBlogCont                        -- ImgEnt: entry is a blog text
                 (\ i' -> do n' <- getImgVal i'        -- theColBlog
                             read'blogcontents (-1) i' n'
                 )
-                pos n
 
 -- get the contents of a blog entry
 
@@ -951,13 +952,13 @@ read'blogsource pos i n
                          (n ^? theColBlog . traverse)
                    HT.getColBlogSource br
 
-  | otherwise = processColEntryAt
+  | otherwise = colEntryAt pos n
+                >>=
+                colEntryM'
                 HT.getColBlogSource
                 (\ i' -> do n' <- getImgVal i'
                             read'blogsource (-1) i' n'
                 )
-                pos
-                n
 
 -- --------------------
 --
@@ -970,7 +971,7 @@ read'metadata' pos i n
 
   -- reference the ColEntryM entry at position pos in collection n with ObjId i
   | otherwise = do
-      md1 <- processColEntryAt getImgMetaData getMetaData pos n
+      md1 <- colEntryAt pos n >>= getColRefMetaData
       md2 <- (^. theColMeta) <$> colEntryAt pos n
       return $ md2 <> md1   -- ColEntry metadata overwrites img/col metadata
 

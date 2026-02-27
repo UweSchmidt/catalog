@@ -11,7 +11,6 @@ module Catalog.GenCollections
        , img2colPath
        , modifyMetaDataRec
        , sortByName
-       , sortByDate
        )
 where
 
@@ -37,7 +36,7 @@ import Catalog.ImgTree.Access
        , getImgVals
        , getMetaData
        , getImgName
-       , sortColEntries
+       , sortAugmentedColEntries
        , getRootImgDirId
        , lookupByPath
        , objid2path
@@ -55,6 +54,9 @@ import Catalog.Logging
 
 import Catalog.CopyRemove
        ( removeEmptyColls )
+
+import Catalog.SyncKeywords
+       ( sortColEntriesByDate )
 
 import Catalog.TimeStamp
        ( whatTimeIsIt )
@@ -87,7 +89,6 @@ import Data.MetaData
 
        , lookupCreate
        , parseDate
-       , parseTime
        , isoDateInt
 
        , all'restr
@@ -346,10 +347,11 @@ genCollectionsByDir di = do
 -- collection sort
 
 sortByName :: Eff'ISE r => ColEntries -> Sem r ColEntries
-sortByName =
-  sortColEntries getVal compare
+sortByName cs =
+    sortAugmentedColEntries (compare `on` snd)
+    <$>
+    augmentM getVal cs
   where
-
     -- collections come first and are sorted by name
     -- images are sorted by name and part name
     getVal :: Eff'ISE r => ColEntryM -> Sem r (Either Name (Name, Name))
@@ -357,26 +359,6 @@ sortByName =
       colEntryM
       (\ j n1 -> (\ n -> Right (n, n1))  <$> getImgName j)
       (fmap Left . getImgName)
-
-
-sortByDate :: Eff'ISE r => ColEntries -> Sem r ColEntries
-sortByDate =
-  sortColEntries getVal compare
-  where
-    -- collections come first, should be redundant,
-    -- there should be only images in the collection of a day
-    --
-    -- the images are sorted by creation time and
-    -- if that fails, by name
-
-    getVal =
-      colEntryM
-      (\ j n1 -> do
-          md  <- getMetaData j
-          let t = lookupCreate parseTime md
-          return $ Right (t, n1)
-      )
-      (fmap Left . getImgName )
 
 -- ----------------------------------------
 --
@@ -402,7 +384,7 @@ adjustColByName :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
 adjustColByName = adjustColBy sortByName
 
 adjustColByDate :: Eff'ISEJL r => ColEntries -> ObjId -> Sem r ()
-adjustColByDate = adjustColBy sortByDate
+adjustColByDate = adjustColBy sortColEntriesByDate
 
 adjustColBy :: Eff'ISEJL r => (ColEntries -> Sem r ColEntries) ->
                ColEntries ->

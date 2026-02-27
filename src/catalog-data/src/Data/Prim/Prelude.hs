@@ -95,7 +95,7 @@ module Data.Prim.Prelude
     unlessM,
     partitionM,
     filterSeqM,
-
+    augmentM,
     -- * pretty printing helper
     fillLeft,
     fillRight,
@@ -540,6 +540,22 @@ filterSeqM p = foldM f mempty
             else rs
         )
 {-# INLINE filterSeqM #-}
+
+-- ----------------------------------------
+
+-- augment the elements of Traversable (e.g [a], Seq a, ...)
+-- by the result of a monadic action
+-- used e.g in augmentColEntries for sorting a the collection entries
+-- by date of img creation
+
+augmentM ::
+  (Monad m, Traversable f, Applicative f) =>
+  (a -> m b) ->
+  f a ->
+  m (f (a, b))
+augmentM fa = traverse (\x -> (x,) <$> fa x)
+
+{-# INLINE augmentM #-}
 
 -- ----------------------------------------
 --

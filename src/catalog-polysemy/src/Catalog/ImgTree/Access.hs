@@ -11,6 +11,7 @@ module Catalog.ImgTree.Access
   , getImgSubDirs
   , getMetaData
   , getImgMetaData
+  , getColRefMetaData
   , getCreateDates
   , getRootId
   , getRootImgDirId
@@ -34,11 +35,10 @@ module Catalog.ImgTree.Access
   , mapImgStore2ObjId
   , findAllColEntries
   , findFstColEntry
-  , sortColEntries
+  , augmentColEntries
+  , sortAugmentedColEntries
   , mergeColEntries
   , colEntryAt
-  , processColEntryAt
-  , processColImgEntryAt
   , foldObjIds
   , filterObjIds
   , bitsUsedInImgTreeMap
@@ -70,6 +70,7 @@ import Data.ImgTree
        , ObjIds
        , UplNode
        , colEntryM'
+       , colEntryM
        , entryAt
        , isDIR
        , isIMG
@@ -280,14 +281,18 @@ getMetaData i = getImgVals i theMetaData
 
 getImgMetaData :: Eff'ISE r => ImgRef -> Sem r MetaData
 getImgMetaData (ImgRef i nm) = do
-  partMD <- getImgVals  i (theImgPart nm . theImgMeta)
-  imgMD  <- getMetaData i
-  p      <- objid2path i
+  p         <- objid2path i
+  nd        <- getImgVal i
+  let imgMD  = nd ^. theMetaData
+  let partMD = nd ^. theImgPart nm . theImgMeta
   return $ addFileMetaData p nm (partMD <> imgMD)
 
+getColRefMetaData :: (Eff'ISE r) => ColEntryM -> Sem r MetaData
+getColRefMetaData = colEntryM' getImgMetaData getMetaData
+
 getCreateDates :: (Eff'ISE r) => ColEntries -> Sem r (Seq Text)
-getCreateDates =
-  traverse (fmap (lookupCreate id) . colEntryM' getImgMetaData getMetaData)
+getCreateDates cs =
+  traverse (\c -> lookupCreate id <$> getColRefMetaData c) cs
 
 -- ----------------------------------------
 
@@ -325,7 +330,7 @@ mapImgStore2ObjId = mapImgStore mkObjId
 
 findAllColEntries :: Eff'ISE r
                   => (ColEntryM -> Sem r Bool)    -- ^ the filter predicate
-                  -> ObjId                       -- ^ the collection
+                  -> ObjId                        -- ^ the collection
                   -> Sem r [(Int, ColEntryM)]     -- ^ the list of entries with pos
 findAllColEntries p i = do
   es <- getImgVals i theColEntries
@@ -339,23 +344,21 @@ findFstColEntry  :: Eff'ISE r
 findFstColEntry p i = listToMaybe <$> findAllColEntries p i
 {-# INLINE findFstColEntry #-}
 
+type AugColEntry a = (ColEntryM, a)
 
-sortColEntries :: Eff'ISE r
-               => (ColEntryM -> Sem r a)
-               -> (a -> a -> Ordering)
-               -> ColEntries
-               -> Sem r ColEntries
-sortColEntries getVal cmpVal es =
-  fmap fst . Seq.sortBy (cmpVal `on` snd) <$> traverse mkC es
+augmentColEntries :: Eff'ISE r => (ObjId -> Sem r a) ->  ColEntries -> Sem r (Seq (AugColEntry a))
+augmentColEntries getVal = augmentM get'
   where
-    -- mkC :: ColEntry -> Sem (ColEntry, a)
-    mkC ce = do
-      v <- getVal ce
-      return (ce, v)
+    get' =
+      colEntryM
+      (\i' _nm' -> getVal i')
+      (\i'      -> getVal i')
+{-# INLINE augmentColEntries #-}
 
--- merge old and new entries
--- old entries are removed from list of new entries
--- the remaining new entries are appended
+sortAugmentedColEntries ::  (AugColEntry a -> AugColEntry a -> Ordering) ->
+                            Seq (AugColEntry a) -> ColEntries
+sortAugmentedColEntries cmpF acs =
+  fmap fst $ Seq.sortBy cmpF acs
 
 mergeColEntries :: ColEntries -> ColEntries -> ColEntries
 mergeColEntries es1 es2 =
@@ -371,33 +374,6 @@ colEntryAt pos n =
     (throw $ "colEntryAt: illegal index in collection: " <> pos ^. isoText)
     return
     (n ^? theColEntries . ix pos)
-
-
--- process a collection entry at an index pos
--- if the entry isn't there, an error is thrown
-
-processColEntryAt :: Eff'ISE r
-                  => (ImgRef -> Sem r a)
-                  -> (ObjId  -> Sem r a)
-                  -> Int
-                  -> ImgNode
-                  -> Sem r a
-processColEntryAt imgRef colRef pos n =
-  colEntryAt pos n >>=
-  colEntryM' imgRef colRef
-
-
--- process a collection image entry at an index pos
--- if the entry isn't there, an error is thrown
-
-processColImgEntryAt :: (Eff'ISE r, Monoid a)
-                     => (ImgRef -> Sem r a)
-                     -> Int
-                     -> ImgNode
-                     -> Sem r a
-processColImgEntryAt imgRef =
-  processColEntryAt imgRef (const $ return mempty)
-
 
 -- --------------------
 

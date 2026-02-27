@@ -9,6 +9,7 @@ module Catalog.SyncKeywords
   , allKeywordCols
   , allKeywordColsM
   , newKeywordCols
+  , sortColEntriesByDate
   , Keywords
   , KeywordCols
   )
@@ -32,11 +33,14 @@ import Catalog.ImgTree.Access
        , getImgName
        , getImgVal
        , getMetaData
+       , getColRefMetaData
        , getId
-       , sortColEntries
+       , sortAugmentedColEntries
        )
 import Catalog.ImgTree.Fold
-       -- ( foldMT )
+       ( foldCollections
+       , foldColColEntries
+       )
 
 import Catalog.ImgTree.Modify
        ( adjustColEntries
@@ -258,14 +262,26 @@ cleanupKeywordCol i n0 = do
         rmRec i'
 
 sortColEntriesByDate :: (Eff'ISE r) => ColEntries -> Sem r ColEntries
-sortColEntriesByDate =
-  sortColEntries getD compare
-  where
-    getD :: (Eff'ISE r) => ColEntryM -> Sem r (Either Text (Text, Name))
-    getD =
-      colEntryM
-      (\i' nm' -> (\md' -> Right (lookupCreate id md', nm')) <$> getMetaData i')
-      (\i'     -> (\md' -> Left  (lookupCreate id md')     ) <$> getMetaData i')
+sortColEntriesByDate cs =
+  sortAugmentedColEntries (cmpDate <> cmpImgPart)
+  <$>
+  augmentM getColRefMetaData cs
+
+-- sort by createDate in metadata
+
+cmpDate :: (a, MetaData) -> (a, MetaData) -> Ordering
+cmpDate = compare `on` (\(_ce, md') -> lookupCreate id md')
+
+-- collection entries first, then img entries
+
+_cmpColImg :: (ColEntryM, m) -> (ColEntryM, m) -> Ordering
+_cmpColImg = compare `on` (\(ce, _md) -> colEntryM (const $ const True) (const False) ce)
+
+-- compare img part names
+
+cmpImgPart :: (ColEntryM, m) -> (ColEntryM, m) -> Ordering
+cmpImgPart = compare `on` (\(ce, _md) -> colEntryM (\_i nm -> nm) (const mempty) ce)
+
 
 addColRefsToKeywordCol :: (Eff'ISEJL r) => ObjId -> ColEntries -> Sem r ()
 addColRefsToKeywordCol i rs0 = do
@@ -320,18 +336,8 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
           adjustMetaData   (\md -> md & metaTextAt descrTitle .~ colTitle) ci
           adjustColImg     (const colImg) ci
           where
-            colPath :: Path
-            colPath = p' `snocPath` colName
-
-            colIxLb, colIxUb :: Int
-            colIxLb = ix' * maxImgEntries + 1
-            colIxUb = colIxLb -1 + Seq.length rs'
-
-            colName :: Name
-            colName = isoText # ((isoString # (show colIxLb <> "-" <> show colIxUb)) <> kwSuffix)
-
-            colTitle :: Text
-            colTitle = kw <> ": Bilder " <> isoString # (show colIxLb <> " - " <> show colIxUb)
+            colPath             = p' `snocPath` colName
+            (colTitle, colName) = fmtKWTitle rs' ix' kw
 
             colImg :: Maybe ImgRef
             colImg = rs' ^? ix 0 . theColEntry . theColImgRef
@@ -350,8 +356,6 @@ syncKeywordCol i = do
   log'RefsMap rfm
 
   -- build new keyword collections
-  -- updateKeywordCols kws rfm i
-
   void $ M.traverseWithKey (updateKeywordCol rfm) kws
 
 updateKeywordCol :: Eff'ISEJL r => RefsMap -> Text -> Path -> Sem r ()
@@ -398,21 +402,11 @@ updateKeywordCol rfm kw p = do
 -- --------------------
 
 setKWMeta :: Eff'ISEJL r => (Int, Int, Int) -> ObjId -> Sem r ()
-setKWMeta (subCnt, imgCnt, colCnt) i = do
+setKWMeta cs i = do
   adjustMetaData addSub i
   where
-    addSub :: MetaData -> MetaData
     addSub md =
-      md & metaTextAt descrSubtitle .~ st
-      where
-        st  :: Text
-        st  = T.intercalate ", " $ map snd $ filter ((/= 0) . fst) sts
-
-        sts = zip [subCnt, colCnt, imgCnt] [st0, st2, st1]
-
-        st0 = subCnt ^. isoText <> " Schlüssel" <> (if subCnt == 1 then "wort" else "wörter")
-        st1 = imgCnt ^. isoText <> " Bild"      <> (if imgCnt == 1 then "" else "er")
-        st2 = colCnt ^. isoText <> " Sammlung"  <> (if colCnt == 1 then "" else "en")
+      md & metaTextAt descrSubtitle .~ fmtKWSubTitle cs
 
 -- --------------------
 
@@ -504,6 +498,37 @@ buildRefsMap matchKeyword i0 =
                            then mkRefsImg kw' ir
                            else mempty
                         ) kws'
+
+
+-- --------------------
+--
+-- metadata format functions
+
+fmtKWTitle :: ColEntries -> Int -> Text -> (Text, Name)
+fmtKWTitle rs' ix' kw =
+  (colTitle, colName)
+  where
+    colIxLb, colIxUb :: Int
+    colIxLb = ix' * maxImgEntries + 1
+    colIxUb = colIxLb -1 + Seq.length rs'
+
+    colName :: Name
+    colName = isoText # ((isoString # (show colIxLb <> "-" <> show colIxUb)) <> kwSuffix)
+
+    colTitle :: Text
+    colTitle = kw <> ": Bilder " <> isoString # (show colIxLb <> " - " <> show colIxUb)
+
+
+fmtKWSubTitle :: (Int, Int, Int) -> Text
+fmtKWSubTitle (subCnt, imgCnt, colCnt) =
+  T.intercalate ", " $ map snd $ filter ((/= 0) . fst) sts
+  where
+    sts = zip [subCnt, colCnt, imgCnt] [st0, st1, st2]
+
+    st0 = subCnt ^. isoText <> " Schlüssel" <> (if subCnt == 1 then "wort" else "wörter")
+    st2 = imgCnt ^. isoText <> " Bild"      <> (if imgCnt == 1 then "" else "er")
+    st1 = colCnt ^. isoText <> " Sammlung"  <> (if colCnt == 1 then "" else "en")
+
 
 -- --------------------
 --
