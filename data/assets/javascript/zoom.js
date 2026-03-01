@@ -1977,6 +1977,10 @@ function getColReq(ico) {
     if ( lnk ) {
         // build "SymLink" request
         req = mkColReq(lnk);
+
+        // save path of current keyword collection
+        kwHistory.push(cs.slideReq.rPathPos[0]);
+        console.log("getColReq: history = " + JSON.stringify(kwHistory));
     }
     if ( req ) {
         return req;
@@ -1993,6 +1997,13 @@ function goHome() {
 
 function gotoKWHome() {
     showNextSlide(mkColReq(pathKeywords()));
+}
+
+var kwHistory = [];
+
+function gotoKWHistory() {
+    const c = kwHistory.pop() || pathKeywords();
+    showNextSlide(mkColReq(c));
 }
 
 function gotoPrev() {
@@ -2052,6 +2063,7 @@ function gotoKeywordCol(i) {
 function gotoColRef(i) {
     const path = cs.page.colRefs[i][0];
     console.log("gotoColRef: " + path);
+
     showNextSlide(mkColReq(path));
 }
 
@@ -2198,6 +2210,10 @@ const StepActions = {
         stopShow();
         gotoKeywordCol(i);
     },
+    kwhistory() {
+        stopShow();
+        gotoKWHistory();
+    },
     colRef(i) {
         stopShow();
         gotoColRef(i);
@@ -2257,7 +2273,7 @@ const DownActions = {
     Period     : StepActions.down,     // presenter: right screen icon, keyCode: 110
 
     a          : StepActions.home,     // goto root albums collection
-    k          : StepActions.kwHome,
+    k          : StepActions.kwhistory,
     n          : StepActions.next,
     p          : StepActions.prev,
     u          : StepActions.parent,
@@ -2286,6 +2302,7 @@ const DownShiftActions = {
     V          : ConfigActions.serverVersion,
 
     S          : StepActions.showAll,
+    K          : StepActions.kwHome,
 
     A          : VideoCtrlActions.autoPlayDefault,
     C          : VideoCtrlActions.controlsDefault,
