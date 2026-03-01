@@ -1953,7 +1953,7 @@ function getSlideBlog(s) {
 function getNavReq(nav, s) {
     s = s || cs;
     if ( isColSlide(s) ) {
-        return s.page.navIcons[nav].eReq;
+        return getColReq(s.page.navIcons[nav]);
     }
     return s.page.imgNavRefs[nav];
 }
@@ -1962,16 +1962,21 @@ function getChildReq(s, i) {
     s = s || cs;
     i = i || 0;
     if ( isColSlide() ) {
-        let   req = s.page.contIcons[i].eReq;
+        return getColReq(s.page.contIcons[i]);
+    }
+    return null;
+}
 
-        const lnk = s.page.contIcons[i].eMeta["Descr:CollectionRef"];
-        if ( lnk ) {
-            // build "SymLink" request
-            req = mkColReq(lnk);
-        }
-        if ( req ) {
-            return req;
-        }
+function getColReq(ico) {
+    let req = ico.eReq;
+
+    const lnk = ico.eMeta["Descr:CollectionRef"];
+    if ( lnk ) {
+        // build "SymLink" request
+        req = mkColReq(lnk);
+    }
+    if ( req ) {
+        return req;
     }
     return null;
 }
