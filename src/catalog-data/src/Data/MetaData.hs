@@ -72,6 +72,8 @@ module Data.MetaData
   , parseDate
   , parseDateTime
   , isoDateInt
+  , isoDateInt3
+  , toYMD
   , isoStars
 
     -- metadata keys
@@ -1618,19 +1620,28 @@ parseDate :: Text -> Maybe (String, String, String)
 parseDate = parseMaybe' dateParser . (isoText #)
 {-# INLINE parseDate #-}
 
-isoDateInt :: Iso' (String, String, String) Int
-isoDateInt = iso toInt frInt
+isoDateInt3 :: Iso' (String, String, String) (Int, Int, Int)
+isoDateInt3 = iso toInt frInt
   where
-    toInt (y, m, d) =
-      (read y * 100 + read m) * 100 + read d
+    toInt (y, m, d) = (read y, read m, read d)
 
-    frInt i = ( printf "%04d" y
-              , printf "%02d" m
-              , printf "%02d" d
-              )
+    frInt (y, m, d) = ( printf "%04d" y,
+                        printf "%02d" m,
+                        printf "%02d" d
+                      )
+
+isoDateInt :: Iso' (String, String, String) Int
+isoDateInt = isoDateInt3 . iso to3 fr3
+  where
+    to3 (y, m, d) = (y * 100 + m) * 100 + d
+
+    fr3 i = (y, d, m)
       where
         (my, d) = i  `divMod` 100
         (y,  m) = my `divMod` 100
+
+toYMD :: Text -> (Int, Int, Int)
+toYMD =  maybe (0, 0, 0) (^. isoDateInt3) . parseDate
 
 -- take the time part of a full date/time input
 parseTime :: Text -> Maybe (String, String, String, String)
