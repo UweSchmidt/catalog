@@ -152,8 +152,8 @@ isHiddenKWName n =
   ||
   T.isSuffixOf kwSuffix n
 
-hasNoIndex :: Keywords -> Bool
-hasNoIndex = (kwNoIndex `S.member`)
+notToBeIndexed :: Keywords -> Bool
+notToBeIndexed = (kwNoIndex `S.member`)
 
 kwList :: MetaData -> [Text]
 kwList md = md ^. metaDataAt descrKeywords . metaTS
@@ -208,7 +208,7 @@ allKeywords' i = do
   where
     colA go _i md _im _be cs = do
       let kws1 = S.fromList $ kwList md            -- col keywords
-      kws2 <- if hasNoIndex kws1
+      kws2 <- if notToBeIndexed kws1
               then
                 return mempty                                -- stop looking for keywords
               else
@@ -452,7 +452,7 @@ buildRefsMap matchKeyword i0 =
       -- log'trc $ "buildRefsMap: p = " <> p'' ^.isoText
 
       rm2 <-
-        if hasNoIndex kws
+        if notToBeIndexed kws
         then return mempty
         else do
           addKW

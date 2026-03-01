@@ -169,7 +169,7 @@ createColCopy target'path src'id = do
 
   -- copy collection attributes
   n <- getImgVal src'id
-  adjustMetaData (const $ n ^. theColMetaData) col'id
+  adjustMetaData (const $        n ^. theColMetaData) col'id
   adjustColImg   (const $ join $ n ^? theColImg)      col'id
   adjustColBlog  (const $ join $ n ^? theColBlog)     col'id
   return col'id
