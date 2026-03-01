@@ -1745,13 +1745,14 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
                 const req = ico.eReq;
                 const md  = ico.eMeta;
+                const cr  = md["Descr:CollectionRef"] || "";
+                const cs = "nav-icon" + (cr ? " nav-link" : "");
 
                 const r = newElem("div",
                                   { width:  i2G.w,
                                     height: i2G.h,
-                                    border: cssBorder
                                   },
-                                  "navicon"
+                                  cs
                                  );
                 if (! req) {
                     return r;
@@ -1830,12 +1831,14 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             const cr = md["Descr:CollectionRef"] || "";
             const ct = (cr === "") ? "" : " (-> " + cr + ")";
             const tt = (md["Descr:Title"] || "") + ct;
+            const cs = "col-icon" + (cr ? " col-link" : "");
 
             const e  = newElem("div",
                                { width:  iG.w,
                                  height: iG.h,
-                                 border: cssBorder
-                               });
+                               },
+                               cs
+                              );
 
             const a  = newElem("a");
             a.href   = toHref1("StepActions.child(" + i + ")");
