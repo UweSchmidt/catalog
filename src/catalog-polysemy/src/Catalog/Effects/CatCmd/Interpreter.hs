@@ -175,6 +175,8 @@ import Data.MetaData
        , clearAccess
        , addNoWriteAccess
        , subNoWriteAccess
+       , metaTextAt
+       , descrCollectionRef
        )
 import Data.ImageStore
        ( ImgStore )
@@ -784,12 +786,27 @@ modify'setMetaData'' ixs edi edp edc n =
     setm pos = maybe (return ()) sm $ cs ^? ix pos
       where
         sm = colEntryM'
-             adjustImgMetaData      -- img entry
-             (adjustMetaData edc)   -- col entry
+             adjustImgMetaData   -- img entry
+             adjustColMetaData   -- col entry
 
         adjustImgMetaData ir@(ImgRef i _nm) = do
           adjustPartMetaData edp ir
           adjustMetaData     edi i
+
+        adjustColMetaData ci = do
+          adjustMetaData edc ci
+
+          colLink <- (\md -> md ^. metaTextAt descrCollectionRef) <$> getMetaData ci
+          unless (isEmpty colLink) $ do
+
+            -- collection is a col entry with "symlink" to referenced collection
+            -- also edit metadata of that collection
+
+            mi <- lookupByPath (isoText # colLink)
+            maybe
+              ( return () )
+              ( \(i', _n') -> adjustMetaData edc i')
+              mi
 
 -- set meta data fields for a collection or a single collection entry
 
