@@ -308,7 +308,7 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
 
   if forceSubCol
     then
-      splitIntoSubCols rs1
+      splitIntoSubCols kw i rs1
     else
       adjustColEntries (<> rs1) i
 
@@ -319,26 +319,33 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
     cImg :: ColEntries -> Maybe ImgRef
     cImg rs' = rs' ^? ix 0 . theColEntry . theColImgRef
 
-    splitIntoSubCols rs = do
-      p <- objid2path i
-      log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
+splitIntoSubCols :: Eff'ISEJL r => Text -> ObjId -> ColEntries -> Sem r ()
+splitIntoSubCols kw i rs = do
+  p <- objid2path i
+  log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
 
-      void $ Seq.traverseWithIndex (addCol p) crs
-      where
-        crs = Seq.chunksOf maxImgEntries rs
+  void $ Seq.traverseWithIndex (addCol p) crs
+    where
+      crs = Seq.chunksOf maxImgEntries rs
 
-        addCol :: Eff'ISEJL r => Path -> Int -> ColEntries -> Sem r ()
-        addCol p' ix' rs' = do
-          log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
+      addCol :: Eff'ISEJL r => Path -> Int -> ColEntries -> Sem r ()
+      addCol p' ix' rs' = do
+        let getDate cr'         = lookupCreate toYMD <$> getColRefMetaData cr'
 
-          ci            <- mkCollection colPath
-          adjustColEntries (const rs') ci
-          adjustMetaData   (\md -> md & metaTextAt descrTitle .~ colTitle) ci
-          adjustColImg     (const colImg) ci
+        fr' <- getDate (fromJust $ rs' ^? ix 0)
+        to' <- getDate (fromJust $ rs' ^? ix (Seq.length rs' - 1))
+
+        let colName   = fmtKWName  rs' ix'
+        let colTitle  = fmtKWTitle fr' to' kw
+        let colPath   = p' `snocPath` colName
+
+        log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
+
+        ci            <- mkCollection colPath
+        adjustColEntries (const rs') ci
+        adjustMetaData   (\md -> md & metaTextAt descrTitle .~ colTitle) ci
+        adjustColImg     (const colImg) ci
           where
-            colPath             = p' `snocPath` colName
-            (colTitle, colName) = fmtKWTitle rs' ix' kw
-
             colImg :: Maybe ImgRef
             colImg = rs' ^? ix 0 . theColEntry . theColImgRef
 
@@ -504,9 +511,9 @@ buildRefsMap matchKeyword i0 =
 --
 -- metadata format functions
 
-fmtKWTitle :: ColEntries -> Int -> Text -> (Text, Name)
-fmtKWTitle rs' ix' kw =
-  (colTitle, colName)
+fmtKWName :: ColEntries -> Int -> Name
+fmtKWName rs' ix' =
+  colName
   where
     colIxLb, colIxUb :: Int
     colIxLb = ix' * maxImgEntries + 1
@@ -515,9 +522,8 @@ fmtKWTitle rs' ix' kw =
     colName :: Name
     colName = isoText # ((isoString # (show colIxLb <> "-" <> show colIxUb)) <> kwSuffix)
 
-    colTitle :: Text
-    colTitle = kw <> ": Bilder " <> isoString # (show colIxLb <> " - " <> show colIxUb)
-
+fmtKWTitle :: Date -> Date -> Text -> Text
+fmtKWTitle lb ub kw = words2text $ [kw <> ":"] <> fmtYMDRange lb ub
 
 fmtKWSubTitle :: (Int, Int, Int) -> Text
 fmtKWSubTitle (subCnt, imgCnt, colCnt) =
@@ -529,6 +535,59 @@ fmtKWSubTitle (subCnt, imgCnt, colCnt) =
     st2 = imgCnt ^. isoText <> " Bild"      <> (if imgCnt == 1 then "" else "er")
     st1 = colCnt ^. isoText <> " Sammlung"  <> (if colCnt == 1 then "" else "en")
 
+type Date  = (Int, Int, Int)
+type Words = [Text]
+
+fmtY :: Int -> Words
+fmtY i
+  | i > 0     = [i ^. isoText]
+  | otherwise = []
+
+fmtM :: Int -> Words
+fmtM i
+  | 1 <= i && i <= 12 = [ms !! (i - 1)]
+  | otherwise         = []
+  where
+    ms = [ "Januar"
+         , "Februar"
+         , "März"
+         , "April"
+         , "Mai"
+         , "Juni"
+         , "Juli"
+         , "Augut"
+         , "September"
+         , "Oktober"
+         , "November"
+         , "Dezember"
+         ]
+
+fmtD :: Int -> Words
+fmtD i
+  | 1 <= i && i <= 31 = [(show i <> ".") ^. isoText]
+  | otherwise         = []
+
+fmtYMD :: Date -> Words
+fmtYMD (y, m, d) =
+  [T.intercalate " " $ fmtD d <> fmtM m <> fmtY y]
+
+fmtYMDRange :: Date -> Date -> Words
+fmtYMDRange lb@(y1, m1, d1) ub@(y2, m2, d2)
+  | d1 /= d2         -- one day is missing: ignore days
+    &&
+    d1 `min` d2 == 0 = fmtYMDRange (y1, m1, 0) (y2, m2, 0)
+
+  | lb >  ub  = []
+  | lb == ub  =                                  fmtYMD ub
+  | y1 == y2
+    &&
+    m1 == m2  = fmtD d1            <> ["bis"] <> fmtYMD ub
+  | y1 == y2  = fmtD d1 <> fmtM m1 <> ["bis"] <> fmtYMD ub
+  | otherwise -- lb <  ub
+              = fmtYMD lb          <> ["bis"] <> fmtYMD ub
+
+words2text :: Words -> Text
+words2text = T.intercalate " "
 
 -- --------------------
 --
