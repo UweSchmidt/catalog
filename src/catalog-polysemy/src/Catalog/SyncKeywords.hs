@@ -141,7 +141,7 @@ kwNoIndex :: Text          -- marker (keyword) for stopping search of entries wi
 kwNoIndex = "no-index"
 
 maxImgEntries :: Int       -- max # of images in a generated kw collection
-maxImgEntries = 100
+maxImgEntries = 25
 
 -- hidden keyword col name are used in very large
 -- keyword collections to partition the entries into subcollections
@@ -364,7 +364,7 @@ mergeAuE ((cs1, (day11, _) ), _d1) ((cs2, (_, day22) ), d2) =
   ((cs1 <> cs2, (day11, day22)), d2)
 
 maxAuE :: Int
-maxAuE = 20
+maxAuE = maxImgEntries
 
 tooLargeAuE :: AugColEntriesD -> Bool
 tooLargeAuE ((cs, _), _) = Seq.length cs >= maxAuE
