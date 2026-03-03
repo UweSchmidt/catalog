@@ -119,7 +119,7 @@ genSysCollections :: Eff'ISEJLT r => Sem r ()
 genSysCollections = do
   log'verb $
     "genSysCollections: create/update system collections"
-    <> "(clipboard, photos, timeline, imports)"
+    <> "(clipboard, photos, timeline, imports, keywords)"
 
   -- the collection root is already there
   -- just set the meta data
