@@ -76,9 +76,6 @@ import Data.MetaData
 
 import Data.Prim
 
--- import Data.Sequence
---        ( Seq( (:<|), (:|>)) )
-
 import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
@@ -387,40 +384,6 @@ toAugDist []                    = []
 
 -- ----------------------------------------
 
- {-
-_splitIntoSubCols :: Eff'ISEJL r => Text -> ObjId -> ColEntries -> Sem r ()
-_splitIntoSubCols kw i rs = do
-  p <- objid2path i
-  log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
-
-  void $ Seq.traverseWithIndex (addCol p) crs
-    where
-      crs = Seq.chunksOf maxImgEntries rs
-
-      addCol :: Eff'ISEJL r => Path -> Int -> ColEntries -> Sem r ()
-      addCol p' ix' rs' = do
-        let getDate cr' = lookupCreate toYMD <$> getColRefMetaData cr'
-        let (hd :<| _ ) = rs'
-        let (_  :|> tl) = rs'
-
-        fr' <- getDate hd
-        to' <- getDate tl
-
-        let colName     = fmtKWName  rs' ix'
-        let colTitle    = fmtKWTitle fr' to' kw
-        let colPath     = p' `snocPath` colName
-
-        log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
-
-        ci             <- mkCollection colPath
-        adjustColEntries  (const rs') ci
-        adjustMetaData    (\md -> md & metaTextAt descrTitle .~ colTitle) ci
-        adjustColImg      (const colImg) ci
-          where
-            colImg :: Maybe ImgRef
-            colImg = rs' ^? ix 0 . theColEntry . theColImgRef
--- -}
-
 syncKeywordCol :: Eff'ISEJL r => ObjId -> Sem r ()
 syncKeywordCol i = do
   p <- objid2path i
@@ -582,19 +545,6 @@ buildRefsMap matchKeyword i0 =
 -- --------------------
 --
 -- metadata format functions
-
- {-
-fmtKWName :: ColEntries -> Int -> Name
-fmtKWName rs' ix' =
-  colName
-  where
-    colIxLb, colIxUb :: Int
-    colIxLb = ix' * maxImgEntries + 1
-    colIxUb = colIxLb -1 + Seq.length rs'
-
-    colName :: Name
-    colName = isoText # ((isoString # (show colIxLb <> "-" <> show colIxUb)) <> kwSuffix)
--- -}
 
 fmtKWTitle :: Date -> Date -> Text -> Text
 fmtKWTitle lb ub kw = words2text $ [kw <> ":"] <> fmtYMDRange lb ub
@@ -784,21 +734,4 @@ group tooLarge dist merge = go . go0
           xs1'@(x1' : xs2') = go xs1
     go xs                   = xs                     -- empty list or singleton liist
 
- {-
-groupSeq :: (a -> Bool) -> (a -> Int) -> (a -> a -> a) -> Seq a -> Seq a
-groupSeq tooLarge dist merge = go
-  where
-    go Seq.Empty            = Seq.Empty                   -- empty list
-    go xs@(_ :<| Seq.Empty) = xs                      -- single element list
-    go (x :<| xs1@(x1 :<| xs2))
-      | tooLarge x          = x :<| go xs1            -- 1. elem too large to be combined
-      | tooLarge x1         = x :<| x1 :<| go xs2     -- 2. elem too large to be combinde
-      | dist x <= dist x1   = go (merge x x1 :<| xs2) -- 2. elem nearer to 1. elem than to 3. elem
-                                                      -- 2. elem nearer to 3. elem than to 1. elem
-                                                      --    process rest of list first, then
-      | tooLarge x1'        = x :<| xs1'              -- 1. elem of rest too large: put 1. elem in front
-      | otherwise           = merge x x1' :<| xs2'    -- merge 1. elem with 1. elem of rest
-      where
-        xs1'@(x1' :<| xs2') = go xs1
--- -}
 ------------------------------------------------------------------------
