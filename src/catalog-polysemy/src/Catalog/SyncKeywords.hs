@@ -1,5 +1,6 @@
 ------------------------------------------------------------------------------
 {-# LANGUAGE InstanceSigs #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
 
 module Catalog.SyncKeywords
   ( syncKeywordCol
@@ -74,6 +75,9 @@ import Data.MetaData
        -- ( MetaData )
 
 import Data.Prim
+
+-- import Data.Sequence
+--        ( Seq( (:<|), (:|>)) )
 
 import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
@@ -319,8 +323,73 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
     cImg :: ColEntries -> Maybe ImgRef
     cImg rs' = rs' ^? ix 0 . theColEntry . theColImgRef
 
-splitIntoSubCols :: Eff'ISEJL r => Text -> ObjId -> ColEntries -> Sem r ()
+-- ----------------------------------------
+
+splitIntoSubCols :: (Eff'ISEJL r) => Text -> ObjId -> ColEntries -> Sem r ()
 splitIntoSubCols kw i rs = do
+  p <- objid2path i
+  log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
+
+  let addDate cr' = lookupCreate toYMD <$> getColRefMetaData cr'
+  let groupCols   = zip [1..] . map fst . group tooLargeAuE distAuE mergeAuE . toAugDist . map toAugEntry
+
+  grouped'rs <- groupCols <$> augmentM addDate (foldr (:) [] rs)
+
+  traverse_ (uncurry $ addCol p) grouped'rs
+    where
+      addCol :: Eff'ISEJL r => Path -> Int -> AugColEntries -> Sem r ()
+      addCol p' ix' (rs', (fr', to')) = do
+        let colName     = isoText # (ix' ^. isoText <> ".group-" <> kw <> kwSuffix)
+        let colTitle    = fmtKWTitle fr' to' kw
+        let colSubTitle = fmtKWSubTitle (0, Seq.length rs' ,0)
+        let colPath     = p' `snocPath` colName
+
+        log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
+
+        ci             <- mkCollection colPath
+        adjustColEntries  (const rs') ci
+        adjustMetaData    (\md -> md & metaTextAt descrTitle    .~ colTitle
+                                     & metaTextAt descrSubtitle .~ colSubTitle
+                          ) ci
+        adjustColImg      (const colImg) ci
+          where
+            colImg :: Maybe ImgRef
+            colImg = rs' ^? ix 0 . theColEntry . theColImgRef
+
+type AugColEntries = (ColEntries, (Date, Date))
+type AugColEntriesD = (AugColEntries, Int)
+
+mergeAuE :: AugColEntriesD -> AugColEntriesD -> AugColEntriesD
+mergeAuE ((cs1, (day11, _) ), _d1) ((cs2, (_, day22) ), d2) =
+  ((cs1 <> cs2, (day11, day22)), d2)
+
+maxAuE :: Int
+maxAuE = 20
+
+tooLargeAuE :: AugColEntriesD -> Bool
+tooLargeAuE ((cs, _), _) = Seq.length cs >= maxAuE
+
+distAuE :: AugColEntriesD -> Int
+distAuE = snd
+
+toAugEntry :: (ColEntryM, Date) -> AugColEntries
+toAugEntry (ce, d) = (Seq.singleton ce, (d, d))
+
+toAugDist :: [AugColEntries] -> [AugColEntriesD]
+toAugDist (x : xs1@(x1 : _xs2)) = (x, dist x x1) : toAugDist xs1
+  where
+    dist e1 e2 = (toDays . fst . snd $ e2) - (toDays . fst . snd $ e1)
+      where
+        toDays (y, m, d) = y * 360 + m * 30 + d
+
+toAugDist (x : [])              = (x, maxBound)  : []
+toAugDist []                    = []
+
+-- ----------------------------------------
+
+ {-
+_splitIntoSubCols :: Eff'ISEJL r => Text -> ObjId -> ColEntries -> Sem r ()
+_splitIntoSubCols kw i rs = do
   p <- objid2path i
   log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
 
@@ -330,24 +399,27 @@ splitIntoSubCols kw i rs = do
 
       addCol :: Eff'ISEJL r => Path -> Int -> ColEntries -> Sem r ()
       addCol p' ix' rs' = do
-        let getDate cr'         = lookupCreate toYMD <$> getColRefMetaData cr'
+        let getDate cr' = lookupCreate toYMD <$> getColRefMetaData cr'
+        let (hd :<| _ ) = rs'
+        let (_  :|> tl) = rs'
 
-        fr' <- getDate (fromJust $ rs' ^? ix 0)
-        to' <- getDate (fromJust $ rs' ^? ix (Seq.length rs' - 1))
+        fr' <- getDate hd
+        to' <- getDate tl
 
-        let colName   = fmtKWName  rs' ix'
-        let colTitle  = fmtKWTitle fr' to' kw
-        let colPath   = p' `snocPath` colName
+        let colName     = fmtKWName  rs' ix'
+        let colTitle    = fmtKWTitle fr' to' kw
+        let colPath     = p' `snocPath` colName
 
         log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
 
-        ci            <- mkCollection colPath
-        adjustColEntries (const rs') ci
-        adjustMetaData   (\md -> md & metaTextAt descrTitle .~ colTitle) ci
-        adjustColImg     (const colImg) ci
+        ci             <- mkCollection colPath
+        adjustColEntries  (const rs') ci
+        adjustMetaData    (\md -> md & metaTextAt descrTitle .~ colTitle) ci
+        adjustColImg      (const colImg) ci
           where
             colImg :: Maybe ImgRef
             colImg = rs' ^? ix 0 . theColEntry . theColImgRef
+-- -}
 
 syncKeywordCol :: Eff'ISEJL r => ObjId -> Sem r ()
 syncKeywordCol i = do
@@ -511,6 +583,7 @@ buildRefsMap matchKeyword i0 =
 --
 -- metadata format functions
 
+ {-
 fmtKWName :: ColEntries -> Int -> Name
 fmtKWName rs' ix' =
   colName
@@ -521,6 +594,7 @@ fmtKWName rs' ix' =
 
     colName :: Name
     colName = isoText # ((isoString # (show colIxLb <> "-" <> show colIxUb)) <> kwSuffix)
+-- -}
 
 fmtKWTitle :: Date -> Date -> Text -> Text
 fmtKWTitle lb ub kw = words2text $ [kw <> ":"] <> fmtYMDRange lb ub
@@ -636,4 +710,95 @@ log'RefsMap (RM m) = do
         )
     m
 
+------------------------------------------------------------------------
+
+ {-
+type E = (Int, [Int])
+
+tooLargeE :: E -> Bool
+tooLargeE = (> 4) . length . snd
+
+distE :: E -> Int
+distE = fst
+
+mergeE :: E -> E -> E
+mergeE (d1, es1) (d2, es2) = (d2, es1 <> es2)
+
+es :: [E]
+es = [ (1, replicate 1 0)
+     , (0, replicate 4 1)
+     , (1, replicate 1 2)
+     , (1, replicate 3 3)
+     , (1, replicate 4 4)
+     , (1, replicate 5 5)
+     , (2, replicate 3 6)
+     , (0, replicate 3 7)
+     , (0, replicate 3 8)
+     , (3, replicate 3 9)
+     , (2, replicate 3 0)
+     , (1000000, [])
+     ]
+
+groupE :: [E] -> [E]
+groupE = group tooLargeE distE mergeE
+
+type E' = (Int, Seq Int)
+
+tooLargeE' :: E' -> Bool
+tooLargeE' = (> 4) . Seq.length . snd
+
+distE' :: E' -> Int
+distE' = fst
+
+mergeE' :: E' -> E' -> E'
+mergeE' (d1, es1) (d2, es2) = (d2, es1 <> es2)
+
+groupE' :: Seq E' -> Seq E'
+groupE' = groupSeq tooLargeE' distE' mergeE'
+
+es' :: Seq E'
+es' = Seq.fromList $ map (\x -> x & _2 %~ Seq.fromList) es
+
+-- -}
+
+-- ----------------------------------------------------------------------
+
+group :: (a -> Bool) -> (a -> Int) -> (a -> a -> a) -> [a] -> [a]
+group tooLarge dist merge = go . go0
+  where
+    -- group elements of distance 0
+    go0 (x : xs1@(x1 : xs2))
+      | dist x == 0         = go0 (merge x x1 : xs2)
+      | otherwise           = x : go0 xs1
+    go0 xs                  = xs
+
+    go (x : xs1@(x1 : xs2))
+      | tooLarge x          = x : go xs1              -- 1. elem too large to be combined
+      | tooLarge x1         = x : x1 : go xs2         -- 2. elem too large to be combinde
+      | dist x <= dist x1   = go (merge x x1 : xs2)   -- 2. elem nearer to 1. elem than to 3. elem
+                                                      -- 2. elem nearer to 3. elem than to 1. elem
+                                                      --    process rest of list first, then
+      | tooLarge x1'        = x : xs1'                -- 1. elem of rest too large: put 1. elem in front
+      | otherwise           = merge x x1' : xs2'      -- merge 1. elem with 1. elem of rest
+        where
+          xs1'@(x1' : xs2') = go xs1
+    go xs                   = xs                     -- empty list or singleton liist
+
+ {-
+groupSeq :: (a -> Bool) -> (a -> Int) -> (a -> a -> a) -> Seq a -> Seq a
+groupSeq tooLarge dist merge = go
+  where
+    go Seq.Empty            = Seq.Empty                   -- empty list
+    go xs@(_ :<| Seq.Empty) = xs                      -- single element list
+    go (x :<| xs1@(x1 :<| xs2))
+      | tooLarge x          = x :<| go xs1            -- 1. elem too large to be combined
+      | tooLarge x1         = x :<| x1 :<| go xs2     -- 2. elem too large to be combinde
+      | dist x <= dist x1   = go (merge x x1 :<| xs2) -- 2. elem nearer to 1. elem than to 3. elem
+                                                      -- 2. elem nearer to 3. elem than to 1. elem
+                                                      --    process rest of list first, then
+      | tooLarge x1'        = x :<| xs1'              -- 1. elem of rest too large: put 1. elem in front
+      | otherwise           = merge x x1' :<| xs2'    -- merge 1. elem with 1. elem of rest
+      where
+        xs1'@(x1' :<| xs2') = go xs1
+-- -}
 ------------------------------------------------------------------------
