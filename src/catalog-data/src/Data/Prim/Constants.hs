@@ -160,8 +160,11 @@ to'name        = "name"
 -- ----------------------------------------
 
 de'month :: Int -> String
-de'month i = [ "Januar", "Februar", "März", "April", "Mai", "Juni"
-             , "Juli", "August", "September","Oktober", "November", "Dezember"
-             ] !! (i - 1)
+de'month i
+  | 1 <= i && i <= 12 = [ "Januar", "Februar", "März", "April", "Mai", "Juni"
+                        , "Juli", "August", "September","Oktober", "November", "Dezember"
+                        ] !! (i - 1)
+  | otherwise         = show i
+
 
 -- ----------------------------------------

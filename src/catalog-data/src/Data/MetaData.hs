@@ -1635,7 +1635,7 @@ isoDateInt = isoDateInt3 . iso to3 fr3
   where
     to3 (y, m, d) = (y * 100 + m) * 100 + d
 
-    fr3 i = (y, d, m)
+    fr3 i = (y, m, d)
       where
         (my, d) = i  `divMod` 100
         (y,  m) = my `divMod` 100

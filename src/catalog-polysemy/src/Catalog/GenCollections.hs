@@ -23,6 +23,7 @@ import Catalog.Effects
        , throw
        , log'verb
        , log'trc
+       , log'dbg
        )
 import Catalog.ImgTree.Fold
        ( foldColColEntries
@@ -196,7 +197,8 @@ genSysCollection a n'sys tt'sys = do
 -- create directory hierachy for Y/M/D
 mkDateCol :: Eff'ISEJLT r
           => (String, String, String) -> Path -> Sem r (ObjId, ObjId, ObjId)
-mkDateCol (y, m, d) pc = do
+mkDateCol x@(y, m, d) pc = do
+  log'dbg $ "mkDateCol: " <> show x ^. isoText
   yc <- mkColByPath insertColByName (setupYearCol  y    ) py
   mc <- mkColByPath insertColByName (setupMonthCol y m  ) pm
   dc <- mkColByPath insertColByName (setupDayCol   y m d) pd
