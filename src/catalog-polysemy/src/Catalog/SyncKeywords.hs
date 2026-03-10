@@ -76,6 +76,12 @@ import Data.MetaData
 
 import Data.Prim
 
+import Text.ParsePretty
+       ( toYMD
+       , fmtKWTitle
+       , fmtKWSubTitle
+       )
+
 import qualified Data.Map.Strict as M
 import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
@@ -353,7 +359,8 @@ splitIntoSubCols kw i rs = do
             colImg :: Maybe ImgRef
             colImg = rs' ^? ix 0 . theColEntry . theColImgRef
 
-type AugColEntries = (ColEntries, (Date, Date))
+type Date           = Tuple3 Int
+type AugColEntries  = (ColEntries, (Date, Date))
 type AugColEntriesD = (AugColEntries, Int)
 
 mergeAuE :: AugColEntriesD -> AugColEntriesD -> AugColEntriesD
@@ -541,78 +548,6 @@ buildRefsMap matchKeyword i0 =
                            else mempty
                         ) kws'
 
-
--- --------------------
---
--- metadata format functions
-
-fmtKWTitle :: Date -> Date -> Text -> Text
-fmtKWTitle lb ub kw = words2text $ [kw <> ":"] <> fmtYMDRange lb ub
-
-fmtKWSubTitle :: (Int, Int, Int) -> Text
-fmtKWSubTitle (subCnt, imgCnt, colCnt) =
-  T.intercalate ", " $ map snd $ filter ((/= 0) . fst) sts
-  where
-    sts = zip [subCnt, colCnt, imgCnt] [st0, st1, st2]
-
-    st0 = subCnt ^. isoText <> " Schlüssel" <> (if subCnt == 1 then "wort" else "wörter")
-    st2 = imgCnt ^. isoText <> " Bild"      <> (if imgCnt == 1 then "" else "er")
-    st1 = colCnt ^. isoText <> " Sammlung"  <> (if colCnt == 1 then "" else "en")
-
-type Date  = (Int, Int, Int)
-type Words = [Text]
-
-fmtY :: Int -> Words
-fmtY i
-  | i > 0     = [i ^. isoText]
-  | otherwise = []
-
-fmtM :: Int -> Words
-fmtM i
-  | 1 <= i && i <= 12 = [ms !! (i - 1)]
-  | otherwise         = []
-  where
-    ms = [ "Januar"
-         , "Februar"
-         , "März"
-         , "April"
-         , "Mai"
-         , "Juni"
-         , "Juli"
-         , "Augut"
-         , "September"
-         , "Oktober"
-         , "November"
-         , "Dezember"
-         ]
-
-fmtD :: Int -> Words
-fmtD i
-  | 1 <= i && i <= 31 = [(show i <> ".") ^. isoText]
-  | otherwise         = []
-
-fmtYMD :: Date -> Words
-fmtYMD (y, m, d) =
-  [T.intercalate " " $ fmtD d <> fmtM m <> fmtY y]
-
-fmtYMDRange :: Date -> Date -> Words
-fmtYMDRange lb@(y1, m1, d1) ub@(y2, m2, d2)
-  | d1 /= d2         -- one day is missing: ignore days
-    &&
-    d1 `min` d2 == 0 = fmtYMDRange (y1, m1, 0) (y2, m2, 0)
-
-  | lb >  ub  = []
-  | lb == ub  =                                  fmtYMD ub
-  | y1 == y2
-    &&
-    m1 == m2  = fmtD d1            <> ["bis"] <> fmtYMD ub
-  | y1 == y2  = fmtD d1 <> fmtM m1 <> ["bis"] <> fmtYMD ub
-  | otherwise -- lb <  ub
-              = fmtYMD lb          <> ["bis"] <> fmtYMD ub
-
-words2text :: Words -> Text
-words2text = T.intercalate " "
-
 -- --------------------
 --
 -- logging functions for kewword stuff
@@ -692,23 +627,6 @@ es = [ (1, replicate 1 0)
 groupE :: [E] -> [E]
 groupE = group tooLargeE distE mergeE
 
-type E' = (Int, Seq Int)
-
-tooLargeE' :: E' -> Bool
-tooLargeE' = (> 4) . Seq.length . snd
-
-distE' :: E' -> Int
-distE' = fst
-
-mergeE' :: E' -> E' -> E'
-mergeE' (d1, es1) (d2, es2) = (d2, es1 <> es2)
-
-groupE' :: Seq E' -> Seq E'
-groupE' = groupSeq tooLargeE' distE' mergeE'
-
-es' :: Seq E'
-es' = Seq.fromList $ map (\x -> x & _2 %~ Seq.fromList) es
-
 -- -}
 
 -- ----------------------------------------------------------------------
@@ -732,6 +650,6 @@ group tooLarge dist merge = go . go0
       | otherwise           = merge x x1' : xs2'      -- merge 1. elem with 1. elem of rest
         where
           xs1'@(x1' : xs2') = go xs1
-    go xs                   = xs                     -- empty list or singleton liist
+    go xs                   = xs                      -- empty list or singleton list
 
 ------------------------------------------------------------------------

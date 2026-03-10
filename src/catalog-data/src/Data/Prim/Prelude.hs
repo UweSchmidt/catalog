@@ -7,7 +7,10 @@ module Data.Prim.Prelude
     Set,
     Text,
     LazyText,
+    Tuple3,
+    Tuple4,
     Vector,
+    Words,
     isEmpty,
     isn'tEmpty,
     IsString (..),
@@ -208,6 +211,11 @@ type LazyText = LT.Text
 
 type JValue = J.Value
 type JParser = J.Parser
+
+type Words = [Text]
+
+type Tuple3 a = (a, a, a)
+type Tuple4 a = (a, a, a, a)
 
 -- ----------------------------------------
 

@@ -89,8 +89,6 @@ import Data.MetaData
        , metaAcc
 
        , lookupCreate
-       , parseDate
-       , isoDateInt
 
        , all'restr
        , no'restr
@@ -109,9 +107,16 @@ import Data.MetaData
        )
 import Data.Prim
 
+import Text.ParsePretty
+       ( parseDate
+       , fmtDate
+       , fmtYMD
+       , isoDateInt
+       )
+
 import qualified Data.IntMap     as IM
 import qualified Data.Sequence   as Seq
-import qualified Data.Text       as T (intercalate)
+import qualified Data.Text       as T
 
 -- ----------------------------------------
 --
@@ -196,7 +201,7 @@ genSysCollection a n'sys tt'sys = do
 
 -- create directory hierachy for Y/M/D
 mkDateCol :: Eff'ISEJLT r
-          => (String, String, String) -> Path -> Sem r (ObjId, ObjId, ObjId)
+          => Tuple3 Int -> Path -> Sem r (ObjId, ObjId, ObjId)
 mkDateCol x@(y, m, d) pc = do
   log'dbg $ "mkDateCol: " <> show x ^. isoText
   yc <- mkColByPath insertColByName (setupYearCol  y    ) py
@@ -204,25 +209,25 @@ mkDateCol x@(y, m, d) pc = do
   dc <- mkColByPath insertColByName (setupDayCol   y m d) pd
   return (yc, mc, dc)
   where
-    py = pc `snocPath` mkName y
-    pm = py `snocPath` mkName (y <> "-" <> m)
-    pd = pm `snocPath` mkName (y <> "-" <> m <> "-" <> d)
+    py = pc `snocPath` (isoText # fmtDate (y, 0, 0))
+    pm = py `snocPath` (isoText # fmtDate (y, m, 0))
+    pd = pm `snocPath` (isoText # fmtDate x)
 
     setupYearCol y' _i = mkColMeta t "" "" o a
         where
-          t = tt'year y'
+          t = fmtYMD (y', 0, 0)
           o = to'name
           a = all'restr
 
     setupMonthCol y' m' _i = mkColMeta t "" "" o a
         where
-          t = tt'month y' m'
+          t = fmtYMD (y', m', 0)
           o = to'name
           a = all'restr
 
     setupDayCol y' m' d' _i = mkColMeta t "" "" o a
         where
-          t = tt'day y' m' d'
+          t = fmtYMD (y', m', d')
           o = to'dateandtime
           a = all'restr
 

@@ -67,13 +67,6 @@ module Data.MetaData
   , lookupRating
   , lookupGPSposDeg
   , mkRating
-
-  , parseTime
-  , parseDate
-  , parseDateTime
-  , isoDateInt
-  , isoDateInt3
-  , toYMD
   , isoStars
 
     -- metadata keys
@@ -241,18 +234,10 @@ import Data.Bits
        )
 import Data.HashMap.Strict
        ( HashMap )
-import Text.Printf
-       ( printf )
+
 import Text.SimpleParser
-       (SP
-       , anyString
-       , char
-       , count
-       , digitChar
+       ( SP
        , matchP
-       , oneOf'
-       , parseMaybe
-       , spaceChar
        )
 
 import qualified Data.Aeson          as J
@@ -263,8 +248,6 @@ import qualified Data.Map            as M
 import qualified Data.Text           as T
 import qualified Data.Text.Fill      as T
 import qualified Data.Vector         as V
-import qualified Text.SimpleParser   as SP
-
 
 -- import Debug.Trace
 
@@ -1599,90 +1582,5 @@ metaKeyToTextTable :: MetaKeyToTextTable
 metaKeyToTextTable =
   IM.fromList $
   map (\ k -> (fromEnum k, metaKeyToText k)) [minBound .. pred maxBound]
-
-
--- ----------------------------------------
---
--- meta data parsers
-
-type YMD = (String, String, String)
-type HMS = (String, String, String, String)
-type YMD'HMS = (YMD, HMS)
-
-parseMaybe' :: SP a -> Text -> Maybe a
-parseMaybe' p = parseMaybe (p <* anyString) . (isoText #)
-
-parseDateTime :: Text -> Maybe YMD'HMS
-parseDateTime = parseMaybe' dateTimeParser
-
--- take the day part from a date/time input
-parseDate :: Text -> Maybe (String, String, String)
-parseDate = parseMaybe' dateParser . (isoText #)
-{-# INLINE parseDate #-}
-
-isoDateInt3 :: Iso' (String, String, String) (Int, Int, Int)
-isoDateInt3 = iso toInt frInt
-  where
-    toInt (y, m, d) = (read y, read m, read d)
-
-    frInt (y, m, d) = ( printf "%04d" y,
-                        printf "%02d" m,
-                        printf "%02d" d
-                      )
-
-isoDateInt :: Iso' (String, String, String) Int
-isoDateInt = isoDateInt3 . iso to3 fr3
-  where
-    to3 (y, m, d) = (y * 100 + m) * 100 + d
-
-    fr3 i = (y, m, d)
-      where
-        (my, d) = i  `divMod` 100
-        (y,  m) = my `divMod` 100
-
-toYMD :: Text -> (Int, Int, Int)
-toYMD =  maybe (0, 0, 0) (^. isoDateInt3) . parseDate
-
--- take the time part of a full date/time input
-parseTime :: Text -> Maybe (String, String, String, String)
-parseTime = parseMaybe' timeParser
-{-# INLINE parseTime #-}
-
-timeParser :: SP HMS
-timeParser = do
-  h  <-             count 2 digitChar
-  m  <- char ':' *> count 2 digitChar <|> return "00"
-  s  <- char ':' *> count 2 digitChar <|> return "00"
-  ms <- SP.option ".0" $
-        char '.' *> some    digitChar
-  let (h', m', s') = (read h, read m, read s) :: (Int, Int, Int)
-  if h' >= 0 && h' <= 24
-     &&
-     m' >= 0 && m' <  60
-     &&
-     s' >= 0 && s' <  60
-    then return (h, m, s, ms)
-    else mzero
-
-dateParser :: SP YMD
-dateParser = do
-  y <-               count 4 digitChar
-  m <- oneOf' del *> count 2 digitChar <|> return "00"
-  d <- oneOf' del *> count 2 digitChar <|> return "00"
-  let (y', m', d') = (read y, read m, read d) :: (Int, Int, Int)
-  if y' >= 1800 && y' < 3001
-     &&
-     m' >= 0    && m' <= 12         -- month not given: 0
-     &&
-     d' >= 0    && d' <= 31         -- day not given: 0
-    then return (y, m, d)
-    else mzero
-  where
-    del = "-:"
-
-dateTimeParser :: SP YMD'HMS
-dateTimeParser =
-   (,) <$> dateParser <* (char 'T' <|> some spaceChar *> return ' ')
-       <*> timeParser
 
 -- ----------------------------------------

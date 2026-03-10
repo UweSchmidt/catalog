@@ -131,24 +131,6 @@ tt'trash       = "Papierkorb"
 tt'collections = "Uwe alle seine Bilder"
 tt'photos      = "Alle Ordner"
 
-tt'year :: String -> Text
-tt'year y = y ^. isoText
-
-tt'month :: String -> String -> Text
-tt'month y m =
-  unwords [ de'month (read m)
-          , y
-          ]
-  ^. isoText
-
-tt'day :: String -> String -> String -> Text
-tt'day y m d =
-  unwords [ show  (read d :: Int) ++ "."
-          , de'month (read m)
-          , y
-          ]
-  ^. isoText
-
 to'colandname
   , to'dateandtime
   , to'name :: Text
@@ -156,15 +138,5 @@ to'colandname
 to'colandname  = "colandname"
 to'dateandtime = "dateandtime"
 to'name        = "name"
-
--- ----------------------------------------
-
-de'month :: Int -> String
-de'month i
-  | 1 <= i && i <= 12 = [ "Januar", "Februar", "März", "April", "Mai", "Juni"
-                        , "Juli", "August", "September","Oktober", "November", "Dezember"
-                        ] !! (i - 1)
-  | otherwise         = show i
-
 
 -- ----------------------------------------
