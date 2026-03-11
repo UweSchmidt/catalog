@@ -34,28 +34,6 @@ import qualified Data.Text  as T
 
 newtype Name = Name Text
 
-emptyName :: Name
-emptyName = ""
-
-fromName :: Name -> String
-fromName (Name fsn) = T.unpack fsn
-{-# INLINE fromName #-}
-
-isNameSuffix :: Name -> Name -> Bool
-isNameSuffix (Name sx) (Name n) = sx `T.isSuffixOf` n
-
-addNameSuffix :: Text -> Name -> Name
-addNameSuffix sx n = n & isoText %~ (<> sx)
-
-substNameSuffix :: Text -> Text -> Name -> Name
-substNameSuffix os ns n'
-  | os `T.isSuffixOf` n =
-      n' & isoText %~ T.dropEnd (T.length os) . (<> ns)
-  | otherwise =
-      n'
-  where
-    n  = n'  ^. isoText
-
 deriving instance Eq   Name
 deriving instance Ord  Name
 
@@ -76,7 +54,7 @@ instance Semigroup Name where
 
 instance Monoid Name where
   mempty :: Name
-  mempty  = emptyName
+  mempty  = ""
   {-# INLINE mempty #-}
 
 instance AsEmpty Name
@@ -86,9 +64,10 @@ instance IsString Name where
   fromString = (isoString #)
   {-# INLINE fromString #-}
 
+-- just for testing in ghci
 instance Show Name where
   show :: Name -> String
-  show = fromName
+  show (Name t) =  T.unpack t
   {-# INLINE show #-}
 
 instance ToJSON Name where
@@ -100,5 +79,22 @@ instance FromJSON Name where
   parseJSON :: J.Value -> JParser Name
   parseJSON (J.String t) = return $ isoText # t
   parseJSON _            = mzero
+
+-- ----------------------------------------
+
+isNameSuffix :: Name -> Name -> Bool
+isNameSuffix (Name sx) (Name n) = sx `T.isSuffixOf` n
+
+addNameSuffix :: Text -> Name -> Name
+addNameSuffix sx n = n & isoText %~ (<> sx)
+
+substNameSuffix :: Text -> Text -> Name -> Name
+substNameSuffix os ns n'
+  | os `T.isSuffixOf` n =
+      n' & isoText %~ T.dropEnd (T.length os) . (<> ns)
+  | otherwise =
+      n'
+  where
+    n = n' ^. isoText
 
 -- ----------------------------------------
