@@ -80,6 +80,13 @@ import Text.ParsePretty
        ( toYMD
        , fmtKWTitle
        , fmtKWSubTitle
+       , fmtYMDRange
+       )
+
+import Data.Sequence
+       ( Seq( (:|>)
+            , (:<|)
+            )
        )
 
 import qualified Data.Map.Strict as M
@@ -308,6 +315,9 @@ addColRefsToKeywordCol i rs0 = do
     )
     rs1
 
+addDate :: Eff'ISE r => ColEntryM -> Sem r (Tuple3 Int)
+addDate cr' = lookupCreate toYMD <$> getColRefMetaData cr'
+
 addImgRefsToKeywordCol :: Eff'ISEJL r => Text -> Bool -> ObjId -> ColEntries -> Sem r ()
 addImgRefsToKeywordCol kw forceSubCol i rs0 = do
   -- sort enties by create date
@@ -317,7 +327,16 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
     then
       splitIntoSubCols kw i rs1
     else
-      adjustColEntries (<> rs1) i
+      do
+        let (fst' :<| _  )  = rs1
+        let (_    :|> lst') = rs1
+
+        fr'                <- addDate fst'
+        to'                <- addDate lst'
+        let colTitle        = ": " <> fmtYMDRange fr' to'
+
+        adjustMetaData   (\md -> md & metaTextAt descrSubtitle %~ (<> colTitle)) i
+        adjustColEntries (<> rs1) i
 
   -- set collection img, if not already set
   adjustColImg (<|> cImg rs1) i
@@ -333,8 +352,12 @@ splitIntoSubCols kw i rs = do
   p <- objid2path i
   log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
 
-  let addDate cr' = lookupCreate toYMD <$> getColRefMetaData cr'
-  let groupCols   = zip [1..] . map fst . group tooLargeAuE distAuE mergeAuE . toAugDist . map toAugEntry
+  let groupCols =
+        zip [1..]
+        . map fst
+        . group tooLargeAuE distAuE mergeAuE
+        . toAugDist
+        . map toAugEntry
 
   grouped'rs <- groupCols <$> augmentM addDate (foldr (:) [] rs)
 
