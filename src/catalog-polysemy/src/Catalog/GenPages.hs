@@ -1016,7 +1016,7 @@ genReqImgPage' r = do
                            & metaTextAt fileRefJpg   .~ (this'mediaUrl ^. isoText)
                            & metaTextAt fileDateTime .~ ( if isEmpty this'fileDate
                                                           then mempty
-                                                          else timeStampToText this'fileDate)
+                                                          else fmtTimeStamp this'fileDate)
 
   let org'geo            = lookupGeo metaData
 

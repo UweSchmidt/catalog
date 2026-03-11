@@ -4,10 +4,9 @@ module Data.Prim.TimeStamp
        , now            -- TODO mv now into extra module
        , fsTimeStamp
        , isoEpochTime
-       , formatTimeStamp
+       , fmtTimeStamp
        , iso8601TimeStamp
        , formatTimeStamp'
-       , timeStampToText
        )
 where
 
@@ -45,6 +44,7 @@ import Data.Time.Format
        )
 
 import qualified Data.Aeson   as J
+import qualified Data.Text    as T
 import qualified System.Posix as X
 
 -- ----------------------------------------
@@ -106,23 +106,21 @@ fsTimeStamp :: FileStatus -> TimeStamp
 fsTimeStamp = TS . X.modificationTime
 {-# INLINE fsTimeStamp #-}
 
-formatTimeStamp :: TimeStamp -> String
-formatTimeStamp = formatTimeStamp' "%Y-%m-%d %H:%M:%S"
+fmtTimeStamp :: TimeStamp -> Text
+fmtTimeStamp = formatTimeStamp' "%Y-%m-%d %H:%M:%S"
 
-iso8601TimeStamp :: TimeStamp -> String
+iso8601TimeStamp :: TimeStamp -> Text
 iso8601TimeStamp = formatTimeStamp' "%Y-%m-%dT%H:%M:%S"
 
-formatTimeStamp' :: String -> TimeStamp -> String
+formatTimeStamp' :: String -> TimeStamp -> Text
 formatTimeStamp' fmt (TS t) =
-  formatTime defaultTimeLocale fmt
+  T.pack
+  . formatTime defaultTimeLocale fmt
   . posixSecondsToUTCTime
   . fromIntegral
   $ secs
   where
     secs :: Int
     secs = round . toRational $ t
-
-timeStampToText :: TimeStamp -> Text
-timeStampToText ts = formatTimeStamp ts ^. isoText
 
 -- ----------------------------------------

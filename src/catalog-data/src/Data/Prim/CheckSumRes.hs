@@ -9,11 +9,10 @@ import Data.Prim.CheckSum
 
 import Data.Prim.TimeStamp
        ( TimeStamp
-       , formatTimeStamp
+       , fmtTimeStamp
        )
 import Data.Prim.Prelude
        ( MonadPlus(mzero)
-       , (&)
        , (^.)
        , IsoString(isoString)
        , FromJSON(parseJSON)
@@ -79,7 +78,7 @@ prettyCSR :: CheckSumRes -> String
 prettyCSR (CSupdate cs ts) =
   unwords [ "MODIFIED"
           , "checksum:",  cs ^. isoString
-          , "timestamp:", ts &  formatTimeStamp
+          , "timestamp:", fmtTimeStamp ts ^. isoString
           ]
 prettyCSR (CSnew cs) =
   unwords [ "NEW"

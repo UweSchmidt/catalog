@@ -40,13 +40,13 @@ import Data.Prim.Prelude
        , lazy
        , divideAt
        )
-import Data.Prim.TimeStamp
-       ( timeStampToText )
 
 import Catalog.Version
        ( date
        , version
        )
+import Data.Prim.TimeStamp
+       ( fmtTimeStamp )
 
 import Text.Printf
        ( printf )
@@ -894,7 +894,7 @@ picMeta md = mconcat mdTab
         ts  = md ^. metaDataAt key . metaTimeStamp
         val
           | isEmpty ts = mempty
-          | otherwise  = timeStampToText ts
+          | otherwise  = fmtTimeStamp ts
 
     mdMPX :: Text -> Html
     mdMPX descr =

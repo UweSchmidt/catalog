@@ -446,7 +446,7 @@ mkColMeta t s c o a = mkColMeta' $ defaultColMeta t s c o a
 
 mkColMeta' :: Eff'ISEJLT r => MetaData -> Sem r MetaData
 mkColMeta' md0 = do
-  tm <- timeStampToText <$> whatTimeIsIt
+  tm <- fmtTimeStamp <$> whatTimeIsIt
   let md = md0 & metaTextAt descrCreateDate .~ tm
   log'trc $ "mkColMeta: " <> prettyJSONText [] md
   return md
@@ -594,9 +594,9 @@ mkImportCol ts pc = do
       return ip
 
   where
-    tsn   = formatTimeStamp  ts                    -- 2020-05-13 12:50:42
-    tsn'  = mkName $ iso8601TimeStamp ts           -- 2020-05-13T12:50:42
-    tsn'' = ("Import " <> tsn) ^. isoText          -- Import 2020-05-13 12:50:42
+    tsn   = fmtTimeStamp ts                        -- 2020-05-13 12:50:42
+    tsn'  = isoText # iso8601TimeStamp ts          -- 2020-05-13T12:50:42
+    tsn'' = "Import " <> tsn                       -- Import 2020-05-13 12:50:42
     tsp   = pc `snocPath` tsn'
 
     setupImpCol _i =

@@ -209,8 +209,8 @@ fmtKWSubTitle (subCnt, imgCnt, colCnt) =
     sts = zip [subCnt, colCnt, imgCnt] [st0, st1, st2]
 
     st0 = subCnt ^. isoText <> " Schlüssel" <> (if subCnt == 1 then "wort" else "wörter")
-    st2 = imgCnt ^. isoText <> " Bild" <> (if imgCnt == 1 then "" else "er")
-    st1 = colCnt ^. isoText <> " Sammlung" <> (if colCnt == 1 then "" else "en")
+    st2 = imgCnt ^. isoText <> " Bild"      <> (if imgCnt == 1 then "" else "er")
+    st1 = colCnt ^. isoText <> " Sammlung"  <> (if colCnt == 1 then "" else "en")
 
 -- ------------------------------------------------------------
 
