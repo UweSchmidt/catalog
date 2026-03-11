@@ -56,12 +56,11 @@ import Data.Prim
        , readMaybe
        , readGeo'
        , googleMapsGPSdec
-       , mkName
-       --- , lastPath
        , isoPathPos
        , imgReqTypes
        , (^?)
        , (^.)
+       , (#)
        , second
        , Geo(Geo)
        , isEmpty
@@ -508,7 +507,7 @@ argValue :: Parser Text
 argValue = argument str (metavar "VALUE")
 
 argPart :: Parser Name
-argPart = mkName <$> argument str (metavar "PART")
+argPart = (isoText #) <$> argument str (metavar "PART")
           <|>
           pure mempty
 

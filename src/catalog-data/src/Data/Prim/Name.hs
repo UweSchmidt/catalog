@@ -1,7 +1,6 @@
 {-# LANGUAGE InstanceSigs #-}
 module Data.Prim.Name
        ( Name
-       , mkName
        , isNameSuffix
        , addNameSuffix
        , substNameSuffix
@@ -36,14 +35,7 @@ import qualified Data.Text  as T
 newtype Name = Name Text
 
 emptyName :: Name
-emptyName = mkName ""
-
--- illegal string -> empty Name
--- empty text -> empty Name
-
-mkName :: String -> Name
-mkName xs        = Name . T.pack $ xs
-{-# INLINE mkName #-}
+emptyName = ""
 
 fromName :: Name -> String
 fromName (Name fsn) = T.unpack fsn
@@ -69,7 +61,7 @@ deriving instance Ord  Name
 
 instance IsoString Name where
   isoString :: Iso' Name String
-  isoString = iso fromName mkName
+  isoString = isoText . isoString
   {-# INLINE isoString #-}
 
 instance IsoText Name where
@@ -91,7 +83,7 @@ instance AsEmpty Name
 
 instance IsString Name where
   fromString :: String -> Name
-  fromString = mkName
+  fromString = (isoString #)
   {-# INLINE fromString #-}
 
 instance Show Name where
