@@ -50,6 +50,7 @@ import Data.Prim
        , (?~)
        , mkPath
        , snocPath
+       , showPath
        )
 
 import qualified Data.Aeson      as J
@@ -275,12 +276,12 @@ mkDirNode :: (Ord ref, Show ref)
 mkDirNode genRef isParentDir updateParent n p v t = do
   -- check entry already there
   when (has (entryAt r . _Just) t) $
-    throwError $ "mkDirNode: entry already exists: " ++ show rp
+    throwError $ "mkDirNode: entry already exists: " ++ showPath rp
 
   -- check parent, must be a dir
   -- unless (t ^. theNodeVal p . to isParentDir) $
   unless (has (entryAt p . traverse . nodeVal . filtered isParentDir) t) $
-    throwError $ "mkDirNode: parent node not a dir: " ++ show pp
+    throwError $ "mkDirNode: parent node not a dir: " ++ showPath pp
 
   return
     -- insert new node with name and uplink
@@ -313,8 +314,9 @@ remDirNode removable updateParent r t = do
 
   -- node allowed to be removed (application specific check)?
   unless (has (entryAt r . traverse . nodeVal . filtered removable) t) $
-    throwError $ "remDirNode: node value not removable, entry: "
-                 <> show (refPath r t)
+    throwError $
+      "remDirNode: node value not removable, entry: "
+      <> showPath (refPath r t)
 
   case t ^? entryAt r . traverse . parentRef of
     Just p ->

@@ -3,7 +3,6 @@ module Data.Prim.Path
   ( Path'
   , Path
   , mkPath
-  , emptyPath
   , consPath
   , concPath
   , snocPath
@@ -16,11 +15,10 @@ module Data.Prim.Path
   , checkAndRemExt
   , remCommonPathPrefix
   , isPathPrefix
-  , nullPath
   , showPath
   , viewTop
   , viewBase
-  , quotePath
+--  , quotePath
   , msgPath
   , checkExtPath
   , editName
@@ -40,6 +38,7 @@ import Data.Prim.Prelude
     ( IsString(..),
       AsEmpty,
       Text,
+      IsoMaybe(..),
       IsoText(..),
       Iso',
       ToJSON(toJSON),
@@ -51,7 +50,6 @@ import Data.Prim.Prelude
       Alternative(many, some),
       isEmpty,
       (#),
-      fromMaybe,
       (&),
       (^.),
       (%~),
@@ -73,7 +71,9 @@ import Text.SimpleParser
 
 -- other libs
 import Data.Digest.Murmur64
-       ( Hashable64(..) )
+       ( Hashable64(..)
+       , Hash64
+       )
 
 import qualified Data.Text as T
 
@@ -90,6 +90,77 @@ data Path' n = PNil
 type Path = Path' Name
 
 ----------------------------------------
+--
+-- instances for Path
+
+deriving instance Functor Path'
+deriving instance Eq  n => Eq  (Path' n)
+deriving instance Ord n => Ord (Path' n)
+
+instance Foldable Path' where
+  foldMap :: Monoid m => (a -> m) -> Path' a -> m
+  foldMap f = foldl (\ r n -> r <> f n) mempty
+  {-# INLINE foldMap #-}
+
+  foldl :: (b -> a -> b) -> b -> Path' a -> b
+  foldl f e = go
+    where
+      go PNil = e
+      go (PSnoc p1 n) = go p1 `f` n
+  {-# INLINE foldl #-}
+
+  foldr :: (a -> b -> b) -> b -> Path' a -> b
+  foldr f e = go e
+    where
+      go acc PNil = acc
+      go acc (PSnoc p1 n) = go (n `f` acc) p1
+  {-# INLINE foldr #-}
+
+instance Semigroup Path where
+  (<>) :: Path -> Path -> Path
+  (<>) = concPath
+  {-# INLINE (<>) #-}
+
+instance Monoid Path where
+  mempty :: Path
+  mempty = PNil
+  {-# INLINE mempty #-}
+
+instance AsEmpty  Path
+instance IsoMaybe Path
+
+instance IsoText Path where
+  isoText :: Iso' Path Text
+  isoText = iso textFromPath textToPath
+
+instance ToJSON Path where
+  toJSON :: Path -> JValue
+  toJSON = toJSON . (^. isoUrlPath) -- textFromPath
+  {-# INLINE toJSON #-}
+
+instance FromJSON Path where
+  parseJSON :: JValue -> JParser Path
+  parseJSON o = (isoUrlPath #) <$> parseJSON o
+
+-- for paths as string literals,
+-- example: "/abc/def" :: Path
+
+instance IsString Path where
+  fromString :: String -> Path
+  fromString = readPath
+  {-# INLINE fromString #-}
+
+instance Hashable64 Path where
+  hash64Add :: Path -> Hash64 -> Hash64
+  hash64Add = hash64Add . showPath
+
+-- just for testing and trace output
+instance Show Path where
+  show :: Path -> String
+  show = showPath
+  {-# INLINE show #-}
+
+----------------------------------------
 
 -- empty Name -> empty Path
 
@@ -99,10 +170,6 @@ mkPath n
   | otherwise = PSnoc PNil n
 {-# INLINE mkPath #-}
 
-emptyPath :: Path' n
-emptyPath = PNil
-{-# INLINE emptyPath #-}
-
 -- listToPath is used only in servant for constructing Path's
 -- servant already removes URL encodings when parsing requests
 --
@@ -110,7 +177,7 @@ emptyPath = PNil
 -- should be done via UrlPath's (see below)
 
 listToPath :: [Text] -> Path
-listToPath = foldl' (\ p' t' -> p' `concPath` mkPath (isoText # t')) emptyPath
+listToPath = foldl' (\ p' t' -> p' `concPath` mkPath (isoText # t')) mempty
 {-# INLINE listToPath #-}
 
 -- only used in GenCollections for
@@ -129,11 +196,6 @@ textFromPath = foldMap (\ n -> "/" <> n ^. isoText)
 
 textToPath :: Text -> Path
 textToPath = listToPath . T.split (== '/')
-
-nullPath :: Path' n -> Bool
-nullPath PNil = True
-nullPath _    = False
-{-# INLINE nullPath #-}
 
 infixr 5 `consPath`
 infixr 5 `snocPath`
@@ -191,7 +253,7 @@ isPathPrefix :: Path -> Path -> Bool
 isPathPrefix p1 p2 =
   p1 == p2
   ||
-  ( not (nullPath p2)
+  ( not (isEmpty p2)
     &&
     isPathPrefix p1 (initPath p2)
   )
@@ -201,7 +263,7 @@ substPathPrefix old'px new'px = go
   where
     go p1
       | p1 == old'px = new'px
-      | nullPath p1  = p1
+      | isEmpty p1   = p1
       | otherwise    = go p2 `snocPath` n2
         where
           (p2, n2) = p1 ^. viewBase
@@ -209,10 +271,10 @@ substPathPrefix old'px new'px = go
 
 remCommonPathPrefix :: Path -> Path -> (Path, Path)
 remCommonPathPrefix p1 p2
-  | n1 /= n2 = (p1, p2)
-  | nullPath p1' = (p1', p2')
-  | nullPath p2' = (p1', p2')
-  | otherwise    = remCommonPathPrefix p1' p2'
+  | n1 /= n2    = (p1, p2)
+  | isEmpty p1' = (p1', p2')
+  | isEmpty p2' = (p1', p2')
+  | otherwise   = remCommonPathPrefix p1' p2'
   where
     (n1, p1') = p1 ^. viewTop
     (n2, p2') = p2 ^. viewTop
@@ -231,16 +293,6 @@ checkAndRemExt ext p
       nm   = p ^. viewBase . _2 . isoText
       res  = p &  viewBase . _2 . isoText %~ T.dropEnd (T.length ext')
 
-showPath' :: String -> Path -> String
-showPath' acc PNil        = acc
-showPath' acc (PSnoc p n) = showPath' ("/" ++ show n ++ acc) p
-
-showPath :: Path -> String
-showPath = showPath' ""
-
-quotePath :: Path -> String
-quotePath p = '"' : showPath' "\"" p
-
 msgPath :: Path -> Text -> Text
 msgPath p msg =
   T.unwords [msg, "\"" <> textFromPath p <> "\""]
@@ -255,10 +307,14 @@ checkExtPath ext p
     bn   = p ^. viewBase . _2 . isoText
     ext' = T.toLower . T.takeEnd ln $ bn
 
+
+showPath :: Path -> String
+showPath p = isoText # textFromPath p
+
 -- just for user input
 
 readPath :: String -> Path
-readPath = fromMaybe emptyPath <$> parseMaybe ppath
+readPath = (isoMaybe #) <$> parseMaybe ppath
   where
     ppath :: SP Path
     ppath =
@@ -270,71 +326,6 @@ readPath = fromMaybe emptyPath <$> parseMaybe ppath
 
     pstring :: SP String
     pstring = some (noneOf' "/") <* many (single '/')
-
-----------------------------------------
---
--- instances for Path
-
-deriving instance Functor Path'
-deriving instance Eq  n => Eq  (Path' n)
-deriving instance Ord n => Ord (Path' n)
-
-instance Foldable Path' where
-  foldMap :: Monoid m => (a -> m) -> Path' a -> m
-  foldMap f = foldl (\ r n -> r <> f n) mempty
-  {-# INLINE foldMap #-}
-
-  foldl :: (b -> a -> b) -> b -> Path' a -> b
-  foldl f e = go
-    where
-      go PNil = e
-      go (PSnoc p1 n) = go p1 `f` n
-  {-# INLINE foldl #-}
-
-  foldr :: (a -> b -> b) -> b -> Path' a -> b
-  foldr f e = go e
-    where
-      go acc PNil = acc
-      go acc (PSnoc p1 n) = go (n `f` acc) p1
-  {-# INLINE foldr #-}
-
-instance Semigroup Path where
-  (<>) :: Path -> Path -> Path
-  (<>) = concPath
-  {-# INLINE (<>) #-}
-
-instance Monoid Path where
-  mempty :: Path
-  mempty = PNil
-  {-# INLINE mempty #-}
-
-instance AsEmpty Path
-
-instance IsoText Path where
-  isoText :: Iso' Path Text
-  isoText = iso textFromPath textToPath
-
-instance Show Path where
-  show :: Path -> String
-  show = showPath
-  {-# INLINE show #-}
-
-instance ToJSON Path where
-  toJSON :: Path -> JValue
-  toJSON = toJSON . (^. isoUrlPath) -- textFromPath
-  {-# INLINE toJSON #-}
-
-instance FromJSON Path where
-  parseJSON :: JValue -> JParser Path
-  parseJSON o = (isoUrlPath #) <$> parseJSON o
-
-instance IsString Path where
-  fromString :: String -> Path
-  fromString = readPath
-  {-# INLINE fromString #-}
-
-instance Hashable64 Path where
-  hash64Add = hash64Add . showPath
 
 ----------------------------------------
 --

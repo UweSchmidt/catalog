@@ -350,9 +350,9 @@ class IsoMaybe a where
   isoMaybe = iso toM fromM
     where
       toM xs
-        | isEmpty xs = Nothing
-        | otherwise = Just xs
-      fromM Nothing = mempty
+        | isEmpty xs  = Nothing
+        | otherwise   = Just xs
+      fromM Nothing   = mempty
       fromM (Just xs) = xs
   {-# INLINE isoMaybe #-}
 

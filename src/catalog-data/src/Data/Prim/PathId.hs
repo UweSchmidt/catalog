@@ -11,7 +11,10 @@ module Data.Prim.PathId
        )
        where
 
-import Data.Prim.Path ( Path )
+import Data.Prim.Path
+       ( Path
+       , showPath
+       )
 import Data.Prim.Prelude
        ( IsString(fromString),
          Iso',
@@ -34,7 +37,7 @@ mkObjId = ObjId
 {-# INLINE mkObjId #-}
 
 showObjId :: ObjId -> String
-showObjId (ObjId p) = show p
+showObjId (ObjId p) = showPath p
 {-# INLINE showObjId #-}
 
 readObjId :: String -> ObjId
