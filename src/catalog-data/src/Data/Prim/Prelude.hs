@@ -99,6 +99,7 @@ module Data.Prim.Prelude
     partitionM,
     filterSeqM,
     augmentM,
+
     -- * pretty printing helper
     fillLeft,
     fillRight,
@@ -140,8 +141,8 @@ import Data.Char
 import Data.Either
 import Data.Foldable
 import Data.Function
-  ( on,
-  )
+  ( on )
+
 import Data.Functor
 
 import Data.List
@@ -158,25 +159,26 @@ import Data.List
     zip6,
   )
 import Data.Map.Strict
-  ( Map,
-  )
-import qualified Data.Map.Strict as M
+  ( Map )
+
+
 import Data.Maybe
 import Data.Semigroup
 import Data.Sequence
-  ( Seq,
-  )
-import qualified Data.Sequence as Seq
+  ( Seq )
+
 import Data.Set
-  ( Set,
-  )
-import qualified Data.Set as S
+  ( Set )
+
 import Data.String
-  ( IsString (..),
-  )
+  ( IsString (..) )
+
 import Data.Text
-  ( Text,
-  )
+  ( Text )
+
+import qualified Data.Map.Strict        as M
+import qualified Data.Sequence          as Seq
+import qualified Data.Set               as S
 import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
 import qualified Data.Text.Lazy         as LT
@@ -186,36 +188,34 @@ import Data.Text.Lens
   ( unpacked )
 
 import Data.Vector
-  ( Vector,
-  )
+  ( Vector )
+
 import Network.HTTP.Types.URI
-  ( urlEncode,
-    urlDecode
+  ( urlEncode
+  , urlDecode
   )
 import Numeric
-  ( readHex,
-  )
+  ( readHex )
+
 import Text.Printf
-  ( PrintfArg,
-    printf,
+  ( PrintfArg
+  , printf
   )
 import Text.Read
-  ( readMaybe,
-  )
+  ( readMaybe )
 
 -- ----------------------------------------
 
 type LazyByteString = LB.ByteString
+type LazyText       = LT.Text
 
-type LazyText = LT.Text
+type JValue         = J.Value
+type JParser        = J.Parser
 
-type JValue = J.Value
-type JParser = J.Parser
+type Words          = [Text]
 
-type Words = [Text]
-
-type Tuple3 a = (a, a, a)
-type Tuple4 a = (a, a, a, a)
+type Tuple3 a       = (a, a, a)
+type Tuple4 a       = (a, a, a, a)
 
 -- ----------------------------------------
 
@@ -239,11 +239,8 @@ class ParsePrintString a where
   ppString = prism' show readMaybe
 
 instance ParsePrintString String
-
 instance ParsePrintString Int
-
 instance ParsePrintString Integer
-
 instance ParsePrintString Bool
 
 -- the safe version of conversion to/from Text
@@ -288,7 +285,6 @@ instance IsoString LazyByteString where
 
 -- unsafe conversions
 instance IsoString Int
-
 instance IsoString Integer
 
 -- ----------------------------------------
@@ -311,7 +307,6 @@ instance IsoText String where
 
 -- unsafe conversions
 instance IsoText Int
-
 instance IsoText Integer
 
 toText :: (Show a) => a -> Text
