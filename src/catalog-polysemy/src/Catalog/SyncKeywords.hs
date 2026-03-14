@@ -323,16 +323,19 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
   -- sort enties by create date
   rs1 <- sortColEntriesByDate rs0
 
-  if forceSubCol
+  let (fst' :<| _  )  = rs1
+  let (_    :|> lst') = rs1
+
+  fr'                <- addDate fst'
+  to'                <- addDate lst'
+
+  let noSplit = fr' == to' || Seq.length rs1 < 2 * maxImgEntries
+
+  if forceSubCol || not noSplit
     then
       splitIntoSubCols kw i rs1
     else
       do
-        let (fst' :<| _  )  = rs1
-        let (_    :|> lst') = rs1
-
-        fr'                <- addDate fst'
-        to'                <- addDate lst'
         let colTitle        = ": " <> fmtYMDRange fr' to'
 
         adjustMetaData   (\md -> md & metaTextAt descrSubtitle %~ (<> colTitle)) i
@@ -463,7 +466,7 @@ updateKeywordCol rfm kw p = do
     addColRefsToKeywordCol i colEnts
 
   when (imgCnt > 0) $ do
-    let forceSubCol = subColCnt > 0 || colCnt > 0 || imgCnt > maxImgEntries
+    let forceSubCol = subColCnt > 0 || colCnt > 0
     let imgEnts = foldMap (Seq.singleton . mkColImgRefM') imgRefs
     addImgRefsToKeywordCol kw forceSubCol i imgEnts
 
