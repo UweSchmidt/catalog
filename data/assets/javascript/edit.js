@@ -1299,7 +1299,10 @@ function updateKeywordsCol() {
                    modifyServer('newKeywords', pathKeywords(), [],
                                 function() {
                                     statusMsg('keyword collections updated');
-                                    getColFromServer(pathKeywords(), refreshCollectionF);
+                                    getColFromServer(pathKeywords(),
+                                                     function(path, colVal) {
+                                                         checkAllColAreThere(true, true);
+                                                     });
                                 });
                });
 }
