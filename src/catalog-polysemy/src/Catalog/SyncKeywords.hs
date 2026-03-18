@@ -352,10 +352,13 @@ splitIntoSubCols maxImgEntries kw i rs = do
   p <- objid2path i
   log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
 
+  let mxi | maxImgEntries <= 0 = maxBound
+          | otherwise          = maxImgEntries
+
   let groupCols =
         zip [1..]
         . map fst
-        . group (tooLargeAuE maxImgEntries) distAuE mergeAuE
+        . group (tooLargeAuE mxi) distAuE mergeAuE
         . toAugDist
         . map toAugEntry
 
@@ -414,7 +417,7 @@ toAugDist []                    = []
 syncKeywordCol :: Eff'ISEJL r => Int -> ObjId -> Sem r ()
 syncKeywordCol maxImgEntries i = do
   p <- objid2path i
-  log'trc $ "syncKeywordCol: path = " <> p ^.isoText
+  log'trc $ "syncKeywordCol: path = " <> p ^.isoText <> ", maxImgEntries = " <> i ^. isoText
 
   -- collect all keywords to be updated
   kws <- allKeywordColsM' (const True) i

@@ -3621,6 +3621,7 @@ $(document).ready(function () {
     $('#Max2' ).on('click', function (x) { setMaxImgEntries(50);  });
     $('#Max3' ).on('click', function (x) { setMaxImgEntries(100); });
     $('#Max4' ).on('click', function (x) { setMaxImgEntries(250); });
+    $('#Max10').on('click', function (x) { setMaxImgEntries(1000);});
     $('#Max5' ).on('click', function (x) { setMaxImgEntries(-1);  });
 
 
