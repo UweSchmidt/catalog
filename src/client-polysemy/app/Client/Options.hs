@@ -4,7 +4,7 @@ module Client.Options
 where
 
 import Options.Applicative
-       ( eitherReader
+{-        ( eitherReader
        , str
        , argument
        , flag
@@ -28,6 +28,7 @@ import Options.Applicative
        , Parser
        , ParserInfo
        )
+-}
 import Options.Applicative.HostPort
        ( optHostPort )
 
@@ -400,7 +401,7 @@ cmdClient = subparser $
     )
   <>
   command "keyword-update"
-    ( (CcSyncKeyword <$> argPath)
+    ( ( flip CcSyncKeyword <$> optMaxImgEntries <*> argPath )
       `withInfo`
       ( "Update a keyword collection."
         <> "Path must point to a sub collection of the \"keywords\" collection."
@@ -408,9 +409,9 @@ cmdClient = subparser $
     )
   <>
   command "new-keywords"
-    ( (pure CcNewKeywords)
+    ( ( CcNewKeywords <$> optMaxImgEntries )
       `withInfo`
-      ( "Create keyword collections for new keywords." )
+      ( "Create keyword collections for new keywords and update all keyword collections." )
     )
   <>
   command "list-keywords"
@@ -514,9 +515,25 @@ argPart = (isoText #) <$> argument str (metavar "PART")
 argGPS :: Parser GPSposDec
 argGPS = argument gpsReader (metavar "GSP-or-URL")
 
+argMaxImgEntries  :: Parser Int
+argMaxImgEntries = argument intReader (metavar "MAX-ENTRIES")
+                   <|>
+                   pure (-1)
+
 -- ----------------------------------------
 --
 -- subcmd options parsers
+
+optMaxImgEntries :: Parser Int
+optMaxImgEntries =
+  option
+    intReader
+    ( long "max-img-entries"
+        <> short 'i'
+        <> value 25
+        <> metavar "MAX-IMG-ENTRIES"
+        <> help ("maximum size of keyword collections, -1 for unlimited size")
+    )
 
 optOnlyUpdate :: Parser Bool
 optOnlyUpdate =
@@ -542,6 +559,15 @@ optForceUpdateP =
 -- ----------------------------------------
 --
 -- app specific option parsers
+
+intReader :: ReadM Int
+intReader = eitherReader parse
+  where
+    parse arg =
+      maybe
+        (Left $ "Number expected: " <> arg)
+        Right
+        (readMaybe arg)
 
 hidReader :: ReadM HistoryID
 hidReader = eitherReader parse

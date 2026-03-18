@@ -308,9 +308,9 @@ type JsonModifyAPI
       :<|>
       "syncExif"             :> ParamPost (Bool, Bool) ()
       :<|>
-      "syncKeyword"          :> SimplePost ()
+      "syncKeyword"          :> ParamPost Int ()
       :<|>
-      "newKeywords"          :> SimplePost ()
+      "newKeywords"          :> ParamPost Int ()
       :<|>
       "newSubCols"           :> SimplePost ()
       :<|>

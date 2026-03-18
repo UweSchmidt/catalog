@@ -291,13 +291,13 @@ evalClientCmd =
     CcPage path -> do
       showDoc path
 
-    CcSyncKeyword path -> do
+    CcSyncKeyword path maxImgEntries -> do
       _id <- newUndoEntry $ "syncKeyword " <> (path ^. isoText)
-      syncKeyword path
+      syncKeyword maxImgEntries path
 
-    CcNewKeywords -> do
+    CcNewKeywords maxImgEntries -> do
       _id <- newUndoEntry $ "newKeywords"
-      newKeywords
+      newKeywords maxImgEntries p'keywords
 
     CcTest path -> do
       _id <- newUndoEntry $ "testCmd " <> (path ^. isoText)

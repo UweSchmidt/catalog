@@ -256,12 +256,12 @@ evalCatCmd =
       throwNoSync "sync EXIF metadata"
       getId p >>= modify'syncExif recursive force
 
-    SyncKeyword p -> do
-      getId p >>= modify'syncKeywordCol p
+    SyncKeyword maxImgEntries p -> do
+      getId p >>= modify'syncKeywordCol maxImgEntries p
 
-    NewKeywords -> do
+    NewKeywords maxImgEntries _p -> do
       SK.newKeywordCols
-      SK.syncAllKeywordCols 25
+      SK.syncAllKeywordCols maxImgEntries
 
     NewSubCollections p -> do
       throwNoSync "import new collection"
@@ -849,11 +849,11 @@ modify'snapshot = IO.snapshotImgStore
 
 -- --------------------
 
-modify'syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> Sem r ()
-modify'syncKeywordCol p i = do
+modify'syncKeywordCol :: Eff'ISEJL r => Int -> Path -> ObjId -> Sem r ()
+modify'syncKeywordCol maxImgEntries p i = do
   unless (isPathPrefix p'keywords p) $
     throwP i $ msgPath p'keywords "syncKeywordCol: collection does not have path prefix "
-  SK.syncKeywordCol 25 i
+  SK.syncKeywordCol maxImgEntries i
 
 -- --------------------
 --

@@ -1261,9 +1261,12 @@ function checkAllColAreThere(refresh, force) {
 
 // ----------------------------------------
 
-function keywordActiveCollection() {
-    var cid  = activeCollectionId();
-    var path = collectionPath(cid);
+const defaultMaxImgEntries = 25;
+
+function keywordActiveCollection(maxImgEntries) {
+    var cid   = activeCollectionId();
+    var path  = collectionPath(cid);
+    const mxi = maxImgEntries || defaultMaxImgEntries;
 
     console.log("keywordActiveCollection: " + path);
 
@@ -1276,7 +1279,7 @@ function keywordActiveCollection() {
     statusMsg('recomputing entries of keyword collection: ' + fromPathName(path));
     addHistCmd("update keyword " + fromPathName(splitName(path)),
                function () {
-                   modifyServer('syncKeyword', path, [],
+                   modifyServer('syncKeyword', path, mxi,
                                 function() {
                                     statusMsg('update of keyword collection done');
                                     getColFromServer(path,
@@ -1291,12 +1294,13 @@ function newKeywordCollections() {
     openColC(pathKeywords())(updateKeywordsCol);
 }
 
-function updateKeywordsCol() {
+function updateKeywordsCol(maxImgEntries) {
+    const mxi = maxImgEntries || defaultMaxImgEntries;
     console.log("updateKeywordsCol");
     statusMsg('create new and update existing keyword collections');
     addHistCmd("update all keywords",
                function () {
-                   modifyServer('newKeywords', pathKeywords(), [],
+                   modifyServer('newKeywords', pathKeywords(), mxi,
                                 function() {
                                     statusMsg('keyword collections updated');
                                     getColFromServer(pathKeywords(),

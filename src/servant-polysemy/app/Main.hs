@@ -522,9 +522,9 @@ catalogServer env runReadC runModyC runBGC =
       :<|>
       runM3 syncExif
       :<|>
-      runM1 syncKeyword
+      runM2 syncKeyword
       :<|>
-      runM0 newKeywords
+      runM2 newKeywords
       :<|>
       runM1 newSubCollections
       :<|>
