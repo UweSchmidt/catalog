@@ -150,9 +150,6 @@ kwSuffix = ".keyword"
 kwNoIndex :: Text          -- marker (keyword) for stopping search of entries with keyword
 kwNoIndex = "no-index"
 
-maxImgEntries :: Int       -- max # of images in a generated kw collection
-maxImgEntries = 25
-
 -- hidden keyword col name are used in very large
 -- keyword collections to partition the entries into subcollections
 -- or
@@ -175,9 +172,9 @@ kwList md = md ^. metaDataAt descrKeywords . metaTS
 kwSet :: MetaData -> Keywords
 kwSet md = S.fromList $ md ^. metaDataAt descrKeywords . metaTS
 
-syncAllKeywordCols :: Eff'ISEJL r => Sem r ()
-syncAllKeywordCols =
-  getId p'keywords >>= syncKeywordCol
+syncAllKeywordCols :: Eff'ISEJL r => Int -> Sem r ()
+syncAllKeywordCols maxImgEntries =
+  getId p'keywords >>= syncKeywordCol maxImgEntries
 
 -- --------------------
 
@@ -318,8 +315,8 @@ addColRefsToKeywordCol i rs0 = do
 addDate :: Eff'ISE r => ColEntryM -> Sem r (Tuple3 Int)
 addDate cr' = lookupCreate toYMD <$> getColRefMetaData cr'
 
-addImgRefsToKeywordCol :: Eff'ISEJL r => Text -> Bool -> ObjId -> ColEntries -> Sem r ()
-addImgRefsToKeywordCol kw forceSubCol i rs0 = do
+addImgRefsToKeywordCol :: Eff'ISEJL r => Int -> Text -> Bool -> ObjId -> ColEntries -> Sem r ()
+addImgRefsToKeywordCol maxImgEntries kw forceSubCol i rs0 = do
   -- sort enties by create date
   rs1 <- sortColEntriesByDate rs0
 
@@ -329,11 +326,11 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
   fr'                <- addDate fst'
   to'                <- addDate lst'
 
-  let noSplit = fr' == to' || Seq.length rs1 < 2 * maxImgEntries
+  let noSplit = fr' == to' || maxImgEntries <= 0 || Seq.length rs1 < 2 * maxImgEntries
 
   if forceSubCol || not noSplit
     then
-      splitIntoSubCols kw i rs1
+      splitIntoSubCols maxImgEntries kw i rs1
     else
       do
         let colTitle        = ": " <> fmtYMDRange fr' to'
@@ -350,15 +347,15 @@ addImgRefsToKeywordCol kw forceSubCol i rs0 = do
 
 -- ----------------------------------------
 
-splitIntoSubCols :: (Eff'ISEJL r) => Text -> ObjId -> ColEntries -> Sem r ()
-splitIntoSubCols kw i rs = do
+splitIntoSubCols :: (Eff'ISEJL r) => Int -> Text -> ObjId -> ColEntries -> Sem r ()
+splitIntoSubCols maxImgEntries kw i rs = do
   p <- objid2path i
   log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
 
   let groupCols =
         zip [1..]
         . map fst
-        . group tooLargeAuE distAuE mergeAuE
+        . group (tooLargeAuE maxImgEntries) distAuE mergeAuE
         . toAugDist
         . map toAugEntry
 
@@ -393,11 +390,8 @@ mergeAuE :: AugColEntriesD -> AugColEntriesD -> AugColEntriesD
 mergeAuE ((cs1, (day11, _) ), _d1) ((cs2, (_, day22) ), d2) =
   ((cs1 <> cs2, (day11, day22)), d2)
 
-maxAuE :: Int
-maxAuE = maxImgEntries
-
-tooLargeAuE :: AugColEntriesD -> Bool
-tooLargeAuE ((cs, _), _) = Seq.length cs >= maxAuE
+tooLargeAuE :: Int -> AugColEntriesD -> Bool
+tooLargeAuE maxAuE ((cs, _), _) = Seq.length cs >= maxAuE
 
 distAuE :: AugColEntriesD -> Int
 distAuE = snd
@@ -417,8 +411,8 @@ toAugDist []                    = []
 
 -- ----------------------------------------
 
-syncKeywordCol :: Eff'ISEJL r => ObjId -> Sem r ()
-syncKeywordCol i = do
+syncKeywordCol :: Eff'ISEJL r => Int -> ObjId -> Sem r ()
+syncKeywordCol maxImgEntries i = do
   p <- objid2path i
   log'trc $ "syncKeywordCol: path = " <> p ^.isoText
 
@@ -431,10 +425,10 @@ syncKeywordCol i = do
   log'RefsMap rfm
 
   -- build new keyword collections
-  void $ M.traverseWithKey (updateKeywordCol rfm) kws
+  void $ M.traverseWithKey (updateKeywordCol maxImgEntries rfm) kws
 
-updateKeywordCol :: Eff'ISEJL r => RefsMap -> Text -> Path -> Sem r ()
-updateKeywordCol rfm kw p = do
+updateKeywordCol :: Eff'ISEJL r => Int -> RefsMap -> Text -> Path -> Sem r ()
+updateKeywordCol maxImgEntries rfm kw p = do
   log'trc $ "updateKeywordCol: update keyword collection for " <> p ^. isoUrlText
 
   i  <- getId p
@@ -468,7 +462,7 @@ updateKeywordCol rfm kw p = do
   when (imgCnt > 0) $ do
     let forceSubCol = subColCnt > 0 || colCnt > 0
     let imgEnts = foldMap (Seq.singleton . mkColImgRefM') imgRefs
-    addImgRefsToKeywordCol kw forceSubCol i imgEnts
+    addImgRefsToKeywordCol maxImgEntries kw forceSubCol i imgEnts
 
   log'dbg $ "updateKeywordCol: keyword collection update for " <> kw <> " finished"
 

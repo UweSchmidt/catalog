@@ -261,7 +261,7 @@ evalCatCmd =
 
     NewKeywords -> do
       SK.newKeywordCols
-      SK.syncAllKeywordCols
+      SK.syncAllKeywordCols 25
 
     NewSubCollections p -> do
       throwNoSync "import new collection"
@@ -853,7 +853,7 @@ modify'syncKeywordCol :: Eff'ISEJL r => Path -> ObjId -> Sem r ()
 modify'syncKeywordCol p i = do
   unless (isPathPrefix p'keywords p) $
     throwP i $ msgPath p'keywords "syncKeywordCol: collection does not have path prefix "
-  SK.syncKeywordCol i
+  SK.syncKeywordCol 25 i
 
 -- --------------------
 --
