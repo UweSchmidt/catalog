@@ -35,6 +35,15 @@ function diaStarSelector(j) {
 }
 
 // ----------------------------------------
+
+var maxImgEntries = 25;
+
+function setMaxImgEntries(x) {
+    console.log("setMaxImgEntries: " + x);
+    maxImgEntries = x;
+}
+
+// ----------------------------------------
 //
 // undo history
 // history is stored in server
@@ -1261,14 +1270,12 @@ function checkAllColAreThere(refresh, force) {
 
 // ----------------------------------------
 
-const defaultMaxImgEntries = 25;
-
-function keywordActiveCollection(maxImgEntries) {
+function keywordActiveCollection(mx) {
     var cid   = activeCollectionId();
     var path  = collectionPath(cid);
-    const mxi = maxImgEntries || defaultMaxImgEntries;
+    const mxi = mx || maxImgEntries;
 
-    console.log("keywordActiveCollection: " + path);
+    console.log("keywordActiveCollection: " + path + ", max: " + mxi);
 
     if ( ! isPathPrefix(pathKeywords(), path) ) {
         statusError('collection to be updated must be a subcollection of '
@@ -1294,9 +1301,9 @@ function newKeywordCollections() {
     openColC(pathKeywords())(updateKeywordsCol);
 }
 
-function updateKeywordsCol(maxImgEntries) {
-    const mxi = maxImgEntries || defaultMaxImgEntries;
-    console.log("updateKeywordsCol");
+function updateKeywordsCol(mx) {
+    const mxi = mx || maxImgEntries;
+    console.log("updateKeywordsCol: " + mx);
     statusMsg('create new and update existing keyword collections');
     addHistCmd("update all keywords",
                function () {
@@ -3605,6 +3612,17 @@ $(document).ready(function () {
     $('#Unmark3')   .on('click', function (e) { eachADia(hasRating(eqInt(3)), clearEntryMark); });
     $('#Unmark4')   .on('click', function (e) { eachADia(hasRating(eqInt(4)), clearEntryMark); });
     $('#Unmark5')   .on('click', function (e) { eachADia(hasRating(eqInt(5)), clearEntryMark); });
+
+    // maxImgEntries menue
+    $('#Max01').on('click', function (x) { setMaxImgEntries(1);   });
+    $('#Max05').on('click', function (x) { setMaxImgEntries(5);   });
+    $('#Max0' ).on('click', function (x) { setMaxImgEntries(12);  });
+    $('#Max1' ).on('click', function (x) { setMaxImgEntries(25);  });
+    $('#Max2' ).on('click', function (x) { setMaxImgEntries(50);  });
+    $('#Max3' ).on('click', function (x) { setMaxImgEntries(100); });
+    $('#Max4' ).on('click', function (x) { setMaxImgEntries(250); });
+    $('#Max5' ).on('click', function (x) { setMaxImgEntries(-1);  });
+
 
     // rating menue event handler
     [0,1,2,3,4,5].forEach(function (e, i) {
