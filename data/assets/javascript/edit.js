@@ -1282,6 +1282,7 @@ function keywordActiveCollection(mx) {
                     + pathKeywords());
         return;
     }
+    path = normKWPath(path);  // remove generated keyword subdirs from path
 
     statusMsg('recomputing entries of keyword collection: ' + fromPathName(path));
     addHistCmd("update keyword " + fromPathName(splitName(path)),
@@ -1542,6 +1543,13 @@ function normKeywords(t) {
         .join(", ");
     console.log("normKeywords(" + t + ") = " + kws);
     return kws;
+}
+
+function normKWPath(p) {
+    if ( p.endsWith(".keyword") ) {
+        return splitPath(p).cpath;
+    }
+    return p;
 }
 
 function path2id(path) {
