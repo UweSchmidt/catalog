@@ -96,6 +96,7 @@ module Data.MetaData
   , descrAddress
   , descrLocation
   , descrKeywords
+  , descrKeywordsCopy
   , descrWeb
   , descrWikipedia
   , descrAudio
@@ -294,6 +295,7 @@ data MetaKey
   | Descr'GPSurl
   | Descr'GoogleMaps
   | Descr'Keywords
+  | Descr'KeywordsCopy
   | Descr'Location
   | Descr'OrderedBy
   | Descr'Rating
@@ -444,6 +446,7 @@ descrTitle
   , descrAddress
   , descrLocation
   , descrKeywords
+  , descrKeywordsCopy
   , descrWeb
   , descrWikipedia
   , descrAudio
@@ -482,6 +485,7 @@ keysAttrDescr@[
   , descrGPSurl
   , descrGoogleMaps
   , descrKeywords
+  , descrKeywordsCopy
   , descrLocation
   , descrOrderedBy
   , descrRating
@@ -864,6 +868,7 @@ isoMetaValueText k = case k of
   Descr'Access          -> metaAccess    . isoAccText
   Descr'GPSPosition     -> metaGPSDecText
   Descr'Keywords        -> metaTS        . isoKeywText
+  Descr'KeywordsCopy    -> metaTS        . isoKeywText
   Descr'Rating          -> metaRatingText
   Descr'RatingImg       -> metaRatingText
   Descr'Web             -> metaTS        . isoTSetText
@@ -1199,7 +1204,7 @@ editMetaData (MD m) mt = IM.foldlWithKey' ins mt m
       | v0 == "-" =                      -- remove key from metadata
           acc & metaDataAt k .~ mempty
 
-      | k == descrKeywords =             -- add and remove keywords (',' separated)
+      | (k == descrKeywords || k == descrKeywordsCopy) =  -- add and remove keywords (',' separated)
           acc & metaDataAt k . metaTS %~ mergeTS (isoKeywText # v0)
 
       | k == descrWeb =                  -- add and remove URLs     ('|' separated)
@@ -1240,6 +1245,7 @@ keysByMimeType ty
                .||. ks'gif
                .||. ks'geo
                .||. ks'rat
+               .||. ks'kwc
                .||. ks'cpi
 
     ks'comp  = (`elem` keysAttrComposite)
@@ -1264,6 +1270,7 @@ keysByMimeType ty
                        ]
                )
     ks'rat   = (== descrRating)
+    ks'kwc   = (== descrKeywordsCopy)  -- keywords for a copy
     ks'cpi   = (== descrCommentImg)    -- comment for a copy
 
     ks'gpsr  = ks'gps                  -- gps data in .xmp files

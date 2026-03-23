@@ -2400,6 +2400,7 @@ var metaDataDescrKeys =
       "Location",
       "Rating",
       "Keywords",
+      "KeywordsCopy",
       "Web",
       "Wikipedia",
       "Audio",
