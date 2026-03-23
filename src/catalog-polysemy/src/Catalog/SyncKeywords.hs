@@ -78,6 +78,7 @@ import Data.Prim
 
 import Text.ParsePretty
        ( toYMD
+       , fmtDate
        , fmtKWTitle
        , fmtKWSubTitle
        , fmtYMDRange
@@ -334,8 +335,11 @@ addImgRefsToKeywordCol maxImgEntries kw forceSubCol i rs0 = do
     else
       do
         let colTitle        = ": " <> fmtYMDRange fr' to'
+        let colCreateDate   = fmtDate fr'
 
-        adjustMetaData   (\md -> md & metaTextAt descrSubtitle %~ (<> colTitle)) i
+        adjustMetaData   (\md -> md & metaTextAt descrSubtitle   %~ (<> colTitle)
+                                    & metaTextAt descrCreateDate .~ colCreateDate
+                         ) i
         adjustColEntries (<> rs1) i
 
   -- set collection img, if not already set
@@ -371,14 +375,16 @@ splitIntoSubCols maxImgEntries kw i rs = do
         let colName     = isoText # (ix' ^. isoText <> ".group-" <> kw <> kwSuffix)
         let colTitle    = fmtKWTitle fr' to' kw
         let colSubTitle = fmtKWSubTitle (0, Seq.length rs' ,0)
+        let colCreateDt = fmtDate fr'
         let colPath     = p' `snocPath` colName
 
         log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
 
         ci             <- mkCollection colPath
         adjustColEntries  (const rs') ci
-        adjustMetaData    (\md -> md & metaTextAt descrTitle    .~ colTitle
-                                     & metaTextAt descrSubtitle .~ colSubTitle
+        adjustMetaData    (\md -> md & metaTextAt descrTitle      .~ colTitle
+                                     & metaTextAt descrSubtitle   .~ colSubTitle
+                                     & metaTextAt descrCreateDate .~ colCreateDt
                           ) ci
         adjustColImg      (const colImg) ci
           where
