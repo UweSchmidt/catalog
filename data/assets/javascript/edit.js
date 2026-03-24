@@ -267,7 +267,8 @@ function setDiaColRef(dia, path) {
 }
 
 function setDiaColAccess(dia, wr) {
-    console.log('setDiacolaccess', wr);
+    console.log('setDiaColAccess', wr);
+    // console.log(dia);
     if (wr) {
         $(dia)
             .find('span.img-col-writeprotected')
@@ -969,6 +970,7 @@ function setColAccessC(entry, p, ref) {
     return (cont) => {
         if ( entry.ColEntry === "COL" ) {
             console.log("setColAccessC for " + ref.path);
+            // console.log(p);
             getIsWriteableFromServer(ref.path,
                                      (ro) => {
                                          setDiaColAccess(p, ro);
@@ -1237,6 +1239,8 @@ function insertEntry(colId, colPath, entry, i, ref) {
 
     // insert p into DOM
     $('#' + colId).append(p);
+
+    return p;
 }
 
 // ----------------------------------------
@@ -1413,15 +1417,19 @@ function refreshCollectionF(path, colVal) {
 
 function refreshCollection2(path, colVal, force) {
     var o = splitPath(path);
-    console.log('refreshCollection: ' + force);
+    console.log('refreshCollection: path = ' + path + ', force = ' + force);
     console.log(o);
     console.log(colVal);
 
     // only if the collection content has changed
     // update the entries
     var changed = updCol(path, colVal);
+    // console.log('refreshCollection: changed = ' + changed);
+
     if ( changed || force ) {
         var io = isAlreadyOpen(path);
+        // console.log('refreshCollection: already open = ' + io[0]);
+
         // check whether collection is already there
         if ( io[0]) {
             o.colId = io[1];
