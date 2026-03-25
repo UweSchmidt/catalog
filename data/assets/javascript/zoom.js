@@ -1830,7 +1830,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             const md = ce.eMeta;
             const cr = md["Descr:CollectionRef"] || "";
             const ct = (cr === "") ? "" : " (-> " + cr + ")";
-            const tt = (md["Descr:Title"] || "") + ct;
+            const tt = (md["Descr:Title"] || "");  // + ct; // collection path not shown
             const cs = "col-icon" + (cr ? " col-link" : "");
 
             const e  = newElem("div",
