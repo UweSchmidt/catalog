@@ -2406,6 +2406,7 @@ var metaDataDescrKeys =
       "CommentImg",
       "GPSPosition",
       "Location",
+      "Access",
       "Rating",
       "Keywords",
       "KeywordsCopy",
