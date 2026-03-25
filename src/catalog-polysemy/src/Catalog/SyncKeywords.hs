@@ -148,9 +148,6 @@ type KeywordCols = Map Text Path
 kwSuffix :: Text           -- suffix for generated keyword collections
 kwSuffix = ".keyword"
 
-kwNoIndex :: Text          -- marker (keyword) for stopping search of entries with keyword
-kwNoIndex = "no-index"     -- TODO: remove this wart after change of kw no-index into access restr
-
 -- hidden keyword col name are used in very large
 -- keyword collections to partition the entries into subcollections
 -- or
@@ -164,14 +161,9 @@ isHiddenKWName n =
   ||
   T.isSuffixOf kwSuffix n
 
-_notToBeIndexed :: Keywords -> Bool
-_notToBeIndexed = (kwNoIndex `S.member`)
-
 notToBeIndexed :: MetaData -> Bool
 notToBeIndexed md =
   not (isIndexable md)
-  ||                                               -- this has to be removed after
-  (kwNoIndex `S.member` (S.fromList $ kwList md))  -- change of no-index keyword to access restr
 
 kwList :: MetaData -> [Text]
 kwList md = md ^. metaDataAt descrKeywords . metaTS
@@ -231,7 +223,7 @@ allKeywords' i = do
                 return mempty                                -- stop looking for keywords
               else
                 fold <$> traverse (colEntryM' iref go) cs    -- keywords in col entries
-      return (S.delete kwNoIndex $ S.union kws1 kws2)        -- TODO: remove S.delete kwNoIndex
+      return (S.union kws1 kws2)
       where
         iref (ImgRef i' _p') = do
           md' <- getMetaData i'
@@ -537,7 +529,8 @@ buildRefsMap matchKeyword i0 =
 
       rm2 <-
         if notToBeIndexed md
-        then return mempty
+        then
+          return mempty
         else do
           addKW
 
