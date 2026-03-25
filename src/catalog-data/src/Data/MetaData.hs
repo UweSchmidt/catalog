@@ -57,6 +57,7 @@ module Data.MetaData
   , isSortable
   , isRemovable
   , isAUserCol
+  , isIndexable
 
   , lookupByKeys
   , lookupCreate
@@ -220,11 +221,8 @@ import Data.Access
        , AccessRestr(..)
        , all'restr
        , no'restr
+       , freeAccess
        , accessRestr
-       , no'delete
-       , no'sort
-       , no'user
-       , no'write
        , isoAccessRestr
        , isoAccText
        )
@@ -820,7 +818,7 @@ instance AsEmpty MetaValue where
       ise (MSec _)   = False -- dto. for durations
       ise (MOri o)   = o == 0
       ise (MRat r)   = r == 0
-      ise (MAcc a)   = a == no'restr
+      ise (MAcc a)   = a == freeAccess
       ise (MTs t)    = t == mempty
       ise (MCS cs)   = isEmpty cs
       ise (MTyp t)   = isEmpty t
@@ -1010,9 +1008,9 @@ metaAcc :: Iso' MetaValue Access
 metaAcc = iso
   (\ case
       MAcc a -> a
-      _      -> no'restr
+      _      -> freeAccess
   )
-  (\ a -> if a == no'restr
+  (\ a -> if a == freeAccess
           then mempty
           else MAcc a
   )
@@ -1372,35 +1370,32 @@ theImgEXIFUpdate = metaDataAt imgEXIFUpdate . metaTimeStamp
 --
 -- ops for access rights in metadata
 
-modifyAccess :: (Access -> Access) -> MetaData -> MetaData
-modifyAccess f mt =
-  mt & metaDataAt Descr'Access . metaAcc %~ f
-
-allowAccess
-  , restrAccess :: [AccessRestr] -> MetaData -> MetaData
-
-allowAccess rs = modifyAccess (.&. complement (isoAccessRestr # rs))
-restrAccess rs = modifyAccess (.|. (isoAccessRestr # rs))
+modifyAccessRestr :: AccessRestr -> Bool -> MetaData -> MetaData
+modifyAccessRestr r b mt =
+  mt & metaDataAt Descr'Access . metaAcc . accessRestr r .~ b
 
 clearAccess
   , addNoWriteAccess
   , subNoWriteAccess :: MetaData -> MetaData
 
-clearAccess       = allowAccess [minBound .. maxBound]
-addNoWriteAccess  = restrAccess [NO'write]
-subNoWriteAccess  = allowAccess [NO'write]
+clearAccess mt    = mt & metaDataAt Descr'Access . metaAcc .~ freeAccess
+addNoWriteAccess  = modifyAccessRestr NO'write True
+subNoWriteAccess  = modifyAccessRestr NO'write False
 
 isWriteable
   , isSortable
   , isRemovable
-  , isAUserCol :: MetaData -> Bool
+  , isAUserCol
+  , isIndexable :: MetaData -> Bool
+
 isWriteable = doesn'tHave NO'write
 isSortable  = doesn'tHave NO'sort
 isRemovable = doesn'tHave NO'delete
 isAUserCol  = doesn'tHave NO'user
+isIndexable = doesn'tHave NO'index
 
 doesn'tHave :: AccessRestr -> MetaData -> Bool
-doesn'tHave r mt = not $ mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
+doesn'tHave r mt = mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r . to not
 
 -- --------------------
 --

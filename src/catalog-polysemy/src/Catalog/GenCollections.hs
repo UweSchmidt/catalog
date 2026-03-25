@@ -82,8 +82,7 @@ import Data.ImgTree
        )
 import Data.MetaData
        ( MetaData
-       , Access
-
+       , AccessRestr(..)
        , metaDataAt
        , metaTextAt
        , metaAcc
@@ -92,11 +91,7 @@ import Data.MetaData
 
        , all'restr
        , no'restr
-       , no'delete
-       , no'write
-       , no'sort
-       , no'user
-       , (.|.)
+       , isoAccessRestr
 
        , descrAccess     -- meta keys
        , descrComment
@@ -105,6 +100,7 @@ import Data.MetaData
        , descrSubtitle
        , descrTitle
        )
+
 import Data.Prim
 
 import Text.ParsePretty
@@ -146,18 +142,18 @@ genCollectionRootMeta = do
     s = ""
     c = ""
     o = ""
-    a = no'delete .|. no'user
+    a = [NO'delete, NO'user]
 
 -- create the special collections for clipboard and trash
 
 genClipboardCollection :: Eff'ISEJLT r => Sem r ()
 genClipboardCollection =
-  genSysCollection (no'delete .|. no'user)
+  genSysCollection [NO'delete, NO'user, NO'index]
   n'clipboard tt'clipboard
 
 genKeywordsCollection :: (Eff'ISEJLT r) => Sem r ()
 genKeywordsCollection =
-  genSysCollection no'restr n'keywords tt'keywords
+  genSysCollection [NO'delete, NO'user, NO'index] n'keywords tt'keywords
 
 -- collection tree created by user
 genAlbumsCollection :: Eff'ISEJLT r => Sem r ()
@@ -172,14 +168,14 @@ genPhotoCollection =
 -- to enable removing old imports
 genImportsCollection :: Eff'ISEJLT r => Sem r ()
 genImportsCollection =
-  genSysCollection (no'delete .|. no'sort .|. no'user)
+  genSysCollection [NO'delete, NO'sort, NO'user, NO'index]
   n'imports tt'imports
 
 genByDateCollection :: Eff'ISEJLT r => Sem r ()
 genByDateCollection =
   genSysCollection all'restr n'bycreatedate tt'bydate
 
-genSysCollection :: Eff'ISEJLT r => Access -> Name -> Text -> Sem r ()
+genSysCollection :: Eff'ISEJLT r => [AccessRestr] -> Name -> Text -> Sem r ()
 genSysCollection a n'sys tt'sys = do
   ic <- getRootImgColId
   pc <- objid2path ic
@@ -441,7 +437,7 @@ setColBlogToFstTxtEntry rm i = do
 -- ----------------------------------------
 
 mkColMeta :: Eff'ISEJLT r
-          => Text -> Text -> Text -> Text -> Access -> Sem r MetaData
+          => Text -> Text -> Text -> Text -> [AccessRestr] -> Sem r MetaData
 mkColMeta t s c o a = mkColMeta' $ defaultColMeta t s c o a
 
 mkColMeta' :: Eff'ISEJLT r => MetaData -> Sem r MetaData
@@ -451,17 +447,17 @@ mkColMeta' md0 = do
   log'trc $ "mkColMeta: " <> prettyJSONText [] md
   return md
 
-defaultColMeta :: Text -> Text -> Text -> Text -> Access -> MetaData
+defaultColMeta :: Text -> Text -> Text -> Text -> [AccessRestr] -> MetaData
 defaultColMeta t s c o a =
   mempty
   & metaTextAt descrTitle      .~ t
   & metaTextAt descrSubtitle   .~ s
   & metaTextAt descrComment    .~ c
   & metaTextAt descrOrderedBy  .~ o
-  & setAcc                        a
+  & setAcc a
 
-setAcc :: Access -> MetaData -> MetaData
-setAcc a md = md & metaDataAt descrAccess .~ metaAcc # a
+setAcc :: [AccessRestr] -> MetaData -> MetaData
+setAcc a md = md & metaDataAt descrAccess .~ metaAcc . isoAccessRestr # a
 
 -- create collections recursively, similar to 'mkdir -p'
 mkColByPath :: Eff'ISEJLT r
@@ -600,7 +596,7 @@ mkImportCol ts pc = do
     tsp   = pc `snocPath` tsn'
 
     setupImpCol _i =
-      mkColMeta tsn'' "" "" to'name (no'write .|. no'sort)
+      mkColMeta tsn'' "" "" to'name [NO'write, NO'sort]
 
 -- ----------------------------------------
 

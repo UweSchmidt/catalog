@@ -9,10 +9,8 @@ module Data.Access
   -- access rights
   , all'restr
   , no'restr
-  , no'delete
-  , no'sort
-  , no'write
-  , no'user
+
+  , freeAccess
 
     -- lenses
   , accessRestr
@@ -26,15 +24,14 @@ import Data.Prim.Prelude
        , Iso'
        , Lens'
        , (&)
+       , (#)
        , (^.)
        , (.~)
        , toLower
        , iso
        )
 import Data.Bits
-       ( bit
-       , (.|.)
-       , testBit
+       ( testBit
        , setBit
        , clearBit
        )
@@ -45,7 +42,7 @@ import qualified Data.Text  as T
 
 -- ----------------------------------------
 
-data AccessRestr = NO'write | NO'delete | NO'sort | NO'user
+data AccessRestr = NO'write | NO'delete | NO'sort | NO'user | NO'index
 
 type Access = Int
 
@@ -70,21 +67,14 @@ accessMap =
         f '\'' = '-'
         f c    = toLower c
 
-all'restr
-  , no'restr
-  , no'delete
-  , no'sort
-  , no'write
-  , no'user :: Access
+all'restr :: [AccessRestr]
+all'restr = [minBound .. maxBound]
 
--- no warning:  -Wno-incomplete-uni-patterns
-[no'write, no'delete, no'sort, no'user] = map toA [minBound .. maxBound]
-  where
-    toA :: AccessRestr -> Access
-    toA = bit . fromEnum
+no'restr :: [AccessRestr]
+no'restr = []
 
-all'restr = no'write .|. no'delete .|. no'sort .|. no'user
-no'restr  = 0
+freeAccess :: Access
+freeAccess = isoAccessRestr # no'restr
 
 -- indexed access to a single restriction
 
@@ -97,7 +87,6 @@ accessRestr r k a =
   ) <$>
   k (testBit a (fromEnum r))
 
-
 isoAccessRestr :: Iso' Access [AccessRestr]
 isoAccessRestr = iso toS frS
   where
@@ -108,7 +97,8 @@ isoAccessRestr = iso toS frS
           | a ^. accessRestr r = r : acc
           | otherwise          =     acc
 
-    frS rs = foldl' sb no'restr rs
+    frS :: [AccessRestr] -> Access
+    frS rs = foldl' sb 0 rs
       where
         sb :: Access -> AccessRestr -> Access
         sb a r = a & accessRestr r .~ True
