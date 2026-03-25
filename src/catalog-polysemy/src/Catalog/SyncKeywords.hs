@@ -34,6 +34,7 @@ import Catalog.ImgTree.Access
        , getImgName
        , getImgVal
        , getMetaData
+       , getImgMetaData
        , getColRefMetaData
        , getId
        , sortAugmentedColEntries
@@ -166,7 +167,10 @@ notToBeIndexed md =
   not (isIndexable md)
 
 kwList :: MetaData -> [Text]
-kwList md = md ^. metaDataAt descrKeywords . metaTS
+kwList md =
+  md ^. metaDataAt descrKeywords     . metaTS
+  <>
+  md ^. metaDataAt descrKeywordsCopy . metaTS
 
 kwSet :: MetaData -> Keywords
 kwSet md = S.fromList $ md ^. metaDataAt descrKeywords . metaTS
@@ -217,7 +221,7 @@ allKeywords' i = do
   return kws
   where
     colA go _i md _im _be cs = do
-      let kws1 = S.fromList $ kwList md            -- col keywords
+      let kws1 = S.fromList $ kwList md                      -- col keywords
       kws2 <- if notToBeIndexed md
               then
                 return mempty                                -- stop looking for keywords
@@ -225,9 +229,7 @@ allKeywords' i = do
                 fold <$> traverse (colEntryM' iref go) cs    -- keywords in col entries
       return (S.union kws1 kws2)
       where
-        iref (ImgRef i' _p') = do
-          md' <- getMetaData i'
-          return (S.fromList $ kwList md')
+        iref ir' = (S.fromList . kwList) <$> getImgMetaData ir'
 
 -- create keyword collection for new keywords
 -- these are created in a subcollection of the
@@ -516,7 +518,7 @@ lookupRefsMap :: Text -> RefsMap -> (Set ImgRef, Set ObjId)
 lookupRefsMap kw (RM m) =
   maybe (mempty, mempty) (\(Refs p) -> p) $ M.lookup kw m
 
--- single traversal for collection all references
+-- single traversal for collection of all references
 -- for all keywords matching predicate "matchKeyword"
 
 buildRefsMap :: Eff'ISEL r => (Text -> Bool) -> ObjId -> Sem r RefsMap
@@ -567,13 +569,13 @@ buildRefsMap matchKeyword i0 =
 
             -- collect img ref for all keywords
             iref :: (Eff'ISE r) => ImgRef -> Sem r RefsMap
-            iref ir@(ImgRef i' _p') = do
-              kws' <- kwSet <$> getMetaData i'
+            iref ir = do
+              kws' <- kwSet <$> getImgMetaData ir
               return $
-                foldMap (\kw' ->
-                           if matchKeyword' kw'
-                           then mkRefsImg kw' ir
-                           else mempty
+                foldMap ( \kw' ->
+                            if matchKeyword' kw'
+                            then mkRefsImg kw' ir
+                            else mempty
                         ) kws'
 
 -- --------------------
