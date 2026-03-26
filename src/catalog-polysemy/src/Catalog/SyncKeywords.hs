@@ -33,6 +33,7 @@ import Catalog.ImgTree.Access
        , lookupByPath
        , getImgName
        , getImgVal
+       , getImgVals
        , getMetaData
        , getImgMetaData
        , getColRefMetaData
@@ -316,6 +317,18 @@ addColRefsToKeywordCol i rs0 = do
 addDate :: Eff'ISE r => ColEntryM -> Sem r (Tuple3 Int)
 addDate cr' = lookupCreate toYMD <$> getColRefMetaData cr'
 
+sortKWColByDate :: Eff'ISEJL r => ObjId -> Sem r ()
+sortKWColByDate i =
+  -- if the kw collection allows sorting
+  -- the subcollections are ordered by create date
+
+  whenM (isKWsortable <$> getMetaData i) $
+    do
+      rs'old <- getImgVals i theColEntries
+      rs'new <- sortColEntriesByDate rs'old
+      adjustColEntries (const rs'new) i
+
+
 addImgRefsToKeywordCol :: Eff'ISEJL r => Int -> Text -> Bool -> ObjId -> ColEntries -> Sem r ()
 addImgRefsToKeywordCol maxImgEntries kw forceSubCol i rs0 = do
   -- sort enties by create date
@@ -331,7 +344,9 @@ addImgRefsToKeywordCol maxImgEntries kw forceSubCol i rs0 = do
 
   if forceSubCol || not noSplit
     then
-      splitIntoSubCols maxImgEntries kw i rs1
+      do
+        splitIntoSubCols maxImgEntries kw i rs1
+        sortKWColByDate i
     else
       do
         let colTitle        = ": " <> fmtYMDRange fr' to'
@@ -447,7 +462,7 @@ updateKeywordCol maxImgEntries rfm kw p = do
   when (T.null $ n0 ^. theMetaData . metaTextAt descrTitle) $
     adjustMetaData (\md -> md & metaTextAt descrTitle .~ kw) i
 
-  -- after cleanup only real keyword subcollections remain in i
+  -- after cleanup only real (not generated) keyword subcollections remain in i
   cleanupKeywordCol i n0
 
   -- n0 is no longer up do date
@@ -472,6 +487,9 @@ updateKeywordCol maxImgEntries rfm kw p = do
     let forceSubCol = subColCnt > 0 || colCnt > 0
     let imgEnts = foldMap (Seq.singleton . mkColImgRefM') imgRefs
     addImgRefsToKeywordCol maxImgEntries kw forceSubCol i imgEnts
+
+  when (subColCnt > 0 && colCnt == 0 && imgCnt == 0) $ do
+    sortKWColByDate i
 
   log'dbg $ "updateKeywordCol: keyword collection update for " <> kw <> " finished"
 

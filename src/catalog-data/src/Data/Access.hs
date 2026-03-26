@@ -42,7 +42,7 @@ import qualified Data.Text  as T
 
 -- ----------------------------------------
 
-data AccessRestr = NO'write | NO'delete | NO'sort | NO'user | NO'index
+data AccessRestr = NO'write | NO'delete | NO'sort | NO'user | NO'index | NO'kwsort
 
 type Access = Int
 
