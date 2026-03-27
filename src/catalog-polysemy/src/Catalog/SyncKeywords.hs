@@ -488,7 +488,7 @@ updateKeywordCol maxImgEntries rfm kw p = do
     let imgEnts = foldMap (Seq.singleton . mkColImgRefM') imgRefs
     addImgRefsToKeywordCol maxImgEntries kw forceSubCol i imgEnts
 
-  when (subColCnt > 0 && colCnt == 0 && imgCnt == 0) $ do
+  when (subColCnt > 0 && imgCnt == 0) $ do
     sortKWColByDate i
 
   log'dbg $ "updateKeywordCol: keyword collection update for " <> kw <> " finished"
