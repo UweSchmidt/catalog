@@ -49,6 +49,7 @@ data AccessRestr = NO'write
                  | NO'index
                  | NO'kwsort
                  | NO'kwlimit
+                 | NO'kwrange   -- col per day
 
 type Access      = Int
 

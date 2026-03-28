@@ -330,44 +330,68 @@ sortKWColByDate i =
 
 
 addImgRefsToKeywordCol :: Eff'ISEJL r => Int -> Text -> Bool -> ObjId -> ColEntries -> Sem r ()
-addImgRefsToKeywordCol maxImgEntries kw forceSubCol i rs0 = do
+addImgRefsToKeywordCol maxImgEntries kw subColsAreThere i rs0 = do
   -- sort enties by create date
   rs1 <- sortColEntriesByDate rs0
 
   let (fst' :<| _  )  = rs1
   let (_    :|> lst') = rs1
 
-  fr'       <- addDate fst'
-  to'       <- addDate lst'
-  limited   <- isKWlimited <$> getMetaData i
+  fr'           <- addDate fst'
+  to'           <- addDate lst'
+  md'           <- getMetaData i
+
+  let sameDay    = fr' == to'
+  let unlimited  = not $ isKWlimited md'
+  let one'day    = not $ isKWrange   md'
 
   let mxe
-        | limited   = maxImgEntries
-        | otherwise = maxBound
+        | unlimited          = maxBound
+        | one'day            = 1
+        | maxImgEntries <= 0 = maxBound
+        | otherwise          = maxImgEntries
 
   let noSplit =
-        not limited                      -- unlimited col size
+        mxe == maxBound             -- unlimited col size
         ||
-        maxImgEntries <= 0               -- unlimited col size
+        sameDay                     -- all images shot at same day
         ||
-        fr' == to'                       -- all images on the same day
-        ||
-        Seq.length rs1 <= mxe            -- # images fits into a single col
+        Seq.length rs1 <= mxe       -- # images fits into a single col
 
-  if forceSubCol || not noSplit
+  log'dbg $
+    "addImgRefsToKeywordCol: mxe = " <> mxe ^. isoText
+    <>
+    ", sameDay = " <> sameDay ^. isoText
+    <>
+    ", unlimited = " <> unlimited ^. isoText
+    <>
+    ", one'day = " <> one'day ^. isoText
+    <>
+    ", noSplit = " <> noSplit ^. isoText
+    <>
+    ", subColsAreThere = " <> subColsAreThere ^. isoText
+
+  if noSplit
     then
-      do
+      if subColsAreThere
+      then
+        do                          -- single subcollection for images
+          splitIntoSubCols mxe kw i rs1
+          sortKWColByDate i
+      else
+        do                          -- no subCols and no split: insert entries
+          let colTitle        = ": " <> fmtYMDRange fr' to'
+          let colCreateDate   = fmtDate fr'
+
+          adjustMetaData   (\md -> md
+                                   & metaTextAt descrSubtitle   %~ (<> colTitle)
+                                   & metaTextAt descrCreateDate .~ colCreateDate
+                           ) i
+          adjustColEntries (<> rs1) i
+    else
+      do                            -- split images into subCols and order all by date
         splitIntoSubCols mxe kw i rs1
         sortKWColByDate i
-    else
-      do
-        let colTitle        = ": " <> fmtYMDRange fr' to'
-        let colCreateDate   = fmtDate fr'
-
-        adjustMetaData   (\md -> md & metaTextAt descrSubtitle   %~ (<> colTitle)
-                                    & metaTextAt descrCreateDate .~ colCreateDate
-                         ) i
-        adjustColEntries (<> rs1) i
 
   -- set collection img, if not already set
   adjustColImg (<|> cImg rs1) i
@@ -381,7 +405,10 @@ addImgRefsToKeywordCol maxImgEntries kw forceSubCol i rs0 = do
 splitIntoSubCols :: (Eff'ISEJL r) => Int -> Text -> ObjId -> ColEntries -> Sem r ()
 splitIntoSubCols maxImgEntries kw i rs = do
   p <- objid2path i
-  log'trc $ "addImgRefsToKeywordCol: split keyword col in subcols: " <> p ^. isoUrlText
+  log'dbg $
+    "splitIntoSubCols: split keyword col in subcols: " <> p ^. isoUrlText
+    <>
+    ", maxImgEntries = " <> maxImgEntries ^. isoText
 
   let mxi | maxImgEntries <= 0 = maxBound
           | otherwise          = maxImgEntries

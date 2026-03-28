@@ -284,6 +284,7 @@ instance IsoString LazyByteString where
   {-# INLINE isoString #-}
 
 -- unsafe conversions
+instance IsoString Bool
 instance IsoString Int
 instance IsoString Integer
 
@@ -306,6 +307,7 @@ instance IsoText String where
   {-# INLINE isoText #-}
 
 -- unsafe conversions
+instance IsoText Bool
 instance IsoText Int
 instance IsoText Integer
 
