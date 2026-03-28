@@ -337,15 +337,27 @@ addImgRefsToKeywordCol maxImgEntries kw forceSubCol i rs0 = do
   let (fst' :<| _  )  = rs1
   let (_    :|> lst') = rs1
 
-  fr'                <- addDate fst'
-  to'                <- addDate lst'
+  fr'       <- addDate fst'
+  to'       <- addDate lst'
+  unlimited <- isKWunlimited <$> getMetaData i
 
-  let noSplit = fr' == to' || maxImgEntries <= 0 || Seq.length rs1 < 2 * maxImgEntries
+  let mxe
+        | unlimited = maxBound
+        | otherwise = maxImgEntries
+
+  let noSplit =
+        unlimited
+        ||
+        maxImgEntries <= 0
+        ||
+        fr' == to'
+        ||
+        Seq.length rs1 < 2 * maxImgEntries
 
   if forceSubCol || not noSplit
     then
       do
-        splitIntoSubCols maxImgEntries kw i rs1
+        splitIntoSubCols mxe kw i rs1
         sortKWColByDate i
     else
       do

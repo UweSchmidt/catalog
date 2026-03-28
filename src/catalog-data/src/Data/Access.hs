@@ -42,9 +42,15 @@ import qualified Data.Text  as T
 
 -- ----------------------------------------
 
-data AccessRestr = NO'write | NO'delete | NO'sort | NO'user | NO'index | NO'kwsort
+data AccessRestr = NO'write
+                 | NO'delete
+                 | NO'sort
+                 | NO'user
+                 | NO'index
+                 | NO'kwsort
+                 | NO'kwlimit
 
-type Access = Int
+type Access      = Int
 
 -- --------------------
 
