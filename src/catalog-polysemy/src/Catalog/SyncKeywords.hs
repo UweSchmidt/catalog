@@ -339,20 +339,20 @@ addImgRefsToKeywordCol maxImgEntries kw forceSubCol i rs0 = do
 
   fr'       <- addDate fst'
   to'       <- addDate lst'
-  unlimited <- isKWunlimited <$> getMetaData i
+  limited   <- isKWlimited <$> getMetaData i
 
   let mxe
-        | unlimited = maxBound
-        | otherwise = maxImgEntries
+        | limited   = maxImgEntries
+        | otherwise = maxBound
 
   let noSplit =
-        unlimited
+        not limited                      -- unlimited col size
         ||
-        maxImgEntries <= 0
+        maxImgEntries <= 0               -- unlimited col size
         ||
-        fr' == to'
+        fr' == to'                       -- all images on the same day
         ||
-        Seq.length rs1 < 2 * maxImgEntries
+        Seq.length rs1 <= mxe            -- # images fits into a single col
 
   if forceSubCol || not noSplit
     then

@@ -59,7 +59,7 @@ module Data.MetaData
   , isAUserCol
   , isIndexable
   , isKWsortable
-  , isKWunlimited
+  , isKWlimited
 
   , lookupByKeys
   , lookupCreate
@@ -1390,7 +1390,7 @@ isWriteable
   , isAUserCol
   , isIndexable
   , isKWsortable
-  , isKWunlimited :: MetaData -> Bool
+  , isKWlimited :: MetaData -> Bool
 
 isWriteable   = doesn'tHave NO'write
 isSortable    = doesn'tHave NO'sort
@@ -1398,7 +1398,7 @@ isRemovable   = doesn'tHave NO'delete
 isAUserCol    = doesn'tHave NO'user
 isIndexable   = doesn'tHave NO'index
 isKWsortable  = doesn'tHave NO'kwsort
-isKWunlimited = doesn'tHave NO'kwlimit
+isKWlimited   = doesn'tHave NO'kwlimit
 
 doesn'tHave :: AccessRestr -> MetaData -> Bool
 doesn'tHave r mt = mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r . to not
