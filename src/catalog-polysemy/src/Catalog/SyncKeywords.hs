@@ -167,14 +167,14 @@ notToBeIndexed :: MetaData -> Bool
 notToBeIndexed md =
   not (isIndexable md)
 
-kwList :: MetaData -> [Text]
-kwList md =
-  md ^. metaDataAt descrKeywords     . metaTS
-  <>
-  md ^. metaDataAt descrKeywordsCopy . metaTS
-
 kwSet :: MetaData -> Keywords
-kwSet md = S.fromList $ md ^. metaDataAt descrKeywords . metaTS
+kwSet = S.fromList . kwList
+  where
+    kwList :: MetaData -> [Text]
+    kwList md =
+      md ^. metaDataAt descrKeywords     . metaTS
+      <>
+      md ^. metaDataAt descrKeywordsCopy . metaTS
 
 syncAllKeywordCols :: Eff'ISEJL r => Int -> Sem r ()
 syncAllKeywordCols maxImgEntries =
@@ -222,7 +222,7 @@ allKeywords' i = do
   return kws
   where
     colA go _i md _im _be cs = do
-      let kws1 = S.fromList $ kwList md                      -- col keywords
+      let kws1 = kwSet md                                    -- col keywords
       kws2 <- if notToBeIndexed md
               then
                 return mempty                                -- stop looking for keywords
@@ -230,7 +230,7 @@ allKeywords' i = do
                 fold <$> traverse (colEntryM' iref go) cs    -- keywords in col entries
       return (S.union kws1 kws2)
       where
-        iref ir' = (S.fromList . kwList) <$> getImgMetaData ir'
+        iref ir' = kwSet <$> getImgMetaData ir'
 
 -- create keyword collection for new keywords
 -- these are created in a subcollection of the
@@ -242,15 +242,13 @@ newKeywordCols = do
   let kws' = S.difference kws kwcs
 
   unless (S.null kws') $ do
-    unlessM (isJust <$> lookupByPath pkn) $ do
-      ci <- mkCollection pkn
+    unlessM (isJust <$> lookupByPath p'newkeywords) $ do
+      ci <- mkCollection p'newkeywords
       adjustMetaData (\md -> md & metaTextAt descrTitle .~ newCt) ci
 
     traverse_ initKeywordCol kws'
   where
     newCt  = "Neue Schlüsselwörter"
-    newKws = "new"
-    pkn    = p'keywords `snocPath` newKws
 
     initKeywordCol :: Eff'ISEJL r => Text -> Sem r ()
     initKeywordCol kw = do
@@ -258,7 +256,7 @@ newKeywordCols = do
       _ci <- mkCollection p
       return ()
       where
-        p = pkn `snocPath` (isoText # kw)
+        p = p'newkeywords `snocPath` (isoText # kw)
 
 cleanupKeywordCol :: Eff'ISEJL r => ObjId -> ImgNode -> Sem r ()
 cleanupKeywordCol i n0 = do

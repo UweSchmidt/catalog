@@ -124,6 +124,7 @@ import Data.Prim
        -- , p'collections
        , p'photos
        , p'keywords
+       , p'newkeywords
        , isPathPrefix
        , msgPath
        , snocPath
@@ -851,8 +852,16 @@ modify'snapshot = IO.snapshotImgStore
 
 modify'syncKeywordCol :: Eff'ISEJL r => Int -> Path -> ObjId -> Sem r ()
 modify'syncKeywordCol maxImgEntries p i = do
+  -- check whether col to be synced is a keyword collection
   unless (isPathPrefix p'keywords p) $
     throwP i $ msgPath p'keywords "syncKeywordCol: collection does not have path prefix "
+
+  -- when "/.../keywords/new" is updated,
+  -- first, subcols for new keywords are created
+
+  when (p == p'newkeywords) $
+    SK.newKeywordCols
+
   SK.syncKeywordCol maxImgEntries i
 
 -- --------------------

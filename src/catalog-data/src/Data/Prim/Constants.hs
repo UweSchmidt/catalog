@@ -17,7 +17,8 @@ n'archive
   , n'imports
   , n'keywords
   , n'photos
-  , n'trash :: Name
+  , n'trash
+  , n'newkws :: Name
 
 n'archive      = "archive"
 n'albums       = "albums"
@@ -28,6 +29,7 @@ n'imports      = "imports"
 n'keywords     = "keywords"
 n'photos       = "photos"
 n'trash        = "trash"
+n'newkws       = "new"
 
 t'archive
   , t'collections
@@ -57,6 +59,7 @@ p'archive
   , p'bycreatedate
   , p'imports
   , p'keywords
+  , p'newkeywords
   , p'photos
   , p'trash :: Path
 
@@ -70,6 +73,7 @@ p'imports      = p'collections `snocPath` n'imports
 p'keywords     = p'collections `snocPath` n'keywords
 p'photos       = p'collections `snocPath` n'photos
 p'trash        = p'collections `snocPath` n'trash
+p'newkeywords  = p'keywords    `snocPath` n'newkws
 
 p'assets
   , p'html
