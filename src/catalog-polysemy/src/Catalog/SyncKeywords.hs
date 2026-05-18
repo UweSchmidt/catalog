@@ -84,6 +84,7 @@ import Text.ParsePretty
        , fmtKWTitle
        , fmtKWSubTitle
        , fmtYMDRange
+       , isoDateInt
        )
 
 import Data.Sequence
@@ -465,7 +466,7 @@ toAugDist (x : xs1@(x1 : _xs2)) = (x, dist x x1) : toAugDist xs1
   where
     dist e1 e2 = (toDays . fst . snd $ e2) - (toDays . fst . snd $ e1)
       where
-        toDays (y, m, d) = y * 360 + m * 30 + d
+        toDays ymd = ymd ^. isoDateInt
 
 toAugDist (x : [])              = (x, maxBound)  : []
 toAugDist []                    = []

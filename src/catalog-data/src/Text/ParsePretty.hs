@@ -17,6 +17,11 @@ module Text.ParsePretty
   , fmtYMDRange
   , fmtKWTitle
   , fmtKWSubTitle
+
+  , sameDay
+  , sameMonth
+  , sameYear
+  , withinPeriodOfDays
   )
 where
 
@@ -38,8 +43,10 @@ import Text.Printf
   ( printf,
   )
 
-import qualified Data.Text         as T
-import qualified Text.SimpleParser as SP
+import qualified Data.Text          as T
+import qualified Data.Time.Calendar as C
+import qualified Text.SimpleParser  as SP
+
 
 -- ------------------------------------------------------------
 
@@ -213,15 +220,41 @@ fmtKWSubTitle (subCnt, imgCnt, colCnt) =
     st1 = colCnt ^. isoText <> " Sammlung"  <> (if colCnt == 1 then "" else "en")
 
 -- ------------------------------------------------------------
+--
+-- conversion between YYYY-mm-dd and Data.Time.Day
 
 isoDateInt :: Iso' (Tuple3 Int) Int
 isoDateInt = iso to3 fr3
   where
-    to3 (y, m, d) = (y * 100 + m) * 100 + d
+    to3 (y, m, d) = fromEnum $ C.YearMonthDay (toEnum y) m d
 
-    fr3 i = (y, m, d)
+    fr3 d = (fromEnum y, m, d')
       where
-        (my, d) = i `divMod` 100
-        (y, m) = my `divMod` 100
+        (y, m, d') = C.toGregorian $ toEnum d
+
+-- --------------------
+-- tests
+
+sameDay :: Tuple3 Int -> Tuple3 Int -> Bool
+sameDay i1@(_y1, m1, d1) i2@(_y2, m2, d2)
+  | d1 == 0 || d2 == 0
+    ||
+    m1 == 0 || m2 == 0 = i1 == i2
+  | otherwise          = ((==) `on` (^. isoDateInt)) i1 i2
+
+sameMonth :: Tuple3 Int -> Tuple3 Int -> Bool
+sameMonth (y1, m1, _d1) (y2, m2, _d2) =
+  y1 == y2 && m1 == m2
+
+sameYear :: Tuple3 Int -> Tuple3 Int -> Bool
+sameYear (y1, _m1, _d1) (y2, _m2, _m3) =
+  y1 == y2
+
+withinPeriodOfDays :: Int -> Tuple3 Int -> Tuple3 Int -> Bool
+withinPeriodOfDays days i1@(_y1, _m1, _d1) i2@(_y2, _m2, _d2)
+  = abs (x1 - x2) < days                  -- (y, m, 0) --> (y, m, 1), (y, 0, 0) -> (y, 1, 1)
+  where
+    x1 = i1 ^. isoDateInt
+    x2 = i2 ^. isoDateInt
 
 -- ------------------------------------------------------------
