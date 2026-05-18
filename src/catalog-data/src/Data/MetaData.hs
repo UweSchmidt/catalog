@@ -59,8 +59,12 @@ module Data.MetaData
   , isAUserCol
   , isIndexable
   , isKWsortable
-  , isKWlimited
-  , isKWrange
+
+  , hasKWday
+  , hasKWweek
+  , hasKWmonth
+  , hasKWyear
+  , hasKWall
 
   , lookupByKeys
   , lookupCreate
@@ -1388,9 +1392,7 @@ isWriteable
   , isRemovable
   , isAUserCol
   , isIndexable
-  , isKWsortable
-  , isKWlimited
-  , isKWrange :: MetaData -> Bool
+  , isKWsortable :: MetaData -> Bool
 
 isWriteable   = doesn'tHave NO'write
 isSortable    = doesn'tHave NO'sort
@@ -1398,11 +1400,24 @@ isRemovable   = doesn'tHave NO'delete
 isAUserCol    = doesn'tHave NO'user
 isIndexable   = doesn'tHave NO'index
 isKWsortable  = doesn'tHave NO'kwsort
-isKWlimited   = doesn'tHave NO'kwlimit
-isKWrange     = doesn'tHave NO'kwrange
+
+hasKWday
+  , hasKWweek
+  , hasKWmonth
+  , hasKWyear
+  , hasKWall :: MetaData -> Bool
+
+hasKWday   = hasRestr KW'day
+hasKWweek  = hasRestr KW'week
+hasKWmonth = hasRestr KW'month
+hasKWyear  = hasRestr KW'year
+hasKWall   = hasRestr KW'all
+
+hasRestr :: AccessRestr -> MetaData -> Bool
+hasRestr r mt = mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r
 
 doesn'tHave :: AccessRestr -> MetaData -> Bool
-doesn'tHave r mt = mt ^. metaDataAt Descr'Access . metaAcc . accessRestr r . to not
+doesn'tHave r = not . hasRestr r
 
 -- --------------------
 --

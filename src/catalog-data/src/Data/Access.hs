@@ -48,8 +48,11 @@ data AccessRestr = NO'write
                  | NO'user
                  | NO'index
                  | NO'kwsort
-                 | NO'kwlimit
-                 | NO'kwrange   -- col per day
+                 | KW'day       -- all images made at a single day are grouped
+                 | KW'week      -- all images made within a week  are grouped
+                 | KW'month     -- all images made within a month are grouped
+                 | KW'year      -- all images made within a year  are grouped
+                 | KW'all       -- single group for all images
 
 type Access      = Int
 
