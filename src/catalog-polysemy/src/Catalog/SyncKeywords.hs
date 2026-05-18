@@ -345,10 +345,10 @@ addImgRefsToKeywordCol maxImgEntries kw subColsAreThere i rs0 = do
   let one'day    = not $ isKWrange   md'
 
   let mxe
-        | unlimited          = maxBound
-        | one'day            = 1
-        | maxImgEntries <= 0 = maxBound
-        | otherwise          = maxImgEntries
+        | unlimited          = maxBound        -- limit set in collection access flags
+        | one'day            = 1               -- dto.
+        | maxImgEntries <= 0 = maxBound        -- limit set in editor
+        | otherwise          = maxImgEntries   -- dto.
 
   let noSplit =
         mxe == maxBound             -- unlimited col size

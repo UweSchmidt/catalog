@@ -80,6 +80,13 @@ import Data.ImgTree
        , ImgParts
        , ColEntries
        )
+
+import Data.Access
+       ( edit'restr
+       , no'restr
+       , isoAccessRestr
+       )
+
 import Data.MetaData
        ( MetaData
        , AccessRestr(..)
@@ -88,10 +95,6 @@ import Data.MetaData
        , metaAcc
 
        , lookupCreate
-
-       , all'restr
-       , no'restr
-       , isoAccessRestr
 
        , descrAccess     -- meta keys
        , descrComment
@@ -162,7 +165,7 @@ genAlbumsCollection = genSysCollection no'restr n'albums tt'albums
 -- collection hierachy representing the photos hierachy on disk
 genPhotoCollection :: Eff'ISEJLT r => Sem r ()
 genPhotoCollection =
-  genSysCollection all'restr n'photos tt'photos
+  genSysCollection edit'restr n'photos tt'photos
 
 -- import collection is writeable
 -- to enable removing old imports
@@ -173,7 +176,7 @@ genImportsCollection =
 
 genByDateCollection :: Eff'ISEJLT r => Sem r ()
 genByDateCollection =
-  genSysCollection all'restr n'bycreatedate tt'bydate
+  genSysCollection edit'restr n'bycreatedate tt'bydate
 
 genSysCollection :: Eff'ISEJLT r => [AccessRestr] -> Name -> Text -> Sem r ()
 genSysCollection a n'sys tt'sys = do
@@ -213,19 +216,19 @@ mkDateCol x@(y, m, d) pc = do
         where
           t = fmtYMD (y', 0, 0)
           o = to'name
-          a = all'restr
+          a = edit'restr
 
     setupMonthCol y' m' _i = mkColMeta t "" "" o a
         where
           t = fmtYMD (y', m', 0)
           o = to'name
-          a = all'restr
+          a = edit'restr
 
     setupDayCol y' m' d' _i = mkColMeta t "" "" o a
         where
           t = fmtYMD (y', m', d')
           o = to'dateandtime
-          a = all'restr
+          a = edit'restr
 
 -- ----------------------------------------
 
@@ -287,7 +290,7 @@ genCollectionsByDir di = do
       let t = path2Title p
           s = path2Subtitle p
           o = to'colandname
-          a = all'restr
+          a = edit'restr
       mkColMeta t s "" o a
 
     path2Title :: Path -> Text

@@ -7,7 +7,7 @@ module Data.Access
   , Access
 
   -- access rights
-  , all'restr
+  , edit'restr
   , no'restr
 
   , freeAccess
@@ -74,8 +74,8 @@ accessMap =
         f '\'' = '-'
         f c    = toLower c
 
-all'restr :: [AccessRestr]
-all'restr = [minBound .. maxBound]
+edit'restr :: [AccessRestr]
+edit'restr = [NO'write .. NO'user]
 
 no'restr :: [AccessRestr]
 no'restr = []

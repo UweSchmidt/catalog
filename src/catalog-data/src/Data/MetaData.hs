@@ -222,8 +222,6 @@ import Data.Prim.Prelude
 import Data.Access
        ( Access
        , AccessRestr(..)
-       , all'restr
-       , no'restr
        , freeAccess
        , accessRestr
        , isoAccessRestr
