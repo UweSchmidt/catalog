@@ -85,6 +85,7 @@ import Text.ParsePretty
        , fmtKWSubTitle
        , fmtYMDRange
        , isoDateInt
+       , withinPeriodOfDays
        )
 
 import Data.Sequence
@@ -313,8 +314,8 @@ addColRefsToKeywordCol i rs0 = do
     )
     rs1
 
-addDate :: Eff'ISE r => ColEntryM -> Sem r (Tuple3 Int)
-addDate cr' = lookupCreate toYMD <$> getColRefMetaData cr'
+theDate :: Eff'ISE r => ColEntryM -> Sem r (Tuple3 Int)
+theDate cr' = lookupCreate toYMD <$> getColRefMetaData cr'
 
 sortKWColByDate :: Eff'ISEJL r => ObjId -> Sem r ()
 sortKWColByDate i =
@@ -336,61 +337,61 @@ addImgRefsToKeywordCol maxImgEntries kw subColsAreThere i rs0 = do
   let (fst' :<| _  )  = rs1
   let (_    :|> lst') = rs1
 
-  fr'           <- addDate fst'
-  to'           <- addDate lst'
+  fr'           <- theDate fst'
+  to'           <- theDate lst'
   md'           <- getMetaData i
 
   let sameDay    = fr' == to'
-  let unlimited  = not $ isKWlimited md'
-  let one'day    = not $ isKWrange   md'
+
+  let kw'all     = hasKWall   md'
+  let kw'day     = hasKWday   md'
+  let kw'week    = hasKWweek  md'
+  let kw'month   = hasKWmonth md'
+  let kw'year    = hasKWyear  md'
 
   let mxe
-        | unlimited          = maxBound        -- limit set in collection access flags
-        | one'day            = 1               -- dto.
+        -- | kw'all             = maxBound        -- limit set in collection access flags
+        | kw'day             = 1               -- dto.
         | maxImgEntries <= 0 = maxBound        -- limit set in editor
         | otherwise          = maxImgEntries   -- dto.
 
+  let period
+        | kw'all             = 100000 -- maxBound
+        | kw'year            = 365
+        | kw'month           = 30
+        | kw'week            = 7
+        | kw'day             = 1
+        | otherwise          = 100000 -- maxBound
+
   let noSplit =
-        mxe == maxBound             -- unlimited col size
-        ||
+        -- mxe == maxBound             -- unlimited col size
+        -- ||
         sameDay                     -- all images shot at same day
-        ||
-        Seq.length rs1 <= mxe       -- # images fits into a single col
+        -- ||
+        -- Seq.length rs1 <= mxe       -- # images fits into a single col
 
   log'dbg $
     "addImgRefsToKeywordCol: mxe = " <> mxe ^. isoText
     <>
     ", sameDay = " <> sameDay ^. isoText
     <>
-    ", unlimited = " <> unlimited ^. isoText
+    ", period = " <> period ^. isoText
     <>
-    ", one'day = " <> one'day ^. isoText
+    ", kw'all = " <> kw'all ^. isoText
+    <>
+    ", kw'day = " <> kw'day ^. isoText
+    <>
+    ", kw'week = " <> kw'week ^. isoText
+    <>
+    ", kw'month = " <> kw'month ^. isoText
+    <>
+    ", kw'year = " <> kw'year ^. isoText
     <>
     ", noSplit = " <> noSplit ^. isoText
     <>
     ", subColsAreThere = " <> subColsAreThere ^. isoText
 
-  if noSplit
-    then
-      if subColsAreThere
-      then
-        do                          -- single subcollection for images
-          splitIntoSubCols mxe kw i rs1
-          sortKWColByDate i
-      else
-        do                          -- no subCols and no split: insert entries
-          let colTitle        = ": " <> fmtYMDRange fr' to'
-          let colCreateDate   = fmtDate fr'
-
-          adjustMetaData   (\md -> md
-                                   & metaTextAt descrSubtitle   %~ (<> colTitle)
-                                   & metaTextAt descrCreateDate .~ colCreateDate
-                           ) i
-          adjustColEntries (<> rs1) i
-    else
-      do                            -- split images into subCols and order all by date
-        splitIntoSubCols mxe kw i rs1
-        sortKWColByDate i
+  splitIntoSubCols mxe period i rs1 >>= addCols kw i subColsAreThere
 
   -- set collection img, if not already set
   adjustColImg (<|> cImg rs1) i
@@ -401,8 +402,9 @@ addImgRefsToKeywordCol maxImgEntries kw subColsAreThere i rs0 = do
 
 -- ----------------------------------------
 
-splitIntoSubCols :: (Eff'ISEJL r) => Int -> Text -> ObjId -> ColEntries -> Sem r ()
-splitIntoSubCols maxImgEntries kw i rs = do
+splitIntoSubCols :: (Eff'ISEJL r) =>
+                    Int -> Int -> ObjId -> ColEntries -> Sem r [(Int, AugColEntries)]
+splitIntoSubCols maxImgEntries period i rs = do
   p <- objid2path i
   log'dbg $
     "splitIntoSubCols: split keyword col in subcols: " <> p ^. isoUrlText
@@ -415,38 +417,76 @@ splitIntoSubCols maxImgEntries kw i rs = do
   let groupCols =
         zip [1..]
         . map fst
-        . group (tooLargeAuE mxi) distAuE mergeAuE
+        . group (tooLargeAuE mxi) (mergeableAuE mxi period) distAuE mergeAuE
         . toAugDist
         . map toAugEntry
 
-  grouped'rs <- groupCols <$> augmentM addDate (foldr (:) [] rs)
+  groupCols <$> augmentM theDate (foldr (:) [] rs)
 
-  traverse_ (uncurry $ addCol p) grouped'rs
+addCols :: (Eff'ISEJL r) => Text -> ObjId -> Bool -> [(Int, AugColEntries)] -> Sem r ()
+addCols kw i = addC
+  where
+    -- empty kw collection
+    addC _     [] = return ()
+
+    -- collection contains only pictures that fit into a single kw collection
+    addC False [(_, (cs, (fr', to')))] = do
+      let colTitle        = ": " <> fmtYMDRange fr' to'
+      let colCreateDate   = fmtDate fr'
+      adjustMetaData   (\md -> md
+                               & metaTextAt descrSubtitle   %~ (<> colTitle)
+                               & metaTextAt descrCreateDate .~ colCreateDate
+                       ) i
+      adjustColEntries (<> cs) i
+
+    -- collection contains subcollections or a set pof pictures grouped in subcols
+    addC _ grouped'rs = do
+      addSubCols kw i grouped'rs
+
+addSubCols :: (Eff'ISEJL r) => Text -> ObjId -> [(Int, AugColEntries)] -> Sem r ()
+addSubCols kw i grouped'rs = do
+  p <- objid2path i
+  log'dbg $ "addSubCols: path = " <> p ^. isoUrlText
+  traverse_ (uncurry $ addSubCol kw p) grouped'rs
+  sortKWColByDate i
+
+addSubCol :: Eff'ISEJL r => Text -> Path -> Int -> AugColEntries -> Sem r ()
+addSubCol kw p' ix' acs@(rs', (fr', to')) = do
+  let colName     = isoText # (ix' ^. isoText <> ".group-" <> kw <> kwSuffix)
+  let colTitle    = fmtKWTitle fr' to' kw
+  let colSubTitle = fmtKWSubTitle (0, Seq.length rs' ,0)
+  let colCreateDt = fmtDate fr'
+  let colPath     = p' `snocPath` colName
+
+  log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
+
+  log'dbg $ "addCol: entries: " <> show acs ^. isoText
+
+  ci             <- mkCollection colPath
+  adjustColEntries  (const rs') ci
+  adjustMetaData    (\md -> md & metaTextAt descrTitle      .~ colTitle
+                               & metaTextAt descrSubtitle   .~ colSubTitle
+                               & metaTextAt descrCreateDate .~ colCreateDt
+                    ) ci
+  adjustColImg      (const colImg) ci
     where
-      addCol :: Eff'ISEJL r => Path -> Int -> AugColEntries -> Sem r ()
-      addCol p' ix' (rs', (fr', to')) = do
-        let colName     = isoText # (ix' ^. isoText <> ".group-" <> kw <> kwSuffix)
-        let colTitle    = fmtKWTitle fr' to' kw
-        let colSubTitle = fmtKWSubTitle (0, Seq.length rs' ,0)
-        let colCreateDt = fmtDate fr'
-        let colPath     = p' `snocPath` colName
-
-        log'trc $ "addImgRefsToKeywordCol: add subcol: " <> colPath ^. isoUrlText
-
-        ci             <- mkCollection colPath
-        adjustColEntries  (const rs') ci
-        adjustMetaData    (\md -> md & metaTextAt descrTitle      .~ colTitle
-                                     & metaTextAt descrSubtitle   .~ colSubTitle
-                                     & metaTextAt descrCreateDate .~ colCreateDt
-                          ) ci
-        adjustColImg      (const colImg) ci
-          where
-            colImg :: Maybe ImgRef
-            colImg = rs' ^? ix 0 . theColEntry . theColImgRef
+      colImg :: Maybe ImgRef
+      colImg = rs' ^? ix 0 . theColEntry . theColImgRef
 
 type Date           = Tuple3 Int
 type AugColEntries  = (ColEntries, (Date, Date))
 type AugColEntriesD = (AugColEntries, Int)
+
+-- all dates must be in the range periodAuD days
+-- and the # of entries is at most 50% larger of maxAuD
+
+mergeableAuE :: Int -> Int -> AugColEntriesD -> AugColEntriesD -> Bool
+mergeableAuE maxAuE periodAuE ((cs1, (day11, _) ), _d1) ((cs2, (_, day22) ), _d2) =
+  withinPeriodOfDays periodAuE day11 day22
+  &&
+  (2 * l) `div` 3 <= maxAuE
+  where
+    l = Seq.length cs1 + Seq.length cs2
 
 mergeAuE :: AugColEntriesD -> AugColEntriesD -> AugColEntriesD
 mergeAuE ((cs1, (day11, _) ), _d1) ((cs2, (_, day22) ), d2) =
@@ -717,8 +757,8 @@ groupE = group tooLargeE distE mergeE
 
 -- ----------------------------------------------------------------------
 
-group :: (a -> Bool) -> (a -> Int) -> (a -> a -> a) -> [a] -> [a]
-group tooLarge dist merge = go . go0
+group :: (a -> Bool) -> (a -> a -> Bool) -> (a -> Int) -> (a -> a -> a) -> [a] -> [a]
+group tooLarge mergeable dist merge = go . go0
   where
     -- group elements of distance 0
     go0 (x : xs1@(x1 : xs2))
@@ -729,13 +769,16 @@ group tooLarge dist merge = go . go0
     go (x : xs1@(x1 : xs2))
       | tooLarge x          = x : go xs1              -- 1. elem too large to be combined
       | tooLarge x1         = x : x1 : go xs2         -- 2. elem too large to be combinde
-      | dist x <= dist x1   = go (merge x x1 : xs2)   -- 2. elem nearer to 1. elem than to 3. elem
+      | dist x <= dist x1
+        &&
+        mergeable x x1      = go (merge x x1 : xs2)   -- 2. elem nearer to 1. elem than to 3. elem
                                                       -- 2. elem nearer to 3. elem than to 1. elem
                                                       --    process rest of list first, then
-      | tooLarge x1'        = x : xs1'                -- 1. elem of rest too large: put 1. elem in front
-      | otherwise           = merge x x1' : xs2'      -- merge 1. elem with 1. elem of rest
-        where
-          xs1'@(x1' : xs2') = go xs1
+      | tooLarge x1'        = x : xs1'                -- 1. elem of rest too large: prepend 1. elem
+      | mergeable x x1'     = merge x x1' : xs2'      -- merge 1. elem with 1. elem of rest
+      | otherwise           = x : xs1'                -- prepend 1. elem
+      where
+        xs1'@(x1' : xs2') = go xs1
     go xs                   = xs                      -- empty list or singleton list
 
 ------------------------------------------------------------------------
