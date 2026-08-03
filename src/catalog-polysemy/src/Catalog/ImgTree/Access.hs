@@ -19,8 +19,10 @@ module Catalog.ImgTree.Access
   , existsEntry
   , lookupByName
   , lookupByPath
+  , lookupByVPath
   , getIdNode
   , getIdNode'
+  , getIdNodeV
   , getId
   , getNode
   , alreadyTherePath
@@ -94,6 +96,7 @@ import Data.ImgTree
        , theImgPart
        , theImgRoot
        , theMetaData
+       , theColMetaData
        , theParts
        , theRootImgCol
        , theRootImgDir
@@ -103,17 +106,20 @@ import Data.MetaData
        ( MetaData
        , addFileMetaData
        , lookupCreate
+       , metaTextAt
+       , descrCollectionRef
        )
 
 import Data.Prim
-       ( Path
-       , Name
+       ( Name
        , ObjId
        , mkObjId
-       , msgPath
        , noOfBitsUsedInKeys
-       , snocPath
        )
+
+import Data.Prim.Path
+import Data.Prim.PathPos
+
 import Data.Prim.Prelude
 
 import qualified Data.Set      as S
@@ -202,6 +208,36 @@ lookupByPath :: EffIStore r => Path -> Sem r (Maybe (ObjId, ImgNode))
 lookupByPath p = lookupImgPath p <$> dt
 {-# INLINE lookupByPath #-}
 
+lookupByVPath :: EffIStore r => Path -> Sem r (Maybe VPath)
+lookupByVPath = splitVP mempty
+  where
+
+    -- a "Symlink" is a col entry with a metadata field containing the real path
+
+    isSymLink :: ImgNode -> Maybe Path
+    isSymLink n'
+      | isEmpty rp' = Nothing
+      | otherwise   = Just $ isoText # rp'
+      where
+        rp' = n' ^. theColMetaData . metaTextAt descrCollectionRef
+
+    -- search for Symlink entries
+
+    splitVP sfx p
+      | isEmpty p = return Nothing                 -- no symlink there
+      | otherwise = do
+          mn <- lookupByPath p
+          case mn of
+            Nothing         -> go
+            Just (_i, node) ->
+              case isSymLink node of
+                Nothing -> go
+                Just rp ->                          -- symlink found
+                  return $ Just $ mkVPath p rp sfx
+      where
+        (p1, n1) = p ^. viewBase
+        go       = splitVP (consPath n1 sfx) p1
+
 -- save lookup by path
 
 getIdNode :: Eff'ISE r => Text -> Path -> Sem r (ObjId, ImgNode)
@@ -224,6 +260,13 @@ getId p = fst <$> getIdNode' p
 getNode :: (Eff'ISE r) => Path -> Sem r ImgNode
 getNode p = snd <$> getIdNode' p
 {-# INLINE getNode #-}
+
+getIdNodeV :: Eff'ISE r => Text -> Path -> Sem r (ObjId, ImgNode)
+getIdNodeV msg p = do
+  mvp <- lookupByVPath p
+  case mvp of
+    Nothing -> getIdNode msg p
+    Just vp -> getIdNode msg (realPath vp)
 
 -- check path not there
 
