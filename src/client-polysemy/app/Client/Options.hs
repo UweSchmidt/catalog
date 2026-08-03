@@ -63,6 +63,8 @@ import Data.Prim
        , (^.)
        , (#)
        , second
+       , isoPPs
+       , mkPathPos
        , Geo(Geo)
        , isEmpty
        , IsString(fromString)
@@ -168,7 +170,7 @@ cmdClient = subparser $
   <>
   command "set-col-img"
     ( ( CcSetColImg
-        <$> (second Just <$> argImgPath "IMG-PATH")
+        <$> (uncurry mkPathPos . second Just <$> argImgPath "IMG-PATH")
         <*> argPath1
       )
       `withInfo`
@@ -179,7 +181,7 @@ cmdClient = subparser $
     )
   <>
   command "del-col-img"
-    ( ( CcSetColImg (mempty, Just (-1))
+    ( ( CcSetColImg (mkPathPos mempty (Just (-1)))
         <$> argPath1
       )
       `withInfo`
@@ -190,7 +192,7 @@ cmdClient = subparser $
   <>
   command "set-col-blog"
     ( ( CcSetColBlog
-        <$> (second Just <$> argImgPath "DOC-PATH")
+        <$> (uncurry mkPathPos . second Just <$> argImgPath "DOC-PATH")
         <*> argPath1
       )
       `withInfo`
@@ -201,7 +203,7 @@ cmdClient = subparser $
     )
   <>
   command "del-col-blog"
-    ( ( CcSetColBlog (mempty, Just (-1))
+    ( ( CcSetColBlog (mkPathPos mempty (Just (-1)))
         <$> argPath1
       )
       `withInfo`
@@ -590,7 +592,7 @@ imgPathReader = eitherReader parse
         arg'
       where
         arg' = fmap (p,) cx
-        (p, cx) = (fromString arg) ^. isoPathPos
+        (p, cx) = (fromString arg) ^. isoPathPos . isoPPs
 
 imgReqReader :: ReadM ReqType
 imgReqReader = eitherReader parse

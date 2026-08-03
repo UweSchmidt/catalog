@@ -426,12 +426,12 @@ matchGlob globPattern =
     Just prs -> (\ p -> isJust . parseMaybe prs $ lastPath p ^. isoText)
 
 globExpandPP :: CCmdEffects r => PathPos -> Sem r PathPos
-globExpandPP (p, cx) = do
+globExpandPP (PPs p cx) = do
   ps <- globExpand p
   case ps of
     [p'] -> do
       log'trc $ untext [ "globExpand:", show (p', cx) ^. isoText]
-      return (p', cx)
+      return (PPs p' cx)
     []   ->
       abortWith $ untext [ "globExpand:"
                          , "no path found for "
@@ -446,7 +446,7 @@ globExpandPP (p, cx) = do
 ------------------------------------------------------------------------------
 
 evalMetaData :: CCmdEffects r => PathPos -> [MetaKey] -> Sem r MetaData
-evalMetaData pp@(p, cx) keys = do
+evalMetaData pp@(PPs p cx) keys = do
   log'trc $ untext ["evalMetaData:", from isoText . isoPathPos # pp]
 
   r <- (\ mt ->  (isoMetaDataMDT # mt) & filterKeysMetaData (`elem` keys))
@@ -459,7 +459,7 @@ evalMetaData pp@(p, cx) keys = do
 ------------------------------------------------------------------------------
 
 evalSetMetaData1 :: CCmdEffects r => PathPos -> MetaKey -> Text -> Sem r ()
-evalSetMetaData1 pp@(p, cx) key val = do
+evalSetMetaData1 pp@(PPs p cx) key val = do
   let pth = (isoPathPos # pp) ^. isoText
   log'trc $ untext [ "evalSetMetaData:"
                    , pth
@@ -487,7 +487,7 @@ evalSetCol' :: CCmdEffects r
             -> (Path -> Int -> Path -> Sem r ())
             -> PathPos -> Path
             -> Sem r ()
-evalSetCol' fnm msg setCol pp@(sp, cx) cp = do
+evalSetCol' fnm msg setCol pp@(PPs sp cx) cp = do
   let pth = (isoPathPos # pp) ^. isoText
   cps <- globExpand cp
   log'trc $ untext [ fnm

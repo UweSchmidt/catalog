@@ -175,7 +175,7 @@ instance FromJSON Req0 where
 emptyReq' :: Req0
 emptyReq' =
   Req' { _rType    = RRef
-       , _rPathPos = (mempty, Nothing)
+       , _rPathPos = PPs mempty Nothing
        , _rGeo     = mempty
        , _rVal     = ()
        }
@@ -196,10 +196,10 @@ rPathPos :: Lens' (Req' a) PathPos
 rPathPos k r = (\ new -> r {_rPathPos = new}) <$> k (_rPathPos r)
 
 rPath :: Lens' (Req' a) Path
-rPath = rPathPos . _1
+rPath = rPathPos . isoPPs . _1
 
 rPos :: Lens' (Req' a) Pos
-rPos = rPathPos . _2
+rPos = rPathPos . isoPPs . _2
 
 rGeo :: Lens' (Req' a) Geo
 rGeo k r = (\ new -> r {_rGeo = new}) <$> k (_rGeo r)
@@ -269,9 +269,9 @@ normPathPos r =
 normPathPosC :: Eff'ISE r => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
 normPathPosC r c' =
   do p' <- objid2path c'
-     setIdNode (r & rVal     %~ snd         -- forget IdNode
-                  & rPathPos .~ (p', mzero) -- set path and no pos
-               )                            -- set new id and node
+     setIdNode (r & rVal     %~ snd          -- forget IdNode
+                  & rPathPos .~ PPs p' mzero -- set path and no pos
+               )                             -- set new id and node
 
 
 -- compute a req with a path and pos
@@ -293,7 +293,7 @@ denormPathPos r =
        par'p <- objid2path   par'i
        par'x <- pureMaybe $ lookupOId (r ^. rColId) par'n
        return
-         (r & rPathPos .~ (par'p, Just par'x)
+         (r & rPathPos .~ PPs par'p (Just par'x)
             & rIdNode  .~ (par'i, par'n)
          )
   )
@@ -485,7 +485,7 @@ processReq cmd r0 = do
 
 reqToPath :: Req0 -> Path
 reqToPath Req'{ _rType    = rty
-              , _rPathPos = (pt, ps)
+              , _rPathPos = PPs pt ps
               , _rGeo     = g
               }
   | isEmpty pt = mempty

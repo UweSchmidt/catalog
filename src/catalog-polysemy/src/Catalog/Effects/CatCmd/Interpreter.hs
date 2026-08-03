@@ -132,6 +132,7 @@ import Data.Prim
        , path2colPath
        , viewBase
        , isoListPath
+       , mkPathPos
 
        , CheckSum
        , CheckSumRes
@@ -333,7 +334,7 @@ evalCatCmd =
 
       | Just (imP, imN) <- path2imgPath path -> do
           log'trc $ "JpgImgCopy: img path: " <> show (imP, imN) ^. isoText
-          p' <- processReqJpg (mkReq rt geo (imP, Nothing)) imN
+          p' <- processReqJpg (mkReq rt geo (mkPathPos imP Nothing)) imN
           fp <- toFileSysPath p'
           readFileLB fp
 
