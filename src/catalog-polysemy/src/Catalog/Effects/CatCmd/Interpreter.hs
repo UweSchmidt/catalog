@@ -136,6 +136,7 @@ import Data.Prim
        , viewBase
        , isoListPath
        , mkPathPos
+       , PathPos'(PPs)
 
        , CheckSum
        , CheckSumRes
@@ -332,10 +333,11 @@ evalCatCmd =
     StaticFile tp -> do
       readStaticFile (isoText # tp)
 
-    JpgImgCopy rt geo path         -- TODO virtual path? (yes)
-      | Just ppos <- path2colPath ".jpg" path -> do
+    JpgImgCopy rt geo path
+      | Just ppos@(PPs vp i) <- path2colPath ".jpg" path -> do
           log'trc $ "JpgImgCopy: col path: " <> show ppos ^. isoText
-          p' <- processReqImg (mkReq rt geo ppos)
+          rp <- toRealPath vp
+          p' <- processReqImg (mkReq rt geo (PPs rp i))
           fp <- toFileSysPath p'
           readFileLB fp
 

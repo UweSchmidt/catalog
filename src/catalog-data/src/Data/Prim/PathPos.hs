@@ -135,7 +135,7 @@ picNoParser = string "pic-" *> decimal
 -- parse optional collection index
 --
 -- example: path2colPath ".jpg" "collections/2018/may/pic-0007.jpg"
---          -> Just ("/collections/2018/may", Just 7)
+--          -> Just (PPs "/collections/2018/may" (Just 7))
 
 path2colPath :: String -> Path -> Maybe PathPos
 path2colPath ext p =
