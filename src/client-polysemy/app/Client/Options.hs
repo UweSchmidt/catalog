@@ -148,7 +148,7 @@ cmdClient = subparser $
   command "ls-img-refs"
     ( (CcLsRefs <$> argPath <*> argPart)
       `withInfo`
-      ( "list all collection containig the image ref with "
+      ( "list all collections containig the image ref with "
         <> "PATH as image path and PART as image name"
       )
     )
@@ -232,7 +232,8 @@ cmdClient = subparser $
       )
       `withInfo`
       ( "Get HTML or JSON page for a collection or image entry."
-        <> " Path must conform to syntax '/doc/<reqType>/<geo>/<path>.<ext>'"
+        <> " Path must conform to syntax '/docs/<reqType>/<geo>/<path>.<ext>',"
+        <> " reqType must be one of 'page', 'page1', 'json', 'img', 'imgfx', 'icon', 'iconp'"
       )
     )
   <>
@@ -336,6 +337,13 @@ cmdClient = subparser $
       ( "Dump catalog entry (entries), for testing and debugging, default path is: "
         <> show defaultPath
         <> ". Glob style patterns are allowed in path."
+      )
+    )
+  <>
+  command "ventry"
+    ( (CcVEntry <$> argPath)
+      `withInfo`
+      ( "Same as 'entry', but symlinks are evaluated."
       )
     )
   <>

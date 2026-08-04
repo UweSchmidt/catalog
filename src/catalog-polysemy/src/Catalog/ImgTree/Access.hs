@@ -19,10 +19,14 @@ module Catalog.ImgTree.Access
   , existsEntry
   , lookupByName
   , lookupByPath
-  , lookupByVPath
+  , lookupVPath
   , getIdNode
   , getIdNode'
   , getIdNodeV
+  , getIdNodeV'
+  , toRealPath
+  , getNodeV
+
   , getId
   , getNode
   , alreadyTherePath
@@ -50,9 +54,12 @@ where
 import Catalog.Effects
        ( Sem
        , EffIStore
+       , EffLogging
        , Eff'ISE
+       , Eff'ISEL
        , get
        , throw
+       , log'trc
        )
 
 import Data.ImageStore
@@ -208,10 +215,9 @@ lookupByPath :: EffIStore r => Path -> Sem r (Maybe (ObjId, ImgNode))
 lookupByPath p = lookupImgPath p <$> dt
 {-# INLINE lookupByPath #-}
 
-lookupByVPath :: EffIStore r => Path -> Sem r (Maybe VPath)
-lookupByVPath = splitVP mempty
+lookupVPath :: EffIStore r => Path -> Sem r (Maybe VPath)
+lookupVPath = splitVP mempty
   where
-
     -- a "Symlink" is a col entry with a metadata field containing the real path
 
     isSymLink :: ImgNode -> Maybe Path
@@ -238,8 +244,6 @@ lookupByVPath = splitVP mempty
         (p1, n1) = p ^. viewBase
         go       = splitVP (consPath n1 sfx) p1
 
--- save lookup by path
-
 getIdNode :: Eff'ISE r => Text -> Path -> Sem r (ObjId, ImgNode)
 getIdNode msg p = do
   mv <- lookupImgPath p <$> dt
@@ -261,12 +265,26 @@ getNode :: (Eff'ISE r) => Path -> Sem r ImgNode
 getNode p = snd <$> getIdNode' p
 {-# INLINE getNode #-}
 
-getIdNodeV :: Eff'ISE r => Text -> Path -> Sem r (ObjId, ImgNode)
+toRealPath :: (EffIStore r, EffLogging r) => Path -> Sem r Path
+toRealPath p = do
+  p' <- maybe p realPath <$> lookupVPath p
+  unless (p == p') $
+    log'trc $ "toRealPath: vpath = " <> p ^. isoText <> ", rpath = " <> p' ^. isoText
+  return p'
+
+-- save lookup by path
+
+getIdNodeV :: Eff'ISEL r => Text -> Path -> Sem r (ObjId, ImgNode)
 getIdNodeV msg p = do
-  mvp <- lookupByVPath p
-  case mvp of
-    Nothing -> getIdNode msg p
-    Just vp -> getIdNode msg (realPath vp)
+  toRealPath p >>= getIdNode msg
+
+getIdNodeV' :: (Eff'ISEL r) => Path -> Sem r (ObjId, ImgNode)
+getIdNodeV' = getIdNodeV "cant' find entry for vpath:"
+{-# INLINE getIdNodeV' #-}
+
+getNodeV :: (Eff'ISEL r) => Path -> Sem r ImgNode
+getNodeV p = snd <$> getIdNodeV' p
+{-# INLINE getNodeV #-}
 
 -- check path not there
 

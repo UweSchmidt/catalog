@@ -57,6 +57,8 @@ import Catalog.ImgTree.Access
        ( getIdNode'
        , getId
        , getNode
+       , getNodeV
+       , getIdNodeV'
        , getImgVal
        , getImgParent
        , getMetaData
@@ -65,6 +67,7 @@ import Catalog.ImgTree.Access
        , getCreateDates
        , findFstColEntry
        , lookupByPath
+       , toRealPath
        , mapObjId2Path
        , objid2path
        , colEntryAt
@@ -177,8 +180,8 @@ import Data.MetaData
        , clearAccess
        , addNoWriteAccess
        , subNoWriteAccess
-       , metaTextAt
-       , descrCollectionRef
+       -- , metaTextAt
+       -- , descrCollectionRef
        )
 import Data.ImageStore
        ( ImgStore )
@@ -284,48 +287,52 @@ evalCatCmd =
     TheEntry p ->
       getNode p >>= read'collection
 
+    TheEntryV p ->
+      getNodeV p >>= read'collection
+
     TheKeywordCols kws _p ->
       read'keywordCols kws
 
     IsWriteable p ->
-      getNode p >>= read'isWriteable
+      getNodeV p >>= read'isWriteable
 
     IsRemovable p ->
-      getNode p >>= read'isRemovable
+      getNodeV p >>= read'isRemovable
 
     IsSortable p ->
-      getNode p >>= read'isSortable
+      getNodeV p >>= read'isSortable
 
     IsCollection p ->
       read'isCollection p
 
     TheBlogContents pos p ->
-      getIdNode' p >>= uncurry (read'blogcontents pos)
+      getIdNodeV' p >>= uncurry (read'blogcontents pos)
 
     TheBlogSource pos p ->
-      getIdNode' p >>= uncurry (read'blogsource pos)
+      getIdNodeV' p >>= uncurry (read'blogsource pos)
 
     TheMetaDataText pos p ->
-      getIdNode' p >>= uncurry (read'metadata pos)
+      getIdNodeV' p >>= uncurry (read'metadata pos)
 
     TheRating pos p ->
-      getIdNode' p >>= uncurry (read'rating pos)
+      getIdNodeV' p >>= uncurry (read'rating pos)
 
     TheRatings p ->
-      getNode p >>= read'ratings
+      getNodeV p >>= read'ratings
 
-    TheColsWithRef ip inm p ->
-      allAlbumColsWithRef p ip inm
+    TheColsWithRef ip inm p -> do
+      p' <- toRealPath p
+      allAlbumColsWithRef p' ip inm
 
     CheckImgPart onlyUpdate nm p ->
-      getNode p >>= read'checkImgPart onlyUpdate p nm
+      getNodeV p >>= read'checkImgPart onlyUpdate p nm
 
     -- eval get commands
 
     StaticFile tp -> do
       readStaticFile (isoText # tp)
 
-    JpgImgCopy rt geo path
+    JpgImgCopy rt geo path         -- TODO virtual path? (yes)
       | Just ppos <- path2colPath ".jpg" path -> do
           log'trc $ "JpgImgCopy: col path: " <> show ppos ^. isoText
           p' <- processReqImg (mkReq rt geo ppos)
@@ -342,14 +349,14 @@ evalCatCmd =
           log'err $ "JpgImgCopy: illegal img path " <> path ^. isoText
           throw @Text $ msgPath path "illegal doc path "
 
-    HtmlPage rt geo path
+    HtmlPage rt geo path        -- TODO
       | Just ppos <- path2colPath ".html" path -> do
           processReqPage (mkReq rt geo ppos)
 
       | otherwise ->
           throw @Text $ msgPath path "illegal HTML doc path "
 
-    JsonPage geo path
+    JsonPage geo path      -- TODO
       | Just ppos <- path2colPath ".json" path -> do
           processReqJson (mkReq RJson geo ppos)
 
@@ -797,7 +804,7 @@ modify'setMetaData'' ixs edi edp edc n =
 
         adjustColMetaData ci = do
           adjustMetaData edc ci
-{-
+{- TODO cleanup
           -- Why this?
           -- Nothing has to be changed via symlink path
 
@@ -950,9 +957,10 @@ read'isSortable  = return . isSortableCol
 --
 -- existence check of a collection
 
-read'isCollection :: Eff'ISE r => Path -> Sem r Bool
-read'isCollection p =
-  maybe False (isCOL . snd) <$> lookupByPath p
+read'isCollection :: Eff'ISEL r => Path -> Sem r Bool
+read'isCollection p = do
+  rp <- toRealPath p
+  maybe False (isCOL . snd) <$> lookupByPath rp
 
 -- --------------------
 --

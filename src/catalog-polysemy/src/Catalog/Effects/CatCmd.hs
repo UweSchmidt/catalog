@@ -36,6 +36,7 @@ module Catalog.Effects.CatCmd
 
   -- catalog reading commands
   , theEntry
+  , theEntryV
   , theKeywordCols
   , isWriteable
   , isRemovable
@@ -129,6 +130,7 @@ data CatCmd m a where
 
   -- catalog reading commands
   TheEntry             ::                          Path -> CatCmd m ImgNodeP
+  TheEntryV            ::                          Path -> CatCmd m ImgNodeP
   TheKeywordCols       ::          [Text]       -> Path -> CatCmd m KeywordCols
   IsWriteable          ::                          Path -> CatCmd m Bool
   IsRemovable          ::                          Path -> CatCmd m Bool

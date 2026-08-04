@@ -93,6 +93,7 @@ import Catalog.Effects.CatCmd
        , theBlogContents
        , theBlogSource
        , theEntry
+       , theEntryV
        , theKeywordCols
        , theMetaDataText
        , theRating
@@ -436,6 +437,8 @@ catalogServer env runReadC runModyC runBGC =
 
     json'read =
       runR1 theEntry
+      :<|>
+      runR1 theEntryV
       :<|>
       runR2 theKeywordCols
       :<|>

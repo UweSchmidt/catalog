@@ -129,6 +129,7 @@ import Catalog.Effects.CatCmd
        , syncKeyword
        , newKeywords
        , theEntry
+       , theEntryV
        , theKeywordCols
        , theColsWithRef
        , theMetaDataText
@@ -168,6 +169,17 @@ type CCmdEffects r =
             , CatCmd
             ] r)
 
+ccEntry' :: CCmdEffects r => (Path -> Sem r ImgNodeP) -> Path -> Sem r ()
+ccEntry' theE p = do
+  ps <- globExpand p
+  traverse_
+    ( \p' -> do
+        n <- theE p'
+        writeln $ p' ^. isoText
+        writeln $ prettyJSONText jPageKeys n
+    )
+    ps
+
 evalClientCmd :: CCmdEffects r => InterpreterFor ClientCmd r
 evalClientCmd =
   interpret $
@@ -176,14 +188,11 @@ evalClientCmd =
       ps <- globExpand p
       traverse_ (\ p' -> writeln $ p' ^. isoText) ps
 
-    CcEntry p -> do
-      ps <- globExpand p
-      traverse_
-        (\ p' -> do
-            n <- theEntry p'
-            writeln $ p' ^. isoText
-            writeln $ prettyJSONText jPageKeys n
-        ) ps
+    CcEntry p ->
+      ccEntry' theEntry p
+
+    CcVEntry p ->
+      ccEntry' theEntryV p
 
     CcLsSub p -> do
       ps <- evalGlobLs p

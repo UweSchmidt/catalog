@@ -99,6 +99,8 @@ evalClientCatCmd =
     -- JSON reading commands
     TheEntry p ->
       simpleJSONget "collection" p   -- TODO: rename to entry
+    TheEntryV p ->
+      simpleJSONget "ventry" p       -- evaluates symbolic links
     TheKeywordCols kws _p ->
       paramJSONget "keywords" p'keywords kws
     IsWriteable p ->                 -- but: this must also be changed in JavaScript
