@@ -797,6 +797,9 @@ modify'setMetaData'' ixs edi edp edc n =
 
         adjustColMetaData ci = do
           adjustMetaData edc ci
+{-
+          -- Why this?
+          -- Nothing has to be changed via symlink path
 
           colLink <- (\md -> md ^. metaTextAt descrCollectionRef) <$> getMetaData ci
           unless (isEmpty colLink) $ do
@@ -809,6 +812,7 @@ modify'setMetaData'' ixs edi edp edc n =
               ( return () )
               ( \(i', _n') -> adjustMetaData edc i')
               mi
+-}
 
 -- set meta data fields for a collection or a single collection entry
 
