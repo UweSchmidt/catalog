@@ -103,7 +103,8 @@ import Catalog.ImgTree.Access
        , getImgMetaData
        , getImgParent
        , colEntryAt
-       , getIdNode'
+       , getIdNodeV'
+       , lookupVPath
        )
 import Catalog.TextPath
        ( toFileSysPath )
@@ -180,7 +181,7 @@ emptyReq' =
        , _rVal     = ()
        }
 
-mkReq :: ReqType -> Geo -> PathPos -> Req' ()
+mkReq :: ReqType -> Geo -> PathPos -> Req0
 mkReq rt' geo' ppos' =
   emptyReq'
     & rType    .~ rt'
@@ -239,21 +240,21 @@ toReq'IdNode r = r & rVal . _2 .~ ()
 -- if pos is there, IdNode is the collection, where pos determines the img
 -- if pos is there, it's an image page, else it's a collection page
 
-normAndSetIdNode :: (Eff'ISE r, EffNonDet r) => Req' a -> Sem r (Req'IdNode a)
+normAndSetIdNode :: (Eff'ISEL r, EffNonDet r) => Req' a -> Sem r (Req'IdNode a)
 normAndSetIdNode = setIdNode >=> normPathPos
 
 -- check the existence of a path
 -- and add (objid, imgnode) to the request
 
-setIdNode :: Eff'ISE r => Req' a -> Sem r (Req'IdNode a)
+setIdNode :: Eff'ISEL r => Req' a -> Sem r (Req'IdNode a)
 setIdNode r = do
-  i'n <- getIdNode' (r ^. rPath)
+  i'n <- getIdNodeV' (r ^. rPath)         -- eval symlinks
   return (r & rVal %~ ((i'n, mempty), ))
 
 -- if a path ("/abx/def", Just i) points to a collection "ghi"
 -- the path is normalized to ("/abc/def/ghi", Nothing)
 
-normPathPos :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
+normPathPos :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 normPathPos r =
   ( do pos <- pureMaybe (r ^. rPos)
        ce  <- colEntryAt pos (r ^. rColNode)
@@ -266,7 +267,7 @@ normPathPos r =
   <|>
   return r
 
-normPathPosC :: Eff'ISE r => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
+normPathPosC :: Eff'ISEL r => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
 normPathPosC r c' =
   do p' <- objid2path c'
      setIdNode (r & rVal     %~ snd          -- forget IdNode
@@ -417,13 +418,13 @@ processReqImg' r0 = do
 
 processReqPage' :: (Eff'Img r, EffNonDet r)
                 => Req' a -> Sem r LazyByteString
-processReqPage' = processReqPage'' genReqImgPage genReqColPage
+processReqPage' r0 = processReqPage'' (genReqImgPage r0) (genReqColPage r0) r0
 
 -- handle a json page request
 
 processReqJson' :: (Eff'Img r, EffNonDet r)
                 => Req' a -> Sem r JPage
-processReqJson' = processReqPage'' genReqImgPage' genReqColPage'
+processReqJson' r0 = processReqPage'' (genReqImgPage' r0) (genReqColPage' r0) r0
 
 
 processReqPage'' :: (Eff'Img r, EffNonDet r)
@@ -878,7 +879,7 @@ toParent r = do
   return ( r' & rPos .~ Nothing )  -- forget the pos
                                    -- the result is normalized
 
-toPos' :: (Eff'ISE r, EffNonDet r)
+toPos' :: (Eff'ISEL r, EffNonDet r)
        => (Int -> Int) -> Req'IdNode a -> Sem r (Req'IdNode a)
 toPos' f r = do
   p <- denormPathPos r
@@ -887,26 +888,26 @@ toPos' f r = do
   _ <- pureMaybe (p ^? rColNode . theColEntries . ix x')
   normPathPos (p & rPos .~ Just x')
 
-toPrev :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
+toPrev :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toPrev = toPos' pred
 
-toNext :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
+toNext :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toNext = toPos' succ
 
-toNextOrUp :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
+toNextOrUp :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toNextOrUp r =
   toNext r
   <|>
   ( toParent r >>= toNextOrUp )
 
-toChildOrNextOrUp :: (Eff'ISE r, EffNonDet r)
+toChildOrNextOrUp :: (Eff'ISEL r, EffNonDet r)
                   => Req'IdNode a -> Sem r (Req'IdNode a)
 toChildOrNextOrUp r =
   toFirstChild r
   <|>
   toNextOrUp r
 
-toFirstChild :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
+toFirstChild :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toFirstChild r
   | isJust (r ^. rPos) = empty                -- a picture doesn't have children
   | null   (r ^. rColNode . theColEntries)    -- empty collection
@@ -914,7 +915,7 @@ toFirstChild r
   | otherwise          = normPathPos (r & rPos .~ Just 0)
 
 -- normalization must be done before
-toChildren :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r [Req'IdNode a]
+toChildren :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r [Req'IdNode a]
 toChildren r =
   traverse normC $ zip [0..] (r ^. rColNode . theColEntries . isoSeqList)
   where
@@ -924,7 +925,7 @@ toChildren r =
         (normPathPosC r)
         ce
 
-toPrevNextPar :: (Eff'ISE r)
+toPrevNextPar :: (Eff'ISEL r)
               => Req'IdNode a -> Sem r (PrevNextPar (Maybe (Req'IdNode a)))
 toPrevNextPar r =
   PrevNextPar
@@ -987,13 +988,23 @@ collectImgAttr r = do
 -- html/json page generation
 
 genReqImgPage :: (Eff'Img r)
-               => Req'IdNode'ImgRef a -> Sem r LazyByteString
-genReqImgPage r =
-  renderHtml . jPageToHtml <$> genReqImgPage' r
+               => Req' a -> Req'IdNode'ImgRef a -> Sem r LazyByteString
+genReqImgPage r0 r =
+  renderHtml . jPageToHtml <$> genReqImgPage' r0 r
 
 genReqImgPage' :: (Eff'Img r)
+                => Req' a1 -> Req'IdNode'ImgRef a -> Sem r JPage
+genReqImgPage' r0 r = do
+  mvp <- lookupVPath (r0 ^. rPath)
+  jp0 <- genReqImgPage'' r
+  maybe
+    (return jp0)
+    (flip editJPage jp0)
+    mvp
+
+genReqImgPage'' :: (Eff'Img r)
                => Req'IdNode'ImgRef a -> Sem r JPage
-genReqImgPage' r = do
+genReqImgPage'' r = do
   now'                  <- nowAsIso8601
   (   this'ipath
     , this'part
@@ -1083,14 +1094,24 @@ toIconDescr' icon'geo ed =
 -- --------------------
 
 genReqColPage  :: (Eff'Img r)
-               => Req'IdNode a -> Sem r LazyByteString
-genReqColPage r =
-  renderHtml . jPageToHtml <$> genReqColPage' r
+               => Req' a1 -> Req'IdNode a -> Sem r LazyByteString
+genReqColPage r0 r =
+  renderHtml . jPageToHtml <$> genReqColPage' r0 r
 
 genReqColPage' :: (Eff'Img r)
-               => Req'IdNode a -> Sem r JPage
-genReqColPage' r = do
-  now'                  <- nowAsIso8601
+               => Req' a1 -> Req'IdNode a -> Sem r JPage
+genReqColPage' r0 r = do
+  mvp <- lookupVPath (r0 ^. rPath)
+  jp0 <- genReqColPage'' r
+  maybe
+    (return jp0)
+    (flip editJPage jp0)
+    mvp
+
+genReqColPage'' :: (Eff'Img r) =>
+                  Req'IdNode a -> Sem r JPage
+genReqColPage'' r = do
+  now' <- nowAsIso8601
   this'descr            <- toEDescr r
 
   -- the descr of the siblings
@@ -1121,6 +1142,14 @@ genReqColPage' r = do
                   , _contIcons = cs'descr
                   , _blogCont  = this'blogContents
                   }
+
+-- ----------------------------------------
+--
+-- edit paths when symlinks are used
+
+editJPage :: (Eff'ISEL r) => VPath -> JPage -> Sem r JPage
+editJPage _vp jp = do       -- TODO remove dummy
+  return jp
 
 -- ----------------------------------------
 -- image attributes
