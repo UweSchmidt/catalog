@@ -251,9 +251,9 @@ normPPs pp@(PPs p (Just i)) = do
       (const $ return pp)         -- img ref
       (\cid -> do                 -- col ref
           n <- getImgName cid
-          let p' = (PPs (p `snocPath` n) Nothing)
-          log'trc $ "normPPs: old = " <> show pp ^. isoText <> ", new = " <> show pp ^. isoText
-          return p'
+          let pp' = (PPs (p `snocPath` n) Nothing)
+          log'trc $ "normPPs: old = " <> show pp ^. isoText <> ", new = " <> show pp' ^. isoText
+          return pp'
       ) ce
 
 -- invariant fpr Req'IdNode:
@@ -261,9 +261,6 @@ normPPs pp@(PPs p (Just i)) = do
 -- if pos isn't there, the IdNode is the collection itself
 -- if pos is there, IdNode is the collection, where pos determines the img
 -- if pos is there, it's an image page, else it's a collection page
-
-normAndSetIdNode :: (Eff'ISEL r) => Req' a -> Sem r (Req'IdNode a)
-normAndSetIdNode = normPath >=> setIdNode
 
 normPath :: (Eff'ISEL r) => Req' a -> Sem r (Req' a)
 normPath r@(Req' {_rPathPos = pp}) = do
@@ -436,7 +433,7 @@ processReqJpg r0 nm = do
 processReqImg' :: (Eff'Img r, EffNonDet r)
                => Req' a -> Sem r Path
 processReqImg' r0 = do
-  r1 <- normAndSetIdNode r0
+  r1 <- normPath r0 >>= setIdNode
 
   let dstPath = toUrlPath'' r1
 
@@ -470,7 +467,11 @@ processReqPage' :: (Eff'Img r, EffNonDet r)
                 => Req' a -> Sem r LazyByteString
 processReqPage' r0 = do
   log'trc $ "processReqPage': " <> toUrlPath r0
-  processReqPage'' (genReqImgPage r0) (genReqColPage r0) r0
+
+  r1 <- normPath r0
+  log'trc $ "processReqPage': " <> toUrlPath r1
+
+  processReqPage'' (genReqImgPage r1) (genReqColPage r1) r1
 
 -- handle a json page request
 
@@ -478,7 +479,11 @@ processReqJson' :: (Eff'Img r, EffNonDet r)
                 => Req' a -> Sem r JPage
 processReqJson' r0 = do
   log'trc $ "processReqJson': " <> toUrlPath r0
-  processReqPage'' (genReqImgPage' r0) (genReqColPage' r0) r0
+
+  r1 <- normPath r0
+  log'trc $ "processReqJson': " <> toUrlPath r1
+
+  processReqPage'' (genReqImgPage' r1) (genReqColPage' r1) r1
 
 
 processReqPage'' :: (Eff'Img r, EffNonDet r)
@@ -486,7 +491,7 @@ processReqPage'' :: (Eff'Img r, EffNonDet r)
                  -> (Req'IdNode        a -> Sem r p)
                  ->  Req'              a -> Sem r p
 processReqPage'' genImg genCol r0 = do
-  r1 <- normAndSetIdNode r0
+  r1 <- setIdNode r0
   log'trc $ "processReqPage'': " <> toUrlPath r1
 
   case r1 ^. rPos of
