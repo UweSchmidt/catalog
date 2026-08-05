@@ -2285,8 +2285,7 @@ const DownActions = {
     Period     : StepActions.down,     // presenter: right screen icon, keyCode: 110
 
     a          : StepActions.home,     // goto root albums collection
-    // TODO cleanup
-    // k          : StepActions.kwhistory,
+    k          : StepActions.kwHome,
     n          : StepActions.next,
     p          : StepActions.prev,
     u          : StepActions.parent,
@@ -2315,7 +2314,6 @@ const DownShiftActions = {
     V          : ConfigActions.serverVersion,
 
     S          : StepActions.showAll,
-    K          : StepActions.kwHome,
 
     A          : VideoCtrlActions.autoPlayDefault,
     C          : VideoCtrlActions.controlsDefault,
