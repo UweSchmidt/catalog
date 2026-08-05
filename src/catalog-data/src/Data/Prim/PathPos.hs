@@ -4,7 +4,7 @@ module Data.Prim.PathPos
   , PathPos
   , VPathPos
   , Pos
-  , VPath
+  , VPath(..)
   , path2pathPos
   , pathPos2path
   , isoPathPos
@@ -72,6 +72,8 @@ virtPath vp = _vpx vp <> _sfx vp
 type VPathPos = PathPos' VPath
 
 deriving instance Functor PathPos'
+deriving instance Foldable PathPos'
+deriving instance Traversable PathPos'
 deriving instance Eq p => Eq (PathPos' p)
 
 instance ToJSON p => ToJSON (PathPos' p) where

@@ -29,7 +29,7 @@ import Data.ImgNode
        , ImgRef
        , theColEntries
        , theColEntry
-       , theColMeta
+       -- , theColMeta
        , theParts
        , theColObjId
        , colEntryM'
@@ -98,13 +98,16 @@ import Catalog.Html
 
 import Catalog.ImgTree.Access
        ( objid2path
+       , getImgName
        , getImgVals
        , getImgVal
        , getImgMetaData
        , getImgParent
        , colEntryAt
-       , getIdNodeV'
+       , getIdNode'
+       , getNodeV
        , lookupVPath
+       , toRealPath
        )
 import Catalog.TextPath
        ( toFileSysPath )
@@ -232,7 +235,26 @@ toReq'IdNode r = r & rVal . _2 .~ ()
 -}
 -- ----------------------------------------
 --
--- commands working in MaybeT Cmd
+-- normalize a path, symlinks are handled
+--
+-- if a path ("/abx/def", Just i) points to a collection "ghi"
+-- the path is normalized to ("/abc/def/ghi", Nothing)
+
+normPPs :: (Eff'ISEL r) => PathPos -> Sem r PathPos
+normPPs pp@(PPs _ Nothing)  = return pp
+normPPs pp@(PPs p (Just i)) = do
+  n <- getNodeV p
+  maybe (return pp) isCol $ n ^? theColEntries . ix i
+  where
+    isCol ce =
+      colEntryM'
+      (const $ return pp)         -- img ref
+      (\cid -> do                 -- col ref
+          n <- getImgName cid
+          let p' = (PPs (p `snocPath` n) Nothing)
+          log'trc $ "normPPs: old = " <> show pp ^. isoText <> ", new = " <> show pp ^. isoText
+          return p'
+      ) ce
 
 -- invariant fpr Req'IdNode:
 --
@@ -240,19 +262,41 @@ toReq'IdNode r = r & rVal . _2 .~ ()
 -- if pos is there, IdNode is the collection, where pos determines the img
 -- if pos is there, it's an image page, else it's a collection page
 
-normAndSetIdNode :: (Eff'ISEL r, EffNonDet r) => Req' a -> Sem r (Req'IdNode a)
-normAndSetIdNode = setIdNode >=> normPathPos
+normAndSetIdNode :: (Eff'ISEL r) => Req' a -> Sem r (Req'IdNode a)
+normAndSetIdNode = normPath >=> setIdNode
+
+normPath :: (Eff'ISEL r) => Req' a -> Sem r (Req' a)
+normPath r@(Req' {_rPathPos = pp}) = do
+  pp' <- normPPs pp
+  return (r {_rPathPos = pp'})
+
+setIdNode :: (Eff'ISEL r) => Req' a -> Sem r (Req'IdNode a)
+setIdNode r = do
+  rp <- toRealPath (r ^. rPath) -- eval symlinks
+  i'n <- getIdNode' rp
+  return
+    ( r & rVal  %~ ((i'n, mempty),)
+        & rPath .~ rp
+    )
+
+-- no symlinka are evaluated
+setIdNodeV :: (Eff'ISEL r) => Req' a -> Sem r (Req'IdNode a)
+setIdNodeV r = do
+  i'n <- getIdNode' (r ^. rPath)
+  return (r & rVal %~ ((i'n, mempty),))
+
+{- TODO old stuff
+--
+-- commands working in MaybeT Cmd
 
 -- check the existence of a path
 -- and add (objid, imgnode) to the request
 
-setIdNode :: Eff'ISEL r => Req' a -> Sem r (Req'IdNode a)
-setIdNode r = do
-  i'n <- getIdNodeV' (r ^. rPath)         -- eval symlinks
-  return (r & rVal %~ ((i'n, mempty), ))
-
 -- if a path ("/abx/def", Just i) points to a collection "ghi"
 -- the path is normalized to ("/abc/def/ghi", Nothing)
+--
+-- !!! does not work with symlinka
+-- !!! symlinks must be evaluated before calling normPathPos
 
 normPathPos :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 normPathPos r =
@@ -267,13 +311,17 @@ normPathPos r =
   <|>
   return r
 
+-- !!! does not work with symlinka
+-- !!! symlinks must be evaluated before calling normPathPos
+
 normPathPosC :: Eff'ISEL r => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
 normPathPosC r c' =
   do p' <- objid2path c'
      setIdNode (r & rVal     %~ snd          -- forget IdNode
                   & rPathPos .~ PPs p' mzero -- set path and no pos
                )                             -- set new id and node
-
+-- end old stuff
+-}
 
 -- compute a req with a path and pos
 -- this is id when an image is requested
@@ -281,6 +329,8 @@ normPathPosC r c' =
 -- computed
 --
 -- inverse of normPathPos
+
+-- TODO does this work with symlinks?
 
 denormPathPos :: (Eff'ISE r, EffNonDet r)
               => Req'IdNode a -> Sem r (Req'IdNode a)
@@ -418,13 +468,17 @@ processReqImg' r0 = do
 
 processReqPage' :: (Eff'Img r, EffNonDet r)
                 => Req' a -> Sem r LazyByteString
-processReqPage' r0 = processReqPage'' (genReqImgPage r0) (genReqColPage r0) r0
+processReqPage' r0 = do
+  log'trc $ "processReqPage': " <> toUrlPath r0
+  processReqPage'' (genReqImgPage r0) (genReqColPage r0) r0
 
 -- handle a json page request
 
 processReqJson' :: (Eff'Img r, EffNonDet r)
                 => Req' a -> Sem r JPage
-processReqJson' r0 = processReqPage'' (genReqImgPage' r0) (genReqColPage' r0) r0
+processReqJson' r0 = do
+  log'trc $ "processReqJson': " <> toUrlPath r0
+  processReqPage'' (genReqImgPage' r0) (genReqColPage' r0) r0
 
 
 processReqPage'' :: (Eff'Img r, EffNonDet r)
@@ -433,7 +487,7 @@ processReqPage'' :: (Eff'Img r, EffNonDet r)
                  ->  Req'              a -> Sem r p
 processReqPage'' genImg genCol r0 = do
   r1 <- normAndSetIdNode r0
-  log'trc $ "processReqPage: " <> toUrlPath r1
+  log'trc $ "processReqPage'': " <> toUrlPath r1
 
   case r1 ^. rPos of
     -- create an image page
@@ -886,7 +940,7 @@ toPos' f r = do
   x <- pureMaybe (p ^. rPos)
   let x' = f x
   _ <- pureMaybe (p ^? rColNode . theColEntries . ix x')
-  normPathPos (p & rPos .~ Just x')
+  normPath (p & rPos .~ Just x')
 
 toPrev :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toPrev = toPos' pred
@@ -912,18 +966,14 @@ toFirstChild r
   | isJust (r ^. rPos) = empty                -- a picture doesn't have children
   | null   (r ^. rColNode . theColEntries)    -- empty collection
                        = empty
-  | otherwise          = normPathPos (r & rPos .~ Just 0)
+  | otherwise          = normPath (r & rPos .~ Just 0)
 
 -- normalization must be done before
 toChildren :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r [Req'IdNode a]
 toChildren r =
-  traverse normC $ zip [0..] (r ^. rColNode . theColEntries . isoSeqList)
+    traverse  normC $ zip [0..] (r ^. rColNode . theColEntries . isoSeqList)
   where
-    normC (i, ce) =
-      colEntryM'
-        (const $ return (r & rPos .~ Just i))
-        (normPathPosC r)
-        ce
+    normC (i, _ce) = normPath (r & rPos .~ Just i)
 
 toPrevNextPar :: (Eff'ISEL r)
               => Req'IdNode a -> Sem r (PrevNextPar (Maybe (Req'IdNode a)))
@@ -1101,7 +1151,12 @@ genReqColPage r0 r =
 genReqColPage' :: (Eff'Img r)
                => Req' a1 -> Req'IdNode a -> Sem r JPage
 genReqColPage' r0 r = do
+  log'trc $ "genReqColPage': vpath = " <> toUrlPath r0
+  log'trc $ "genReqColPage': rpath = " <> toUrlPath r
+
   mvp <- lookupVPath (r0 ^. rPath)
+  log'trc $ "genReqColPage': mvp = " <> show mvp ^. isoText
+
   jp0 <- genReqColPage'' r
   maybe
     (return jp0)
@@ -1147,9 +1202,76 @@ genReqColPage'' r = do
 --
 -- edit paths when symlinks are used
 
-editJPage :: (Eff'ISEL r) => VPath -> JPage -> Sem r JPage
-editJPage _vp jp = do       -- TODO remove dummy
-  return jp
+editJPage :: (Eff'Img r) => VPath -> JPage -> Sem r JPage
+editJPage vp jp = do       -- TODO remove dummy
+  log'trc $
+    "editJPage: vpx = " <> _vpx vp ^. isoText <>
+    ", rpx = " <> _rpx vp ^. isoText <>
+    ", sfx = " <> _sfx vp ^. isoText
+  jp2 <- (if isEmpty (_sfx vp) then editNavi vp else return) jp1
+  return jp2
+  where
+    editVP = substPathPrefix (_rpx vp) (_vpx vp)
+    jp1    = editJPath editVP jp
+
+editNavi :: (Eff'Img r) => VPath -> JPage -> Sem r JPage
+editNavi _  jp@(JImgPage {}) = return jp
+editNavi vp jp@(JColPage {}) = do
+  log'trc $
+    "editNavi:  vpath = "
+      <> _vpx vp ^. isoText
+      <> ", rpath = "
+      <> _rpx vp ^. isoText
+
+  r   <- setIdNodeV r0        -- get the col entry for symlink node
+  jpv <- genReqColPage'' r    -- the Jpage of the symlink node
+  return $ editNav jpv jp
+  where
+    r0 = mkReq RJson mempty (PPs (_vpx vp) Nothing)
+
+-- copy the navi paths for up, prev, next, fwrd from symlink page into real page
+
+editNav :: JPage -> JPage -> JPage
+editNav (JColPage { _colDescr = vcd
+                  , _navIcons = vni
+                  })
+        jp@(JColPage { }) =
+  jp { _colDescr = vcd
+     , _navIcons = vni
+     }
+editNav _ jp = jp
+
+editJPath :: (Path -> Path) -> JPage -> JPage
+editJPath f jp@(JColPage { _colDescr  = cd
+                         , _navIcons  = ni
+                         , _c1Icon    = c1
+                         , _contIcons = cs
+                         }
+             ) =
+  jp { _colDescr  = editEDescr f cd
+     , _navIcons  = editEDescr f <$> ni
+     , _c1Icon    = editEDescr f c1
+     , _contIcons = editEDescr f <$> cs
+     }
+
+
+editJPath f jp@(JImgPage { _imgReq     = ir
+                         , _img        = (ip, it, im)
+                         , _imgNavRefs = inr
+                         , _imgNavImgs = ini
+                         }
+               ) =
+  jp { _imgReq     = editReq f ir
+     , _img        = (f ip, it, im)
+     , _imgNavRefs = editReq f <$> inr
+     , _imgNavImgs = editReq f <$> ini
+     }
+
+editEDescr :: (Path -> Path) -> EDescr -> EDescr
+editEDescr f ed@(EDescr {_eReq = r}) = ed {_eReq = editReq f r}
+
+editReq :: (Path -> Path) -> Req' a -> Req' a
+editReq f r@(Req' {_rPathPos = pp}) = r {_rPathPos = fmap f pp}
 
 -- ----------------------------------------
 -- image attributes
