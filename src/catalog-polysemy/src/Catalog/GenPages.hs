@@ -32,9 +32,11 @@ import Data.ImgNode
        -- , theColMeta
        , theParts
        , theColObjId
+       , theColColRef
        , colEntryM'
        , theColBlog
        , theColImg
+       , theColEntry
        , theMetaData
        , thePartNames'
        )
@@ -895,13 +897,14 @@ toParent r = do
                                    -- the result is normalized
 
 toPos' :: (Eff'ISEL r, EffNonDet r)
-       => (Int -> Int) -> Req'IdNode a -> Sem r (Req'IdNode a)
+       => (Int -> Int)
+       -> Req'IdNode a -> Sem r (Req'IdNode a)
 toPos' f r = do
   p <- denormPathPos r
-  x <- pureMaybe (p ^. rPos)
-  let x' = f x
-  _ <- pureMaybe (p ^? rColNode . theColEntries . ix x')
-  normPath (p & rPos .~ Just x')
+  i' <- pureMaybe (p ^. rPos)
+  let i = f i'
+  oid <- pureMaybe (p ^? rColNode . theColEntries . ix i . theColEntry . theColColRef)
+  normPathPos (p & rPos .~ Just i) oid
 
 toPrev :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toPrev = toPos' pred
@@ -942,12 +945,12 @@ toChildren r =
       where
         r' = r & rPos .~ Just i
 
-    normPathPos :: Eff'ISEL r => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
-    normPathPos r' c' =
-      do p' <- objid2path c'
-         setIdNode (r' & rVal     %~ snd            -- forget IdNode
-                       & rPathPos .~ PPs p' Nothing -- set path and no pos
-                   )                                -- set new id and node
+normPathPos :: Eff'ISEL r => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
+normPathPos r' c' =
+  do p' <- objid2path c'
+     setIdNode (r' & rVal     %~ snd            -- forget IdNode
+                   & rPathPos .~ PPs p' Nothing -- set path and no pos
+               )                                -- set new id and node
 
 
 toPrevNextPar :: (Eff'ISEL r)
