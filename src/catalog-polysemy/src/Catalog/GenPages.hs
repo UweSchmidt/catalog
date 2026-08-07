@@ -282,52 +282,8 @@ setIdNodeV r = do
   i'n <- getIdNode' (r ^. rPath)
   return (r & rVal %~ ((i'n, mempty),))
 
-{- TODO old stuff
---
--- commands working in MaybeT Cmd
-
--- check the existence of a path
--- and add (objid, imgnode) to the request
-
--- if a path ("/abx/def", Just i) points to a collection "ghi"
--- the path is normalized to ("/abc/def/ghi", Nothing)
---
--- !!! does not work with symlinka
--- !!! symlinks must be evaluated before calling normPathPos
-
-normPathPos :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
-normPathPos r =
-  ( do pos <- pureMaybe (r ^. rPos)
-       ce  <- colEntryAt pos (r ^. rColNode)
-       r'  <- colEntryM'
-              (const $ return r)
-              (normPathPosC r)
-              ce
-       return (r' & rIdMeta .~ (ce ^. theColMeta))
-  )
-  <|>
-  return r
-
--- !!! does not work with symlinka
--- !!! symlinks must be evaluated before calling normPathPos
-
-normPathPosC :: Eff'ISEL r => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
-normPathPosC r c' =
-  do p' <- objid2path c'
-     setIdNode (r & rVal     %~ snd          -- forget IdNode
-                  & rPathPos .~ PPs p' mzero -- set path and no pos
-               )                             -- set new id and node
--- end old stuff
--}
-
--- compute a req with a path and pos
--- this is id when an image is requested
--- in case of a collection the parent col and the pos there are
--- computed
---
 -- inverse of normPathPos
-
--- TODO does this work with symlinks?
+-- res is always a path without symlinks
 
 denormPathPos :: (Eff'ISE r, EffNonDet r)
               => Req'IdNode a -> Sem r (Req'IdNode a)
@@ -1208,7 +1164,7 @@ genReqColPage'' r = do
 -- edit paths when symlinks are used
 
 editJPage :: (Eff'Img r) => VPath -> JPage -> Sem r JPage
-editJPage vp jp = do       -- TODO remove dummy
+editJPage vp jp = do
   log'trc $
     "editJPage: vpx = " <> _vpx vp ^. isoText <>
     ", rpx = " <> _rpx vp ^. isoText <>

@@ -1745,9 +1745,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
                 const req = ico.eReq;
                 const md  = ico.eMeta;
-                // TODO cleanup
-                // const cr  = md["Descr:CollectionRef"] || "";
-                const cs = "nav-icon"; //  + (cr ? " nav-link" : "");
+                const cs = "nav-icon";
 
                 const r = newElem("div",
                                   { width:  i2G.w,
@@ -1830,11 +1828,8 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             const ir = ce.eReq;
             const md = ce.eMeta;
             // symlink icons are shown like normal collections
-            // TODO cleanup, class col-link not in use
-            // const cr = md["Descr:CollectionRef"] || "";
-            // const ct = (cr === "") ? "" : " (-> " + cr + ")";
-            const tt = (md["Descr:Title"] || "");  // + ct; // collection path not shown
-            const cs = "col-icon";                 // + (cr ? " col-link" : "");
+            const tt = (md["Descr:Title"] || "");
+            const cs = "col-icon";
 
             const e  = newElem("div",
                                { width:  iG.w,
@@ -1976,19 +1971,6 @@ function getChildReq(s, i) {
 function getColReq(ico) {
     let req = ico.eReq;
 
-    // TODO cleanup
-    /*
-    const lnk = ico.eMeta["Descr:CollectionRef"];
-    if ( lnk ) {
-        // build "SymLink" request
-        req = mkColReq(lnk);
-
-        // save path of current keyword collection
-        kwHistory.push(cs.slideReq.rPathPos[0]);
-        console.log("getColReq: history = " + JSON.stringify(kwHistory));
-    }
-    */
-
     if ( req ) {
         return req;
     }
@@ -2005,16 +1987,6 @@ function goHome() {
 function gotoKWHome() {
     showNextSlide(mkColReq(pathKeywords()));
 }
-
-// TODO cleanup
-/*
-var kwHistory = [];
-
-function gotoKWHistory() {
-    const c = kwHistory.pop() || pathKeywords();
-    showNextSlide(mkColReq(c));
-}
-*/
 
 function gotoPrev() {
     const req = getNavReq("prev");
@@ -2220,12 +2192,6 @@ const StepActions = {
         stopShow();
         gotoKeywordCol(i);
     },
-    /* // TODO cleanup
-    kwhistory() {
-        stopShow();
-        gotoKWHistory();
-    },
-    */
     colRef(i) {
         stopShow();
         gotoColRef(i);

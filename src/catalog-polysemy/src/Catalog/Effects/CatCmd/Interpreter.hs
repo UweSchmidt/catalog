@@ -351,14 +351,14 @@ evalCatCmd =
           log'err $ "JpgImgCopy: illegal img path " <> path ^. isoText
           throw @Text $ msgPath path "illegal doc path "
 
-    HtmlPage rt geo path        -- TODO
+    HtmlPage rt geo path
       | Just ppos <- path2colPath ".html" path -> do
           processReqPage (mkReq rt geo ppos)
 
       | otherwise ->
           throw @Text $ msgPath path "illegal HTML doc path "
 
-    JsonPage geo path      -- TODO
+    JsonPage geo path
       | Just ppos <- path2colPath ".json" path -> do
           processReqJson (mkReq RJson geo ppos)
 
@@ -806,22 +806,6 @@ modify'setMetaData'' ixs edi edp edc n =
 
         adjustColMetaData ci = do
           adjustMetaData edc ci
-{- TODO cleanup
-          -- Why this?
-          -- Nothing has to be changed via symlink path
-
-          colLink <- (\md -> md ^. metaTextAt descrCollectionRef) <$> getMetaData ci
-          unless (isEmpty colLink) $ do
-
-            -- collection is a col entry with "symlink" to referenced collection
-            -- also edit metadata of that collection
-
-            mi <- lookupByPath (isoText # colLink)
-            maybe
-              ( return () )
-              ( \(i', _n') -> adjustMetaData edc i')
-              mi
--}
 
 -- set meta data fields for a collection or a single collection entry
 
