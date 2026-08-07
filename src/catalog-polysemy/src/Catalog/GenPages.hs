@@ -932,9 +932,23 @@ toFirstChild r
 -- normalization must be done before
 toChildren :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r [Req'IdNode a]
 toChildren r =
-    traverse  normC $ zip [0..] (r ^. rColNode . theColEntries . isoSeqList)
+  traverse  normC $ zip [0..] (r ^. rColNode . theColEntries . isoSeqList)
   where
-    normC (i, _ce) = normPath (r & rPos .~ Just i)
+    normC (i, ce) =
+      colEntryM'
+        (const $ return r')
+        (normPathPos r')
+        ce
+      where
+        r' = r & rPos .~ Just i
+
+    normPathPos :: Eff'ISEL r => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
+    normPathPos r' c' =
+      do p' <- objid2path c'
+         setIdNode (r' & rVal     %~ snd            -- forget IdNode
+                       & rPathPos .~ PPs p' Nothing -- set path and no pos
+                   )                                -- set new id and node
+
 
 toPrevNextPar :: (Eff'ISEL r)
               => Req'IdNode a -> Sem r (PrevNextPar (Maybe (Req'IdNode a)))
@@ -1082,9 +1096,11 @@ genReqImgPage'' r = do
 -- ----------------------------------------
 --
 
-toEDescr :: (Eff'ISE r) => Req'IdNode a -> Sem r EDescr
+toEDescr :: (Eff'ISEL r) => Req'IdNode a -> Sem r EDescr
 toEDescr r = do
+  log'dbg $ "toEDescr: pps = " <> show (r ^. rPathPos) ^. isoText
   r'meta <- runMaybeEmpty (toImgMeta r)
+  log'dbg $ "toEDescr: r'meta = " <> show r'meta ^. isoText
   return $ EDescr (toReq0 r) (r ^. rIdMeta <> r'meta)
 
 toIconDescr' :: Geo -> EDescr -> IconDescr
