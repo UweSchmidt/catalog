@@ -890,12 +890,6 @@ abortR msg r =
 --
 -- navigation ops
 
-toParent :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
-toParent r = do
-  r' <- denormPathPos r            -- r' has always a pos
-  return ( r' & rPos .~ Nothing )  -- forget the pos
-                                   -- the result is normalized
-
 toPos' :: (Eff'ISEL r, EffNonDet r)
        => (Int -> Int)
        -> Req'IdNode a -> Sem r (Req'IdNode a)
@@ -905,6 +899,24 @@ toPos' f r = do
   let i = f i'
   oid <- pureMaybe (p ^? rColNode . theColEntries . ix i . theColEntry . theColColRef)
   normPathPos (p & rPos .~ Just i) oid
+
+normPathPos :: (Eff'ISEL r) => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
+normPathPos r' c' =
+  do
+    p' <- objid2path c'
+    setIdNode
+      ( r'
+          & rVal
+          %~ snd -- forget IdNode
+          & rPathPos
+          .~ PPs p' Nothing -- set path and no pos
+      ) -- set new id and node
+
+toParent :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
+toParent r = do
+  r' <- denormPathPos r -- r' has always a pos
+  return (r' & rPos .~ Nothing) -- forget the pos
+  -- the result is normalized
 
 toPrev :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toPrev = toPos' pred
@@ -944,14 +956,6 @@ toChildren r =
         ce
       where
         r' = r & rPos .~ Just i
-
-normPathPos :: Eff'ISEL r => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
-normPathPos r' c' =
-  do p' <- objid2path c'
-     setIdNode (r' & rVal     %~ snd            -- forget IdNode
-                   & rPathPos .~ PPs p' Nothing -- set path and no pos
-               )                                -- set new id and node
-
 
 toPrevNextPar :: (Eff'ISEL r)
               => Req'IdNode a -> Sem r (PrevNextPar (Maybe (Req'IdNode a)))
