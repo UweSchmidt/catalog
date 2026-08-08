@@ -57,6 +57,7 @@ import Catalog.ImgTree.Access
        ( getIdNode'
        , getId
        , getNode
+       , getNodeSL
        , getNodeV
        , getIdNodeV'
        , getImgVal
@@ -154,6 +155,7 @@ import Data.ImgNode
        , isSortableCol
        , isUserCol
        , isWriteableCol
+       , theMetaData
        , theColBlog
        , theColEntries
        , theColEntry
@@ -312,11 +314,14 @@ evalCatCmd =
     TheBlogSource pos p ->
       getIdNodeV' p >>= uncurry (read'blogsource pos)
 
-    TheMetaDataText pos p ->
-      getIdNodeV' p >>= uncurry (read'metadata pos)
+    TheMetaDataText pos p -> do
+      let get'
+            | pos >= 0  = getNodeV         -- img node meta
+            | otherwise = getNodeSL        -- col node meta
+      get' p >>= read'metadata pos
 
     TheRating pos p ->
-      getIdNodeV' p >>= uncurry (read'rating pos)
+      getNodeV p >>= read'rating pos
 
     TheRatings p ->
       getNodeV p >>= read'ratings
@@ -989,10 +994,11 @@ read'blogsource pos i n
 --
 -- get the meta data of a collection entry
 
-read'metadata' :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaData
-read'metadata' pos i n
-  -- get metadata from ObjId i
-  | pos < 0   = getMetaData i
+read'metadata' :: Eff'ISEL r => Int -> ImgNode -> Sem r MetaData
+read'metadata' pos n
+  -- get metadata from node
+  | pos < 0   = do
+      return $ n ^. theMetaData
 
   -- reference the ColEntryM entry at position pos in collection n with ObjId i
   | otherwise = do
@@ -1004,19 +1010,19 @@ read'metadata' pos i n
 -- read'metadata'' =
 --  colEntry' getImgMetaData getMetaData
 
-read'metadata :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r MetaDataText
-read'metadata pos i n =
-  (^. isoMetaDataMDT) <$> read'metadata' pos i n
+read'metadata :: Eff'ISEL r => Int -> ImgNode -> Sem r MetaDataText
+read'metadata pos n =
+  (^. isoMetaDataMDT) <$> read'metadata' pos n
 
 -- get the rating field of a collection entry
 
-read'rating :: Eff'ISE r => Int -> ObjId -> ImgNode -> Sem r Rating
-read'rating pos i n =
-  lookupRating <$> read'metadata' pos i n
+read'rating :: Eff'ISEL r => Int -> ImgNode -> Sem r Rating
+read'rating pos n =
+  lookupRating <$> read'metadata' pos n
 
 -- get the rating field of all entries in a collection
 
-read'ratings :: Eff'ISE r => ImgNode -> Sem r [Rating]
+read'ratings :: Eff'ISEL r => ImgNode -> Sem r [Rating]
 read'ratings n =
   traverse f (n ^. theColEntries . isoSeqList)
   where

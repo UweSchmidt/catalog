@@ -21,6 +21,7 @@ module Catalog.ImgTree.Access
   , lookupByPath
   , lookupVPath
   , getIdNode
+  , getNodeSL
   , getIdNode'
   , getIdNodeV
   , getIdNodeV'
@@ -206,6 +207,15 @@ existsEntry i = do
   return $ isJust (s ^. theImgTree . entryAt i)
 {-# INLINE existsEntry #-}
 
+-- a "Symlink" is a col entry with a metadata field containing the real path
+
+isSymLink :: ImgNode -> Maybe Path
+isSymLink n'
+  | isEmpty rp' = Nothing
+  | otherwise   = Just $ isoText # rp'
+  where
+    rp' = n' ^. theColMetaData . metaTextAt descrCollectionRef
+
 lookupByName :: EffIStore r => Name -> ObjId -> Sem r (Maybe (ObjId, ImgNode))
 lookupByName n i = do
   p <- (`snocPath` n) <$> objid2path i
@@ -218,17 +228,7 @@ lookupByPath p = lookupImgPath p <$> dt
 lookupVPath :: EffIStore r => Path -> Sem r (Maybe VPath)
 lookupVPath = splitVP mempty
   where
-    -- a "Symlink" is a col entry with a metadata field containing the real path
-
-    isSymLink :: ImgNode -> Maybe Path
-    isSymLink n'
-      | isEmpty rp' = Nothing
-      | otherwise   = Just $ isoText # rp'
-      where
-        rp' = n' ^. theColMetaData . metaTextAt descrCollectionRef
-
     -- search for Symlink entries
-
     splitVP sfx p
       | isEmpty p = return Nothing                 -- no symlink there
       | otherwise = do
@@ -285,6 +285,27 @@ getIdNodeV' = getIdNodeV "cant' find entry for vpath:"
 getNodeV :: (Eff'ISEL r) => Path -> Sem r ImgNode
 getNodeV p = snd <$> getIdNodeV' p
 {-# INLINE getNodeV #-}
+
+-- works like getIdNodeV'
+-- with a single exception:
+-- if the path points to a symlink node, this path is returned
+-- instead of the path to the real node
+--
+-- used to read metadata of a symlink (the symlink path: descrCollectionRef)
+
+getNodeSL :: (Eff'ISEL r) => Path -> Sem r ImgNode
+getNodeSL p = do
+  log'trc $ "getNodeSL: path = " <> p ^.isoText
+  mvp <- lookupVPath p
+  case mvp of
+    Just vp
+      | isEmpty (_sfx vp) ->
+        do
+          log'trc $ "getNodeSL: symlink found"
+          getNode p
+
+    _ ->
+          toRealPath p >>= getNode
 
 -- check path not there
 
