@@ -599,9 +599,7 @@ prettyJSONConfig :: [Text] -> J.Config
 prettyJSONConfig ks =
   J.defConfig { J.confIndent  = J.Spaces 2
               , J.confCompare =
-                  J.keyOrder ks
-                  <>
-                  compare
+                  J.keyOrder ks <> compare
               }
 
 ------------------------------------------------------------------------

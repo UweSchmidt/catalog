@@ -462,7 +462,7 @@ evalMetaData pp@(PPs p cx) keys = do
        <$>
        theMetaDataText (fromMaybe (-1) cx) p
 
-  log'trc $ prettyJSONText ["res ="] r
+  log'trc $ prettyJSONText [] r
   return r
 
 ------------------------------------------------------------------------------
