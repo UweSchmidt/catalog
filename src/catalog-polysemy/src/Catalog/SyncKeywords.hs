@@ -220,16 +220,20 @@ allKeywords' :: Eff'ISEL r => ObjId -> Sem r Keywords
 allKeywords' i = do
   kws <- foldCollections colA i
 
-  log'trc $ "allKeywords: " <> T.intercalate ", " (S.toAscList kws)
+  log'dbg $ "allKeywords: " <> T.intercalate ", " (S.toAscList kws)
   return kws
   where
     colA go _i md _im _be cs = do
       let kws1 = kwSet md                                    -- col keywords
+      p' <- objid2path _i
+      log'dbg $ "allKeywords': collection: " <> p' ^. isoText
       kws2 <- if notToBeIndexed md
-              then
+              then do
+                log'dbg $ "allKeywords': collection ignored: " <> p' ^. isoText
                 return mempty                                -- stop looking for keywords
               else
                 fold <$> traverse (colEntryM' iref go) cs    -- keywords in col entries
+      log'dbg $ "allKeywords': keywords found: " <> T.intercalate ", " (S.toList kws2)
       return (S.union kws1 kws2)
       where
         iref ir' = kwSet <$> getImgMetaData ir'
