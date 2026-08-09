@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE InstanceSigs #-}
 module Data.RefTree
        ( RefTree
        , UpLink
@@ -6,7 +7,6 @@ module Data.RefTree
        , rootRef
        , entries
        , entryAt
-       , theNode'
        , parentRef
        , nodeName
        , nodeVal
@@ -30,9 +30,12 @@ import Data.Prim
        ( Map
        , At(at)
        , Lens'
-       , Traversal'
+       , Prism'
+       , AsEmpty(..)
        , FromJSON(parseJSON)
        , ToJSON(toJSON)
+       , JValue
+       , JParser
        , Name
        , Path
        , when
@@ -41,6 +44,7 @@ import Data.Prim
        , filtered
        , has
        , to
+       , nearly
        , _Just
        , (&)
        , (^.)
@@ -62,10 +66,15 @@ import qualified Data.Map.Strict as M
 
 data RefTree node ref = RT !ref !(Map ref (node ref))
 
+instance Monoid ref =>  AsEmpty (RefTree node ref) where
+  _Empty :: Monoid ref => Prism' (RefTree node ref) ()
+  _Empty = nearly (RT mempty M.empty) (\(RT _ m) -> M.null m)
+
 deriving instance (Show ref, Show (n ref)) => Show (RefTree n ref)
 
 instance (ToJSON (node ref), ToJSON ref) => ToJSON (RefTree node ref)
   where
+    toJSON :: (ToJSON (node ref), ToJSON ref) => RefTree node ref -> J.Value
     toJSON (RT r m) = J.object
       [ "rootRef"   J..= r
       , "entries"   J..= M.toList m  -- entries are ordered in .json doc
@@ -73,6 +82,7 @@ instance (ToJSON (node ref), ToJSON ref) => ToJSON (RefTree node ref)
 
 instance (Ord ref, FromJSON (node ref), FromJSON ref) => FromJSON (RefTree node ref)
   where
+    parseJSON :: (Ord ref, FromJSON (node ref), FromJSON ref) => JValue -> JParser (RefTree node ref)
     parseJSON = J.withObject "RefTree" $ \ o ->
       RT
       <$> o J..: "rootRef"
@@ -89,10 +99,6 @@ entries k (RT r m) = RT r <$> k m
 entryAt :: (Ord ref) => ref -> Lens' (RefTree node ref) (Maybe (node ref))
 entryAt r = entries . at r
 {-# INLINE entryAt #-}
-
-theNode' :: (Ord ref) => ref -> Traversal' (RefTree node ref) (node ref)
-theNode' r = entryAt r . traverse
-{-# INLINE theNode' #-}
 
 -- ----------------------------------------
 
@@ -115,7 +121,7 @@ mapRefTree f (RT r t) =
 
 -- An UpLink takes a node and adds two components,
 -- .1 a ref to the parent node,
--- .2 second a name.
+-- .2 a name.
 --
 -- The root node has the root itself as parent ref
 
