@@ -244,7 +244,7 @@ mkDirRoot genRef n v
 
 isDirRoot :: (Ord ref, Show ref) => ref -> DirTree node ref -> Bool
 isDirRoot r t =
-  t ^? entryAt r . traverse . parentRef == Just r
+  has (entryAt r . _Just . parentRef . to (== r)) t
 {-# INLINE isDirRoot #-}
 
 -- lookup a (ref, nodeval) by a path
