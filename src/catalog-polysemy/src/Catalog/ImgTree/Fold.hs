@@ -19,9 +19,7 @@ import Data.ImgTree
        , ImgParts
        , ImgRef
        , ImgRef'(_iref)
-       , ObjIds
        , nodeVal
-       , singleObjId
        , theColEntry
        , theColColRef
        , theColObjId
@@ -33,10 +31,12 @@ import Data.Prim
        ( Foldable(fold)
        , IsoText(isoText)
        , ObjId
+       , ObjIds
        , Text
        , TimeStamp
        , (^.)
        , (^..)
+       , singleObjId
        )
 
 -- ----------------------------------------

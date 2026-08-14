@@ -94,7 +94,6 @@ import Data.ImgTree
        , ImgNode'(COL)
        , ImgRef
        , ImgRef'(ImgRef)
-       , ObjIds
        , ColEntries
        , ColEntry
        )

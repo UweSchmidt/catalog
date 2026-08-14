@@ -77,7 +77,6 @@ import Data.ImgTree
        , ImgRef
        , ImgRef'(ImgRef)
        , ImgTree
-       , ObjIds
        , UplNode
        , colEntryM'
        , colEntryM
@@ -121,6 +120,7 @@ import Data.MetaData
 import Data.Prim
        ( Name
        , ObjId
+       , ObjIds
        , mkObjId
        , noOfBitsUsedInKeys
        )

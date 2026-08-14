@@ -64,7 +64,6 @@ import Data.ImgTree
        , ImgNode
        , ImgRef
        , ImgRef'(ImgRef)
-       , ObjIds
        , colEntryM'
        , entries
        , isDIR
@@ -82,6 +81,7 @@ import Data.Prim
        , Foldable(toList)
        , IsoText(isoText)
        , ObjId
+       , ObjIds
        , (#)
        , (%~)
        , (&)

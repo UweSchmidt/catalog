@@ -1,11 +1,13 @@
 {-# LANGUAGE InstanceSigs #-}
 module Data.Prim.ObjId
   ( ObjId
+  , ObjIds
   , mkObjId
   , objId2integer
   , objId2Int
   , objId2Maybe
   , noOfBitsUsedInKeys
+  , singleObjId
   )
 where
 
@@ -42,6 +44,7 @@ import Data.Aeson
        ( withText )
 
 import qualified Data.Digest.Murmur64 as MM
+import qualified Data.Set as S
 
 -- ----------------------------------------
 
@@ -175,5 +178,12 @@ mask n i = i .&. m
 {-# INLINE uniqueN #-}
 {-# INLINE unique #-}
 {-# INLINE mask #-}
+
+-- ----------------------------------------
+
+type ObjIds = S.Set ObjId
+
+singleObjId :: ObjId -> ObjIds
+singleObjId = S.singleton
 
 -- ----------------------------------------

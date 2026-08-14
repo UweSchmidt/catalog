@@ -28,6 +28,11 @@ module Data.MetaData
   , metaTS
 
   , theImgEXIFUpdate
+  , theImgFileName
+  , theImgMimeType
+  , theFileTimeStamp
+  , theFileCheckSum
+
 
   , addFileMetaData
   , addMetaGPSurl
@@ -1370,6 +1375,22 @@ lookupGPSposDeg =
 theImgEXIFUpdate :: Lens' MetaData TimeStamp
 theImgEXIFUpdate = metaDataAt imgEXIFUpdate . metaTimeStamp
 {-# INLINE theImgEXIFUpdate #-}
+
+theImgFileName :: Lens' MetaData Name
+theImgFileName = metaDataAt fileName . metaName
+{-# INLINE theImgFileName #-}
+
+theImgMimeType :: Lens' MetaData MimeType
+theImgMimeType = metaDataAt fileMimeType . metaMimeType
+{-# INLINE theImgMimeType #-}
+
+theFileTimeStamp :: Lens' MetaData TimeStamp
+theFileTimeStamp = metaDataAt fileTimeStamp . metaTimeStamp
+{-# INLINE theFileTimeStamp #-}
+
+theFileCheckSum :: Lens' MetaData CheckSum
+theFileCheckSum = metaDataAt fileCheckSum . metaCheckSum
+{-# INLINE theFileCheckSum #-}
 
 -- --------------------
 --

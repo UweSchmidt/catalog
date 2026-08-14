@@ -52,9 +52,6 @@ import Catalog.ImgTree.Modify
        , mkCollection
        )
 
-import Data.ImgNode
-       ( ObjIds )
-
 import Data.ImgTree
        ( ColEntries
        , ColEntryM

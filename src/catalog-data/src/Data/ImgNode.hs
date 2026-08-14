@@ -68,8 +68,6 @@ module Data.ImgNode
        , addDirEntry
        , delDirEntry
        , delColEntry
-       , ObjIds
-       , singleObjId
        , isWriteableCol
        , isSortableCol
        , isRemovableCol
@@ -144,7 +142,6 @@ import Data.Prim
 import qualified Data.Aeson      as J
 import qualified Data.Aeson.Key  as J
 import qualified Data.Map.Strict as M
-import qualified Data.Set        as S
 import qualified Data.Sequence   as Seq
 
 -- ----------------------------------------
@@ -471,11 +468,11 @@ theMimeType = theImgMeta . metaDataAt fileMimeType . metaMimeType
 {-# INLINE theMimeType #-}
 
 theImgTimeStamp :: Lens' ImgPart TimeStamp
-theImgTimeStamp = theImgMeta . metaDataAt fileTimeStamp . metaTimeStamp
+theImgTimeStamp = theImgMeta . theFileTimeStamp
 {-# INLINE theImgTimeStamp #-}
 
 theImgCheckSum :: Lens' ImgPart CheckSum
-theImgCheckSum = theImgMeta . metaDataAt fileCheckSum . metaCheckSum
+theImgCheckSum = theImgMeta . theFileCheckSum
 {-# INLINE theImgCheckSum #-}
 
 -- ----------------------------------------
@@ -781,13 +778,6 @@ delColEntry :: (Eq ref) => ref -> ColEntriesM' ref -> ColEntriesM' ref
 delColEntry r =
     Seq.filter (\ ce -> ce ^. theColEntry . theColObjId /= r)
 {-# INLINE delColEntry #-}
-
--- ----------------------------------------
-
-type ObjIds = Set ObjId
-
-singleObjId :: ObjId -> ObjIds
-singleObjId = S.singleton
 
 -- ----------------------------------------
 
