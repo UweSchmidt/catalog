@@ -15,6 +15,7 @@ module Catalog.GenPages
   , rType
   , rGeo
   , rPathPos
+  , toUrlPath
   )
 where
 

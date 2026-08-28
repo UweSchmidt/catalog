@@ -56,6 +56,7 @@ import Data.Prim
        , LazyByteString
        , IsoString(isoString)
        , Geo
+       , ReqType
        , Text
        )
 import Data.History
@@ -305,6 +306,8 @@ type JsonModifyAPI
       "setRating1"           :> ParamPost (Int, Rating) ()
       :<|>
       "snapshot"             :> ParamPost Text ()
+      :<|>
+      "jpgImgCache"          :> ParamPost (ReqType, Geo) ()
       :<|>
       "syncCol"              :> SimplePost ()
       :<|>

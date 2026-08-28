@@ -237,17 +237,46 @@ cmdClient = subparser $
       )
     )
   <>
+  command "img-cache"
+    ( ( do
+        let fc req' geo' path'
+              = CcJpgImgCache path' req' geo'
+        fc
+        <$> option imgReqReader
+            ( long "variant"
+              <> short 'i'
+              <> value RImg
+              <> metavar "IMG-VARIANT"
+              <> help ( "The image variant, one of ["
+                        <> img'variants
+                        <> "], default: img."
+                      )
+            )
+        <*> option geoReader
+            ( long "geometry"
+              <> short 'g'
+              <> value (Geo 320 320)
+              <> metavar "GEOMETRY"
+              <> help ( "The image geometry: <width>x<height> or org (original size)"
+                        <> ", default is icon size of 320x320),"
+                      )
+            )
+        <*> argPath1
+      )
+      `withInfo`
+      ( "Fill server image cache for collection:"
+      )
+    )
+  <>
   command "download"
-    ( ( let dl reqtype' geo' dest' seqno' overwrite' path'
+    ( ( do
+        let dl reqtype' geo' dest' seqno' overwrite' path'
               = CcDownload path' reqtype' geo' dest'' seqno' overwrite'
                 where
                   dest''
                     | isEmpty dest' = "./downloads"  -- lastPath path' ^. isoText
                     | otherwise     = dest'
 
-            img'variants :: String
-            img'variants =
-              intercalate ", " . map (^. isoString) $ imgReqTypes in
         dl
         <$> option imgReqReader
             ( long "variant"
@@ -297,9 +326,10 @@ cmdClient = subparser $
     )
   <>
   command "checksum"
-    ( ( let cc onlyUpdate onlyMissing p n =
+    ( (do
+        let cc onlyUpdate onlyMissing p n =
               CcCheckSum p n onlyUpdate onlyMissing
-        in
+
         cc <$> optOnlyUpdate <*> optOnlyMissing <*> argPath1 <*> argPart
       )
       `withInfo`
@@ -476,6 +506,10 @@ cmdClient = subparser $
         <> show defaultPath
       )
     )
+
+img'variants :: String
+img'variants =
+  intercalate ", " . map (^. isoString) $ imgReqTypes
 
 ----------------------------------------
 --

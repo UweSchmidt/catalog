@@ -1,4 +1,4 @@
-------------------------------------------------------------------------------
+-- ------------------------------------------------------------------------------
 
 module Catalog.Effects.CatCmd.Interpreter
 where
@@ -81,6 +81,9 @@ import Catalog.ImgTree.Modify
        , adjustPartMetaData
        , mkCollection
        )
+import Catalog.ImgTree.Fold
+       ( foldCollections )
+
 import Catalog.Invariant
        ( checkImgStore )
 
@@ -111,6 +114,7 @@ import Catalog.GenPages
        , processReqPage
        , processReqJson
        , processReqJpg
+       , toUrlPath
        )
 
 import qualified Catalog.CatalogIO       as IO
@@ -141,6 +145,7 @@ import Data.Prim
 
        , CheckSum
        , CheckSumRes
+       , Geo
        , Name
        , Path
        , ObjId
@@ -255,6 +260,9 @@ evalCatCmd =
 
     Snapshot t _p ->
       modify'snapshot t
+
+    JpgImgCache rt geo p ->
+      getId p >>= bg'fillCache rt geo p
 
     SyncCollection p -> do
       throwNoSync "sync collection"
@@ -917,6 +925,29 @@ modify'testCmd i = do
   _ <- SK.allKeywords
   _ <- SK.allKeywordCols
   SK.newKeywordCols
+
+bg'fillCache :: (Eff'ALL r) => ReqType -> Geo -> Path -> ObjId -> Sem r ()
+bg'fillCache rt geo p0 i0 = do
+  log'trc $
+    "bg'fillCache: collection path = " <> p0 ^.isoText
+    <> ", geo = " <> geo ^. isoText
+    <> ", req = " <> rt ^. isoText
+
+  foldCollections colA i0
+
+  where
+    colA go i _md _im _be es = do
+      p <- objid2path i
+      log'trc $ "bg'fillCache: path = " <> p ^. isoText
+      void $ Seq.traverseWithIndex  (fillCache p) es
+        where
+          fillCache p' i' e' =
+            colEntryM' (const $ fillImg) go e'
+            where
+              fillImg = do
+                let r' = mkReq rt geo (PPs p' (Just i'))
+                log'verb $ "fillImg: url = " <> toUrlPath r'
+                void $ processReqImg r'
 
 -- ----------------------------------------
 --

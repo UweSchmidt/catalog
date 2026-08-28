@@ -52,6 +52,7 @@ module Catalog.Effects.CatCmd
 
   -- catalog get commands
   , staticFile
+  , jpgImgCache
   , jpgImgCopy
   , htmlPage
   , jsonPage
@@ -146,6 +147,7 @@ data CatCmd m a where
 
   -- catalog get commands
   StaticFile           ::                      TextPath -> CatCmd m LazyByteString
+  JpgImgCache          ::    ReqType -> Geo     -> Path -> CatCmd m ()
   JpgImgCopy           ::    ReqType -> Geo     -> Path -> CatCmd m LazyByteString
   HtmlPage             ::    ReqType -> Geo     -> Path -> CatCmd m LazyByteString
   JsonPage             ::               Geo     -> Path -> CatCmd m JPage

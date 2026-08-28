@@ -17,6 +17,7 @@ module Client.Effects.ClientCmd
   , ccSetColBlog
   , ccDownload
   , ccSnapshot
+  , ccJpgImgCache
   , ccCheckSum
   , ccUpdCSum
   , ccUndoList
@@ -68,6 +69,7 @@ data ClientCmd m a where
   CcSetColBlog  :: PathPos -> Path             -> ClientCmd m ()
   CcDownload    :: Path    -> ReqType  -> Geo
                 -> Text    -> Bool     -> Bool -> ClientCmd m ()
+  CcJpgImgCache :: Path    -> ReqType  -> Geo  -> ClientCmd m ()
   CcSnapshot    :: Text                        -> ClientCmd m ()
   CcCheckSum    :: Path    -> Name
                 -> Bool    -> Bool             -> ClientCmd m ()

@@ -79,6 +79,8 @@ evalClientCatCmd =
       paramJSONmodify "setRating1" p (pos, r)
     Snapshot t p ->
       paramJSONmodify "snapshot" p t
+    JpgImgCache rt geo p ->
+      paramJSONmodify "jpgImgCache" p (rt, geo)
     SyncCollection p ->
       simpleJSONmodify "syncCol" p
     SyncExif recursive force p ->

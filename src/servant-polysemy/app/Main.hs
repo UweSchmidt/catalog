@@ -66,6 +66,7 @@ import Catalog.Effects.CatCmd
        , isRemovable
        , isSortable
        , isWriteable
+       , jpgImgCache
        , jpgImgCopy
        , listUndoEntries
        , moveToCollection
@@ -182,6 +183,7 @@ import Data.IORef
 
 import System.Exit
        ( die )
+
 import System.IO
        ( stdout
        , stderr
@@ -224,6 +226,7 @@ import APIf
 
 import Options
        ( serverOptions )
+
 import Logger
        ( withCatLogger )
 
@@ -488,6 +491,10 @@ catalogServer env runReadC runModyC runBGC =
              (a1 -> Path -> CatApp a) -> ListPath -> a1 -> Handler ()
     runB2 cmd' ts args = runBGC . cmd' args . listToPath $ ts
 
+    runB3 :: forall a1 a2 a.
+             (a1 -> a2 -> Path -> CatApp a) -> ListPath -> (a1, a2) -> Handler ()
+    runB3 = runB2 . uncurry
+
     json'modify =
       runM3 saveBlogSource
       :<|>
@@ -520,6 +527,8 @@ catalogServer env runReadC runModyC runBGC =
       runM3 setRating1
       :<|>
       runB2 snapshot          -- background action: save catalog
+      :<|>
+      runB3 jpgImgCache
       :<|>
       runM1 syncCollection
       :<|>

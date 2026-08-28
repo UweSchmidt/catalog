@@ -41,6 +41,7 @@ import Polysemy.Logging
        , log'trc
        , log'warn
        , log'verb
+       , log'info
        , untext
        )
 import Polysemy.Reader
@@ -125,6 +126,7 @@ import Catalog.Effects.CatCmd
        , setCollectionImg
        , setMetaData1
        , snapshot
+       , jpgImgCache
        , syncExif
        , syncKeyword
        , newKeywords
@@ -232,6 +234,11 @@ evalClientCmd =
     CcSnapshot msg -> do
       _id <- newUndoEntry $ "snapshot " <> msg
       snapshot msg defaultPath
+      log'info $ "save catalog started, message: " <> msg
+
+    CcJpgImgCache p rt geo -> do
+      jpgImgCache rt geo p
+      log'info $ "update image cache started, collection: " <> p ^. isoText
 
     CcCheckSum p part onlyUpdate onlyMissing -> do
       ps <- globExpand p
