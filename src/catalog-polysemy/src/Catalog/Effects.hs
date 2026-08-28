@@ -140,10 +140,13 @@ type Eff'ALL  r  = ( EffCatEnv   r
 --
 -- basic Cmd combinators
 
-liftExcept :: EffError r => Except String a -> Sem r a
+liftExcept :: (EffError r, EffLogging r) => Except String a -> Sem r a
 liftExcept cmd =
   case runExcept cmd of
-    Left  msg -> throw $ msg ^. isoText
+    Left  msg -> do
+      let msg' = msg ^. isoText
+      log'err  msg'
+      throw    msg'
     Right res -> return res
 
 -- ----------------------------------------

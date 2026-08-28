@@ -25,7 +25,6 @@ where
 import Catalog.Effects
        ( Sem
        , Eff'ISJ
-       , Eff'ISEJ
        , Eff'ISEJL
        , liftExcept
        , log'warn
@@ -105,7 +104,7 @@ import qualified Data.Sequence as Seq
 --
 -- create a catalog node
 
-mkCatEntry :: Eff'ISEJ r
+mkCatEntry :: Eff'ISEJL r
            => (ObjId -> Name -> Sem r ())   -- ^ journal action
            -> (ImgNode -> Bool)             -- ^ parent editable
            -> ImgNode                       -- ^ the catalog node value
@@ -129,17 +128,17 @@ mkJEntry km i n = journal $ km i n
 {-# INLINE mkJEntry #-}
 
 -- create a new empty DIR node
-mkImgDir :: Eff'ISEJ r => ObjId -> Name -> Sem r ObjId
+mkImgDir :: Eff'ISEJL r => ObjId -> Name -> Sem r ObjId
 mkImgDir = mkCatEntry (mkJEntry MkDIR) isDIR emptyImgDir
 {-# INLINE mkImgDir #-}
 
 -- create a new empty COL node
-mkImgCol :: Eff'ISEJ r => ObjId -> Name -> Sem r ObjId
+mkImgCol :: Eff'ISEJL r => ObjId -> Name -> Sem r ObjId
 mkImgCol = mkCatEntry (mkJEntry MkCOL) isCOL emptyImgCol
 {-# INLINE mkImgCol #-}
 
 -- create a new empty IMG node
-mkImg :: Eff'ISEJ r => ObjId -> Name -> Sem r ObjId
+mkImg :: Eff'ISEJL r => ObjId -> Name -> Sem r ObjId
 mkImg = mkCatEntry (mkJEntry MkIMG) isDIR emptyImg
 {-# INLINE mkImg #-}
 
