@@ -33,7 +33,6 @@ import Data.ImgNode
        -- , theColMeta
        , theParts
        , theColObjId
-       , theColColRef
        , colEntryM'
        , theColBlog
        , theColImg
@@ -272,7 +271,7 @@ normPath r@(Req' {_rPathPos = pp}) = do
 
 setIdNode :: (Eff'ISEL r) => Req' a -> Sem r (Req'IdNode a)
 setIdNode r = do
-  rp <- toRealPath (r ^. rPath) -- eval symlinks
+  rp  <- toRealPath (r ^. rPath) -- eval symlinks
   i'n <- getIdNode' rp
   return
     ( r & rVal  %~ ((i'n, mempty),)
@@ -895,29 +894,38 @@ toPos' :: (Eff'ISEL r, EffNonDet r)
        => (Int -> Int)
        -> Req'IdNode a -> Sem r (Req'IdNode a)
 toPos' f r = do
-  p <- denormPathPos r
+  -- log'dbg $ "toPos': r.pps = " <> show (r ^. rPathPos) ^. isoText
+
+  p  <- denormPathPos r
+  -- log'dbg $ "toPos': p.pps = " <> show (r ^. rPathPos) ^. isoText
+
   i' <- pureMaybe (p ^. rPos)
   let i = f i'
-  oid <- pureMaybe (p ^? rColNode . theColEntries . ix i . theColEntry . theColColRef)
-  normPathPos (p & rPos .~ Just i) oid
+  -- log'dbg $ "toPos': i' = " <> i' ^. isoText <> ", i = " <> i ^. isoText
+
+  ce <- pureMaybe (p ^? rColNode . theColEntries . ix i)
+  let p' = p & rPos .~ Just i
+
+  colEntryM'
+    (const $ return p')
+    (normPathPos p')
+    ce
 
 normPathPos :: (Eff'ISEL r) => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
 normPathPos r' c' =
   do
     p' <- objid2path c'
-    setIdNode
-      ( r'
-          & rVal
-          %~ snd -- forget IdNode
-          & rPathPos
-          .~ PPs p' Nothing -- set path and no pos
-      ) -- set new id and node
+    log'dbg $ "normPathPos: p' = " <> p' ^. isoText
+    setIdNodeV
+      ( r' & rVal     %~ snd             -- forget IdNode
+           & rPathPos .~ PPs p' Nothing  -- set path and no pos
+      )                                  -- set new id and node
 
 toParent :: (Eff'ISE r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toParent r = do
-  r' <- denormPathPos r -- r' has always a pos
-  return (r' & rPos .~ Nothing) -- forget the pos
-  -- the result is normalized
+  r' <- denormPathPos r          -- r' has always a pos
+  return (r' & rPos .~ Nothing)  -- forget the pos
+                                 -- the result is normalized
 
 toPrev :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r (Req'IdNode a)
 toPrev = toPos' pred
@@ -1050,6 +1058,8 @@ genReqImgPage'' r = do
   -- the urls of the siblings
   nav                   <- toPrevNextPar r
   let navRefs            = maybe emptyReq' toReq0 <$> nav
+
+  log'dbg $ "navRefs = " <> show navRefs ^. isoText
 
   -- the image urls of the siblings
   let tomu mr            = fromMaybe emptyReq'
@@ -1193,7 +1203,10 @@ editJPage vp jp = do
     "editJPage: vpx = " <> _vpx vp ^. isoText <>
     ", rpx = " <> _rpx vp ^. isoText <>
     ", sfx = " <> _sfx vp ^. isoText
-  jp2 <- (if isEmpty (_sfx vp) then editNavi vp else return) jp1
+  jp2 <- ( if isEmpty (_sfx vp)
+           then editNavi vp
+           else return
+         ) jp1
   return jp2
   where
     editVP = substPathPrefix (_rpx vp) (_vpx vp)
