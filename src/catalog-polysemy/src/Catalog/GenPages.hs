@@ -28,6 +28,7 @@ import Data.MetaData
 import Data.ImgNode
        ( ImgRef'(ImgRef)
        , ImgRef
+       , ColEntryM'
        , theColEntries
        , theColEntry
        -- , theColMeta
@@ -904,12 +905,17 @@ toPos' f r = do
   -- log'dbg $ "toPos': i' = " <> i' ^. isoText <> ", i = " <> i ^. isoText
 
   ce <- pureMaybe (p ^? rColNode . theColEntries . ix i)
-  let p' = p & rPos .~ Just i
+  normColEntry i p ce
 
+normColEntry :: Eff'ISEL r
+             => Int -> Req'IdNode a -> ColEntryM' ObjId -> Sem r (Req'IdNode a)
+normColEntry i r ce =
   colEntryM'
-    (const $ return p')
-    (normPathPos p')
+    (const $ return r')
+    (normPathPos r')
     ce
+  where
+    r' = r & rPos .~ Just i
 
 normPathPos :: (Eff'ISEL r) => Req'IdNode a -> ObjId -> Sem r (Req'IdNode a)
 normPathPos r' c' =
@@ -958,13 +964,7 @@ toChildren :: (Eff'ISEL r, EffNonDet r) => Req'IdNode a -> Sem r [Req'IdNode a]
 toChildren r =
   traverse  normC $ zip [0..] (r ^. rColNode . theColEntries . isoSeqList)
   where
-    normC (i, ce) =
-      colEntryM'
-        (const $ return r')
-        (normPathPos r')
-        ce
-      where
-        r' = r & rPos .~ Just i
+    normC (i, ce) = normColEntry i r ce
 
 toPrevNextPar :: (Eff'ISEL r)
               => Req'IdNode a -> Sem r (PrevNextPar (Maybe (Req'IdNode a)))
