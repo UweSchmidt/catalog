@@ -7,6 +7,7 @@ module Catalog.History
   ( UndoListCmd(..)
   , addToUndoList
   , getFromUndoList
+  , lookupUndoList
   , getWholeUndoList
   , dropFromUndoList
 
@@ -40,6 +41,7 @@ import Data.History
        , HistoryID
        , addToHistory
        , resetHistory
+       , lookupHistory
        , dropHistory
        , emptyHistory
        , entriesInHistory
@@ -59,6 +61,7 @@ type HistoryState = State UndoHistory
 
 data UndoListCmd m a where
   AddToUndoList    :: Text -> ImgStore -> UndoListCmd m HistoryID
+  LookupUndoList   :: HistoryID        -> UndoListCmd m (Maybe ImgStore)
   GetFromUndoList  :: HistoryID        -> UndoListCmd m (Maybe ImgStore)
   GetWholeUndoList ::                     UndoListCmd m [(HistoryID, Text)]
   DropFromUndoList :: HistoryID        -> UndoListCmd m ()
@@ -84,6 +87,11 @@ undoListWithState =
       put @UndoHistory h'
       return (snd <$> ms)
 
+    LookupUndoList hid -> do
+      h <- get @UndoHistory
+      let ms = lookupHistory hid h
+      return (snd <$> ms)
+
     GetWholeUndoList -> do
       h <- get @UndoHistory
       let es = map (\ (i, (t, _s)) -> (i, t)) (entriesInHistory h)
@@ -103,6 +111,9 @@ undoListNoop =
       return 0
 
     GetFromUndoList _hid -> do
+      return Nothing
+
+    LookupUndoList _hid -> do
       return Nothing
 
     GetWholeUndoList -> do

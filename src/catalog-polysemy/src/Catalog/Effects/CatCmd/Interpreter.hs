@@ -47,6 +47,7 @@ import Catalog.GenCollections
 import Catalog.History
        ( addToUndoList
        , getFromUndoList
+--     , lookupUndoList
        , getWholeUndoList
        , dropFromUndoList
        )
@@ -386,11 +387,17 @@ evalCatCmd =
       return hid
 
     ApplyUndo hid -> do
-      oldState <- getFromUndoList hid
+      oldState <- getFromUndoList hid   -- throw away the latest entries
+--    oldState <- lookupUndoList hid    -- remain list as it is and make a new hist entry
+
       case oldState of
-        Just s  -> do put @ImgStore s
-                      journal (DoUndo hid)
-        Nothing -> return ()
+        Just s  -> do
+          -- add the undo cmd to history list to enable a redo
+          -- _hid <- addToUndoList ("reset to history id " <> hid ^.isoText) s
+          put @ImgStore s
+          journal (DoUndo hid)
+        Nothing ->
+          return ()
 
     DropUndoEntries hid -> do
       dropFromUndoList hid

@@ -6,6 +6,7 @@ module Data.History
   , emptyHistory
   , addToHistory
   , resetHistory
+  , lookupHistory
   , dropHistory
   , entriesInHistory
   )
@@ -46,6 +47,9 @@ resetHistory hid (HS hid' hs) = (x, HS hid' hs')
     hs'
       | isJust x  = fst $ M.split hid hs
       | otherwise = hs
+
+lookupHistory :: HistoryID -> History a -> Maybe a
+lookupHistory hid (HS _hid' hs) = M.lookup hid hs
 
 dropHistory :: HistoryID -> History a -> History a
 dropHistory hid (HS hid' hs) = HS hid' hs'
