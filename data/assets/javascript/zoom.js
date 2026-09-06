@@ -2577,10 +2577,14 @@ function fmtKW(t) {
 
     var kw = fmtKW1(0, kws[0]);
     if (kws.length === 1) {
-        return kw;
+        var r1 = newElem("div");
+        r1.append(newText("Schlüsselwort: "));
+        r1.append(kw);
+        return r1;
     }
 
     var res = newElem("div");
+    res.append(newText("Schlüsselwörter: "));
     res.append(kw);
     for (let i = 1; i < kws.length; i++) {
         kw = fmtKW1(i, kws[i]);
@@ -2594,7 +2598,7 @@ function fmtKW1(ix, kw) {
     const txt = newText(kw.trim());
     const a   = newElem("a");
     a.href    = toHref1("StepActions.keyword(" + ix + ")");
-    a.title   = "show keyword collection: " + kw;
+    a.title   = "Zur Sammlung für das Schlüsselwort: " + kw;
     a.classList.add("weblink");
     a.appendChild(txt);
     return a;
