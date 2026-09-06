@@ -1685,10 +1685,11 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
             return l;
         }
 
-        function buildLineGPS(deg, url) {
+        function buildLineGPS(deg, url, addr) {
             const l = newElem("div", "", {}, "gpsposition");
             // hack, hack, hack: global variable for 2. param
-            gpsUrl = url;
+            gpsUrl  = url;
+            gpsAddr = addr;
             const e = fmtGPS(deg);
             l.appendChild(e);
             return l;
@@ -1714,6 +1715,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                 const t4 = colMeta["Descr:GPSPositionDeg"];
                 const t5 = colMeta["Descr:GPSurl"];
                 const t6 = colMeta["Descr:Keywords"];
+                const t7 = colMeta["Descr:Address"];
 
                 if (t1) {
                     r.appendChild(buildLine("title", t1));
@@ -1725,7 +1727,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                     r.appendChild(buildLine("comment", t3));
                 }
                 if (t4) {
-                    r.appendChild(buildLineGPS(t4, t5));
+                    r.appendChild(buildLineGPS(t4, t5, t7));
                 }
                 if (t6) {
                     r.appendChild(buildLineKW(t6));
@@ -2496,12 +2498,14 @@ function fmtDeg(t) {
 }
 
 var gpsUrl;  // hack: global var for 2. parameter
+var gpsAddr; // hack: global var for 3. parameter
 
 function fmtGPS(t) {
     const a   = newElem("a");
     const txt = fmtDeg(t);
 
     a.href    = gpsUrl;
+    a.title   = gpsAddr;
     a.target  = "_blank";
     a.classList.add("gpslink");
     a.appendChild(txt);
@@ -2667,7 +2671,9 @@ function buildMetaInfo (t, md) {
     clearCont(t);
 
     // hack for google maps url
-    gpsUrl = md["Descr:GPSurl"];
+    gpsUrl  = md["Descr:GPSurl"];
+    gpsAddr = md["Descr:Address"];
+
     if ( isImgSlide() ) {
         md["Descr:ColRefs"] = "[anzeigen]";
     }
