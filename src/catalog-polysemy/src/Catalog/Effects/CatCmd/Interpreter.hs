@@ -19,6 +19,7 @@ import Catalog.Effects
        , readFileLB
        , writeFileLB
        , log'trc
+       , log'info
        , log'verb
        , log'err
        , interpret
@@ -46,8 +47,8 @@ import Catalog.GenCollections
 
 import Catalog.History
        ( addToUndoList
-       , getFromUndoList
---     , lookupUndoList
+--     , getFromUndoList
+       , lookupUndoList
        , getWholeUndoList
        , dropFromUndoList
        )
@@ -263,7 +264,7 @@ evalCatCmd =
       modify'snapshot t
 
     JpgImgCache rt geo p ->
-      getId p >>= bg'fillCache rt geo p
+      getId p >>= (\ x -> bg'cmd $ bg'fillCache rt geo p x)
 
     SyncCollection p -> do
       throwNoSync "sync collection"
@@ -387,13 +388,13 @@ evalCatCmd =
       return hid
 
     ApplyUndo hid -> do
-      oldState <- getFromUndoList hid   -- throw away the latest entries
---    oldState <- lookupUndoList hid    -- remain list as it is and make a new hist entry
+--    oldState <- getFromUndoList hid   -- throw away the latest entries
+      oldState <- lookupUndoList hid    -- remain list as it is and make a new hist entry
 
       case oldState of
         Just s  -> do
           -- add the undo cmd to history list to enable a redo
-          -- _hid <- addToUndoList ("reset to history id " <> hid ^.isoText) s
+          _hid <- get @ImgStore >>= addToUndoList ("reset to history id " <> hid ^.isoText)
           put @ImgStore s
           journal (DoUndo hid)
         Nothing ->
@@ -864,7 +865,13 @@ modify'setRating1 pos r oid n
 -- simply take p'archive ("/archive"), the root node
 
 modify'snapshot :: Eff'CatIO r => Text -> Sem r ()
-modify'snapshot = IO.snapshotImgStore
+modify'snapshot msg = bg'cmd $ IO.snapshotImgStore msg
+
+bg'cmd :: EffLogging r => Sem r () -> Sem r ()
+bg'cmd cmd = do
+  log'info "background job started"
+  cmd
+  log'info "background job finished"
 
 -- --------------------
 

@@ -528,7 +528,7 @@ catalogServer env runReadC runModyC runBGC =
       :<|>
       runB2 snapshot          -- background action: save catalog
       :<|>
-      runB3 jpgImgCache
+      runB3 jpgImgCache       -- background action: fill image cache
       :<|>
       runM1 syncCollection
       :<|>
