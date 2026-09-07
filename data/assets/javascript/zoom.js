@@ -1715,7 +1715,7 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
                 const t4 = colMeta["Descr:GPSPositionDeg"];
                 const t5 = colMeta["Descr:GPSurl"];
                 const t6 = colMeta["Descr:Keywords"];
-                const t7 = colMeta["Descr:Address"];
+                const t7 = colMeta["Descr:Address"] || "";
 
                 if (t1) {
                     r.appendChild(buildLine("title", t1));
@@ -2504,9 +2504,11 @@ function fmtGPS(t) {
     const a   = newElem("a");
     const txt = fmtDeg(t);
 
-    a.href    = gpsUrl;
-    a.title   = gpsAddr;
-    a.target  = "_blank";
+    a.href = gpsUrl;
+    if ( gpsAddr ) {
+        a.title = gpsAddr;
+    }
+    a.target = "_blank";
     a.classList.add("gpslink");
     a.appendChild(txt);
     return a;
@@ -2676,7 +2678,7 @@ function buildMetaInfo (t, md) {
 
     // hack for google maps url
     gpsUrl  = md["Descr:GPSurl"];
-    gpsAddr = md["Descr:Address"];
+    gpsAddr = md["Descr:Address"] || "";
 
     if ( isImgSlide() ) {
         md["Descr:ColRefs"] = "[anzeigen]";
