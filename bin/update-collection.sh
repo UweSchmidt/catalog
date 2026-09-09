@@ -61,7 +61,7 @@ Available options:
                           "." or "" for the empty path (whole albums hierachy),
                           default: $colname
   -p, --photos            switch to hierachy of imported photos
-                          path prefix is set to "$colphoto0"
+                          path prefix is set to "$colphotos0"
 EOF
 }
 
