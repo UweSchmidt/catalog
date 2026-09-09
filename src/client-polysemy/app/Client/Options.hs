@@ -389,6 +389,12 @@ cmdClient = subparser $
       "Take a snapshot of catalog."
     )
   <>
+  command "new-undo"
+    ( ( CcNewUndo <$> argTxt )
+      `withInfo`
+      "Create new undo entry."
+    )
+  <>
   command "undo-history"
     ( pure CcUndoList
       `withInfo`
@@ -414,6 +420,16 @@ cmdClient = subparser $
         <> " HISTORY-ID."
         <> " If no entry number given, drop all edits older than"
         <> " last 'catalog save' command"
+      )
+    )
+  <>
+  command "sync-collection"
+    ( ( CcSyncWithFS
+        <$> argPath1
+      )
+      `withInfo`
+      ( "Sync collection with filesystem."
+         <> "/archive/collections/photos must be a prefix of PATH arg"
       )
     )
   <>
@@ -547,6 +563,9 @@ argKey = argument globParser1 (metavar "KEY")
 
 -- argKeyword :: Parser (Maybe Text)
 -- argKeyword = argument str (metavar "KEYWORD") <|> pure Nothing
+
+argTxt :: Parser Text
+argTxt = argument str (metavar "TEXT")
 
 argValue :: Parser Text
 argValue = argument str (metavar "VALUE")

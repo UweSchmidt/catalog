@@ -22,8 +22,10 @@ module Client.Effects.ClientCmd
   , ccUpdCSum
   , ccUndoList
   , ccKeywordCols
+  , ccNewUndo
   , ccApplyUndo
   , ccDropUndo
+  , ccSyncWithFS
   , ccExifUpdate
   , ccCheckMeta
   , ccGeoAddress
@@ -76,9 +78,11 @@ data ClientCmd m a where
   CcUpdCSum     :: Path    -> Name
                 -> Bool    -> Bool             -> ClientCmd m ()
   CcKeywordCols ::                      [Text] -> ClientCmd m ()
+  CcNewUndo     ::                        Text -> ClientCmd m ()
   CcUndoList    ::                                ClientCmd m ()
   CcApplyUndo   ::                   HistoryID -> ClientCmd m ()
   CcDropUndo    ::                   HistoryID -> ClientCmd m ()
+  CcSyncWithFS  :: Path                        -> ClientCmd m ()
   CcExifUpdate  :: Path    -> Bool     -> Bool -> ClientCmd m ()
   CcCheckMeta   :: Path                        -> ClientCmd m ()
   CcGeoAddress  :: Path    -> Bool             -> ClientCmd m ()

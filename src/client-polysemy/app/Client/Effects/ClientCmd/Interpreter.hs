@@ -127,6 +127,7 @@ import Catalog.Effects.CatCmd
        , setMetaData1
        , snapshot
        , jpgImgCache
+       , syncCollection
        , syncExif
        , syncKeyword
        , newKeywords
@@ -232,7 +233,7 @@ evalClientCmd =
       evalDownload p rt geo dir withSeqNo overwrite
 
     CcSnapshot msg -> do
-      _id <- newUndoEntry $ "snapshot " <> msg
+      _id <- newUndoEntry $ "take snapshot " <> msg
       snapshot msg defaultPath
       log'info $ "save catalog started, message: " <> msg
 
@@ -247,7 +248,7 @@ evalClientCmd =
 
     CcUpdCSum p part onlyUpdate forceUpdate -> do
       ps  <- globExpand p
-      _id <- newUndoEntry $ "update checksum " <> (p ^. isoText)
+      _id <- newUndoEntry $ "update checksum in " <> (p ^. isoText)
 
       runReader (CSEnv onlyUpdate True forceUpdate) $
          evalCheckSums updateCheckSumRes ps part
@@ -255,6 +256,10 @@ evalClientCmd =
     CcKeywordCols ks -> do
       kws <- theKeywordCols ks p'keywords
       traverse_ (uncurry prettyKWC) $ M.toAscList kws
+
+    CcNewUndo txt -> do
+      hid <- newUndoEntry $ txt
+      writeln $ hid ^. isoText
 
     CcUndoList -> do
       es <- listUndoEntries
@@ -279,6 +284,10 @@ evalClientCmd =
           when (i /= 0) $ do
             dropUndoEntries i
 
+    CcSyncWithFS p -> do
+      ps <- globExpand p
+      traverse_ evalSyncWithFS ps
+
     CcExifUpdate p recursive force -> do
       ps <- globExpand p
       traverse_ (evalExifUpdate recursive force) ps
@@ -289,7 +298,7 @@ evalClientCmd =
 
     CcGeoAddress p force -> do
       loadGeoCache
-      _id <- newUndoEntry $ "add geo address " <> (p ^. isoText)
+      _id <- newUndoEntry $ "add geo address in " <> (p ^. isoText)
       ps  <- globExpand p
       traverse_ (\ p' -> theEntry p' >>= setGeoAddress force p') ps
       saveGeoCache
@@ -308,11 +317,11 @@ evalClientCmd =
       showDoc path
 
     CcSyncKeyword path maxImgEntries -> do
-      _id <- newUndoEntry $ "syncKeyword " <> (path ^. isoText)
+      _id <- newUndoEntry $ "sync keyword " <> (path ^. isoText)
       syncKeyword maxImgEntries path
 
     CcNewKeywords maxImgEntries -> do
-      _id <- newUndoEntry $ "newKeywords"
+      _id <- newUndoEntry $ "sync all keywords"
       newKeywords maxImgEntries p'keywords
 
     CcTest path -> do
@@ -515,10 +524,19 @@ evalSetCol' fnm msg setCol pp@(PPs sp cx) cp = do
 
 ------------------------------------------------------------------------------
 
+evalSyncWithFS :: forall r. (CCmdEffects r)
+               => Path -> Sem r ()
+evalSyncWithFS p = do
+  _id <- newUndoEntry $ "sync with filesys " <> (p ^. isoText)
+  log'info $ "start sync with filesys in " <> p ^. isoText
+  syncCollection p
+  log'info $ "finish sync with filesys " <> p ^. isoText
+
+
 evalExifUpdate :: forall r. CCmdEffects r
                => Bool -> Bool -> Path -> Sem r ()
 evalExifUpdate recursive force p0 = do
-  _id <- newUndoEntry $ "exif update " <> (p0 ^. isoText)
+  _id <- newUndoEntry $ "exif update in " <> (p0 ^. isoText)
 
   exifUpdate p0
   where
@@ -901,7 +919,7 @@ checkMeta p e
 
 prettyUndo :: Member (Consume Text) r
            => HistoryID -> Text -> Sem r ()
-prettyUndo hid cmt = writeln $ (show hid ++ ". ") ^. isoText <> cmt
+prettyUndo hid cmt = writeln $ hid ^. isoText <> ". " <> cmt
 
 prettyKWC  :: Member (Consume Text) r
            => Text -> Path -> Sem r ()
