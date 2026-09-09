@@ -178,10 +178,15 @@ fi
 
 # ----------------------------------------
 # fill the image cache for the different screens currently in use
+#
+#  320x320    icons
+# 1400x1050   Canon Beamer
+# 1920x1200   Macbook Pro
+# 3840x2160   4K Monitor
 
 if [[ "$update" = "COL" ]]
 then
-    for g in 320x320 1400x1050 1920x1200 2560x1440
+    for g in 320x320 1400x1050 1920x1200 3840x2160
     do
         $clientl img-cache -i img -g $g "$col1"
     done
