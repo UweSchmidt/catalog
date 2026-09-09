@@ -140,7 +140,7 @@ col1=$($client -q entry "$col0" | grep '^/' | head -1 2> /dev/null)
 # ----------------------------------------
 # create new undo entry
 
-$clientl new-undo "run update-collection.sh for $col1"
+hid=$($clientl new-undo "run update-collection.sh for $col1")
 
 # ----------------------------------------
 # sync with file system
