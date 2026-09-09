@@ -472,7 +472,7 @@ buildResize3 vico rot d'g s'geo d s'
     addQuality    = addOptVal "-quality"
                     ( if isThumbnail
                       then "75"
-                      else "90"
+                      else "100"
                     )
 
     addQuiet      = addFlag "-quiet"
