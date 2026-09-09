@@ -143,22 +143,6 @@ col1=$($client -q entry "$col0" | grep '^/' | head -1 2> /dev/null)
 $clientl new-undo "run update-collection.sh for $col1"
 
 # ----------------------------------------
-# fill the image cache for the screen in use
-
-if [[ "$update" = "COL" ]]
-   then
-       for g in 320x320 1400x1050 1920x1200 2560x1440
-       do
-           $clientl img-cache -i img -g $g "$col1"
-       done
-
-       for g in 320x240
-       do
-           $clientl img-cache -i icon -g $g "$col1"
-       done
-fi
-
-# ----------------------------------------
 # sync with file system
 
 if [[ "$update" = "PHOTO" ]]
@@ -190,6 +174,22 @@ if [[ "$update" = "PHOTO" ]]
 then
     col2=$(echo "$col1" | sed -e 's|/collections||')
     $clientl update-checksum "$col2"
+fi
+
+# ----------------------------------------
+# fill the image cache for the different screens currently in use
+
+if [[ "$update" = "COL" ]]
+then
+    for g in 320x320 1400x1050 1920x1200 2560x1440
+    do
+        $clientl img-cache -i img -g $g "$col1"
+    done
+
+    for g in 320x240
+    do
+        $clientl img-cache -i icon -g $g "$col1"
+    done
 fi
 
 # ----------------------------------------
