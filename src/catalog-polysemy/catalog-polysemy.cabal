@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name:          catalog-polysemy
-version:       0.5.15.5
+version:       0.5.15.6
 description:   polysemy version of catalog
 author:        Uwe Schmidt
 maintainer:    Uwe Schmidt
