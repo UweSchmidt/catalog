@@ -15,6 +15,7 @@ import Catalog.Effects
        , EffError
        , EffFileSys
        , EffLogging
+       , EffTime
        , fileExist
        , readFileLB
        , writeFileLB
@@ -108,8 +109,9 @@ import Catalog.TextPath
        ( toFileSysPath )
 
 import Catalog.TimeStamp
-       ( whatTimeIsIt )
-
+       ( whatTimeIsIt
+       , nowAsIso8601
+       )
 import Catalog.GenPages
        ( mkReq
        , processReqImg
@@ -867,11 +869,13 @@ modify'setRating1 pos r oid n
 modify'snapshot :: Eff'CatIO r => Text -> Sem r ()
 modify'snapshot msg = bg'cmd $ IO.snapshotImgStore msg
 
-bg'cmd :: EffLogging r => Sem r () -> Sem r ()
+bg'cmd :: (EffLogging r, EffTime r) => Sem r () -> Sem r ()
 bg'cmd cmd = do
-  log'info "background job started"
+  st <- nowAsIso8601
+  log'info $ "background job started at " <> st
   cmd
-  log'info "background job finished"
+  et <- nowAsIso8601
+  log'info $ "background job finished at " <> et
 
 -- --------------------
 
