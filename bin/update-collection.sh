@@ -32,16 +32,26 @@ port=$port0
 colname="$colname0"
 colpx="$colpx0"
 update="COL"
+syncDir="no"
+updateKeywords="no"
+updateChecksum="no"
+updateAddress="no"
+geometries="320x320 1400x1050 1920x1200 3840x2160"
+iconGeometries="320x240"
 
 function usage() {
     pname=$(basename $0)
     cat <<EOF
 $pname
 
-Usage: $pname [-H|--host HOST] [-P|--port PORT] [-h | --help]
+Usage: $pname
+          [-H|--host HOST] [-P|--port PORT]
+          [-h | --help]
           [--debug | (-t|--trace) | (-v|--verbose) | (-i|--info) |
           (-w|--warnings) | --errors | (-q|--quiet)]
-          -c COL-PATH | -p COL-PATH
+          (-c|--collection) COL-PATH | (-p|--photos) COL-PATH |
+          (-g|--geo) IMG-GEO |
+          (-a|--geo-address) | (-k|--keywords) | (-s|sync-fs)
 
   Prepare a complete catalog collection.
   The collection is given by a relative path pointing into the
@@ -49,8 +59,9 @@ Usage: $pname [-H|--host HOST] [-P|--port PORT] [-h | --help]
   This includes the following steps:
 
   .1 filling the image cache for various screen sizes
-  .2 set the geo addresses for entries with GPS metadata
-  .3 update the keywords collections
+  .2 optionaly set the geo addresses for entries with GPS metadata
+  .3 optionally update the keywords collections
+  .4 optionally compute/update checksums for image files
 
 Available options:
   -h, --help              This message
@@ -62,6 +73,18 @@ Available options:
                           default: $colname
   -p, --photos            switch to hierachy of imported photos
                           path prefix is set to "$colphotos0"
+  -g, --geo               a list of geometries (<w>x<h>) for which the image cache is build
+                          argument "" switches off filling the cache
+                          default: all geometries of the screens curently in use
+                          ($geometries)
+  -s, --sync-fs           if -p is set, synchronise collection with filesystem
+                          default: no sync
+  -u, --checksum          if -p is set, update checksum of image files
+                          default is no update of checksum hashes
+  -a, geo-address         if -c is set, update addresses for GPS coordinates
+                          default: no update
+  -k, --keywords          if -c is set, recompute keyword collections
+                          default: no update of keyword collections
 EOF
 }
 
@@ -99,6 +122,24 @@ while [[ $# -gt 0 ]]; do
             colpx="$colphotos0"
             update="PHOTO"
             shift
+            shift
+            ;;
+        -g|--geo)
+            geometries="$2"
+            iconGeometries=""
+            shift
+            shift
+            ;;
+        -a|--geo-address)
+            updateAddress="yes"
+            shift
+            ;;
+        -k|--keywords)
+            updateKeywords="yes"
+            shift
+            ;;
+        -s|--sync-fs)
+            syncDir="yes"
             shift
             ;;
         -h|--help)
@@ -145,7 +186,7 @@ hid=$($clientl new-undo "run update-collection.sh for $col1")
 # ----------------------------------------
 # sync with file system
 
-if [[ "$update" = "PHOTO" ]]
+if [[ "$update" = "PHOTO" && "$syncDir" = "yes" ]]
 then
     $clientl sync-collection "$col1"
 fi
@@ -153,7 +194,7 @@ fi
 # ----------------------------------------
 # set geo addresses
 
-if [[ "$update" = "COL" || "$update" = "PHOTO" ]]
+if [[ "$update" = "COL" || "$update" = "PHOTO" ]] && [[ "$updateAddress" = "yes" ]]
 then
     $clientl geo-address "$col1"
 fi
@@ -161,7 +202,7 @@ fi
 # ----------------------------------------
 # update keywords
 
-if [[ "$update" = "COL" ]]
+if [[ "$update" = "COL" && "$updateKeywords" = "yes" ]]
 then
     $clientl new-keywords
 fi
@@ -170,28 +211,28 @@ fi
 # update checksums
 
 
-if [[ "$update" = "PHOTO" ]]
+if [[ "$update" = "PHOTO" && "$updateChecksum" = "yes" ]]
 then
     col2=$(echo "$col1" | sed -e 's|/collections||')
     $clientl update-checksum "$col2"
 fi
 
 # ----------------------------------------
-# fill the image cache for the different screens currently in use
+# fill the image cache for the different screen sizes currently in use
 #
 #  320x320    icons
 # 1400x1050   Canon Beamer
 # 1920x1200   Macbook Pro
 # 3840x2160   4K Monitor
 
-if [[ "$update" = "COL" ]]
+if [[ "$update" = "COL" || "$update" = "PHOTO" ]]
 then
-    for g in 320x320 1400x1050 1920x1200 3840x2160
+    for g in $geometries
     do
         $clientl img-cache -i img -g $g "$col1"
     done
 
-    for g in 320x240
+    for g in $iconGeometries
     do
         $clientl img-cache -i icon -g $g "$col1"
     done
