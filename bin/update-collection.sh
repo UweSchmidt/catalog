@@ -158,9 +158,18 @@ done
 client="$exe -P $port -H $host"
 clientl="$client $loglevel"
 
+
+function ccl() (
+    trc "$@"
+    cl=$1
+    shift
+    $cl "$@"
+)
+
 # ----------------------------------------
 # check whether server runs
-$client -q entry "$colpx" > /dev/null
+
+ccl "$client" -q entry "$colpx" > /dev/null
 [[ $? -eq 0 ]] || die "catalog server \"$client\" not running"
 
 
@@ -181,14 +190,14 @@ col1=$($client -q entry "$col0" | grep '^/' | head -1 2> /dev/null)
 # ----------------------------------------
 # create new undo entry
 
-hid=$($clientl new-undo "run update-collection.sh for $col1")
+hid=$(ccl "$clientl" new-undo "run update-collection.sh for $col1")
 
 # ----------------------------------------
 # sync with file system
 
 if [[ "$update" = "PHOTO" && "$syncDir" = "yes" ]]
 then
-    $clientl sync-collection "$col1"
+    ccl "$clientl" sync-collection "$col1"
 fi
 
 # ----------------------------------------
@@ -196,7 +205,7 @@ fi
 
 if [[ "$update" = "COL" || "$update" = "PHOTO" ]] && [[ "$updateAddress" = "yes" ]]
 then
-    $clientl geo-address "$col1"
+    ccl "$clientl" geo-address "$col1"
 fi
 
 # ----------------------------------------
@@ -204,7 +213,7 @@ fi
 
 if [[ "$update" = "COL" && "$updateKeywords" = "yes" ]]
 then
-    $clientl new-keywords
+    ccl "$clientl" new-keywords
 fi
 
 # ----------------------------------------
@@ -214,7 +223,7 @@ fi
 if [[ "$update" = "PHOTO" && "$updateChecksum" = "yes" ]]
 then
     col2=$(echo "$col1" | sed -e 's|/collections||')
-    $clientl update-checksum "$col2"
+    ccl "$clientl" update-checksum "$col2"
 fi
 
 # ----------------------------------------
@@ -229,12 +238,12 @@ if [[ "$update" = "COL" || "$update" = "PHOTO" ]]
 then
     for g in $geometries
     do
-        $clientl img-cache -i img -g $g "$col1"
+        ccl "$clientl" img-cache -i img -g "$g" "$col1"
     done
 
     for g in $iconGeometries
     do
-        $clientl img-cache -i icon -g $g "$col1"
+        ccl "$clientl" img-cache -i icon -g "$g" "$col1"
     done
 fi
 
