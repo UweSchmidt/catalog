@@ -550,7 +550,8 @@ updateKeywordCol maxImgEntries rfm kw p = do
   let subColCnt = Seq.length es
 
   -- get image and collection refs containing keyword
-  let _refs@(imgRefs, colRefs) = lookupRefsMap kw rfm
+  refs <- remImgRefsOccuringInCols kw (lookupRefsMap kw rfm)
+  let Refs (imgRefs, colRefs) = refs
   let imgCnt = S.size imgRefs
   let colCnt = S.size colRefs
 
@@ -595,6 +596,42 @@ instance Monoid Refs where
   mempty :: Refs
   mempty = Refs (mempty, mempty)
 
+remImgRefsOccuringInCols :: (Eff'ISEL r) => Text -> Refs -> Sem r Refs
+remImgRefsOccuringInCols kw (Refs (irs, cids)) = do
+  irsInCols <- irefsInCols kw cids
+
+  log'dbg $
+    "remImgRefsOccuringInCols: kw: " <> kw <>
+    ", removed irefs: " <> show irsInCols ^. isoText
+
+  return $ Refs (irs `S.difference` irsInCols, cids)
+  where
+    irefsInCols :: (Eff'ISEL r) => Text -> Set ObjId -> Sem r (Set ImgRef)
+    irefsInCols kw' cids' =
+      foldM (addIrefs kw') mempty cids'
+
+    addIrefs :: (Eff'ISEL r) => Text -> Set ImgRef -> ObjId -> Sem r (Set ImgRef)
+    addIrefs kw' acc cid = do
+      irs' <- foldCollections colA cid
+
+      p' <- objid2path cid
+      log'dbg $
+        "addIrefs: kw: " <> kw' <>
+        ", col: " <> p' ^. isoText <>
+        ", irefs: " <> show irs' ^. isoText
+
+      return (acc `S.union` irs')
+        where
+          colA go _i _md _im _be cs = do
+            fold <$> traverse (colEntryM' iref go) cs
+            where
+              iref ir' = do
+                md' <- getImgMetaData ir'
+                return $ if kw' `elem` kwSet md'
+                         then S.singleton ir'
+                         else mempty
+
+
 newtype RefsMap = RM (Map Text Refs)
 
 instance Semigroup RefsMap where
@@ -611,9 +648,9 @@ mkRefsImg kw ir = RM $ M.singleton kw $ Refs (S.singleton ir, mempty)
 mkRefsCol :: Text -> ObjId -> RefsMap
 mkRefsCol kw cr = RM $ M.singleton kw $ Refs (mempty, S.singleton cr)
 
-lookupRefsMap :: Text -> RefsMap -> (Set ImgRef, Set ObjId)
+lookupRefsMap :: Text -> RefsMap -> Refs
 lookupRefsMap kw (RM m) =
-  maybe (mempty, mempty) (\(Refs p) -> p) $ M.lookup kw m
+  Refs $ maybe (mempty, mempty) (\(Refs p) -> p) $ M.lookup kw m
 
 -- single traversal for collection of all references
 -- for all keywords matching predicate "matchKeyword"
