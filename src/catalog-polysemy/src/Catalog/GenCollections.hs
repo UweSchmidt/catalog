@@ -525,7 +525,7 @@ type DateMap = IM.IntMap ColEntries
 updateCollectionsByDate :: Eff'ISEJLT r => ColEntries -> Sem r ()
 updateCollectionsByDate es =
   unless (isEmpty es) $ do
-    log'verb $
+    log'trc $
        "updateCollectionsByDate: new refs are added to byDate collections:\n"
        <> prettyJSONText [] es
 
