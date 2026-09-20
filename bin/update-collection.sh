@@ -36,8 +36,10 @@ syncDir="no"
 updateKeywords="no"
 updateChecksum="no"
 updateAddress="no"
-geometries="320x320 1400x1050 1920x1200 3840x2160"
-iconGeometries="320x240"
+geometries0="320x320 1400x1050 1920x1200 2560x1440 3840x2160"
+iconGeometries0="320x240"
+geometries=""
+iconGeometries=""
 
 function usage() {
     pname=$(basename $0)
@@ -50,7 +52,7 @@ Usage: $pname
           [--debug | (-t|--trace) | (-v|--verbose) | (-i|--info) |
           (-w|--warnings) | --errors | (-q|--quiet)]
           (-c|--collection) COL-PATH | (-p|--photos) COL-PATH |
-          (-g|--geo) IMG-GEO |
+          (-G|--geo) IMG-GEO | (-g|--icon-geo) ICON-GEO |
           (-a|--geo-address) | (-k|--keywords) | (-s|sync-fs)
 
   Prepare a complete catalog collection.
@@ -67,16 +69,24 @@ Available options:
   -h, --help              This message
   -H, --host HOST         catalog server host, default: $host0
   -P, --port PORT         catalog server port, default: $port0
+  -x                      execute client-polysemy commands
+                          default is a dry run
   --debug, ..., --quiet   levels of debug information
-  -c, --collection        the relative path to the collection to be processed
+  -c, --collection PATH   the relative path to the collection to be processed
                           "." or "" for the empty path (whole albums hierachy),
                           default: $colname
-  -p, --photos            switch to hierachy of imported photos
+  -p, --photos PATH       switch to hierachy of imported photos
                           path prefix is set to "$colphotos0"
-  -g, --geo               a list of geometries (<w>x<h>) for which the image cache is build
+  -G, --geo GEO           a list of geometries (<w>x<h>) for which the image cache is build
                           argument "" switches off filling the cache
-                          default: all geometries of the screens curently in use
-                          ($geometries)
+                          argument "all" generates all geometries in use
+                          ($geometries0)
+                          default: "" (no cache fill)
+  -g --icon-geo GEO       a list of geometries (<w>x<h>) for which the icon cache is build
+                          argument "" switches off filling the icon cache
+                          argument "all" generates all icon geometries in use
+                          ($iconGeometries0)
+                          default: "" (no cache fill)
   -s, --sync-fs           if -p is set, synchronise collection with filesystem
                           default: no sync
   -u, --checksum          if -p is set, update checksum of image files
@@ -94,7 +104,7 @@ arch=$(arch)
 devCat="/Users/uwe/haskell/catalog"
 
 exe="$devCat/bin/$arch/client-polysemy"
-
+exec="no"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -106,6 +116,10 @@ while [[ $# -gt 0 ]]; do
         -H|--host)
             host="$2"
             shift
+            shift
+            ;;
+        -x)
+            exec="yes"
             shift
             ;;
         -i|--info|-v|--verbose|-t|--trace|-w|--warnings|-q|--quiet|--errors|--debug)
@@ -124,9 +138,15 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
-        -g|--geo)
+        -G|--geo)
             geometries="$2"
-            iconGeometries=""
+            [[ "$geometries" = "all" ]] && geometries="$geometries0"
+            shift
+            shift
+            ;;
+        -g|--icon-geo)
+            iconGeometries="$2"
+            [[ "$iconGeometries" = "all" ]] && iconGeometries="$iconGeometries0"
             shift
             shift
             ;;
@@ -160,16 +180,21 @@ clientl="$client $loglevel"
 
 
 function ccl() (
-    trc "$@"
-    cl=$1
-    shift
-    $cl "$@"
+    if [[ "$exec" = "yes" ]]
+       then
+           trc "$@"
+           cl=$1
+           shift
+           $cl "$@"
+    else
+        trc "DRY-RUN> " "$@"
+    fi
 )
 
 # ----------------------------------------
 # check whether server runs
 
-ccl "$client" -q entry "$colpx" > /dev/null
+$client -q entry "$colpx" > /dev/null
 [[ $? -eq 0 ]] || die "catalog server \"$client\" not running"
 
 
@@ -232,6 +257,7 @@ fi
 #  320x320    icons
 # 1400x1050   Canon Beamer
 # 1920x1200   Macbook Pro
+# 2560x1440   iMac
 # 3840x2160   4K Monitor
 
 if [[ "$update" = "COL" || "$update" = "PHOTO" ]]
