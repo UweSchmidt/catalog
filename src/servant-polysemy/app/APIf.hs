@@ -56,7 +56,6 @@ import Data.Prim
        , LazyByteString
        , IsoString(isoString)
        , Geo
-       , ReqType
        , Text
        )
 import Data.History
@@ -106,8 +105,8 @@ type AudioAPI
   = "audio" :> Raw
 
 -- static bootstrap files
-type BootstrapAPI =
-  "bootstrap" :> Raw
+type BootstrapAPI
+  = "bootstrap" :> Raw
 
 -- static asset files (css, icons, javascript)
 type AssetsAPI
@@ -151,6 +150,12 @@ type NewDocAPI
       PageAPI
     )
     :<|>
+    "cache" :>
+    ( CacheImgAPI
+      :<|>
+      CacheIconAPI
+    )
+    :<|>
     ArchiveAPI
 
 -- the whole archive dir tree can be served statically and accessed directly
@@ -192,6 +197,14 @@ type ImgfxAPI
   = "imgfx" :> Capture "geo" Geo':> CaptureAll "path" Text :>
     Header "Referer" Text :>
     Get '[JPEG] CachedByteString
+
+type CacheImgAPI
+  = "img" :> Capture "geo" Geo':> CaptureAll "path" Text :>
+    Get '[JSON] ()
+
+type CacheIconAPI
+  = "icon" :> Capture "geo" Geo':> CaptureAll "path" Text :>
+    Get '[JSON] ()
 
 type PageAPI
   = "page"  :> PageAPIfmt
@@ -306,8 +319,6 @@ type JsonModifyAPI
       "setRating1"           :> ParamPost (Int, Rating) ()
       :<|>
       "snapshot"             :> ParamPost Text ()
-      :<|>
-      "jpgImgCache"          :> ParamPost (ReqType, Geo) ()
       :<|>
       "syncCol"              :> SimplePost ()
       :<|>

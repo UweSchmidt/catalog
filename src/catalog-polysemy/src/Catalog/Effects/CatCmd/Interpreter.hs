@@ -265,9 +265,6 @@ evalCatCmd =
     Snapshot t _p ->
       modify'snapshot t
 
-    JpgImgCache rt geo p ->
-      getId p >>= (\ x -> bg'cmd $ bg'fillCache rt geo p x)
-
     SyncCollection p -> do
       throwNoSync "sync collection"
       getId p >>= modify'syncCol
@@ -349,6 +346,19 @@ evalCatCmd =
 
     StaticFile tp -> do
       readStaticFile (isoText # tp)
+
+    JpgImgCache rt geo path
+      -- if path points to an image, the image copy of given geo is generated
+      -- and written into the image cache
+
+      | Just ppos@(PPs vp i@(Just _ix)) <- path2colPath ".jpg" path -> do
+          log'trc $ "JpgImgCache: col path: " <> show ppos ^. isoText
+          rp <- toRealPath vp
+          void $ processReqImg (mkReq rt geo (PPs rp i))
+
+      | otherwise -> do
+          log'trc $ "JpgImgCache: nothing to do for path: " <> path ^. isoText
+
 
     JpgImgCopy rt geo path
       | Just ppos@(PPs vp i) <- path2colPath ".jpg" path -> do

@@ -175,6 +175,9 @@ import Text.SimpleParser
 import Control.Concurrent.STM.TMVar
        ( newTMVarIO )
 
+import Control.Monad
+       ( void )
+
 import Control.Monad.IO.Class
        ( liftIO )
 
@@ -281,6 +284,11 @@ catalogServer env runReadC runModyC runBGC =
       :<|>
       get'json
     )
+  )
+  :<|>
+  ( cache'img
+    :<|>
+    cache'icon
   )
   :<|>
   get'archive
@@ -394,6 +402,18 @@ catalogServer env runReadC runModyC runBGC =
       res <- runReadC . jpgImgCopy rt geo . listToPath $ ts
       return $ cachedResponse referer res
 
+
+    cache'img' :: ReqType
+               -> Geo' -> ListPath  -> Handler ()
+    cache'img' rt (Geo' geo) ts = do
+      void $ runReadC . jpgImgCache rt geo . listToPath $ ts
+
+    cache'img :: Geo' -> ListPath  -> Handler ()
+    cache'img = cache'img' RImg
+
+    cache'icon :: Geo' -> ListPath  -> Handler ()
+    cache'icon = cache'img' RImg
+
     -- --------------------
     -- handle html pages
 
@@ -490,11 +510,11 @@ catalogServer env runReadC runModyC runBGC =
     runB2 :: forall a1 a.
              (a1 -> Path -> CatApp a) -> ListPath -> a1 -> Handler ()
     runB2 cmd' ts args = runBGC . cmd' args . listToPath $ ts
-
+{-
     runB3 :: forall a1 a2 a.
              (a1 -> a2 -> Path -> CatApp a) -> ListPath -> (a1, a2) -> Handler ()
     runB3 = runB2 . uncurry
-
+-}
     json'modify =
       runM3 saveBlogSource
       :<|>
@@ -527,8 +547,6 @@ catalogServer env runReadC runModyC runBGC =
       runM3 setRating1
       :<|>
       runB2 snapshot          -- background action: save catalog
-      :<|>
-      runB3 jpgImgCache       -- background action: fill image cache
       :<|>
       runM1 syncCollection
       :<|>

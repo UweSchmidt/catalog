@@ -79,8 +79,6 @@ evalClientCatCmd =
       paramJSONmodify "setRating1" p (pos, r)
     Snapshot t p ->
       paramJSONmodify "snapshot" p t
-    JpgImgCache rt geo p ->
-      paramJSONmodify "jpgImgCache" p (rt, geo)
     SyncCollection p ->
       simpleJSONmodify "syncCol" p
     SyncExif recursive force p ->
@@ -131,6 +129,8 @@ evalClientCatCmd =
     -- image and HTML page requests
     StaticFile tp ->
       getReq tp
+    JpgImgCache rt geo p ->
+      basicCacheReq ".jpg" rt geo p
     JpgImgCopy rt geo p ->
       basicDocReq ".jpg" rt geo p
     HtmlPage rt geo p ->
@@ -193,6 +193,17 @@ basicDocReq ext rt geo path0 =
   where
     path1 = editName (const True) (<> ext) path0
     path' = "docs" `consPath` img' `consPath` geo' `consPath` path1
+    img'  = isoText # (rt   ^. isoText)
+    geo'  = isoText # (geo  ^. isoText)
+
+basicCacheReq :: HttpEffects r
+              => Text -> ReqType -> Geo -> Path
+              -> Sem r ()
+basicCacheReq ext rt geo path0 =
+  void $ getReq (path' ^. isoUrlText)
+  where
+    path1 = editName (const True) (<> ext) path0
+    path' = "cache" `consPath` img' `consPath` geo' `consPath` path1
     img'  = isoText # (rt   ^. isoText)
     geo'  = isoText # (geo  ^. isoText)
 

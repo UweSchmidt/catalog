@@ -38,6 +38,7 @@ import Polysemy.Logging
        ( Logging
        , abortWith
        , log'err
+       , log'dbg
        , log'trc
        , log'warn
        , log'verb
@@ -238,8 +239,7 @@ evalClientCmd =
       log'info $ "save catalog started, message: " <> msg
 
     CcJpgImgCache p rt geo -> do
-      jpgImgCache rt geo p
-      log'info $ "update image cache started, collection: " <> p ^. isoText
+      fillImgCache rt geo p
 
     CcCheckSum p part onlyUpdate onlyMissing -> do
       ps <- globExpand p
@@ -577,6 +577,41 @@ infixr 6 +/+
 (+/+) :: Text -> Text -> Text
 t1 +/+ t2 = t1 <> "/" <> t2
 
+fillImgCache :: CCmdEffects r
+             => ReqType -> Geo -> Path -> Sem r ()
+fillImgCache rt geo p0 = do
+  log'trc $ untext [ "fillImgCache:"
+                   , "reqType =", rt ^. isoText
+                   , "geo ="    , geo ^. isoText
+                   , "path ="   , p0 ^. isoText
+                   ]
+  n0 <- theEntry p0
+  unless (isCOL n0) $
+    abortWith $ untext [ "fillImgCache:"
+                       , "no collection found for path"
+                       , p0 ^. isoText
+                       ]
+  fillCache p0 n0
+  log'trc $ untext [ "fillImgCache: cache fill done, path = "
+                   , p0 ^. isoText
+                   ]
+
+  where
+    fillCache p n = do
+      forM_ (zip [(0::Int)..] $ n ^. theColEntries . isoSeqList) $
+        \(i, ce) -> colEntryM (fill i) recurse ce
+      where
+        recurse p' = do
+          log'dbg $ "recurse: " <> p' ^. isoText
+          n' <- theEntry p'
+          fillCache p' n'
+
+        fill i' _ip _in = do
+          let p' = isoPathPos # mkPathPos p (Just i')
+          log'dbg $ "fill: " <> p' ^. isoText
+          jpgImgCache rt geo p'
+
+
 evalDownload :: CCmdEffects r
              => Path -> ReqType -> Geo
              -> Text -> Bool    -> Bool
@@ -628,7 +663,7 @@ evalDownload1 rt geo d genSqn overwrite = evalDownload'
 
       -- download all collection entries
       forM_ (zip [(0::Int) ..] $ n ^. theColEntries . isoSeqList) $
-        \ (i, ce) -> colEntryM (dli p i) evalDownload' ce
+        \(i, ce) -> colEntryM (dli p i) evalDownload' ce
 
         where
           d' = d <> p ^. isoText
