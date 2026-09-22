@@ -239,7 +239,7 @@ evalClientCmd =
       log'info $ "save catalog started, message: " <> msg
 
     CcJpgImgCache p rt geo -> do
-      fillImgCache rt geo p
+      fillImgCache' rt geo p
 
     CcCheckSum p part onlyUpdate onlyMissing -> do
       ps <- globExpand p
@@ -576,6 +576,12 @@ infixr 6 +/+
 
 (+/+) :: Text -> Text -> Text
 t1 +/+ t2 = t1 <> "/" <> t2
+
+fillImgCache' :: CCmdEffects r
+              => ReqType -> Geo -> Path -> Sem r ()
+fillImgCache' rt geo p0 = do
+  ps <- globExpand p0
+  traverse_ (fillImgCache rt geo) ps
 
 fillImgCache :: CCmdEffects r
              => ReqType -> Geo -> Path -> Sem r ()

@@ -248,7 +248,7 @@ cmdClient = subparser $
               <> value RImg
               <> metavar "IMG-VARIANT"
               <> help ( "The image variant, one of ["
-                        <> img'variants
+                        <> "icon, img"
                         <> "], default: img."
                       )
             )
@@ -264,7 +264,8 @@ cmdClient = subparser $
         <*> argPath1
       )
       `withInfo`
-      ( "Fill server image cache for collection:"
+      ( "Fill server image cache for a collection"
+        <> ". Glob style patterns are allowed in PATH"
       )
     )
   <>
@@ -321,7 +322,7 @@ cmdClient = subparser $
       )
       `withInfo`
       ( "Download all images of a collection"
-        <> ". Glob style patterns are allowed in path."
+        <> ". Glob style patterns are allowed in PATH."
       )
     )
   <>
