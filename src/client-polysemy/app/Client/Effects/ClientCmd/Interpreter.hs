@@ -586,11 +586,11 @@ fillImgCache' rt geo p0 = do
 fillImgCache :: CCmdEffects r
              => ReqType -> Geo -> Path -> Sem r ()
 fillImgCache rt geo p0 = do
-  log'trc $ untext [ "fillImgCache:"
-                   , "reqType =", rt ^. isoText
-                   , "geo ="    , geo ^. isoText
-                   , "path ="   , p0 ^. isoText
-                   ]
+  log'info $ untext [ "fillImgCache:"
+                    , "reqType =", rt ^. isoText
+                    , "geo ="    , geo ^. isoText
+                    , "path ="   , p0 ^. isoText
+                    ]
   n0 <- theEntry p0
   unless (isCOL n0) $
     abortWith $ untext [ "fillImgCache:"
@@ -598,9 +598,9 @@ fillImgCache rt geo p0 = do
                        , p0 ^. isoText
                        ]
   fillCache p0 n0
-  log'trc $ untext [ "fillImgCache: cache fill done, path = "
-                   , p0 ^. isoText
-                   ]
+  log'info $ untext [ "fillImgCache: cache fill done, path = "
+                    , p0 ^. isoText
+                    ]
 
   where
     fillCache p n = do
