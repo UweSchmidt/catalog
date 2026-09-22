@@ -9,7 +9,7 @@ function trc (t, Text) {
 /* ---------------------------------------- */
 /* id's */
 
-const version      = "zoom.html version 0.5.15.8 2026-09-19";
+const version      = "zoom.html version 0.5.15.9 2026-09-22";
 
 const titleId      = "head-title";
 
