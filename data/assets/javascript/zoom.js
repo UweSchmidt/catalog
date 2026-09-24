@@ -2713,21 +2713,26 @@ function buildKeywords(cont) {
         const kwm = getElem(Keywords.tab);
         clearCont(kwm);
 
-        let isFst = true;
         let fstC  = " ";
+        let elemPx;
+        let elemKws;
 
         Object.keys(kwt).forEach(function(key) {
             console.log(key, kwt[key]);
             const kwPath = kwt[key];
-            if ( ! isFst ) {
-                const c1 = key[0];
-                if ( c1 === fstC ) {
-                    kwm.appendChild(newText(", "));
-                } else {
-                    kwm.appendChild(newElem("br"));
-                }
-                fstC = c1;
+            const kw1    = key[0];
+
+            if ( kw1 !== fstC ) {
+                elemPx = newElem("div", "", "key");
+                elemPx.appendChild(newText(kw1 + "..."));
+                elemKws = newElem("div", "", "value");
+                kwm.appendChild(elemPx);
+                kwm.appendChild(elemKws);
+                fstC = kw1;
+            } else {
+                elemKws.appendChild(newText(", "));
             }
+
             const kw = newElem("a", {}, "keyword");
             const kx = newText(key);
             kw.appendChild(kx);
@@ -2736,9 +2741,7 @@ function buildKeywords(cont) {
                 cont();
                 showNextSlide(mkColReq(kwPath));
             });
-            kwm.appendChild(kw);
-
-            isFst = false;
+            elemKws.appendChild(kw);
         });
 
         cont();

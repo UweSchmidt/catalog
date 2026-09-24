@@ -321,6 +321,13 @@ span.errormsg {
   display: grid;
 }
 
+#keywords-menue {
+  grid-column-gap: 1em;
+  grid-template-columns: auto auto;
+
+  display: grid;
+}
+
 #help-table {
   grid-column-gap: 1em;
   grid-template-columns: auto auto;
