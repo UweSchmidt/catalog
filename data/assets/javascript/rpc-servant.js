@@ -100,6 +100,10 @@ function getKeywordColPathFromServer(kw, processKW) {
     readServer1('keywords', "/dummy-path", [kw], processKW);
 }
 
+function getKeywordsFromServer(processKW) {
+    readServer1('keywords', "/dummy-path", [], processKW);
+}
+
 function getRatingFromServer(path, pos, setRating) {
     readServer1('rating', path, pos, setRating);
 }

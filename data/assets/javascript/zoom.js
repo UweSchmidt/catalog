@@ -2210,6 +2210,7 @@ const StepActions = {
 const ConfigActions = {
     info()          { Info.toggle(); },
     help()          { Help.toggle(); },
+    keywords()      { Keywords.toggle(); },
     slowDown()      { slowDownSlideShow(); },
     speedUp()       { speedUpSlideShow(); },
     resetSpeed()    { resetSpeedSlideShow(); },
@@ -2278,6 +2279,7 @@ const DownActions = {
 
 const DownShiftActions = {
     63         : ConfigActions.help,   // '?', keyCode: 63
+    K          : ConfigActions.keywords,
     T          : ConfigActions.speedUpTrans,
     V          : ConfigActions.serverVersion,
 
@@ -2702,6 +2704,46 @@ function buildMetaInfo (t, md) {
             t.appendChild(vl);
         }
     }
+}
+
+function buildKeywords(cont) {
+    trc(1, "buildKeywords");
+
+    function build(kwt) {
+        const kwm = getElem(Keywords.tab);
+        clearCont(kwm);
+
+        let isFst = true;
+        let fstC  = " ";
+
+        Object.keys(kwt).forEach(function(key) {
+            console.log(key, kwt[key]);
+            const kwPath = kwt[key];
+            if ( ! isFst ) {
+                const c1 = key[0];
+                if ( c1 === fstC ) {
+                    kwm.appendChild(newText(", "));
+                } else {
+                    kwm.appendChild(newElem("br"));
+                }
+                fstC = c1;
+            }
+            const kw = newElem("a", {}, "keyword");
+            const kx = newText(key);
+            kw.appendChild(kx);
+            kw.addEventListener("click", (e) => {
+                console.log(kwPath);
+                cont();
+                showNextSlide(mkColReq(kwPath));
+            });
+            kwm.appendChild(kw);
+
+            isFst = false;
+        });
+
+        cont();
+    }
+    getKeywordsFromServer(build);
 }
 
 function buildInfo() {
@@ -3137,6 +3179,21 @@ const Info = {
 
     toggle: () => {
         runC(toggleOverlay(Info));
+    }
+};
+
+const Keywords = {
+    id:      "keywords",
+    visible: false,
+    tab:     "keywords-menue",
+
+    toggle: () => {
+        let onoff = () => { runC(toggleOverlay(Keywords)); };
+        if ( Keywords.visible ) {
+            onoff();
+        } else {
+            buildKeywords(onoff);
+        }
     }
 };
 
