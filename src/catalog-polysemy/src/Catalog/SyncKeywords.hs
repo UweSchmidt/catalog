@@ -11,8 +11,11 @@ module Catalog.SyncKeywords
   , allKeywordColsM
   , newKeywordCols
   , sortColEntriesByDate
+  , keywordIndex
   , Keywords
   , KeywordCols
+  , KeywordIndex
+  , KeywordIx
   )
 where
 
@@ -138,6 +141,97 @@ allAlbumColsWithRef colp p nm = do
       p'  <- objid2path i'
       md' <- getMetaData i'
       return (p', md' ^. metaTextAt descrTitle)
+
+-- ----------------------------------------
+--
+-- keyword index
+
+type KeywordIx    = Map Prefix (Map Prefix (Map Text Keywords))
+type KeywordIndex = (KeywordIx, KeywordCols)
+
+type Prefix = Text
+
+keywordIndex :: Eff'ISEL r => Sem r KeywordIndex
+keywordIndex = do
+  kc <- allKeywordColsM (const True)
+  return (buildIx kc, kc)
+  where
+    buildIx = buildPxMap2 sLimit . buildPxMap (T.take 1) . splitKeywords . M.keysSet
+    sLimit  = 7
+
+buildPxMap :: (Text -> Prefix) -> Map Text a -> Map Prefix (Map Text a)
+buildPxMap toPx ixm =
+  M.foldrWithKey add M.empty ixm
+  where
+    add w kws acc = M.insertWith M.union (toPx w) (M.singleton w kws) acc
+
+refinePxMap2 :: Int -> (Text -> Prefix) -> Text -> Map Text a -> Map Prefix (Map Text a)
+refinePxMap2 sLimit toPx2 px1 ixm1
+  | isSmall ixm1 = M.singleton px1 ixm1
+  | otherwise    = M.foldrWithKey add M.empty ixm1
+  where
+    add w kws acc = M.insertWith M.union (toPx2 w) (M.singleton w kws) acc
+
+    isSmall m = M.size m <= sLimit
+
+refinePxKeys :: Int -> Map Prefix (Map Prefix (Map Text a)) -> Map Prefix (Map Prefix (Map Text a))
+refinePxKeys sLimit =
+  M.map (M.foldrWithKey comPx M.empty)
+  where
+    comPx :: Prefix -> Map Text a -> Map Prefix (Map Text a) -> Map Prefix (Map Text a)
+    comPx w1 m1 acc = M.insert w1' m1 acc
+      where
+        px' = commonPx $ M.keys m1
+        w1' | M.size   m1  <= sLimit = w1
+            | T.length px' <= 2      = w1
+            | otherwise              = px'
+
+buildPxMap2 :: Int -> Map Prefix (Map Text a) -> Map Prefix (Map Prefix (Map Text a))
+buildPxMap2 sLimit =
+  refinePxKeys sLimit . M.mapWithKey (refinePxMap2 sLimit (T.take 2))
+
+splitKeyword :: Text -> Map Text Keywords
+splitKeyword kw =
+  foldMap (\i -> M.singleton i (S.singleton kw)) ixws
+  where
+    mapDel :: Char -> Char
+    mapDel c
+      | c `elem` del = ' '
+      | otherwise    = c
+      where
+        del :: String
+        del = "&-'"
+
+    ixws :: [Text]
+    ixws =
+      filter (\t -> T.compareLength t 1 == GT)
+      . T.words
+      . T.map mapDel
+      $ kw
+
+splitKeywords :: Keywords -> Map Text Keywords
+splitKeywords =
+  S.foldr (\kw acc -> M.unionWith S.union acc (splitKeyword kw)) M.empty
+
+lengthCommonPx :: Text -> Text -> Int
+lengthCommonPx xs ys = countEq 0 $ T.zip xs ys
+  where
+    countEq c ((c1, c2) : cs)
+      | c1 == c2 = countEq (c + 1) cs
+    countEq c _cs = c
+
+lengthCommonPxs :: [Text] -> Int
+lengthCommonPxs (w1 : ws) =
+  foldr min' (T.length w1) ws
+  where
+    min' w' l'
+      | l' == 0   = l'
+      | otherwise = l' `min` lengthCommonPx w1 w'
+lengthCommonPxs [] = maxBound
+
+commonPx :: [Text] -> Prefix
+commonPx ws@(w1 : _ws) = T.take (lengthCommonPxs ws) w1
+commonPx []            = ""
 
 -- ----------------------------------------
 

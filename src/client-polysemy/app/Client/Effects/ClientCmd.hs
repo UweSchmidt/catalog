@@ -22,6 +22,7 @@ module Client.Effects.ClientCmd
   , ccUpdCSum
   , ccUndoList
   , ccKeywordCols
+  , ccKeywordIndex
   , ccNewUndo
   , ccApplyUndo
   , ccDropUndo
@@ -78,6 +79,7 @@ data ClientCmd m a where
   CcUpdCSum     :: Path    -> Name
                 -> Bool    -> Bool             -> ClientCmd m ()
   CcKeywordCols ::                      [Text] -> ClientCmd m ()
+  CcKeywordIndex::                                ClientCmd m ()
   CcNewUndo     ::                        Text -> ClientCmd m ()
   CcUndoList    ::                                ClientCmd m ()
   CcApplyUndo   ::                   HistoryID -> ClientCmd m ()

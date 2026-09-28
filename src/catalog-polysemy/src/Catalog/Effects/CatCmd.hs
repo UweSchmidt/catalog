@@ -38,6 +38,7 @@ module Catalog.Effects.CatCmd
   , theEntry
   , theEntryV
   , theKeywordCols
+  , theKeywordIndex
   , isWriteable
   , isRemovable
   , isSortable
@@ -96,7 +97,9 @@ import Catalog.GenPages
        ( JPage )
 
 import Catalog.SyncKeywords
-       ( KeywordCols )
+       ( KeywordCols
+       , KeywordIndex
+       )
 
 -- ----------------------------------------
 --
@@ -133,6 +136,7 @@ data CatCmd m a where
   TheEntry             ::                          Path -> CatCmd m ImgNodeP
   TheEntryV            ::                          Path -> CatCmd m ImgNodeP
   TheKeywordCols       ::          [Text]       -> Path -> CatCmd m KeywordCols
+  TheKeywordIndex      ::                          Path -> CatCmd m KeywordIndex
   IsWriteable          ::                          Path -> CatCmd m Bool
   IsRemovable          ::                          Path -> CatCmd m Bool
   IsSortable           ::                          Path -> CatCmd m Bool

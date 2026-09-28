@@ -103,6 +103,7 @@ import Catalog.SyncKeywords
        ( KeywordCols
        , allKeywordColsM
        , allAlbumColsWithRef
+       , keywordIndex
        )
 
 import Catalog.TextPath
@@ -304,6 +305,9 @@ evalCatCmd =
 
     TheKeywordCols kws _p ->
       read'keywordCols kws
+
+    TheKeywordIndex _p ->
+      keywordIndex
 
     IsWriteable p ->
       getNodeV p >>= read'isWriteable

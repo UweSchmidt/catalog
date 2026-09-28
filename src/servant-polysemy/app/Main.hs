@@ -96,6 +96,7 @@ import Catalog.Effects.CatCmd
        , theEntry
        , theEntryV
        , theKeywordCols
+       , theKeywordIndex
        , theMetaDataText
        , theRating
        , theRatings
@@ -464,6 +465,8 @@ catalogServer env runReadC runModyC runBGC =
       runR1 theEntryV
       :<|>
       runR2 theKeywordCols
+      :<|>
+      runR1 theKeywordIndex
       :<|>
       runR1 isWriteable
       :<|>

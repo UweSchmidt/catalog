@@ -477,6 +477,12 @@ cmdClient = subparser $
       ( "List collection path of a keyword. Default: list paths for all keywords.")
     )
   <>
+  command "keyword-index"
+    ( pure CcKeywordIndex
+      `withInfo`
+      ( "List keyword index and keyword collections table as JSON.")
+    )
+  <>
   command "check-meta"
     ( (CcCheckMeta <$> argPath)
       `withInfo`

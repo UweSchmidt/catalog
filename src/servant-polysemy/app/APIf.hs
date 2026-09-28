@@ -72,7 +72,9 @@ import Catalog.GenPages
        ( JPage )
 
 import Catalog.SyncKeywords
-       ( KeywordCols )
+       ( KeywordCols
+       , KeywordIndex
+       )
 
 import Catalog.CatEnv
        ( CatEnv )
@@ -260,6 +262,8 @@ type JsonGetAPI
       "ventry"          :> SimplePost ImgNodeP
       :<|>
       "keywords"        :> ParamPost [Text] KeywordCols
+      :<|>
+      "keywordIndex"    :> SimplePost KeywordIndex
       :<|>
       "isWriteable"     :> SimplePost Bool
       :<|>

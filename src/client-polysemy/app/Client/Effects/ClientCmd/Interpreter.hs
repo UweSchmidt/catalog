@@ -135,6 +135,7 @@ import Catalog.Effects.CatCmd
        , theEntry
        , theEntryV
        , theKeywordCols
+       , theKeywordIndex
        , theColsWithRef
        , theMetaDataText
        , updateCheckSum
@@ -256,6 +257,13 @@ evalClientCmd =
     CcKeywordCols ks -> do
       kws <- theKeywordCols ks p'keywords
       traverse_ (uncurry prettyKWC) $ M.toAscList kws
+
+    CcKeywordIndex -> do
+      (kwix, kwcol) <- theKeywordIndex p'keywords
+      writeln $ "Keyword Index:"
+      writeln $ prettyJSONText [] kwix
+      writeln $ "Keyword Collections:"
+      writeln $ prettyJSONText [] kwcol
 
     CcNewUndo txt -> do
       hid <- newUndoEntry $ txt

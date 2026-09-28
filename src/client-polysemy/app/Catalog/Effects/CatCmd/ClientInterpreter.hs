@@ -103,6 +103,8 @@ evalClientCatCmd =
       simpleJSONget "ventry" p       -- evaluates symbolic links
     TheKeywordCols kws _p ->
       paramJSONget "keywords" p'keywords kws
+    TheKeywordIndex  _p ->
+      simpleJSONget "keywordIndex" p'keywords
     IsWriteable p ->                 -- but: this must also be changed in JavaScript
       simpleJSONget "isWritable" p
     IsRemovable p ->
