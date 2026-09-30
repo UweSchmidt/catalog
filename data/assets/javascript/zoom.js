@@ -2196,6 +2196,7 @@ const StepActions = {
     },
     colRef(i) {
         stopShow();
+        Info.toggle()
         gotoColRef(i);
     },
     showCol() {
@@ -2821,39 +2822,6 @@ function buildKeywords(cont) {
         clearCont(kwTab);
 
         buildKW1(kwTab, kwix, kwp);
-        /*
-        let fstC  = " ";
-        let elemPx;
-        let elemKws;
-
-        Object.keys(kwt).forEach(function(key) {
-            console.log(key, kwt[key]);
-            const kwPath = kwt[key];
-            const kw1    = key[0];
-
-            if ( kw1 !== fstC ) {
-                elemPx = newElem("div", "", "key");
-                elemPx.appendChild(newText(kw1 + "..."));
-                elemKws = newElem("div", "", "value");
-                kwm.appendChild(elemPx);
-                kwm.appendChild(elemKws);
-                fstC = kw1;
-            } else {
-                elemKws.appendChild(newText(", "));
-            }
-
-            const kw = newElem("a", {}, "keyword");
-            const kx = newText(key);
-            kw.appendChild(kx);
-            kw.addEventListener("click", (e) => {
-                console.log(kwPath);
-                cont();
-                showNextSlide(mkColReq(kwPath));
-            });
-            elemKws.appendChild(kw);
-        });
-        */
-
         cont();
     }
     getKeywordIndexFromServer(build);
