@@ -175,7 +175,7 @@ keyword2indexWords = filterIW . splitKW
     delRed :: Text -> Bool
     delRed w
       | T.length w <= 1 = False
-      | w `S.member` stopWords = False
+      | T.toLower w `S.member` stopWords = False
       | otherwise = True
 
 stopWords :: Set Text
