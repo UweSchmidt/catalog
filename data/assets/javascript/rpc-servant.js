@@ -104,6 +104,10 @@ function getKeywordsFromServer(processKW) {
     readServer1('keywords', "/dummy-path", [], processKW);
 }
 
+function getKeywordIndexFromServer(processKW) {
+    readServer1('keywordIndex', "/dummy-path", [], processKW);
+}
+
 function getRatingFromServer(path, pos, setRating) {
     readServer1('rating', path, pos, setRating);
 }

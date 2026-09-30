@@ -2254,7 +2254,6 @@ const DownActions = {
     Period     : StepActions.down,     // presenter: right screen icon, keyCode: 110
 
     a          : StepActions.home,     // goto root albums collection
-    k          : StepActions.kwHome,
     n          : StepActions.next,
     p          : StepActions.prev,
     u          : StepActions.parent,
@@ -2265,6 +2264,7 @@ const DownActions = {
     e          : ConfigActions.edit,
     h          : ConfigActions.help,
     i          : ConfigActions.info,
+    k          : ConfigActions.keywords,
     r          : ConfigActions.resetSpeed,
     t          : ConfigActions.slowDownTrans,
     v          : ConfigActions.version,
@@ -2279,10 +2279,10 @@ const DownActions = {
 
 const DownShiftActions = {
     63         : ConfigActions.help,   // '?', keyCode: 63
-    K          : ConfigActions.keywords,
     T          : ConfigActions.speedUpTrans,
     V          : ConfigActions.serverVersion,
 
+    K          : StepActions.kwHome,
     S          : StepActions.showAll,
 
     A          : VideoCtrlActions.autoPlayDefault,
@@ -2706,13 +2706,122 @@ function buildMetaInfo (t, md) {
     }
 }
 
+function buildKW1(kwTab, kwix, kwp) {
+    Object.keys(kwix).forEach(
+        function(px1) {
+            const m1 = kwix[px1];
+
+            const px1Elem = newElem("div", "", "key");
+            px1Elem.appendChild(newText(px1 + "..."));
+            const m1Elem = newElem("div", "", "value");
+            kwTab.appendChild(px1Elem);
+            kwTab.appendChild(m1Elem);
+            buildM1(m1Elem, px1, m1, kwp);
+        }
+    );
+}
+
+function buildM1(m1Tab, px1, m1, kwp) {
+    trc(1, "buildM1: px1=" + px1);
+
+    let fst = true;
+
+    Object.keys(m1).forEach(
+        function(px2) {
+            const m2 = m1[px2];
+
+            const px2Elem = newElem("span", "", "value1");
+            m1Tab.appendChild(px2Elem);
+            if (px1 === px2) {
+                buildM2small(px2Elem, px2, m2, kwp);
+            } else {
+                if (fst) {
+                    fst = false;
+                } else {
+                    px2Elem.appendChild(newText(", "));
+                }
+                buildM2large(px2Elem, px2, m2, kwp);
+            }
+        }
+    );
+}
+
+function buildM2large(m2Tab, px2, m2, kwp) {
+    trc(1, "buildM2large: px2=" + px2);
+
+    const px2A = newElem("a", px2Id(px2), {}, "key2");
+    const px2T = newText(px2 + "...");
+    px2A.appendChild(px2T);
+    px2A.addEventListener("click",
+                          function(e) {
+                              trc(1, "KW2 open kwlist: px2=" + px2);
+                              setStyle(px2Id(px2), "display", "none");
+                              setStyle(px2Px(px2), "display", "inline");
+                          }
+                         );
+    m2Tab.appendChild(px2A);
+
+    const px2Elem = newElem("span", { display : "inline" }, "value1");
+    buildM2small(px2Elem, px2, m2, kwp, "none");
+    m2Tab.appendChild(px2Elem);
+}
+
+function px2Id(px) { return "id2-" + px; }
+function px2Px(px) { return "px2-" + px; }
+
+function buildM2small(m2Tab, px2, m2, kwp, disp) {
+    trc(1, "buildM2small: px2=" + px2);
+    disp = disp || "inline";
+    const m2Span = newElem("span", px2Px(px2), { display : disp || "inline" }, "value2");
+    m2Tab.appendChild(m2Span);
+
+    let fst = true;
+    Object.keys(m2).forEach(
+        function(w) {
+            const l3 = m2[w];
+            l3.forEach(
+                function(kw) {
+                    const kwc = kwp[kw];
+
+                    if (fst) {
+                        fst = false;
+                    } else {
+                        m2Span.appendChild(newText(", "));
+                    }
+                    buildKWlink(m2Span, kw, kwc);
+                }
+            );
+        }
+    );
+
+}
+
+function buildKWlink(elem, kw, kwc) {
+    trc(1, "buildKWlink: kw=" + kw + ", col=" + kwc);
+    const kwElem = newElem("a", {}, "keyword");
+    const kyElem = newText(kw);
+    kwElem.appendChild(kyElem);
+    kwElem.addEventListener("click",
+                            function(e) {
+                                trc(1, "KWlink: goto " + kwc);
+                                Keywords.toggle()
+                                showNextSlide(mkColReq(kwc));
+                            });
+    elem.appendChild(kwElem);
+}
+
 function buildKeywords(cont) {
     trc(1, "buildKeywords");
 
-    function build(kwt) {
-        const kwm = getElem(Keywords.tab);
-        clearCont(kwm);
+    function build(k) {
+        const kwix = k[0];
+        const kwp  = k[1];
 
+        const kwTab = getElem(Keywords.tab);
+        clearCont(kwTab);
+
+        buildKW1(kwTab, kwix, kwp);
+        /*
         let fstC  = " ";
         let elemPx;
         let elemKws;
@@ -2743,10 +2852,11 @@ function buildKeywords(cont) {
             });
             elemKws.appendChild(kw);
         });
+        */
 
         cont();
     }
-    getKeywordsFromServer(build);
+    getKeywordIndexFromServer(build);
 }
 
 function buildInfo() {
@@ -3274,9 +3384,9 @@ const fadeout1 = fade(1, 0, "ease-in");
 const fadein   = fade(0, 1);
 const fadeout  = fade(1, 0);
 
-const fadein8  = fade(0, 0.7);       // show an overlay with opacity 0.8
-const fadeout8 = fade(0.7, 0);
-const noAnim8  = fade(0.7, 0.7);
+const fadein8  = fade(0, 0.8);       // show an overlay with opacity 0.8
+const fadeout8 = fade(0.8, 0);
+const noAnim8  = fade(0.8, 0.8);
 
 const noAnim   = fade(1, 1);         // a simple delay: do nothing for a while
 
