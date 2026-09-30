@@ -348,6 +348,10 @@ div.value {
   text-align: left;
 }
 
+span.value2 {
+  color: #fc6;
+}
+
 span.rating {
   color : red;
   font-weight: bold;

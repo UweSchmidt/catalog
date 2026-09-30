@@ -156,8 +156,48 @@ keywordIndex = do
   kc <- allKeywordColsM (const True)
   return (buildIx kc, kc)
   where
-    buildIx = buildPxMap2 sLimit . buildPxMap (T.take 1) . splitKeywords . M.keysSet
-    sLimit  = 7
+    buildIx = buildPxMap2 maxSmall . buildPxMap takePx1 . splitKeywords . M.keysSet
+
+keyword2indexWords :: Text -> [Text]
+keyword2indexWords = filterIW . splitKW
+  where
+    splitKW = T.words . T.map mapDel
+      where
+        mapDel :: Char -> Char
+        mapDel c
+          | c `elem` indexWordDelimiters = ' '
+          | otherwise                    = c
+
+    filterIW :: [Text] -> [Text]
+    filterIW iws@(_ : _ : _) = filter delRed iws
+    filterIW iws         = iws
+
+    delRed :: Text -> Bool
+    delRed w
+      | T.length w <= 1 = False
+      | w `S.member` stopWords = False
+      | otherwise = True
+
+stopWords :: Set Text
+stopWords = S.fromList $
+            [ "am", "an", "and", "auf"
+            , "de", "der", "die", "das"
+            , "im", "in"
+            , "la", "le"
+            , "mit"
+            ]
+
+takePx1 :: Text -> Text
+takePx1 = T.toUpper . T.take 1   -- case insensitive 1. level prefix
+
+takePx2 :: Text -> Text
+takePx2 =  T.take 2
+
+maxSmall :: Int
+maxSmall = 7
+
+indexWordDelimiters :: String
+indexWordDelimiters = "-&'"
 
 buildPxMap :: (Text -> Prefix) -> Map Text a -> Map Prefix (Map Text a)
 buildPxMap toPx ixm =
@@ -188,30 +228,15 @@ refinePxKeys sLimit =
 
 buildPxMap2 :: Int -> Map Prefix (Map Text a) -> Map Prefix (Map Prefix (Map Text a))
 buildPxMap2 sLimit =
-  refinePxKeys sLimit . M.mapWithKey (refinePxMap2 sLimit (T.take 2))
-
-splitKeyword :: Text -> Map Text Keywords
-splitKeyword kw =
-  foldMap (\i -> M.singleton i (S.singleton kw)) ixws
-  where
-    mapDel :: Char -> Char
-    mapDel c
-      | c `elem` del = ' '
-      | otherwise    = c
-      where
-        del :: String
-        del = "&-'"
-
-    ixws :: [Text]
-    ixws =
-      filter (\t -> T.compareLength t 1 == GT)
-      . T.words
-      . T.map mapDel
-      $ kw
+  refinePxKeys sLimit . M.mapWithKey (refinePxMap2 sLimit takePx2)
 
 splitKeywords :: Keywords -> Map Text Keywords
 splitKeywords =
   S.foldr (\kw acc -> M.unionWith S.union acc (splitKeyword kw)) M.empty
+  where
+    splitKeyword kw =
+      foldMap (\i -> M.singleton i (S.singleton kw)) $ keyword2indexWords kw
+
 
 lengthCommonPx :: Text -> Text -> Int
 lengthCommonPx xs ys = countEq 0 $ T.zip xs ys
