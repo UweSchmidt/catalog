@@ -182,7 +182,7 @@ import qualified Data.Sequence          as Seq
 import qualified Data.Set               as S
 import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
-import qualified Data.Text.IO           as T
+import qualified Data.Text.IO.Utf8      as T
 import qualified Data.Text.Lazy         as LT
 import qualified Data.Text.Lazy.Builder as LT
 
