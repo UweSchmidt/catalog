@@ -2733,16 +2733,12 @@ function buildM1(m1Tab, px1, m1, kwp) {
 
             const px2Elem = newElem("span", "", "value1");
             m1Tab.appendChild(px2Elem);
-            if (px1 === px2) {
-                buildM2small(px2Elem, px2, m2, kwp);
+            if (fst) {
+                fst = false;
             } else {
-                if (fst) {
-                    fst = false;
-                } else {
-                    px2Elem.appendChild(newText(", "));
-                }
-                buildM2large(px2Elem, px2, m2, kwp);
+                px2Elem.appendChild(newText(", "));
             }
+            buildM2large(px2Elem, px2, m2, kwp);
         }
     );
 }
