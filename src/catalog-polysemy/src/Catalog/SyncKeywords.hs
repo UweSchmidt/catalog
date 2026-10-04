@@ -182,6 +182,7 @@ stopWords :: Set Text
 stopWords = S.fromList $
             [ "am", "an", "and", "auf"
             , "de", "der", "die", "das"
+            , "el"
             , "im", "in"
             , "la", "le"
             , "mit"
@@ -192,6 +193,9 @@ takePx1 = T.toUpper . T.take 1   -- case insensitive 1. level prefix
 
 takePx2 :: Text -> Text
 takePx2 =  T.take 2
+
+-- takePx3 :: Text -> Text
+-- takePx3 = T.take 3
 
 maxSmall :: Int
 maxSmall = 7
@@ -205,7 +209,7 @@ buildPxMap toPx ixm =
   where
     add w kws acc = M.insertWith M.union (toPx w) (M.singleton w kws) acc
 
-refinePxMap2 :: Int -> (Text -> Prefix) -> Text -> Map Text a -> Map Prefix (Map Text a)
+refinePxMap2 :: Int -> (Prefix -> Prefix) -> Prefix -> Map Text a -> Map Prefix (Map Text a)
 refinePxMap2 sLimit toPx2 px1 ixm1
   | isSmall ixm1 = M.singleton px1 ixm1
   | otherwise    = M.foldrWithKey add M.empty ixm1

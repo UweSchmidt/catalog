@@ -2713,7 +2713,7 @@ function buildKW1(kwTab, kwix, kwp) {
             const m1 = kwix[px1];
 
             const px1Elem = newElem("div", "", "key");
-            px1Elem.appendChild(newText(px1 + "..."));
+            px1Elem.appendChild(newText(px1));
             const m1Elem = newElem("div", "", "value");
             kwTab.appendChild(px1Elem);
             kwTab.appendChild(m1Elem);
@@ -2725,12 +2725,11 @@ function buildKW1(kwTab, kwix, kwp) {
 function buildM1(m1Tab, px1, m1, kwp) {
     trc(1, "buildM1: px1=" + px1);
 
+    let keys = Object.keys(m1);
     let fst = true;
-
-    Object.keys(m1).forEach(
+    keys.forEach(
         function(px2) {
             const m2 = m1[px2];
-
             const px2Elem = newElem("span", "", "value1");
             m1Tab.appendChild(px2Elem);
             if (fst) {
@@ -2746,21 +2745,29 @@ function buildM1(m1Tab, px1, m1, kwp) {
 function buildM2large(m2Tab, px2, m2, kwp) {
     trc(1, "buildM2large: px2=" + px2);
 
-    const px2A = newElem("a", px2Id(px2), {}, "key2");
-    const px2T = newText(px2 + "...");
-    px2A.appendChild(px2T);
-    px2A.addEventListener("click",
-                          function(e) {
-                              trc(1, "KW2 open kwlist: px2=" + px2);
-                              setStyle(px2Id(px2), "display", "none");
-                              setStyle(px2Px(px2), "display", "inline");
-                          }
-                         );
-    m2Tab.appendChild(px2A);
+    const keys2 = Object.keys(m2);
 
-    const px2Elem = newElem("span", { display : "inline" }, "value1");
-    buildM2small(px2Elem, px2, m2, kwp, "none");
-    m2Tab.appendChild(px2Elem);
+    if ( keys2.length === 1 && keys2[0] === px2 ) {
+        const px2Elem = newElem("span", { display : "inline" }, "value1");
+        buildM2small(px2Elem, px2, m2, kwp);
+        m2Tab.appendChild(px2Elem);
+    } else {
+        const px2A = newElem("a", px2Id(px2), {}, "key2");
+        const px2T = newText(px2 + "...");
+        px2A.appendChild(px2T);
+        px2A.addEventListener("click",
+                              function(e) {
+                                  trc(1, "KW2 open kwlist: px2=" + px2);
+                                  setStyle(px2Id(px2), "display", "none");
+                                  setStyle(px2Px(px2), "display", "inline");
+                              }
+                             );
+        m2Tab.appendChild(px2A);
+
+        const px2Elem = newElem("span", { display : "inline" }, "value1");
+        buildM2small(px2Elem, px2, m2, kwp, "none");
+        m2Tab.appendChild(px2Elem);
+    }
 }
 
 function px2Id(px) { return "id2-" + px; }
