@@ -156,7 +156,7 @@ keywordIndex = do
   kc <- allKeywordColsM (const True)
   return (buildIx kc, kc)
   where
-    buildIx = buildPxMap2 maxSmall . buildPxMap takePx1 . splitKeywords . M.keysSet
+    buildIx = buildPxMap2 . buildPxMap takePx1 . splitKeywords . M.keysSet
 
 keyword2indexWords :: Text -> [Text]
 keyword2indexWords = filterIW . splitKW
@@ -191,8 +191,8 @@ stopWords = S.fromList $
 takePx1 :: Text -> Text
 takePx1 = T.toUpper . T.take 1   -- case insensitive 1. level prefix
 
-takePx2 :: Text -> Text
-takePx2 =  T.take 2
+-- takePx2 :: Text -> Text
+-- takePx2 =  T.take 2
 
 -- takePx3 :: Text -> Text
 -- takePx3 = T.take 3
@@ -209,30 +209,44 @@ buildPxMap toPx ixm =
   where
     add w kws acc = M.insertWith M.union (toPx w) (M.singleton w kws) acc
 
-refinePxMap2 :: Int -> (Prefix -> Prefix) -> Prefix -> Map Text a -> Map Prefix (Map Text a)
-refinePxMap2 sLimit toPx2 px1 ixm1
-  | isSmall ixm1 = M.singleton px1 ixm1
-  | otherwise    = M.foldrWithKey add M.empty ixm1
+refinePxMapRec :: Prefix -> Map Text a -> Map Prefix (Map Text a)
+refinePxMapRec px ixm
+  | M.size ixm <= maxSmall = M.singleton px ixm
+  | otherwise              = refRec res1
+  where
+    toPx = T.take (T.length px + 1)
+
+    refRec          = M.foldrWithKey ref M.empty
+    ref px' kws acc = M.union (refinePxMapRec px' kws) acc
+
+    res1            = M.foldrWithKey add M.empty ixm
+    add w kws acc   = M.insertWith M.union (toPx w) imx1 acc
+      where
+        imx1 = M.singleton w kws
+
+{-
+refinePxMap2 :: (Prefix -> Prefix) -> Prefix -> Map Text a -> Map Prefix (Map Text a)
+refinePxMap2 toPx2 px1 ixm1
+  | M.size ixm1 <= maxSmall = M.singleton px1 ixm1
+  | otherwise               = M.foldrWithKey add M.empty ixm1
   where
     add w kws acc = M.insertWith M.union (toPx2 w) (M.singleton w kws) acc
-
-    isSmall m = M.size m <= sLimit
-
-refinePxKeys :: Int -> Map Prefix (Map Prefix (Map Text a)) -> Map Prefix (Map Prefix (Map Text a))
-refinePxKeys sLimit =
+-}
+refinePxKeys :: Map Prefix (Map Prefix (Map Text a)) -> Map Prefix (Map Prefix (Map Text a))
+refinePxKeys =
   M.map (M.foldrWithKey comPx M.empty)
   where
     comPx :: Prefix -> Map Text a -> Map Prefix (Map Text a) -> Map Prefix (Map Text a)
     comPx w1 m1 acc = M.insert w1' m1 acc
       where
         px' = commonPx $ M.keys m1
-        w1' | M.size   m1  <= sLimit = w1
+        w1' | M.size m1  <= maxSmall = w1
             | T.length px' <= 2      = w1
             | otherwise              = px'
 
-buildPxMap2 :: Int -> Map Prefix (Map Text a) -> Map Prefix (Map Prefix (Map Text a))
-buildPxMap2 sLimit =
-  refinePxKeys sLimit . M.mapWithKey (refinePxMap2 sLimit takePx2)
+buildPxMap2 :: Map Prefix (Map Text a) -> Map Prefix (Map Prefix (Map Text a))
+buildPxMap2 =
+  refinePxKeys . M.mapWithKey refinePxMapRec
 
 splitKeywords :: Keywords -> Map Text Keywords
 splitKeywords =
