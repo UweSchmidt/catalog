@@ -191,12 +191,6 @@ stopWords = S.fromList $
 takePx1 :: Text -> Text
 takePx1 = T.toUpper . T.take 1   -- case insensitive 1. level prefix
 
--- takePx2 :: Text -> Text
--- takePx2 =  T.take 2
-
--- takePx3 :: Text -> Text
--- takePx3 = T.take 3
-
 maxSmall :: Int
 maxSmall = 7
 
@@ -224,14 +218,6 @@ refinePxMapRec px ixm
       where
         imx1 = M.singleton w kws
 
-{-
-refinePxMap2 :: (Prefix -> Prefix) -> Prefix -> Map Text a -> Map Prefix (Map Text a)
-refinePxMap2 toPx2 px1 ixm1
-  | M.size ixm1 <= maxSmall = M.singleton px1 ixm1
-  | otherwise               = M.foldrWithKey add M.empty ixm1
-  where
-    add w kws acc = M.insertWith M.union (toPx2 w) (M.singleton w kws) acc
--}
 refinePxKeys :: Map Prefix (Map Prefix (Map Text a)) -> Map Prefix (Map Prefix (Map Text a))
 refinePxKeys =
   M.map (M.foldrWithKey comPx M.empty)
@@ -245,8 +231,7 @@ refinePxKeys =
             | otherwise              = px'
 
 buildPxMap2 :: Map Prefix (Map Text a) -> Map Prefix (Map Prefix (Map Text a))
-buildPxMap2 =
-  refinePxKeys . M.mapWithKey refinePxMapRec
+buildPxMap2 = refinePxKeys . M.mapWithKey refinePxMapRec
 
 splitKeywords :: Keywords -> Map Text Keywords
 splitKeywords =
@@ -254,7 +239,6 @@ splitKeywords =
   where
     splitKeyword kw =
       foldMap (\i -> M.singleton i (S.singleton kw)) $ keyword2indexWords kw
-
 
 lengthCommonPx :: Text -> Text -> Int
 lengthCommonPx xs ys = countEq 0 $ T.zip xs ys
