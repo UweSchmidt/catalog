@@ -181,7 +181,7 @@ keyword2indexWords = filterIW . splitKW
 stopWords :: Set Text
 stopWords = S.fromList $
             [ "am", "an", "and", "auf"
-            , "de", "der", "die", "das"
+            , "da", "de", "der", "die", "das"
             , "el"
             , "im", "in"
             , "la", "le"
@@ -226,8 +226,9 @@ refinePxKeys =
     comPx w1 m1 acc = M.insert w1' m1 acc
       where
         px' = commonPx $ M.keys m1
+        l1  = T.length w1
         w1' | M.size m1  <= maxSmall = w1
-            | T.length px' <= 2      = w1
+            | T.length px' <= l1     = w1
             | otherwise              = px'
 
 buildPxMap2 :: Map Prefix (Map Text a) -> Map Prefix (Map Prefix (Map Text a))
