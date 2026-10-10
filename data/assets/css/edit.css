@@ -484,3 +484,36 @@ table.metadata-table th {
   color: #bbb;
   opacity:1
 }
+
+#keywordIndexModalBody {
+  grid-column-gap: 1em;
+  grid-template-columns: 2em auto;
+
+  display: grid;
+}
+
+div.key {
+  color: black;
+  font-weight: bold;
+  /* border: 1px solid yellow; */
+  padding: 0.1em;
+  text-align: right;
+}
+
+a.key2 {
+  color: #00a;
+  font-weight: bold;
+  /* border: 1px solid yellow; */
+  padding: 0.1em;
+  text-align: right;
+}
+
+div.value {
+  /* border: 1px solid yellow; */
+  padding: 0.1em;
+  text-align: left;
+}
+
+span.value2 {
+  color: #700;
+}

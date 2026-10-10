@@ -5,6 +5,131 @@
 var openCollections = {};
 
 // ----------------------------------------
+
+function trc (t, Text) {
+    if ( t > 0 ) {
+        console.log(Text);
+    }
+}
+
+/* ---------------------------------------- */
+//
+// basic DOM functions
+
+function newText(txt) {
+    return document.createTextNode(txt);
+}
+
+function newElem0(tag) {
+    return document.createElement(tag);
+}
+
+function getElem(id) {
+    const e = document.getElementById(id);
+    if (! e) {
+        trc(1, "getElem: warning: no elem found for " + id);
+    }
+    return e;
+}
+
+function clearCont(e) {
+    if (typeof e === "string") {
+        const e1 = getElem(e);
+        if (e1 != null) {
+            clearCont(e1);
+        }
+        return e1;
+    } else {
+        e.innerHTML = '';
+        trc(1, "clearCont:" + JSON.stringify(e));
+        return e;
+    }
+}
+
+function setCSS(e, attrs, val) {
+    if (typeof e === "string") {  // e is an id
+        setCSS(getElem(e), attrs, val);
+    }
+    else if (typeof attrs == "string"
+             &&
+             typeof val === "string"
+            ) {
+        e.style[attrs] = val;
+    }
+    else if (typeof e === "object"
+             &&
+             typeof attrs === "object"
+            ) {
+        for (let a in attrs) {    // e is an element
+            e.style[a] = "" + attrs[a];
+        }
+        return e;
+    }
+    else {
+        throw ("setCSS: illegal arg types: (" +
+               typeof e + "," +
+               typeof attrs + "," +
+               typeof val + ")");
+    }
+}
+
+function newElem(tag, x2, x3, x4) {
+    let id = "";
+    if (typeof x2 === "string") {  // elem id found
+        id = x2;
+        x2 = x3;
+        x3 = x4;
+    }
+    let css = {};
+    if (typeof x2 === "object") {  // style obj found
+        css = x2;
+        x2  = x3;
+    }
+    let cls = "";
+    if (typeof x2 === "string") {  // css class found
+        cls = x2;
+    }
+
+    const e = newElem0(tag);
+    setCSS(e, css);                // set style
+    if (id) {
+        e.id = id;                 // set id
+    }
+    if (cls) {
+        const clss = cls.split(" ");
+        for (let i = 0; i < clss.length; i++ ) {
+            const c = clss[i];
+            if (c) {
+                e.classList.add(c);
+            }
+        }
+    }
+    return e;
+}
+
+function setContents(id, cont) {
+    document.getElementById(id).innerHTML = cont;
+}
+
+function setAttr(id, attr, val) {
+    document.getElementById(id)[attr] = val;
+}
+
+function setStyles(id, attrs) {
+    const e = document.getElementById(id);
+    for (let a in attrs) {
+        e.style[a] = attrs[a];
+    }
+}
+
+function setStyle(id, attr, val) {
+    document.getElementById(id).style[attr] = val;
+}
+
+function getStyle(id, attr) {
+    return document.getElementById(id).style[attr];
+}
+// ----------------------------------------
 //
 // version test on bootstrap 4.5.0
 
@@ -39,7 +164,7 @@ function diaStarSelector(j) {
 var maxImgEntries = 25;
 
 function setMaxImgEntries(x) {
-    console.log("setMaxImgEntries: " + x);
+    trc(1, "setMaxImgEntries: " + x);
     maxImgEntries = x;
 }
 
@@ -69,9 +194,9 @@ function addHistList(hl) {
 }
 
 function addHistCmd(cname, modifyCmd) {
-    console.log("addHistCmd " + cname);
+    trc(1, "addHistCmd " + cname);
     getHistIdFromServer(cname, function (hid) {
-        console.log("addHistCmd: " + hid + ": " + cname);
+        trc(1, "addHistCmd: " + hid + ": " + cname);
 
         // continuation style is necessary to
         // synchronize server calls
@@ -82,17 +207,17 @@ function addHistCmd(cname, modifyCmd) {
 }
 
 function resetHistTo(hid) {
-    console.log("resetHistTo " + hid);
+    trc(1, "resetHistTo " + hid);
 
     resetHistInServer(hid, function () {
-        console.log("reset history in server until id: " + hid);
+        trc(1, "reset history in server until id: " + hid);
         statusMsg("discard all changes up to " + hid);
         checkAllColAreThere(true, true);
     });
 }
 
 function addHistToMenue(hd) {
-    console.log("addHistToMenue " + hd);
+    trc(1, "addHistToMenue " + hd);
     var hid = hd[0];
     var hnm = hd[1];
 
@@ -100,14 +225,14 @@ function addHistToMenue(hd) {
     var he = '<a class="dropdown-item" id="' + undoId + '">'
         + hid + ': ' + hnm
         + '</a>';
-    console.log(he);
+    trc(1, he);
 
     // add item to history menue
     $('#undoHistoryList')
         .prepend(he);
 
     // install handler for new history menue entry
-    console.log('install handler at: #' + undoId);
+    trc(1, 'install handler at: #' + undoId);
     $('#' + undoId)
         .on('click',
             function () {
@@ -167,28 +292,28 @@ function searchSaveCmd(hl) {
 
 // remove a collection
 function remCol(path) {
-    console.log('remCol: ' + path);
+    trc(1, 'remCol: ' + path);
     openCollections[path] = undefined;
 }
 
 // insert a  collection
 function insCol(path, col) {
-    console.log('insCol: ' + path);
-    console.log(col);
+    trc(1, 'insCol: ' + path);
+    trc(1, col);
     openCollections[path] = col;
 }
 
 // update a collection and
 // return whether col has changed
 function updCol(path, col) {
-    console.log('updCol: ' + path);
+    trc(1, 'updCol: ' + path);
     var unchanged = eqCol(openCollections[path], col);
     if ( unchanged ) {
-        console.log('nothing has changed');
+        trc(1, 'nothing has changed');
     } else {
-        console.log('something has changed');
-        console.log(openCollections[path]);
-        console.log(col);
+        trc(1, 'something has changed');
+        trc(1, openCollections[path]);
+        trc(1, col);
         openCollections[path] = col;
     }
     return ! unchanged;
@@ -238,7 +363,7 @@ function diaButton(e) {
     res.path   = collectionPath(res.cid);
     res.rating = getRatingVal(res.dia);
     // res.name = getDiaName(res.dia);
-    console.log(res);
+    trc(1, res);
     return res;
 }
 
@@ -267,8 +392,8 @@ function setDiaColRef(dia, path) {
 }
 
 function setDiaColAccess(dia, wr) {
-    console.log('setDiaColAccess', wr);
-    // console.log(dia);
+    trc(1, 'setDiaColAccess', wr);
+    // trc(1, dia);
     if (wr) {
         $(dia)
             .find('span.img-col-writeprotected')
@@ -284,18 +409,18 @@ function getDiaColWriteProtected(dia) {
     var res = $(dia)
             .find('span.img-col-writeprotected')
             .hasClass(hiddenclass);
-    console.log('getdiaColWriteAccess', res);
+    trc(1, 'getdiaColWriteAccess', res);
     return res;
 }
 
 // --------------------
 
 function setDiaRating(dia, rating) {
-    console.log("setDiaRating: " + rating);
-    console.log(dia);
+    trc(1, "setDiaRating: " + rating);
+    trc(1, dia);
     var stars = $(dia).find('div.dia-stars');
     stars.attr('data-rating', rating);
-    console.log(stars);
+    trc(1, stars);
     var j = 0;
     for (j = 0; j <= 5; ++j) {
         var cls = j <= rating ? "dia-marked" : "dia-unmarked";
@@ -308,7 +433,7 @@ function setDiaRating(dia, rating) {
 }
 
 function setRatingInCollection(cid, i, rating) {
-    console.log("setRating: " + cid + ", " + i + ", " + rating);
+    trc(1, "setRating: " + cid + ", " + i + ", " + rating);
     var dia = getDia(cid, i);
     setDiaRating(dia, rating);
 }
@@ -335,7 +460,7 @@ function setRatingsInCollection(cid, ixs, rating) {
 
 function getDia(cid, i) {
     var sel = '#' + cid + " > div.dia:nth-child(" + (i + 1) + ")";
-    console.log("getDia: sel: " + sel);
+    trc(1, "getDia: sel: " + sel);
     return $(sel);
 }
 
@@ -377,7 +502,7 @@ function getDiaColRef(dia) {
     var res = $(dia)
             .find('span.col-part a')
             .attr('href');
-    console.log('getDiaColRef: ', res);
+    trc(1, 'getDiaColRef: ', res);
     return res;
 }
 
@@ -479,10 +604,10 @@ function diaBtnBlog(e) {
 function toggleSlideMark(e) {
     e.preventDefault();
     statusClear();
-    // console.log("mark image was clicked");
-    // console.log(e);
-    // console.log(e.shiftKey);
-    // console.log(e.target);
+    // trc(1, "mark image was clicked");
+    // trc(1, e);
+    // trc(1, e.shiftKey);
+    // trc(1, e.target);
 
     var dia      = $(e.target).closest("div.dia");
     var unmarked = dia.hasClass('unmarked');
@@ -496,12 +621,12 @@ function toggleSlideMark(e) {
 function toggleLeft(dia, unmarked) {
     var dno = getDiaNo(dia);
     var uml  = dia.hasClass('unmarked');
-    // console.log('toggleLeft', dno, uml);
+    // trc(1, 'toggleLeft', dno, uml);
 
     if (unmarked === uml) {
         if (dno > 0) {
             var prev = dia.prev('div.dia');
-            // console.log(prev);
+            // trc(1, prev);
             toggleLeft(prev, unmarked);
         }
         toggleMark(dia);
@@ -525,8 +650,8 @@ function clearEntryMark(dia) {
 }
 
 function toggleOrSetMark(dia, fct) {
-    console.log("toggleDiaMark: dia");
-    console.log(dia);
+    trc(1, "toggleDiaMark: dia");
+    trc(1, dia);
 
     if ( dia.hasClass("unmarked") ) {
         if (fct === 'toggle' || fct === 'set') {
@@ -535,7 +660,7 @@ function toggleOrSetMark(dia, fct) {
             clearCurMark(dia);
 
             var mx = getMarkedNo(getMarked()).length + 1;
-            // console.log(mx);
+            // trc(1, mx);
             setMarkCount(dia, '' + mx);
 
             // set mark and curmark
@@ -549,7 +674,7 @@ function toggleOrSetMark(dia, fct) {
             var markNo = dia.find("div.dia-mark")
                     .contents()
                     .get(0).textContent;
-            // console.log("unmark dia " + markNo);
+            // trc(1, "unmark dia " + markNo);
 
             // was marked, remove mark, and move curmark to last marked
             dia.removeClass("marked").addClass("unmarked");
@@ -566,10 +691,10 @@ function toggleOrSetMark(dia, fct) {
 
 function clearCurMark(dia) {
     var tabContent = $(dia).parent();
-    // console.log('clearCurMark');
-    // console.log(tabContent);
+    // trc(1, 'clearCurMark');
+    // trc(1, tabContent);
     var img = tabContent.find("img.curmarked");
-    // console.log(img);
+    // trc(1, img);
     $(img).removeClass("curmarked");
     return dia;
 }
@@ -580,19 +705,19 @@ function removeMarkCount(dia) {
 }
 
 function renumberMarkCount(pos) {
-    // console.log('renumberMarkCount ' + pos);
+    // trc(1, 'renumberMarkCount ' + pos);
     var col = getMarked();
     var nos = getMarkedNo(col);
     col.each(function (i, e) {
-        // console.log("renumber");
-        // console.log(i);
-        // console.log(e);
+        // trc(1, "renumber");
+        // trc(1, i);
+        // trc(1, e);
         var ecol = $(e);
         var mno = ecol.find("div.dia-mark")
                 .contents()
                 .get(0).textContent;
         var no  = parseInt(mno);
-        // console.log(no);
+        // trc(1, no);
         if (no > pos) {
             setMarkCount(ecol, '' + (no - 1));
         }
@@ -600,9 +725,9 @@ function renumberMarkCount(pos) {
 }
 
 function setMarkCount(dia, m) {
-    // console.log('setMarkCount');
-    // console.log(dia);
-    // console.log(m);
+    // trc(1, 'setMarkCount');
+    // trc(1, dia);
+    // trc(1, m);
     dia.find("div.dia-mark").empty().append(m);
 }
 
@@ -612,14 +737,14 @@ function markThisAsCur(dia) {
 
 function markLastAsCur() {
     var col = getMarked();
-    // console.log(col);
+    // trc(1, col);
     var nos = getMarkedNo(col);
-    // console.log(nos);
+    // trc(1, nos);
     var i = maxVal(nos);
-    // console.log("marklastascur: " + i);
+    // trc(1, "marklastascur: " + i);
     if ( i >= 0 ) {
         var sel = "div.dia-mark:contains(" + i + ")";
-        // console.log(sel);
+        // trc(1, sel);
         col.find(sel)
             .closest("div.dia")
             .find("img.dia-src")
@@ -682,7 +807,7 @@ function allCollectionIds() {
         var id1 = $(e).attr('id');
         colIds.push(id1);
     });
-    console.log(colIds);
+    trc(1, colIds);
     return colIds;
 }
 
@@ -692,28 +817,28 @@ function collectionPath(cid) {
 
 function collectionIsWriteProtected(cid) {
     var res = $('#' + cid).hasClass('no-write');
-    console.log('collectionIsWriteProtected');
-    console.log(res);
+    trc(1, 'collectionIsWriteProtected');
+    trc(1, res);
     return res;
 }
 
 function collectionIsSortProtected(cid) {
     var res = $('#' + cid).hasClass('no-sort');
-    console.log('collectionIsSortProtected');
-    console.log(res);
+    trc(1, 'collectionIsSortProtected');
+    trc(1, res);
     return res;
 }
 
 function collectionIsFix(path) {
-    console.log('collectionIsFix');
-    console.log(path);
+    trc(1, 'collectionIsFix');
+    trc(1, path);
     return path === pathClipboard()
         || path === pathCollections();
 }
 
 function collectionIsGenerated(path) {
-    console.log('collectionIsGenerated');
-    console.log(path);
+    trc(1, 'collectionIsGenerated');
+    trc(1, path);
     return collectionIsFix(path)
         || isPathPrefix(pathPhotos(), path)
         || isPathPrefix(pathTimeline(), path)
@@ -740,7 +865,7 @@ function allCollectionPaths() {
             var path1 = $(e).attr('data-path');
             colPaths.push(path1);
         });
-    console.log(colPaths);
+    trc(1, colPaths);
     return colPaths;
 }
 
@@ -769,16 +894,16 @@ var contChain = () => {};
 
 function showNewCollectionCont(cont) {
     return (path, colVal) => {
-        console.log("showNewCollectionCont " + path);
+        trc(1, "showNewCollectionCont " + path);
 
         // init contChain
         contChain = () => {
-            console.log("contChain finished");
+            trc(1, "contChain finished");
 
             // reset contChain to noop
             contChain = () => {};
 
-            console.log("contChain call global continuation");
+            trc(1, "contChain call global continuation");
             cont();
         };
 
@@ -795,7 +920,7 @@ function showNewCollectionCont(cont) {
 
 function showNewCollectionC(path, colVal) {
     return (cont) => {
-        console.log("showNewCollectionC " + path);
+        trc(1, "showNewCollectionC " + path);
 
         // insert into global state
         insCol(path, colVal);
@@ -803,9 +928,9 @@ function showNewCollectionC(path, colVal) {
         // compute colId and colName from path
         var o  = splitPath(path);
         var md = colVal.metadata;
-        console.log(o);
-        console.log(colVal);
-        console.log(md);
+        trc(1, o);
+        trc(1, colVal);
+        trc(1, md);
 
         var io = isAlreadyOpen(path);
 
@@ -813,8 +938,8 @@ function showNewCollectionC(path, colVal) {
             // nothing to do, collection is already there
             // but we need the id attr value
             o.colId = io[1];
-            console.log("collection already open");
-            console.log(o.colId);
+            trc(1, "collection already open");
+            trc(1, o.colId);
 
             // switch to the collection
             // it's already loaded
@@ -824,7 +949,7 @@ function showNewCollectionC(path, colVal) {
             // create the tab
 
             o.colId   = path2id(o.path);
-            console.log(o);
+            trc(1, o);
 
             // no-write collection ?
             var ro = isWriteProtectedCollection(md);
@@ -881,7 +1006,7 @@ function showNewCollectionC(path, colVal) {
             // fill the collection
             insertEntriesC(o.colId, colVal.entries)(
                 () => {
-                    console.log("showNewCollectionC finished: " + path);
+                    trc(1, "showNewCollectionC finished: " + path);
                     cont();
                 }
             );
@@ -920,9 +1045,9 @@ function setActiveTab(colId) {
 function insertEntriesC(colId, entries) {
 
     function initCol() {
-        console.log('insertEntriesC');
-        console.log(colId);
-        console.log(entries);
+        trc(1, 'insertEntriesC');
+        trc(1, colId);
+        trc(1, entries);
 
         var col1 = $('#' + colId);
         col1.empty();
@@ -969,8 +1094,8 @@ function insertEntryC(colId, colPath, entry, i) {
 function setColAccessC(entry, p, ref) {
     return (cont) => {
         if ( entry.ColEntry === "COL" ) {
-            console.log("setColAccessC for " + ref.path);
-            // console.log(p);
+            trc(1, "setColAccessC for " + ref.path);
+            // trc(1, p);
             getIsWriteableFromServer(ref.path,
                                      (ro) => {
                                          setDiaColAccess(p, ro);
@@ -986,7 +1111,7 @@ function setDiaRatingC(colId, colPath, i) {
     return (cont) => {
         getRatingFromServer(colPath, i,
                             (rating) => {
-                                console.log(`setDiaRatingC: (${colPath}, ${i}) = ${rating}`);
+                                trc(1, `setDiaRatingC: (${colPath}, ${i}) = ${rating}`);
                                 setRatingInCollection(colId, i, rating);
                                 cont();
                             }
@@ -995,7 +1120,7 @@ function setDiaRatingC(colId, colPath, i) {
 }
 
 function addColHandlers(col, path, colId) {
-    console.log("addColHandlers: " + col);
+    trc(1, "addColHandlers: " + col);
     // set handler for showing edit buttons
     col.find('div.dia')
         .hover(function () {
@@ -1011,8 +1136,8 @@ function addColHandlers(col, path, colId) {
     // install handler at rating stars
     col.find('div.dia div.dia-stars a.star')
         .on('click', function (e) {
-            console.log('rating button');
-            console.log(e.target); // target is glyphicon-star span elem
+            trc(1, 'rating button');
+            trc(1, e.target); // target is glyphicon-star span elem
             var o = diaButton(e);
             var s = $(e.target)
                     .closest('a.star')
@@ -1077,7 +1202,7 @@ function addColHandlers(col, path, colId) {
         .each(function (i, e) {
             var cname = getDiaName(e);
             var cpath = path + "/" + cname;
-            console.log('hide lock button ', cpath);
+            trc(1, 'hide lock button ', cpath);
             if (collectionIsGenerated(cpath)) {
                 $(e).find('button.dia-btn-writeprotected')
                 .addClass(hiddenclass);
@@ -1129,8 +1254,8 @@ function addColHandlers(col, path, colId) {
 }
 
 function insertEntry(colId, colPath, entry, i, ref) {
-    console.log("insertEntry: colId=" + colId);
-    console.log(entry);
+    trc(1, "insertEntry: colId=" + colId);
+    trc(1, entry);
     var p = $("#prototype-dia").children("div").clone();
 
     setDiaNo(p, i);
@@ -1203,12 +1328,12 @@ function insertEntry(colId, colPath, entry, i, ref) {
                 e.preventDefault();
 
                 const path = ref.path;
-                console.log("collection open ref: " + path);
+                trc(1, "collection open ref: " + path);
 
                 // check keyword CollectionRef for "SymLink" to album collection
                 function k1(md) {
                     const p = md["Descr:CollectionRef"] || path;
-                    console.log("fff: open " + p);
+                    trc(1, "fff: open " + p);
                     openCollection(p);
                 }
 
@@ -1221,7 +1346,7 @@ function insertEntry(colId, colPath, entry, i, ref) {
     // url for entry icon with new url scheme
     var newIconRef = iconRef(iconSize(), colPath, entry, i);
 
-    console.log("new iconRef: " + newIconRef);
+    trc(1, "new iconRef: " + newIconRef);
     p.find("img.dia-src")
         .attr('src', newIconRef);
 
@@ -1246,7 +1371,7 @@ function insertEntry(colId, colPath, entry, i, ref) {
 // ----------------------------------------
 
 function checkAndRefreshCol(path, refresh, force) {
-    console.log('colIsThere: ' + path);
+    trc(1, 'colIsThere: ' + path);
     getIsColFromServer(path,
                        function (isThere) {
                            if (! isThere) {
@@ -1279,7 +1404,7 @@ function keywordActiveCollection(mx) {
     var path  = collectionPath(cid);
     const mxi = mx || maxImgEntries;
 
-    console.log("keywordActiveCollection: " + path + ", max: " + mxi);
+    trc(1, "keywordActiveCollection: " + path + ", max: " + mxi);
 
     if ( ! isPathPrefix(pathKeywords(), path) ) {
         statusError('collection to be updated must be a subcollection of '
@@ -1308,7 +1433,7 @@ function newKeywordCollections() {
 
 function updateKeywordsCol(mx) {
     const mxi = mx || maxImgEntries;
-    console.log("updateKeywordsCol: " + mx);
+    trc(1, "updateKeywordsCol: " + mx);
     statusMsg('create new and update existing keyword collections');
     addHistCmd("update all keywords",
                function () {
@@ -1332,7 +1457,7 @@ function syncActiveCollection(sync) {
 }
 
 function syncCollectionWithFilesystem(sync, path) {
-    console.log("syncCollectionWithFilesystem: " + path);
+    trc(1, "syncCollectionWithFilesystem: " + path);
 
     if ( ! isPathPrefix(pathPhotos(), path) ) {
         statusError('collection to be synchronized must be a subcollection of '
@@ -1348,7 +1473,7 @@ function syncCollectionWithFilesystem(sync, path) {
                                  function(log) {
                                      statusMsg('synchronizing collections on server side done');
                                      // TODO: show log file in modal box
-                                     console.log(log);
+                                     trc(1, log);
                                      checkAllColAreThere(true, false);
                                  });
                });
@@ -1361,7 +1486,7 @@ function exifActiveCollection() {
 }
 
 function exifCollectionWithFilesystem(path) {
-    console.log("exifCollectionWithFilesystem: " + path);
+    trc(1, "exifCollectionWithFilesystem: " + path);
 
     if ( ! isPathPrefix(pathPhotos(), path) ) {
         statusError('collection to be updated with exif must be a subcollection of '
@@ -1376,13 +1501,13 @@ function exifCollectionWithFilesystem(path) {
                    modifyServer('syncExif', path, [true, true],
                                 function(log) {
                                     statusMsg('recomputing exif data done');
-                                    console.log(log);
+                                    trc(1, log);
                                 });
                });
 }
 
 function checkArchiveConsistency() {
-    console.log("checkArchiveConsistency");
+    trc(1, "checkArchiveConsistency");
     statusMsg('checking/repairing archive consistency');
     addHistCmd("check catalog",
                function () {
@@ -1390,7 +1515,7 @@ function checkArchiveConsistency() {
                                  function(log) {
                                      statusMsg('checking archive on server side done');
                                      // TODO
-                                     console.log(log);
+                                     trc(1, log);
                                  });
                });
 }
@@ -1417,25 +1542,25 @@ function refreshCollectionF(path, colVal) {
 
 function refreshCollection2(path, colVal, force) {
     var o = splitPath(path);
-    console.log('refreshCollection: path = ' + path + ', force = ' + force);
-    console.log(o);
-    console.log(colVal);
+    trc(1, 'refreshCollection: path = ' + path + ', force = ' + force);
+    trc(1, o);
+    trc(1, colVal);
 
     // only if the collection content has changed
     // update the entries
     var changed = updCol(path, colVal);
-    // console.log('refreshCollection: changed = ' + changed);
+    // trc(1, 'refreshCollection: changed = ' + changed);
 
     if ( changed || force ) {
         var io = isAlreadyOpen(path);
-        // console.log('refreshCollection: already open = ' + io[0]);
+        // trc(1, 'refreshCollection: already open = ' + io[0]);
 
         // check whether collection is already there
         if ( io[0]) {
             o.colId = io[1];
             insertEntriesC(o.colId, colVal.entries)(
                 () => {
-                    console.log("refreshCollection2 finished: " + path);
+                    trc(1, "refreshCollection2 finished: " + path);
                 }
             );
         }
@@ -1474,7 +1599,7 @@ userErrorHandler = statusError;
 
 // clear errors and messages
 function statusClear() {
-    console.log('statusClear');
+    trc(1, 'statusClear');
     $('#status-container')
         .removeClass('status-err-bg');
     statusMsg('&nbsp;');
@@ -1497,7 +1622,7 @@ function normWord(t) {
     // filter legal chars: whitespace, digits, unicode letters and some punctations
     let legalChars = /(\s|\d|\w|\p{L}|[-_.:&+'])+/gu;
     let t1 = t.match(legalChars).join("");
-    // console.log(t1);
+    // trc(1, t1);
 
     // normalize whitespace
     let t2 = t1
@@ -1505,7 +1630,7 @@ function normWord(t) {
         .filter((w) => w.length > 0)
         .join(" ");
 
-    console.log("normWord(" + t + ") = " + t2);
+    trc(1, "normWord(" + t + ") = " + t2);
     return t2;
 }
 
@@ -1549,7 +1674,7 @@ function normKeywords(t) {
         .map((x) => normKW(normWord(x)))
         .filter((w) => w.length > 0)
         .join(", ");
-    console.log("normKeywords(" + t + ") = " + kws);
+    trc(1, "normKeywords(" + t + ") = " + kws);
     return kws;
 }
 
@@ -1566,9 +1691,9 @@ function path2id(path) {
     // this is not a save encoding: path2id("/.") === path2id("/_")
 
     var res = 'col-' + path.replace(/[^-_a-zA-Z0-9]/g,"_");
-    console.log('path2id');
-    console.log(path);
-    console.log(res);
+    trc(1, 'path2id');
+    trc(1, path);
+    trc(1, res);
 
     return res;
 }
@@ -1581,14 +1706,14 @@ function splitPath(p) {
 
     var a = p.path.split("/");
     p.name    = a.pop();
-    // console.log(a);
+    // trc(1, a);
     p.cpath   = a.join("/");
     // a.shift();
-    // console.log(a);
+    // trc(1, a);
     p.topname = a.shift(); // get the name of the top dir
-    // console.log(a);
+    // trc(1, a);
     a.unshift("");
-    // console.log(a);
+    // trc(1, a);
     p.cpath1  = a.join("/"); // remove the topdir
 
     // p.ext is used in various places, p.bname is (currently) redundant
@@ -1644,16 +1769,16 @@ function allAncestorCollections(p) {
 }
 
 function addToList(xs, ys) {
-    // console.log("addToList:");
-    // console.log(xs);
-    // console.log(ys);
+    // trc(1, "addToList:");
+    // trc(1, xs);
+    // trc(1, ys);
     for (var i = 0; i < ys.length; ++ i) {
         var y = ys[i];
         if ( ! xs.includes(y) ) {
             xs.push(y);
         }
     }
-    // console.log(xs);
+    // trc(1, xs);
     return xs;
 }
 
@@ -1676,14 +1801,14 @@ function getSearchPath() {
         if ( k == "path"  ) { globalCollectionPath = v; }
         if ( k == "picno" ) { globalPicNo = parseInt(v); }
     }
-    console.log("getSearchPath: p=" + globalCollectionPath);
+    trc(1, "getSearchPath: p=" + globalCollectionPath);
 }
 
 // ----------------------------------------
 
 function remColEntryMeta(n) {
-    console.log("remColEntryMeta: cleanup collections");
-    console.log(n);
+    trc(1, "remColEntryMeta: cleanup collections");
+    trc(1, n);
     if ( n.ImgNode === "COL" ) {
         let es = n.entries;
         for(var i = 0; i < es.length; i++) {
@@ -1691,7 +1816,7 @@ function remColEntryMeta(n) {
 
             // if ce is an array ([colEntry, metaadata]) remove metadata
             if ( ce[0] ) {
-                console.log("remColEntryMeta: remove meta from entry: " + i);
+                trc(1, "remColEntryMeta: remove meta from entry: " + i);
                 es[i] = ce[0];
             }
         }
@@ -1712,7 +1837,7 @@ function openColC(p) {
     return (cont) => {
         getColFromServer(p,
                          (path, colVal) => {
-                             console.log("openColC: got collection  from server: " + path);
+                             trc(1, "openColC: got collection  from server: " + path);
                              showNewCollectionC(path, colVal)(cont);
                          }
                         );
@@ -1736,7 +1861,7 @@ function openColsC(ps) {
 }
 
 function markGlobalDia() {
-    console.log("markGlobalDia: picno=" + globalPicNo);
+    trc(1, "markGlobalDia: picno=" + globalPicNo);
     if ( globalPicNo >= 0 ) {
         markCurrDia(globalPicNo);
     }
@@ -1744,7 +1869,7 @@ function markGlobalDia() {
 
 function markCurrDia(i) {
     var cid = activeCollectionId();
-    console.log("markCurrDia: cid=" + cid + ", picno=" + i);
+    trc(1, "markCurrDia: cid=" + cid + ", picno=" + i);
     toggleDiaMark(cid, i);
 }
 
@@ -1762,14 +1887,14 @@ function openCollection(path) {
     statusClear();
     openColC(path)(
         () => {
-            console.log("openCollection finished: " + path);
+            trc(1, "openCollection finished: " + path);
         });
 }
 
 function openAncestorCollections(p) {
     statusClear();
     openColsC(allAncestorCollections(p))(
-        () => { console.log("openAncatorCollections finished: " + p); }
+        () => { trc(1, "openAncatorCollections finished: " + p); }
     );
 }
 
@@ -1821,7 +1946,7 @@ function eachADia(pred, fct) {
 }
 
 function eachDia(cid, pred, fct) {
-    console.log('eachDia: ' + cid);
+    trc(1, 'eachDia: ' + cid);
     $('#' + cid + ' > div.dia')
         .each(function (i, e) {
             if ( pred($(e)) ) {
@@ -1851,12 +1976,12 @@ function geInt(i) {
 }
 
 function testDia(dia) {
-    console.log(dia.find('img.dia-src').attr('title'));
+    trc(1, dia.find('img.dia-src').attr('title'));
 }
 
 function markAll(cid) {
     statusClear();
-    console.log('mark all images in ' + cid);
+    trc(1, 'mark all images in ' + cid);
 
     $('#' + cid + ' > div.unmarked')
         .each(function (i, e) {
@@ -1866,7 +1991,7 @@ function markAll(cid) {
 
 function unmarkAll(cid) {
     // statusClear();
-    console.log('unmark all images in ' + cid);
+    trc(1, 'unmark all images in ' + cid);
 
     var col = $('#' + cid);
 
@@ -1885,7 +2010,7 @@ function unmarkAll(cid) {
 }
 
 function getMarkedEntries(cid) {
-    console.log('getMarkedEntries');
+    trc(1, 'getMarkedEntries');
     var ixs = [];
     $('#' + cid + ' > div.dia > div.dia-top > div.dia-mark')
         .each(function(i, e) {
@@ -1895,12 +2020,12 @@ function getMarkedEntries(cid) {
             if ( v ) {
                 c = parseInt(v.textContent);
             }
-            // console.log(v);
-            // console.log(c);
+            // trc(1, v);
+            // trc(1, c);
             ixs.push(c);
 
         });
-    console.log(ixs);
+    trc(1, ixs);
     return ixs;
 }
 
@@ -1919,8 +2044,8 @@ function getLastMarkedEntry(cid) {
             .find("img.curmarked")
             .closest('div.dia')
             .get(0);
-    console.log('getLastmarkedEntry');
-    console.log(res);
+    trc(1, 'getLastmarkedEntry');
+    trc(1, res);
     return res;
 }
 
@@ -1929,27 +2054,27 @@ function getColNames(cid) {
             .contents()
             .get()
             .map(function (x) {return x.textContent;});
-    console.log('getColNames');
-    console.log(cnames);
+    trc(1, 'getColNames');
+    trc(1, cnames);
     return cnames;
 }
 
 function getMarkedCollections(cid) {
-    console.log('getMarkedCollections: ' + cid);
+    trc(1, 'getMarkedCollections: ' + cid);
     var paths =[];
     $('#' + cid + ' div.dia.colmark.marked div.dia-img img')
         .each(function(i,e) {
             var t = $(e).attr('title');
             t = t.replace(/collection: /, '');
-            console.log(t);
+            trc(1, t);
             paths.push(t);
         });
-    console.log(paths);
+    trc(1, paths);
     return paths;
 }
 
 function getOpenMarkedCollections(cid) {
-    console.log("getOpenMarkedCollections: " + cid);
+    trc(1, "getOpenMarkedCollections: " + cid);
     var mcs = getMarkedCollections(cid);
     var ocs = allCollectionPaths();
     var res = [];
@@ -1960,13 +2085,13 @@ function getOpenMarkedCollections(cid) {
             }
         });
     });
-    console.log('getOpenMarkedCollections');
-    console.log(res);
+    trc(1, 'getOpenMarkedCollections');
+    trc(1, res);
     return res;
 }
 
 function getOpenMarkedSubCollections(cid) {
-    console.log("getOpenMarkedSubCollections: " + cid);
+    trc(1, "getOpenMarkedSubCollections: " + cid);
     var mcs = getMarkedCollections(cid);
     var ocs = allCollectionPaths();
     var res = [];
@@ -1977,8 +2102,8 @@ function getOpenMarkedSubCollections(cid) {
             }
         });
     });
-    console.log('getOpenMarkedSubCollections');
-    console.log(res);
+    trc(1, 'getOpenMarkedSubCollections');
+    trc(1, res);
     return res;
 }
 
@@ -2021,9 +2146,9 @@ function removeMarkedFromCollection(cid) {
     }
 
     var ixs   = getMarkedEntries(cid);
-    console.log('removeMarkedFromCollection');
-    console.log(ixs);
-    console.log(cpath);
+    trc(1, 'removeMarkedFromCollection');
+    trc(1, ixs);
+    trc(1, cpath);
 
     // remove on server and refresh collection
     removeFromColOnServer(cpath, ixs);
@@ -2032,25 +2157,25 @@ function removeMarkedFromCollection(cid) {
 // ----------------------------------------
 
 function moveAllFromClipboard(cid) {
-    console.log('moveAllFromClipboard' + cid);
+    trc(1, 'moveAllFromClipboard' + cid);
     markAll(idClipboard());
     moveMarkedFromClipboard(cid);
 }
 
 function copyAllFromClipboard(cid) {
-    console.log('copyAllFromClipboard' + cid);
+    trc(1, 'copyAllFromClipboard' + cid);
     markAll(idClipboard());
     copyMarkedFromClipboard(cid);
 }
 
 function moveAllToClipboard(cid) {
-    console.log('moveAllToClipboard' + cid);
+    trc(1, 'moveAllToClipboard' + cid);
     markAll(cid);
     moveMarkedToClipboard(cid);
 }
 
 function copyAllToClipboard(cid) {
-    console.log('copyAllToClipboard' + cid);
+    trc(1, 'copyAllToClipboard' + cid);
     markAll(cid);
     copyMarkedToClipboard(cid);
 }
@@ -2060,10 +2185,10 @@ function moveMarkedFromClipboard(cid) {
     var ixs = getMarkedEntries(idClipboard());
     var dpath = collectionPath(cid);
     var cpath = pathClipboard();
-    console.log('moveMarkedFromClipboard');
-    console.log(ixs);
-    console.log(cpath);
-    console.log(dpath);
+    trc(1, 'moveMarkedFromClipboard');
+    trc(1, ixs);
+    trc(1, cpath);
+    trc(1, dpath);
 
     // do the work on server and refresh both collections
     moveToColOnServer(cpath, dpath, ixs);
@@ -2074,10 +2199,10 @@ function copyMarkedFromClipboard(cid) {
     var ixs = getMarkedEntries(idClipboard());
     var dpath = collectionPath(cid);
     var cpath = pathClipboard();
-    console.log('copyMarkedFromClipboard');
-    console.log(ixs);
-    console.log(cpath);
-    console.log(dpath);
+    trc(1, 'copyMarkedFromClipboard');
+    trc(1, ixs);
+    trc(1, cpath);
+    trc(1, dpath);
 
     // do the work on server and refresh both collections
     copyToColOnServer(cpath, dpath, ixs);
@@ -2090,10 +2215,10 @@ function moveMarkedToClipboard(cid) {
     var ixs   = getMarkedEntries(cid);
     var cpath = collectionPath(cid);
     var dpath = pathClipboard();
-    console.log('moveMarkedToClipboard');
-    console.log(ixs);
-    console.log(cpath);
-    console.log(dpath);
+    trc(1, 'moveMarkedToClipboard');
+    trc(1, ixs);
+    trc(1, cpath);
+    trc(1, dpath);
 
     // do the work on server and refresh both collections
     moveToColOnServer(cpath, dpath, ixs);
@@ -2104,10 +2229,10 @@ function copyMarkedToClipboard(cid) {
     var ixs   = getMarkedEntries(cid);
     var cpath = collectionPath(cid);
     var dpath = pathClipboard();
-    console.log('copyMarkedToClipboard');
-    console.log(ixs);
-    console.log(cpath);
-    console.log(dpath);
+    trc(1, 'copyMarkedToClipboard');
+    trc(1, ixs);
+    trc(1, cpath);
+    trc(1, dpath);
 
     // do the work on server and refresh both collections
     copyToColOnServer(cpath, dpath, ixs);
@@ -2116,7 +2241,7 @@ function copyMarkedToClipboard(cid) {
 // ----------------------------------------
 
 function sortCollection(cid) {
-    console.log('sortCollection: ' + cid);
+    trc(1, 'sortCollection: ' + cid);
 
     if (! checkSortable(cid)) {
         return;
@@ -2129,14 +2254,14 @@ function sortCollection(cid) {
     }
 
     var path = collectionPath(cid);
-    console.log(path);
+    trc(1, path);
 
     sortColOnServer(path, ixs);
 }
 
 
 function sortCollByDate(cid) {
-    console.log('sortCollByDate: ' + cid);
+    trc(1, 'sortCollByDate: ' + cid);
 
     if (! checkSortable(cid)) {
         return;
@@ -2148,14 +2273,14 @@ function sortCollByDate(cid) {
     }
 
     var path = collectionPath(cid);
-    console.log(path);
+    trc(1, path);
 
     sortColByDateOnServer(path, ixs);
 }
 
 function checkSortable(cid) {
     var sr = collectionIsSortProtected(cid);
-    console.log(sr);
+    trc(1, sr);
     if ( sr ) {
         var path = collectionPath(cid);
         statusError('not sortable, the collection is sort protected: ' + path);
@@ -2172,8 +2297,8 @@ function getEntryPos(img) {
             .get(0)
             .textContent;
     pos = parseInt(pos) -1;
-    console.log('getEntryPos');
-    console.log(pos);
+    trc(1, 'getEntryPos');
+    trc(1, pos);
     return pos;
 }
 
@@ -2182,13 +2307,13 @@ function getRatingVal(img) {
             .find('div.dia-stars')
             .attr('data-rating');
     r = parseInt(r) || 0;
-    console.log('getRatingVal: ' + r);
+    trc(1, 'getRatingVal: ' + r);
     return r;
 }
 
 function setCollectionImg(cid) {
     statusClear();
-    console.log("setCollectionImg: " + cid);
+    trc(1, "setCollectionImg: " + cid);
     var path  = collectionPath(cid);
     var o     = splitPath(path);
 
@@ -2208,11 +2333,11 @@ function setCollectionImg(cid) {
     }
     if ( $(simg).hasClass('imgmark') ) {
         var pos = getDiaNo(simg);
-        console.log('setCollectionImg:');
-        console.log(pos);
-        console.log(path);
-        console.log(spath);
-        console.log(o);
+        trc(1, 'setCollectionImg:');
+        trc(1, pos);
+        trc(1, path);
+        trc(1, spath);
+        trc(1, o);
 
         if ( $(simg).hasClass('data-jpg') ) {
             // it's a .jpg image or a .mp4 movie
@@ -2263,10 +2388,10 @@ function createCollection() {
     var cnames = getColNames(cid);
     var ix = cnames.indexOf(name);
 
-    console.log('createCollection');
-    console.log(cpath);
-    console.log(name);
-    console.log(cnames);
+    trc(1, 'createCollection');
+    trc(1, cpath);
+    trc(1, name);
+    trc(1, cnames);
 
     if (name.length === 0) {
         statusError("no collection name given");
@@ -2289,18 +2414,18 @@ function writeProtectedCollection() {
     var opcs  = getOpenMarkedCollections(cid);
     var dia   = getLastMarkedEntry(cid);
     var ro    = getDiaColWriteProtected(dia);
-    console.log('writeProtectedCollection');
-    console.log(cid);
-    console.log(ixs);
-    console.log(opcs);
-    console.log(ro);
+    trc(1, 'writeProtectedCollection');
+    trc(1, cid);
+    trc(1, ixs);
+    trc(1, opcs);
+    trc(1, ro);
 
     changeWriteProtectedOnServer(cpath, ixs, ro, opcs);
 }
 
 function markWriteProtected(opcs, ro) {
-    console.log('markWriteProtected', ro);
-    console.log(opcs);
+    trc(1, 'markWriteProtected', ro);
+    trc(1, opcs);
 
     opcs.forEach(function (e, i) {
         var cid = collectionId(e);
@@ -2363,13 +2488,13 @@ function renameCollection() {
     var img   = getLastMarkedEntry(cid);
     var iname = getDiaName(img);
     var path  = cpath + "/" + iname;
-    console.log('renameCollection');
-    console.log(path);
+    trc(1, 'renameCollection');
+    trc(1, path);
 
     var newname  = $('#RenameCollectionName').val();
     newname = normName(newname);
 
-    console.log(newname);
+    trc(1, newname);
 
     if (newname.length === 0) {
         statusError("no collection name given");
@@ -2379,8 +2504,8 @@ function renameCollection() {
     var cnames = getColNames(cid);
     var ix = cnames.indexOf(newname);
 
-    console.log(cnames);
-    console.log(ix);
+    trc(1, cnames);
+    trc(1, ix);
 
     if ( ix >= 0 ) {
         statusError("collection name already exists: " + newname);
@@ -2444,7 +2569,7 @@ function mdKid(k) {
 }
 
 function copyMetaData() {
-    console.log('copyMetaData');
+    trc(1, 'copyMetaData');
 
     metaDataClipboard = readMetaDataBox();
 
@@ -2452,7 +2577,7 @@ function copyMetaData() {
 }
 
 function pasteMetaData() {
-    console.log('pasteMetaData');
+    trc(1, 'pasteMetaData');
 
     // read dialog box
     var md = readMetaDataBox();
@@ -2485,8 +2610,8 @@ function readMetaDataBox() {
         }
     });
 
-    console.log('readMetaDataBox');
-    console.log(md);
+    trc(1, 'readMetaDataBox');
+    trc(1, md);
 
     return md;
 }
@@ -2494,8 +2619,8 @@ function readMetaDataBox() {
 // write attr values into dialog box
 
 function writeMetaDataBox(md) {
-    console.log('writeMetaDataBox');
-    console.log(md);
+    trc(1, 'writeMetaDataBox');
+    trc(1, md);
 
     metaDataKeys.forEach(function(e) {
         var v = md[mdKey(e)] || "";
@@ -2505,7 +2630,7 @@ function writeMetaDataBox(md) {
 
 
 function clearMetaDataBox() {
-    console.log('clearMetaDataBox');
+    trc(1, 'clearMetaDataBox');
 
     writeMetaDataBox({});
 }
@@ -2540,9 +2665,9 @@ function setMetaData() {
 
     var ixs = getMarkedEntries(cid);
 
-    console.log('setMetaData');
-    console.log(metadata);
-    console.log(ixs);
+    trc(1, 'setMetaData');
+    trc(1, metadata);
+    trc(1, ixs);
 
     setMetaOnServer(cpath,ixs,metadata);
 }
@@ -2556,8 +2681,8 @@ function setRating(rating) {
         statusMsg('no marked images/collections found');
         return;
     }
-    console.log('setRating: ' + rating);
-    console.log(ixs);
+    trc(1, 'setRating: ' + rating);
+    trc(1, ixs);
 
     setRatingsOnServer(cid, cpath, ixs, rating);
 }
@@ -2613,9 +2738,9 @@ function fillMetaData() {
 }
 
 function fillMetaData1(md, args) {
-    console.log('fillMetaData1');
-    console.log(md);
-    console.log(args);
+    trc(1, 'fillMetaData1');
+    trc(1, md);
+    trc(1, args);
 
     // insert fields into metadata edit form
     writeMetaDataBox(md);
@@ -2628,7 +2753,7 @@ function fillMetaData1(md, args) {
 // else the real getMetaData is performed
 
 function getMetaData0() {
-    console.log("getMetaData0");
+    trc(1, "getMetaData0");
 
     var cid  = activeCollectionId();
     var dia  = getLastMarkedEntry(cid);
@@ -2637,12 +2762,12 @@ function getMetaData0() {
         statusError('no marked image/collection found');
         return ;
     }
-    console.log("getMetaData0: click ShowMetaDataButton");
+    trc(1, "getMetaData0: click ShowMetaDataButton");
     $('#ShowMetaDataButton').click();
 }
 
 function getMetaData() {
-    console.log("getMetaData");
+    trc(1, "getMetaData");
 
     var o  = {};
     o.cid  = activeCollectionId();
@@ -2661,9 +2786,9 @@ function getMetaData() {
 }
 
 function showMetaData(md, args) {
-    console.log('showMetaData');
-    console.log(md);
-    console.log(args);
+    trc(1, 'showMetaData');
+    trc(1, md);
+    trc(1, args);
 
     $('#ShowMetaDataModalLabel')
         .empty()
@@ -2680,7 +2805,7 @@ function showMetaData(md, args) {
         if ( x < y ) { return -1; }
         return 0;
     });
-    console.log(kvs);
+    trc(1, kvs);
 
     var mdt = $('#ShowMetaDataTable').empty();
 
@@ -2699,7 +2824,7 @@ function imageCarousel() {
     args.cid  = activeCollectionId();
     args.path = collectionPath(args.cid);
 
-    console.log("imageCarousel: get collection from server:" + args.path);
+    trc(1, "imageCarousel: get collection from server:" + args.path);
     getColFromServer(args.path,
                      function (path, colVal) {
                          buildImgCarousel(args, colVal)
@@ -2709,9 +2834,9 @@ function imageCarousel() {
 function buildImgCarousel(args, colVal) {
     var md = colVal.metadata;
 
-    console.log("buildImgCarousel: " + args.path);
-    console.log(JSON.stringify(colVal));
-    console.log(md);
+    trc(1, "buildImgCarousel: " + args.path);
+    trc(1, JSON.stringify(colVal));
+    trc(1, md);
 
     if (colVal.entries.length == 0) {
         statusError("empty collection: " + args.path);
@@ -2747,8 +2872,8 @@ function buildImgCarousel(args, colVal) {
 
     // insert images
     colVal.entries.forEach(function (e, i) {
-        console.log("entry: " + i);
-        console.log(JSON.stringify(e));
+        trc(1, "entry: " + i);
+        trc(1, JSON.stringify(e));
 
         // append to the list of carousel indicators
         var item = $(cli).clone().attr("data-slide-to", i);
@@ -2773,8 +2898,8 @@ function buildImgCarousel(args, colVal) {
         var cls   = state ? "carousel-image-marked" : "carousel-image-unmarked";
 
         var rt    = getRatingVal(dia);
-        console.log('init rating for entry ' + i + ' to ' + rt);
-        console.log(JSON.stringify(cimg));
+        trc(1, 'init rating for entry ' + i + ' to ' + rt);
+        trc(1, JSON.stringify(cimg));
 
         // set the stars the image is rated with
         var j = 1;
@@ -2795,13 +2920,13 @@ function buildImgCarousel(args, colVal) {
             .on('click', function (e) {
                 var state = isMarkedDia(toggleDiaMark(args.cid, i));
                 var cls   = state ? "carousel-image-marked" : "carousel-image-unmarked";
-                console.log(e.target);
+                trc(1, e.target);
                 $(e.target)
                     .removeClass("carousel-image-marked")
                     .removeClass("carousel-image-unmarked")
                     .addClass(cls);
-                console.log(e.target);
-                console.log("toggle image mark: " + args.cid + " ." + i);
+                trc(1, e.target);
+                trc(1, "toggle image mark: " + args.cid + " ." + i);
             });
 
         // add handler for rating an image via carousel
@@ -2809,7 +2934,7 @@ function buildImgCarousel(args, colVal) {
             .on('click', function (e) {
                 // var state = isMarkedDia(toggleDiaMark(args.cid, i));
                 // var cls   = state ? "carousel-image-marked" : "carousel-image-unmarked";
-                console.log(e.target);
+                trc(1, e.target);
                 var bno = parseInt($(e.target).closest("a.star").attr("data-star"));
                 var bgp = $(e.target).closest("span.carousel-stars");
                 var b1m = bgp.find(diaStarSelector(1)).hasClass("carousel-image-marked");
@@ -2825,9 +2950,9 @@ function buildImgCarousel(args, colVal) {
                         .removeClass("carousel-image-unmarked")
                         .addClass(cls);
                 }
-                // console.log(e.target);
-                console.log("set rating: " + args.cid + " ." + i + "= " + bno);
-                console.log(args);
+                // trc(1, e.target);
+                trc(1, "set rating: " + args.cid + " ." + i + "= " + bno);
+                trc(1, args);
                 setRatingOnServer(args.cid, args.path, i, bno);
             });
 
@@ -2836,7 +2961,7 @@ function buildImgCarousel(args, colVal) {
 
         var iref = iconRef(previewGeo().img, args.path, e, i);
 
-        console.log("new iconref: " + iref);
+        trc(1, "new iconref: " + iref);
         cimg.find("div." + imgboxclass + " img")
             .attr('src', iref)
             .attr('alt', eref.name);
@@ -2853,11 +2978,11 @@ function buildImgCarousel(args, colVal) {
     $('#CarouselModal')
         .off('keypress')
         .on('keypress', function(e){
-            console.log('CarouselModal:');
-            console.log(e);
+            trc(1, 'CarouselModal:');
+            trc(1, e);
             var charCode = e.which || e.keyCode;
             if ( charCode == 109 ) {  // 'm': mark
-                console.log('keypress: toggle image mark');
+                trc(1, 'keypress: toggle image mark');
                 $('#CarouselModalBody div.carousel-inner div.item.active ' + carmarksel1).click();
             }
             else
@@ -2865,7 +2990,7 @@ function buildImgCarousel(args, colVal) {
                      ||
                      charCode == 62  // nice try: only with keyup or keydown event
                    ) { // 'n' or '>': next image
-                    console.log('keypress: next image');
+                    trc(1, 'keypress: next image');
                     $("#CarouselModalBody .carousel-control-next").click();    // bootstrap 4
                     $("#CarouselModalBody .carousel-control.right").click();   // bootstrap 3
                 }
@@ -2874,7 +2999,7 @@ function buildImgCarousel(args, colVal) {
                      ||
                      charCode == 60
                    ) { // 'p'or '<': prev image
-                    console.log('keypress: prev image');
+                    trc(1, 'keypress: prev image');
                     $("#CarouselModalBody .carousel-control-prev").click();   // bootstrap 4
                     $("#CarouselModalBody .carousel-control.left").click();   // bootstrap 3
                 }
@@ -2882,7 +3007,7 @@ function buildImgCarousel(args, colVal) {
                 if ( charCode >= 48 && charCode <= 53) { // '0'..'5' set rating
                     var rating = charCode - 48;
                     var sel = '[data-star="' + rating + '"]';
-                    console.log('keypress: set rating to ' + rating);
+                    trc(1, 'keypress: set rating to ' + rating);
                     $('#CarouselModalBody div.carousel-inner div.item.active ' + sel).click();
                 }
             return false;
@@ -2891,17 +3016,17 @@ function buildImgCarousel(args, colVal) {
     $('#CarouselModal')
         .off('keyup')
         .on('keyup', function(e){
-            console.log('CarouselModal:');
-            console.log(e);
+            trc(1, 'CarouselModal:');
+            trc(1, e);
             var charCode = e.keyCode;
             if ( charCode == 39
                ) { // right arrow
-                console.log('keypres: next image');
+                trc(1, 'keypres: next image');
                 $("#CarouselModalBody .carousel-control.right").click();
             }
             else if ( charCode == 37
                     ) { // left arrow
-                console.log('keypres: prev image');
+                trc(1, 'keypres: prev image');
                 $("#CarouselModalBody .carousel-control.left").click();
             }
             return false;
@@ -2992,9 +3117,9 @@ function previewImage() {
 
 function insertPreviewRef(ref, args) {
     // come from: previewImage and getPreviewRef
-    console.log('insertPreviewRef');
-    console.log(ref);
-    console.log(args);
+    trc(1, 'insertPreviewRef');
+    trc(1, ref);
+    trc(1, args);
 
     // make the div for images visible
     $('#PreviewModalImg').removeClass(hiddenclass);
@@ -3022,13 +3147,13 @@ function insertMovieRef(meta, args) {
     var g = fitGeo(movW, movH);
 
     // come from: previewImage and getMovieRef
-    console.log('insertMovieRef');
-    console.log(ref);
-    console.log(meta);
-    console.log(geo);
-    console.log(movW);
-    console.log(movH);
-    console.log(args);
+    trc(1, 'insertMovieRef');
+    trc(1, ref);
+    trc(1, meta);
+    trc(1, geo);
+    trc(1, movW);
+    trc(1, movH);
+    trc(1, args);
 
     // make the div for images visible
     $('#PreviewModalMovie')
@@ -3052,12 +3177,12 @@ function closePreviewModal() {
 }
 
 function insertBlogText(txt, args) {
-    console.log('insertBlogText');
-    console.log(txt);
-    console.log(args);
+    trc(1, 'insertBlogText');
+    trc(1, txt);
+    trc(1, args);
 
     if (txt === "") {
-        console.log('empty text');
+        trc(1, 'empty text');
         return;
     }
     // make the div for images visible
@@ -3068,6 +3193,150 @@ function insertBlogText(txt, args) {
         .append(txt);
 
     $('#PreviewModal').modal('show');
+}
+
+// ----------------------------------------
+
+var keywordId;
+
+function openKeywordIndex(kid) {
+    trc(1, "openKeywordIndex");
+    keywordId = kid;
+    getKeywordIndexFromServer(buildKeywordIndex);
+}
+
+function buildKeywordIndex(k) {
+    const kwix = k[0];
+    const kwp  = k[1];
+
+    const kwTab = getElem('keywordIndexModalBody');
+    clearCont(kwTab);
+
+    buildKW1(kwTab, kwix, kwp);
+
+    $('#keywordIndexModal').modal('show');
+}
+
+function buildKW1(kwTab, kwix, kwp) {
+    Object.keys(kwix).forEach(
+        function(px1) {
+            const m1 = kwix[px1];
+
+            const px1Elem = newElem("div", "", "key");
+            px1Elem.appendChild(newText(px1));
+            const m1Elem = newElem("div", "", "value");
+            kwTab.appendChild(px1Elem);
+            kwTab.appendChild(m1Elem);
+            buildM1(m1Elem, px1, m1, kwp);
+        }
+    );
+}
+
+function buildM1(m1Tab, px1, m1, kwp) {
+    trc(1, "buildM1: px1=" + px1);
+
+    let keys = Object.keys(m1);
+    let fst = true;
+    keys.forEach(
+        function(px2) {
+            const m2 = m1[px2];
+            const px2Elem = newElem("span", "", "value1");
+            m1Tab.appendChild(px2Elem);
+            if (fst) {
+                fst = false;
+            } else {
+                px2Elem.appendChild(newText(", "));
+            }
+            buildM2large(px2Elem, px2, m2, kwp);
+        }
+    );
+}
+
+function buildM2large(m2Tab, px2, m2, kwp) {
+    trc(1, "buildM2large: px2=" + px2);
+
+    const keys2 = Object.keys(m2);
+
+    if ( keys2.length === 1 && keys2[0] === px2 ) {
+        const px2Elem = newElem("span", { display : "inline" }, "value1");
+        buildM2small(px2Elem, px2, m2, kwp);
+        m2Tab.appendChild(px2Elem);
+    } else {
+        const px2A = newElem("a", px2Id(px2), {}, "key2");
+        const px2T = newText(px2 + "...");
+        px2A.appendChild(px2T);
+        px2A.addEventListener("click",
+                              function(e) {
+                                  trc(1, "KW2 open kwlist: px2=" + px2);
+                                  setStyle(px2Id(px2), "display", "none");
+                                  setStyle(px2Px(px2), "display", "inline");
+                              }
+                             );
+        m2Tab.appendChild(px2A);
+
+        const px2Elem = newElem("span", { display : "inline" }, "value1");
+        buildM2small(px2Elem, px2, m2, kwp, "none");
+        m2Tab.appendChild(px2Elem);
+    }
+}
+
+function px2Id(px) { return "id2-" + px; }
+function px2Px(px) { return "px2-" + px; }
+
+function buildM2small(m2Tab, px2, m2, kwp, disp) {
+    trc(1, "buildM2small: px2=" + px2);
+    disp = disp || "inline";
+    const m2Span = newElem("span", px2Px(px2), { display : disp || "inline" }, "value2");
+    m2Tab.appendChild(m2Span);
+
+    let fst = true;
+    Object.keys(m2).forEach(
+        function(w) {
+            const l3 = m2[w];
+            l3.forEach(
+                function(kw) {
+                    const kwc = kwp[kw];
+
+                    if (fst) {
+                        fst = false;
+                    } else {
+                        m2Span.appendChild(newText(", "));
+                    }
+                    buildKWlink(m2Span, kw, kwc);
+                }
+            );
+        }
+    );
+
+}
+
+function buildKWlink(elem, kw, kwc) {
+    trc(1, "buildKWlink: kw=" + kw + ", col=" + kwc);
+    const kwElem = newElem("a", {}, "keyword");
+    const kyElem = newText(kw);
+    kwElem.appendChild(kyElem);
+
+    kwElem.addEventListener("click",
+                            function(e) {
+                                trc(1, "KWlink: kw=" + kw + ", col=" + kwc);
+                                addKeyword(kw);
+                                // Keywords.toggle()
+                                // showNextSlide(mkColReq(kwc));
+                                });
+
+    elem.appendChild(kwElem);
+}
+
+function addKeyword(kw) {
+    trc(1, "addKeyword: kw=" + kw);
+
+    const md = readMetaDataBox();
+    const k  = mdKey(keywordId);
+    let   v  = md[k];
+    if ( v ) { v = v + ", "; } else { v = ""; }
+    v = v + kw;
+    md[k] = v;
+    writeMetaDataBox(md);
 }
 
 // ----------------------------------------
@@ -3106,8 +3375,8 @@ function blogEdit() {
         .empty()
         .append(hdl + args.path + "/" + args.iname);
 
-    console.log('blogEdit');
-    console.log(args);
+    trc(1, 'blogEdit');
+    trc(1, args);
 
     clearEntryMark($(args.img));
 
@@ -3118,8 +3387,8 @@ function blogEdit() {
 function insertBlogTextForEdit(res, args) {
     // come from: blogEdit
 
-    console.log('insertBlogTextForEdit');
-    console.log(res);
+    trc(1, 'insertBlogTextForEdit');
+    trc(1, res);
 
     $('#EditBlogContents')
         .empty()
@@ -3130,7 +3399,7 @@ function insertBlogTextForEdit(res, args) {
     $('#EditBlogOK')
         .off('click')
         .on('click', function () {
-            console.log("EditBlogOK clicked");
+            trc(1, "EditBlogOK clicked");
             $('#EditBlogModal').modal('hide');
             saveBlogText(args);
         });
@@ -3143,9 +3412,9 @@ function insertBlogTextForEdit(res, args) {
 function saveBlogText(args) {
     // come from: insertBlogTextForEdit
     var res = $('#EditBlogContents').val();
-    console.log('saveBlogText');
-    console.log(args);
-    console.log(res);
+    trc(1, 'saveBlogText');
+    trc(1, args);
+    trc(1, res);
 
     saveBlogTextFromEdit(args, res);
 }
@@ -3237,7 +3506,7 @@ function setMetaOnServer(path, ixs, metadata) {
 }
 
 function setRatingOnServer(cid, path, ix, rating) {
-    console.log('setRatingOnserver:' + path + ", " + ix + ", " + rating);
+    trc(1, 'setRatingOnserver:' + path + ", " + ix + ", " + rating);
     addHistCmd("set rating in " + splitName(path),
                function () {
                    modifyServer("setRating1", path, [ix, rating],
@@ -3248,7 +3517,7 @@ function setRatingOnServer(cid, path, ix, rating) {
 }
 
 function setRatingsOnServer(cid, path, ixs, rating) {
-    console.log('setRatingsOnserver:' + path + ", " + ixs + ", " + rating);
+    trc(1, 'setRatingsOnserver:' + path + ", " + ixs + ", " + rating);
     addHistCmd("set ratings in " + splitName(path),
                function () {
                    modifyServer1("setRating", path, [ixs, rating],
@@ -3259,30 +3528,30 @@ function setRatingsOnServer(cid, path, ixs, rating) {
 }
 
 function getHistIdFromServer(cname, processRes) {
-    console.log('getHistIdFromServer');
+    trc(1, 'getHistIdFromServer');
     modifyServer1("newUndoEntry", pathArchive(), cname,
                  function (hid) {
-                     console.log("getHistIdFromServer: hid=" + hid);
+                     trc(1, "getHistIdFromServer: hid=" + hid);
                      processRes(hid);
                  });
 }
 
 function resetHistInServer(hid, cont) {
-    console.log("resetHistInServer hid=" + hid);
+    trc(1, "resetHistInServer hid=" + hid);
     modifyServer("applyUndo", pathArchive(), hid, cont);
 }
 
 function dropHistAtInServer(hid) {
-    console.log("dropHistAtInServer id=" + hid);
+    trc(1, "dropHistAtInServer id=" + hid);
     modifyServer("dropUndoEntries", pathArchive(), hid, noop);
 }
 
 function getHistoryFromServer(cont) {
-    console.log("getHistFromServer");
+    trc(1, "getHistFromServer");
     modifyServer1("listUndoEntries", pathArchive(), [],
                   function (hs) {
-                      console.log("undo history");
-                      console.log(hs);
+                      trc(1, "undo history");
+                      trc(1, hs);
                       cont(hs);
                   });
 }
@@ -3358,7 +3627,7 @@ function getPreviewRef(args) {
 function getMovieRef(args) {
     var ref = args.path + "/pic-" + fmtIx(args.pos);
     args.pathpos = ref;
-    console.log("getMovieRef: " + ref);
+    trc(1, "getMovieRef: " + ref);
     readServer("mediaPath",
                ref,
                function (res) { insertMovieRef0(res, args); }
@@ -3367,7 +3636,7 @@ function getMovieRef(args) {
 
 function getMovieMeta(args) {
     var ref = args.path;
-    console.log("getMovieMeta: " + ref);
+    trc(1, "getMovieMeta: " + ref);
     readServer1("metadata",
                 args.path,
                 args.pos,
@@ -3412,7 +3681,7 @@ function saveImgStoreStart() {
 }
 
 function saveImgStore(text) {
-    console.log('saveImgStore: ' + text);
+    trc(1, 'saveImgStore: ' + text);
     addHistCmd("save catalog",
                function () {
                    modifyServer("snapshot",
@@ -3510,7 +3779,7 @@ $(document).ready(function () {
 
     $('#newCollectionOK')
         .on('click', function (e) {
-            console.log("newCollectionOK clicked");
+            trc(1, "newCollectionOK clicked");
             $('#newCollectionModal').modal('hide');
             createCollection();
         });
@@ -3529,7 +3798,7 @@ $(document).ready(function () {
 
     $('#RenameCollectionOK')
         .on('click', function (e) {
-            console.log("renameCollectionOK clicked");
+            trc(1, "renameCollectionOK clicked");
             $('#RenameCollectionModal').modal('hide');
             renameCollection();
         });
@@ -3559,26 +3828,26 @@ $(document).ready(function () {
 
     $('#MetaDataOK')
         .on('click', function (e) {
-            console.log("MetaDataOK clicked");
+            trc(1, "MetaDataOK clicked");
             $('#MetaDataModal').modal('hide');
             setMetaData();
         });
 
     $('#MetaDataClear')
         .on('click', function (e) {
-            console.log("MetaDataClear clicked");
+            trc(1, "MetaDataClear clicked");
             clearMetaDataBox();
         });
 
     $('#MetaDataCopy')
         .on('click', function (e) {
-            console.log("MetaDataCopy clicked");
+            trc(1, "MetaDataCopy clicked");
             copyMetaData();
         });
 
     $('#MetaDataPaste')
         .on('click', function (e) {
-            console.log("MetaDataPaste clicked");
+            trc(1, "MetaDataPaste clicked");
             pasteMetaData();
         });
 
@@ -3602,7 +3871,7 @@ $(document).ready(function () {
 
     $('#ShowMetaDataModal')
         .on('show.bs.modal', function () {
-            console.log("ShowMetaDataModal.click()");
+            trc(1, "ShowMetaDataModal.click()");
             statusClear();
             getMetaData();
         });
@@ -3647,7 +3916,7 @@ $(document).ready(function () {
     [0,1,2,3,4,5].forEach(function (e, i) {
         $('#Rating' + i)
             .on('click', function () {
-                console.log("set ratings to " + i);
+                trc(1, "set ratings to " + i);
                 setRating(i);
             });
     });
@@ -3655,7 +3924,7 @@ $(document).ready(function () {
 
     $('#saveImgStoreOK')
         .on('click', function (e) {
-            console.log("saveImgStoreOK clicked");
+            trc(1, "saveImgStoreOK clicked");
             $('#saveImgStoreModal').modal('hide');
             saveImgStoreStart();
         });
@@ -3725,6 +3994,16 @@ $(document).ready(function () {
 
     $('#PreviewModal')
         .on('hidden.bs.modal', closePreviewModal);
+
+    $('#descr-Keywords-addon1')
+        .on('click', function () {
+            openKeywordIndex('Keywords');
+        });
+
+    $('#descr-KeywordsCopy-addon1')
+        .on('click', function () {
+            openKeywordIndex('KeywordsCopy');
+        });
 
 });
 
@@ -3826,8 +4105,8 @@ function previewGeoXY(x, y) {
 function previewMovieGeo(w, h) {
     var o = previewGeo();
     var res = fitGeo(w, h, o.w, o.h);
-    console.log("previewMovieGeo");
-    console.log(res);
+    trc(1, "previewMovieGeo");
+    trc(1, res);
     return res;
 }
 

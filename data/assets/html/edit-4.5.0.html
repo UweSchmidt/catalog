@@ -1012,7 +1012,7 @@
          role="dialog"
          aria-hidden="true"
          aria-labelledby="MetaDataModalLabel">
-      <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-dialog modal-lg"  style="top: 5vh; left: 5vw; position: absolute;" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="MetaDataModalLabel">Set metadata for marked collections</h5>
@@ -1514,6 +1514,34 @@
                     class="btn btn-primary"
                     id="saveImgStoreOK"
                     >O.K.</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal box for keywordIndex -->
+    <div class="modal fade"
+         id="keywordIndexModal"
+         tabindex="-1"
+         role="dialog"
+         aria-labelledby="keywordIndexModalLabel">
+      <div class="modal-dialog modal-lg" style="top: 5vh; right: 5vw; position: absolute" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title"
+                id="keywordIndexModalLabel"
+                >Keyword Index</h4>
+            <button type="button"
+                    class="close"
+                    data-dismiss="modal"
+                    aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div id="keywordIndexModalBody">
+              all the keywords
+            </div>
           </div>
         </div>
       </div>
