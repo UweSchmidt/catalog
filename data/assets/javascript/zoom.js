@@ -1897,15 +1897,48 @@ function buildCollection(colReq, iconReq, colMeta, navIcons, c1Icon, colIcons, c
 
 // ----------------------------------------
 
+const History = {
+    requests : [],
+
+    // push a request onto history stack,
+    // if it refers to an album collection and isn't already on the top of the stack
+
+    push : (req) => {
+        const p = req.rPathPos[0];
+        if ( p.startsWith(pathAlbums()) && req.rPathPos[1] === null ) {
+            const p1 = History.requests.pop();
+            if ( p1 && p1 !== p ) {
+                History.requests.push(p1);
+            }
+            History.requests.push(p);
+        }
+    },
+
+    pop : () => {
+        let p = History.requests.pop() || pathAlbums();
+        const pp1 = cs.slideReq.rPathPos;
+
+        // collection is already the current page,
+        // throw it away and take previous collection
+        if ( p === pp1[0] && pp1[1] === null) {
+            p = History.requests.pop() || pathAlbums();
+        }
+
+        return { rType: "json",
+                 rPathPos: [p, null]
+               };
+    }
+};
+
 function showPath(path) {
     const rPathPos = pathToPathPos(path);
-    const jReq = { rType: "json", rPathPos: rPathPos};
-    const jUrl = jsonReqToUrl(jReq);
-    gotoUrl(jUrl);
+    const req = { rType: "json", rPathPos: rPathPos};
+    showNextSlide(req);
 }
 
 function showNextSlide(req) {
     if (! nullReq(req)) {
+        History.push(req);
         gotoUrl(jsonReqToUrl(req));
     }
 }
@@ -2013,6 +2046,11 @@ function goForward() {
 
 function gotoChild(i) {
     const req = getChildReq(cs, i);
+    showNextSlide(req);
+}
+
+function goBackInHistory() {
+    const req = History.pop();
     showNextSlide(req);
 }
 
@@ -2162,6 +2200,10 @@ const StepActions = {
         stopShow();
         goHome();
     },
+    back() {
+        stopShow();
+        goBackInHistory();
+    },
     kwHome() {
         stopShow();
         gotoKWHome();
@@ -2255,6 +2297,7 @@ const DownActions = {
     Period     : StepActions.down,     // presenter: right screen icon, keyCode: 110
 
     a          : StepActions.home,     // goto root albums collection
+    b          : StepActions.back,     // back in album history
     n          : StepActions.next,
     p          : StepActions.prev,
     u          : StepActions.parent,
