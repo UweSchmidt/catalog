@@ -3798,14 +3798,20 @@ function uniqueIconRef() {
 
 // ----------------------------------------
 //
-// one of 1600x1200, 1400x1050, 1280x800, 900x60
+// one of 2560x1440, 1920x1200, 1600x1200, 1400x1050, 1280x800, 900x60
 // else edit.css must be extended
 // .modal-preview, .modal-carousel, .img-box
 
 function previewGeo() {
     var g = window.screen;
-    if (g.width === 2560 && g.height === 1440) {
-        return previewGeoXY(1600, 1200);
+    if (g.width >= 3840 && g.height >= 2160) {
+        return previewGeoXY(2560, 1440);
+    }
+    if (g.width >= 2560 && g.height >= 1440) {
+        return previewGeoXY(1920, 1200);
+    }
+    if (g.width >= 1920 && g.height >= 1200) {
+        return previewGeoXY(1400, 1050);
     }
     return previewGeoXY(1280,800);
 }

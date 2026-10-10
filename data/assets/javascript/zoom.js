@@ -1186,13 +1186,13 @@ const serverSupportedGeos =
       [ // "160x120",
         // "160x160",
         "320x240",      // used for icons on all screens
-        "900x600",
+        // "900x600",
         "1280x800",
-        "1400x1050",
-        "1600x1200",
-        "1920x1200",
-        "2560x1440",
-        "3840x2160"    // 4k Eizo monitor
+        "1400x1050",    // Canon beamer
+        // "1600x1200",
+        "1920x1200",    // MacBook Pro 13"
+        "2560x1440",    // iMac 27"
+        "3840x2160"     // 4k Eizo monitor
       ];
 
 function bestFitToGeo (s) {
