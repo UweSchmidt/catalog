@@ -10,9 +10,9 @@ import Data.Prim.Prelude
 -- version number is updated automatically
 
 version :: Text
-version = "0.5.16.0"
+version = "0.5.16.1"
 
 date :: Text
-date = "2026-09-30"
+date = "2026-10-11"
 
 -- ----------------------------------------
