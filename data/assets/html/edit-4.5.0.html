@@ -1012,7 +1012,9 @@
          role="dialog"
          aria-hidden="true"
          aria-labelledby="MetaDataModalLabel">
-      <div class="modal-dialog modal-lg"  style="top: 5vh; left: 5vw; position: absolute;" role="document">
+      <div id="MetaDataModalDiv"
+           class="modal-dialog modal-lg"
+           role="document">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="MetaDataModalLabel">Set metadata for marked collections</h5>
@@ -1177,7 +1179,9 @@
               <span class="input-group-prepend"
                     id="descr-Keywords-addon1"
                     >
-                <span class="input-group-text metadata-key-bs450">Keywords</span>
+                <span class="input-group-text metadata-key-bs450"
+                      style="cursor: pointer;"
+                      >Keywords</span>
               </span>
               <input type="text"
                      id="descr-Keywords"
@@ -1189,7 +1193,9 @@
               <span class="input-group-prepend"
                     id="descr-KeywordsCopy-addon1"
                     >
-                <span class="input-group-text metadata-key-bs450">Keywords (copy)</span>
+                <span class="input-group-text metadata-key-bs450"
+                      style="cursor: pointer;"
+                      >Keywords (copy)</span>
               </span>
               <input type="text"
                      id="descr-KeywordsCopy"
@@ -1525,7 +1531,9 @@
          tabindex="-1"
          role="dialog"
          aria-labelledby="keywordIndexModalLabel">
-      <div class="modal-dialog modal-lg" style="top: 5vh; right: 5vw; position: absolute" role="document">
+      <div id="keywordIndexModalDiv"
+           class="modal-dialog modal-lg"
+           role="document">
         <div class="modal-content">
           <div class="modal-header">
             <h4 class="modal-title"
