@@ -38,7 +38,7 @@ function physDir() {
 
 # the supported catalog servers
 
-orgCat="/Volumes/8TB-SieGeht/home/uwe/Bilder/catalog"      # production server on disk 8TB-SieGeht (at host scheibe)
+orgCat="/Volumes/14TB-WDElements/home/uwe/Bilder/catalog"  # production server on disk 14TB-WDElements (at host scheibe)
 devCat="/Users/uwe/haskell/catalog"                        # development serveer at scheibe or schwarzbuch
 extCat="/Volumes/5TB-Diakasten/home/uwe/Bilder/catalog"    # view only server on disk 5TB-Diakasten
 testCat="/Users/uwe/tmp/catalog"                           # test server ~/tmp/catalog
