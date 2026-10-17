@@ -65,7 +65,7 @@ function physDir() {
     trc physDir: result: "$res"
 }
 
-orgBas="/Volumes/8TB-SieGeht/home/uwe/Bilder"
+orgBas="/Volumes/14TB-WDElements/home/uwe/Bilder"
 orgDia="$orgBas/Diakaesten"
 orgCat="$orgBas/catalog"
 
